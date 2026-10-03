@@ -26,6 +26,10 @@ G1.3（命令层与事务）、G2（最小正向传播内核）与 G3（xlsx 导
 证据见 [S2 结论](spikes/g0-s2-xlsx-roundtrip/结论.md) 与跨语言参照实现
 [`tools/xlsx-reference`](tools/xlsx-reference/README.md)）。
 **下一步是 G4**（纯 SVG 甘特渲染，含裁剪）：把 `Schedule` 画出来，并把导入向导接到 `apps/web`。
+**G4 的开工前置已闭**：几何真相源与包边界、时间轴与 x 坐标、裁剪契约与验证矩阵已在
+[ADR 0007](docs/02-adr/0007-渲染几何与裁剪契约.md) 冻结（裁决 [P-16](docs/00-baseline/裁决记录.md)），
+**数值由 [G4-S 准入定标实验](docs/00-baseline/证伪实验计划.md) 回填**；
+另有一项硬前置是 [P-8](docs/00-baseline/裁决记录.md) 遗留 1（WPS 横向连接点 `idx=1/3` 实测）。
 **尚无产品界面（v0.1 未发布）**。
 
 ---
@@ -68,7 +72,8 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 - **PPTX**：图形为原生形状（永不为位图）；若 connector 异常，降级为折线形状；
 - **性能口径**：排程内核的性能只在 **Node 侧**实测过（[G0-S-S3 结论](spikes/g0-s3-cpm-perf/结论.md)：
   Node 24.15.0 下 1,000 任务 / 1,500 依赖的全量重算 p99 = 52.1 µs，2,000/3,000 为 129.8 µs）
-  ——**浏览器与绘制侧未测量**，因此**不承诺拖拽帧率**，该指标在 G5 用真实浏览器复测后再对外声明。
+  ——**浏览器与绘制侧未测量**，因此**不承诺拖拽帧率**（G5 用真实浏览器复测后再对外声明），
+  渲染侧的首屏与滚动数字先由 [G4-S 准入定标实验](docs/00-baseline/证伪实验计划.md) 给出。
 
 ## 文档
 
@@ -91,6 +96,7 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [架构决策记录](docs/02-adr/0004-排程契约.md) | ADR 0004（G2 的开工前置，**冻结面**）：锚点规则与会话锚点、汇总/里程碑语义、项目起点与负 lag 截断、`Schedule` 形状与诊断码表、检环 API、范围（全量 + 闭包查询）与验证门禁 |
 | [架构决策记录](docs/02-adr/0005-排程内核落地补齐与结果形状.md) | ADR 0005：落地期补齐的口岸（结果形状、文档序索引与 `-1` 哨兵、工期解析、项目起点第②级、有效图 vs 结构图、容量入口、两处有意抛出） |
 | [架构决策记录](docs/02-adr/0006-xlsx-协议契约.md) | ADR 0006（G3 的开工前置，**冻结面**）：9 列契约、单元格容差闭集、公式只读缓存值、双解析优先级、协议层诊断码表、成环边丢弃顺序、导出物白名单与确定性判据、依赖与动态导入、验证门禁 |
+| [架构决策记录](docs/02-adr/0007-渲染几何与裁剪契约.md) | ADR 0007（G4 的开工前置，**冻结面**）：几何真相源与包边界（`packages/render-core`）、时间轴与 x 坐标（自然日连续 + 右边界规则）、行模型与折叠渲染、路由折点参数、裁剪四条与元素预算、验证矩阵与门禁分层、明确不做；**数值待 [G4-S](docs/00-baseline/证伪实验计划.md) 回填** |
 | [贡献指南](CONTRIBUTING.md) | 环境、开发命令、铁律、依赖准入流程与提交约定 |
 
 ## 仓库结构
@@ -98,6 +104,7 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 ```
 packages/engine          @ganttpilot/engine          日期算术与排程内核（零 DOM / 零框架）
 packages/xlsx-protocol   @ganttpilot/xlsx-protocol   xlsx 导入/导出协议（G3 已落地）
+packages/render-core     @ganttpilot/render-core     渲染几何与裁剪内核（零 DOM / 零框架，G4 落地时创建）
 packages/pptx-renderer   @ganttpilot/pptx-renderer   PPTX 原生形状与 OOXML 补丁（G7 落地）
 apps/web                 @ganttpilot/web             前端应用：渲染与交互（G4/G5 落地）
 tools/cpm-reference      排程内核的独立 Python 参照实现（差分的"另一套实现"）
@@ -152,7 +159,8 @@ pnpm gate           # lint → typecheck → test → build → license:check（
   （`.bare.min.js` 842 KB），因此浏览器侧**必须动态 `import()`**，不得进首屏主 chunk；
 - **`.xls`(BIFF) 不支持**（ExcelJS 不支持）；**CSV 导出不在 v0.1 承诺内**；
 - **永不做 `.mpp`，且不承诺 MS Project 互操作**（[裁决 R-4](docs/00-baseline/裁决记录.md)）；
-- **性能口径**：Node 24/26 实测 + **浏览器/绘制侧未测量**（G4/G5 复测）；
+- **性能口径**：Node 24/26 实测 + **浏览器/绘制侧未测量**（G4 用 [G4-S](docs/00-baseline/证伪实验计划.md) 定标、
+  G5 复测整帧预算）；**在 G4-S 给出实测数字之前，不对外声明渲染规模与首屏指标**；
 - **尚无产品界面**：G3 只交协议层纯函数，导入向导与渲染归 G4/G5。
 
 ## 文档约定
