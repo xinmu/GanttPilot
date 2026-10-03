@@ -4,15 +4,15 @@
  * 甘特渲染、虚拟滚动与裁剪策略在 G4 落地，交互与撤销在 G5 落地。
  */
 const plan = [
-  { gate: 'G1.1', label: '日历与日期算术（工作日序号化）' },
-  { gate: 'G1.2', label: '文档 schema、版本迁移与 WBS 层级' },
-  { gate: 'G1.3', label: '命令层与事务（before 镜像逆操作）' },
-  { gate: 'G2', label: '最小正向传播内核' },
-  { gate: 'G3', label: 'xlsx 导入 / 导出（仅可见列）' },
-  { gate: 'G4', label: '纯 SVG 甘特渲染（含裁剪）' },
-  { gate: 'G5', label: '编辑体验：拖拽三语义 + 撤销重做' },
-  { gate: 'G6', label: '持久化：自动保存 + 命令回退栈' },
-  { gate: 'G7', label: '导出：SVG → PNG → PPTX 模板 A' },
+  { gate: 'G1.1', label: '日历与日期算术（工作日序号化）', done: true },
+  { gate: 'G1.2', label: '文档 schema、版本迁移与 WBS 层级', done: false },
+  { gate: 'G1.3', label: '命令层与事务（before 镜像逆操作）', done: false },
+  { gate: 'G2', label: '最小正向传播内核', done: false },
+  { gate: 'G3', label: 'xlsx 导入 / 导出（仅可见列）', done: false },
+  { gate: 'G4', label: '纯 SVG 甘特渲染（含裁剪）', done: false },
+  { gate: 'G5', label: '编辑体验：拖拽三语义 + 撤销重做', done: false },
+  { gate: 'G6', label: '持久化：自动保存 + 命令回退栈', done: false },
+  { gate: 'G7', label: '导出：SVG → PNG → PPTX 模板 A', done: false },
 ];
 </script>
 
@@ -23,13 +23,14 @@ const plan = [
       Excel 计划 → 排程引擎 → 原生可编辑 PPTX
     </p>
     <p class="status">
-      当前为 <strong>G0</strong> 骨架：仓库结构与质量护栏已就位，尚无产品能力；
-      G1 已分解为 <strong>G1.1–G1.3</strong>（裁决 P-10），尚未开工。渲染能力见 G4。
+      当前为 <strong>G0</strong> 骨架，<strong>G1.1</strong>（日历与日期算术，工作日序号化）已完成；
+      尚无产品能力，下一步是 <strong>G1.2</strong>（文档 schema 与 WBS）。渲染能力见 G4。
     </p>
     <ol class="plan">
       <li
         v-for="item in plan"
         :key="item.gate"
+        :class="{ done: item.done }"
       >
         <span class="gate">{{ item.gate }}</span>
         <span>{{ item.label }}</span>
@@ -74,5 +75,13 @@ h1 {
   margin-right: 0.5rem;
   font-weight: 600;
   color: #3d7ea6;
+}
+
+.done {
+  color: #52606d;
+}
+
+.done::marker {
+  color: #2f9e63;
 }
 </style>
