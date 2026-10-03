@@ -30,6 +30,9 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 
 ## 已知限制（诚实声明，随版本更新）
 
+- **验证环境**：开发与验收**以 WPS 为准**（[裁决 P-4](docs/00-baseline/裁决记录.md)）；
+  **Microsoft PowerPoint 未经验证**（备查、不阻塞）——
+  因此在未完成该验证前，**不承诺** PowerPoint 下的依赖线拖动跟随行为；
 - **Keynote**：不保证依赖线保持吸附语义（Apple 官方兼容矩阵说明连接线会被导入为直线）；
 - **WPS**：兼容性结论以真机测试为准，未经证据支持的承诺不下发；
 - **xlsx**：导入导出以**自有 schema 规范化**为准，**不保留用户原有的列顺序、样式、公式与宏**；
@@ -55,6 +58,14 @@ packages/xlsx-protocol   @ganttpilot/xlsx-protocol   xlsx 导入/导出协议（
 packages/pptx-renderer   @ganttpilot/pptx-renderer   PPTX 原生形状与 OOXML 补丁（G7 落地）
 apps/web                 @ganttpilot/web             前端应用：渲染与交互（G4/G5 落地）
 ```
+
+## 验证环境口径（裁决 P-4）
+
+- **开发与验收一律使用 WPS**：人工操作验证与 COM 自动化验证都算数；
+- **门禁以 WPS 为准**——G1-a（拖动后 connector 端点跟随）等判据的"真机"即指 WPS；
+- **Microsoft PowerPoint 备查、不阻塞**。输出为标准 OOXML 原生形状、未用 WPS 私有扩展，
+  但**未在 PowerPoint 下验证**，故不对外承诺其行为；需要时按
+  [备查清单](spikes/g0-s1-pptx-connector/evidence/powerpoint/README.md) 跑一次即可提升为门禁。
 
 ## 本地质量门禁
 
