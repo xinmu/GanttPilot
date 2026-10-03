@@ -33,3 +33,9 @@ Thumbs.db
 # 本地临时/草稿（不作为交付物）
 tmp/
 *.tmp
+
+# husky 生成的钩子运行时目录
+.husky/_/
+
+# vitest 输出
+.vitest-reports/

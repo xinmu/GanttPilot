@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "files": ["vitest.config.ts"],
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "allowImportingTsExtensions": true
+  },
+  "references": [
+    { "path": "packages/engine" },
+    { "path": "packages/xlsx-protocol" },
+    { "path": "packages/pptx-renderer" }
+  ]
+}

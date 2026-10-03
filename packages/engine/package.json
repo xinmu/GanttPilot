@@ -1,0 +1,26 @@
+{
+  "name": "@ganttpilot/engine",
+  "version": "0.0.0",
+  "description": "排程内核：日期算术、依赖传播、命令层（零 DOM / 零框架依赖）",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json --noEmit"
+  }
+}

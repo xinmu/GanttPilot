@@ -1,0 +1,29 @@
+{
+  "name": "@ganttpilot/pptx-renderer",
+  "version": "0.0.0",
+  "description": "PPTX 渲染：原生形状 + 自研 OOXML 补丁（connector/group），永不为位图（零 DOM / 零框架依赖）",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json --noEmit"
+  },
+  "dependencies": {
+    "@ganttpilot/engine": "workspace:*"
+  }
+}

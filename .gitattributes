@@ -1,0 +1,16 @@
+# 统一换行：仓库内一律 LF。
+# 关键原因：git hook 脚本（.husky/）在 Windows 上以 msys/git-bash 执行，
+# 若被检出为 CRLF 会直接失败。
+* text=auto eol=lf
+
+# 明确的二进制类型，避免被当作文本处理
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.xlsx binary
+*.pptx binary
+*.docx binary
+*.pdf binary
+*.zip binary

@@ -1,0 +1,20 @@
+{
+  "name": "@ganttpilot/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "GanttPilot 前端应用：甘特渲染与交互（能力块 G4/G5 落地）",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "vue": "^3.5.43"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.9"
+  }
+}

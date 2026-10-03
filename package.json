@@ -1,0 +1,38 @@
+{
+  "name": "ganttpilot",
+  "version": "0.0.0",
+  "private": true,
+  "description": "GanttPilot：Excel 计划 → 排程引擎 → 原生可编辑 PPTX（monorepo 根）",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "packageManager": "pnpm@10.34.6",
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "vitest run",
+    "build": "pnpm -r --if-present build",
+    "gate": "node scripts/gate.mjs",
+    "license:check": "node scripts/check-licenses.mjs --prod",
+    "license:check:all": "node scripts/check-licenses.mjs --all",
+    "notices:write": "node scripts/check-licenses.mjs --all --write",
+    "hooks:install": "git config core.hooksPath .husky",
+    "prepare": "node scripts/install-hooks.mjs",
+    "dev": "pnpm --filter @ganttpilot/web dev"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "@types/node": "^24.19.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-vue": "^10.11.1",
+    "husky": "^9.1.7",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.71.0",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3",
+    "vue-eslint-parser": "^10.4.1",
+    "vue-tsc": "^3.3.12"
+  }
+}
