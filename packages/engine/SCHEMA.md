@@ -1,9 +1,11 @@
 # 文档 schema 规范（G1.2）
 
 > 本文件是 `@ganttpilot/engine` 文档模型（`packages/engine/src/schema.ts`、`wbs.ts`）的**权威说明**，
-> 供 G3（xlsx 导入/导出）、G4（渲染）、G6（持久化）与 G1.3（命令层）共同引用。
+> 供 G3（xlsx 导入/导出）、G4（渲染）、G6（持久化）与 G5（编辑）共同引用。
 > 决策依据与取舍见 [ADR 0002](../../docs/02-adr/0002-文档模型与序列化契约.md)；
 > 能力块出口条件见 [首版能力顺序 G1.2](../../docs/01-roadmap/首版能力顺序.md)。
+> **变更通道**（命令层、before 镜像、事务与撤销/重做）见 [COMMAND.md](COMMAND.md)——本文件只描述形状；
+> 命令层保证其产出必然满足本规范（它直接复用 `validateDocument`，不复制规则）。
 
 ## 一、三条铁律
 
@@ -201,7 +203,7 @@ type WbsResult<T> = { ok: true; value: T } | { ok: false; code: WbsFailureCode; 
 | `baselines[].snapshot` 的内容 | **v0.5**（P1-03） |
 | 折叠的渲染行为 | **G4**（本块只承载 `collapsed` 状态） |
 | xlsx 列契约、依赖列语法、导入容差 | **G3**（见 [S2 结论 §八](../../spikes/g0-s2-xlsx-roundtrip/结论.md)） |
-| 命令层与事务、撤销栈 | **G1.3**（形状在本块冻结后才开工） |
+| 命令层与事务、撤销栈 | **G1.3 已落地**（[COMMAND.md](COMMAND.md) + [ADR 0003](../../docs/02-adr/0003-命令层与事务契约.md)；本文件只描述文档形状，变更通道见该规范） |
 | 用户自定义排序 | **P1-04** |
 | 多日历生效（v0.1 只有项目日历生效） | **v0.5+**（R-1） |
 

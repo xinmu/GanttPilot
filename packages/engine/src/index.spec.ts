@@ -5,8 +5,8 @@ import * as engine from './index.js';
 describe('@ganttpilot/engine 公共入口', () => {
   it('导出 G1.1 的日历与日期算术 API 与包标识', () => {
     expect(engine.ENGINE_VERSION).toBe('0.0.0');
-    expect(engine.PLANNED_GATE).toBe('G1.2');
-    expect(engine.COMPLETED_GATES).toStrictEqual(['G1.1', 'G1.2']);
+    expect(engine.PLANNED_GATE).toBe('G1.3');
+    expect(engine.COMPLETED_GATES).toStrictEqual(['G1.1', 'G1.2', 'G1.3']);
 
     // G0 的兼容面必须保持可用。
     expect(typeof engine.countWorkdays).toBe('function');
@@ -62,6 +62,126 @@ describe('@ganttpilot/engine 公共入口', () => {
     expect(typeof engine.isValidOutlineNumber).toBe('function');
     expect(engine.OUTLINE_SEPARATOR).toBe('.');
     expect(engine.MAX_OUTLINE_DEPTH).toBeGreaterThan(0);
+  });
+
+  it('导出 G1.3 的命令层、before 镜像与会话 API', () => {
+    // 命令层（唯一变更通道）
+    expect(typeof engine.applyCommand).toBe('function');
+    expect(typeof engine.checkCommandShape).toBe('function');
+    expect(typeof engine.replayCommands).toBe('function');
+    expect(typeof engine.serializeCommand).toBe('function');
+    expect(typeof engine.parseCommand).toBe('function');
+    expect(typeof engine.suggestTaskId).toBe('function');
+    expect(typeof engine.suggestLinkId).toBe('function');
+    expect(engine.COMMAND_KINDS).toHaveLength(11);
+
+    // before 镜像（日志）
+    expect(typeof engine.diffDocument).toBe('function');
+    expect(typeof engine.applyDocumentJournal).toBe('function');
+    expect(typeof engine.invertDocumentJournal).toBe('function');
+    expect(typeof engine.createBulkJournal).toBe('function');
+    expect(typeof engine.isJournalEmpty).toBe('function');
+    expect(typeof engine.journalScope).toBe('function');
+    expect(typeof engine.cloneJsonValue).toBe('function');
+    expect(typeof engine.deepFreezeJson).toBe('function');
+    expect(typeof engine.findNonJsonValue).toBe('function');
+    expect(typeof engine.jsonDeepEqual).toBe('function');
+
+    // 会话与事务
+    expect(typeof engine.createSession).toBe('function');
+    expect(typeof engine.applyToSession).toBe('function');
+    expect(typeof engine.createTransaction).toBe('function');
+    expect(typeof engine.addToTransaction).toBe('function');
+    expect(typeof engine.commitTransaction).toBe('function');
+    expect(typeof engine.undoSession).toBe('function');
+    expect(typeof engine.redoSession).toBe('function');
+  });
+
+  it('通过公共入口走完「应用命令 → 撤销 → 重做」（含 WBS 调级与跨字段变更）', () => {
+    const base = engine.reindexDocument(
+      engine.parseDocument(
+        engine.serializeDocument({
+          ...engine.createEmptyDocument('命令层冒烟'),
+          tasks: [
+            {
+              id: 'a',
+              parentId: null,
+              outlineNumber: '1',
+              name: '阶段',
+              startDate: null,
+              endDate: null,
+              durationDays: null,
+              progress: null,
+              milestone: false,
+              collapsed: false,
+              notes: null,
+              manual: false,
+              constraints: [],
+            },
+            {
+              id: 'b',
+              parentId: null,
+              outlineNumber: '2',
+              name: '任务',
+              startDate: '2025-01-06',
+              endDate: '2025-01-10',
+              durationDays: 4,
+              progress: 0.5,
+              milestone: false,
+              collapsed: false,
+              notes: null,
+              manual: false,
+              constraints: [],
+            },
+          ],
+        }),
+      ),
+    );
+
+    let session = engine.createSession(base);
+    const apply = engine.applyToSession(session, { kind: 'task.indent', id: 'b' });
+    expect(apply.ok).toBe(true);
+    if (!apply.ok || !apply.changed) {
+      return;
+    }
+    session = apply.session;
+    expect(session.document.tasks.find((task) => task.id === 'b')?.parentId).toBe('a');
+
+    const crossField = engine.applyToSession(session, {
+      kind: 'task.update',
+      id: 'b',
+      patch: { name: '任务（改）', progress: 1, notes: '跨字段' },
+    });
+    expect(crossField.ok).toBe(true);
+    if (!crossField.ok || !crossField.changed) {
+      return;
+    }
+    session = crossField.session;
+    const peak = session.document;
+
+    const undoneOnce = engine.undoSession(session);
+    expect(undoneOnce.ok).toBe(true);
+    if (!undoneOnce.ok) {
+      return;
+    }
+    const undoneTwice = engine.undoSession(undoneOnce.session);
+    expect(undoneTwice.ok).toBe(true);
+    if (!undoneTwice.ok) {
+      return;
+    }
+    expect(undoneTwice.session.document).toStrictEqual(base);
+
+    const firstRedo = engine.redoSession(undoneTwice.session);
+    expect(firstRedo.ok).toBe(true);
+    if (!firstRedo.ok) {
+      return;
+    }
+    const secondRedo = engine.redoSession(firstRedo.session);
+    expect(secondRedo.ok).toBe(true);
+    if (!secondRedo.ok) {
+      return;
+    }
+    expect(secondRedo.session.document).toStrictEqual(peak);
   });
 
   it('通过公共入口就能走完「新建 → 建层级 → 序列化 → 解析」', () => {

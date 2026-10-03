@@ -6,7 +6,7 @@
 const plan = [
   { gate: 'G1.1', label: '日历与日期算术（工作日序号化）', done: true },
   { gate: 'G1.2', label: '文档 schema、版本迁移与 WBS 层级', done: true },
-  { gate: 'G1.3', label: '命令层与事务（before 镜像逆操作）', done: false },
+  { gate: 'G1.3', label: '命令层与事务（before 镜像逆操作）', done: true },
   { gate: 'G2', label: '最小正向传播内核', done: false },
   { gate: 'G3', label: 'xlsx 导入 / 导出（仅可见列）', done: false },
   { gate: 'G4', label: '纯 SVG 甘特渲染（含裁剪）', done: false },
@@ -23,9 +23,11 @@ const plan = [
       Excel 计划 → 排程引擎 → 原生可编辑 PPTX
     </p>
     <p class="status">
-      当前为 <strong>G0</strong> 骨架，<strong>G1.1</strong>（日历与日期算术，工作日序号化）与
-      <strong>G1.2</strong>（文档 schema、版本迁移与 WBS 层级）已完成；
-      尚无产品能力，下一步是 <strong>G1.3</strong>（命令层与事务）。渲染能力见 G4。
+      当前为 <strong>G0</strong> 骨架，<strong>G1.1</strong>（日历与日期算术，工作日序号化）、
+      <strong>G1.2</strong>（文档 schema、版本迁移与 WBS 层级）与
+      <strong>G1.3</strong>（命令层与事务：唯一变更通道 + before 镜像 + 撤销/重做栈）已完成，
+      <strong>G1 合集至此收口</strong>；
+      尚无产品能力，下一步是 <strong>G2</strong>（最小正向传播内核）。渲染能力见 G4。
     </p>
     <ol class="plan">
       <li

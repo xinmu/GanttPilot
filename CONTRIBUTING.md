@@ -1,12 +1,14 @@
 # 贡献指南
 
-> 本项目当前处于 v0.1 的 **G1.1（日历与日期算术）与 G1.2（文档 schema、版本迁移与 WBS 层级）
-> 均已完成**阶段：`packages/engine` 已落地工作日序号化日历、O(1) 日期翻译，
-> 以及**冻结的文档模型**（规范化序列化/解析、结构化诊断校验、`v1→v2→v3` 迁移、WBS 调级）。
-> **下一步是 G1.3**（命令层与事务）——G1.2 的形状已冻结，故它可以开工；**尚无产品能力**。
+> 本项目当前处于 v0.1 的 **G1.1（日历与日期算术）、G1.2（文档 schema、版本迁移与 WBS 层级）
+> 与 G1.3（命令层与事务）均已完成**阶段：`packages/engine` 已落地工作日序号化日历与 O(1) 日期翻译、
+> **冻结的文档模型**（规范化序列化/解析、结构化诊断校验、`v1→v2→v3` 迁移、WBS 调级），
+> 以及**命令层**（唯一变更通道、before 镜像、事务与撤销/重做栈）——**G1 合集至此收口**。
+> **下一步是 G2**（最小正向传播内核）；**尚无产品能力**。
 > 能力顺序与每块出口条件见 [首版能力顺序](docs/01-roadmap/首版能力顺序.md)；
 > 关键决策见 [docs/02-adr](docs/02-adr/)；分解依据见 [裁决 P-10](docs/00-baseline/裁决记录.md)；
-> 文档模型规范见 [packages/engine/SCHEMA.md](packages/engine/SCHEMA.md)。
+> 文档模型规范见 [packages/engine/SCHEMA.md](packages/engine/SCHEMA.md)；
+> 命令层规范见 [packages/engine/COMMAND.md](packages/engine/COMMAND.md)。
 
 ## 环境
 
@@ -68,6 +70,31 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 
 新增 schema 字段时的额外要求：同步 `SCHEMA.md` 的字段表、`canonicalizeDocument` 的规范键序、
 `fixtures.spec.ts` 的夹具（否则「夹具是规范形状」用例会失败），以及本节的落地记录。
+
+## 命令层契约（G1.3 之后必须遵守）
+
+命令层规范见 [`packages/engine/COMMAND.md`](packages/engine/COMMAND.md)，
+取舍与代价见 [ADR 0003](docs/02-adr/0003-命令层与事务契约.md)。改代码前请先读这两份，
+其中最容易踩的五条：
+
+1. **文档的变更只有一个通道**：新增任何文档写入路径都要**新增一个 `Command`**，
+   不允许在应用层直接拼装文档（否则"命令产出必然合法"这条保证就有缺口）。
+   新增 kind 时同步 `COMMAND_KINDS`、`COMMAND.md` 的命令表、以及"每个 kind 都被覆盖"的完备性用例。
+2. **命令是纯数据、`applyCommand` 是纯函数**：不得引入时钟、随机数或全局自增
+   （会破坏"同一命令序列 → 同一结果"）。id 由载荷显式给出，`suggestTaskId` 只是确定性建议。
+3. **日志（before 镜像）clone-then-freeze**：冻结的是**日志自己的克隆体**，
+   **绝不冻结调用方的文档**（`apps/web` 的 Vue 响应式依赖可写性）；
+   应用日志时写出新鲜克隆。
+4. **无操作不是失败**：恒等 patch 与 `WBS_SAME_POSITION` 返回 `{ok:true, changed:false}`，
+   调用方据此**跳过撤销栈压入**；失败一律返回结构化码（不抛错），
+   只有"日志与文档自相矛盾"这类程序员错误才抛 `RangeError`。
+5. **结果合法性复用 `validateDocument`**：不要在命令层复制 schema 规则；
+   需要 `warning` 级提示时在提交后自行调 `validateDocument`（命令层不复制诊断面）。
+
+改动命令层时的测试要求：**双路互证**（命令产出 vs 既有领域函数 + 手工数组操作）、
+**负向对照**（逆操作承重、日志条目承重、守卫有牙）、以及规模结构断言
+（日志条目数与文档规模解耦）——它们都在 `journal.spec.ts` / `command.spec.ts` / `session.spec.ts` /
+`documentPerformance.spec.ts` 里，改语义前先看它们为什么那样写。
 
 ## 提交约定
 

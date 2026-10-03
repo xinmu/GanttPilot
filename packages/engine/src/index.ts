@@ -3,10 +3,11 @@
  *
  * 已落地：
  * - **G1.1 工作日序号化的日历与日期算术**（`date.ts`）；
- * - **G1.2 文档 schema、版本迁移与 WBS 层级**（`schema.ts` / `wbs.ts`：
- *   文档模型 + 规范化序列化 + 结构化校验 + v1→v2→v3 迁移 + 层级不变量与调级）。
+ * - **G1.2 文档 schema、版本迁移与 WBS 层级**（`schema.ts` / `wbs.ts`）；
+ * - **G1.3 命令层与事务**（`journal.ts` / `command.ts` / `session.ts`：
+ *   before 镜像日志（唯一变更内核）、命令唯一变更通道、事务与撤销/重做栈）。
  *
- * 命令层在 G1.3、`compute()` 排程内核在 G2 落地，届时本文件的导出面会继续扩张——
+ * `compute()` 排程内核在 G2 落地，届时本文件的导出面会继续扩张——
  * **此处不承诺最终 API 形状**。
  *
  * 铁律（以可执行检查保证）：本包不得 import 任何框架（Vue/React/…），
@@ -22,10 +23,10 @@ export const ENGINE_VERSION = '0.0.0';
  *
  * 注意语义：它是"最新一个"，不是"唯一一个"——完整清单见 `COMPLETED_GATES`。
  */
-export const PLANNED_GATE = 'G1.2' as const;
+export const PLANNED_GATE = 'G1.3' as const;
 
 /** 已落地能力块清单（G0 的护栏不在本包内，故不计入）。 */
-export const COMPLETED_GATES = ['G1.1', 'G1.2'] as const;
+export const COMPLETED_GATES = ['G1.1', 'G1.2', 'G1.3'] as const;
 
 // ---------------------------------------------------------------- G1.1 日期与日历
 export {
@@ -110,3 +111,76 @@ export {
   type WbsMoveTarget,
   type WbsResult,
 } from './wbs.js';
+
+// ---------------------------------------------------------------- G1.3 before 镜像日志
+export {
+  applyDocumentJournal,
+  cloneJsonValue,
+  createBulkJournal,
+  deepFreezeJson,
+  diffDocument,
+  findNonJsonValue,
+  invertDocumentJournal,
+  isJournalEmpty,
+  jsonDeepEqual,
+  journalScope,
+  type BulkJournal,
+  type DeltaJournal,
+  type DocumentJournal,
+  type EntityChange,
+  type JournalScope,
+  type LinkChange,
+  type OrderChange,
+  type ProjectChange,
+  type TaskChange,
+} from './journal.js';
+
+// ---------------------------------------------------------------- G1.3 命令层（唯一变更通道）
+export {
+  applyCommand,
+  checkCommandShape,
+  COMMAND_KINDS,
+  parseCommand,
+  replayCommands,
+  serializeCommand,
+  suggestLinkId,
+  suggestTaskId,
+  type CommandFailure,
+  type CommandFailureCode,
+  type CommandParseResult,
+  type CommandResult,
+  type CommandShapeCheck,
+  type DocumentCommand,
+  type DocumentCommandKind,
+  type DocumentReplaceCommand,
+  type LinkFieldPatch,
+  type LinkInsertCommand,
+  type LinkRemoveCommand,
+  type LinkUpdateCommand,
+  type ProjectMetaPatch,
+  type ProjectUpdateCommand,
+  type ReplayResult,
+  type TaskFieldPatch,
+  type TaskIndentCommand,
+  type TaskInsertCommand,
+  type TaskMoveCommand,
+  type TaskOutdentCommand,
+  type TaskRemoveCommand,
+  type TaskUpdateCommand,
+} from './command.js';
+
+// ---------------------------------------------------------------- G1.3 会话与事务（撤销/重做）
+export {
+  addToTransaction,
+  applyToSession,
+  commitTransaction,
+  createSession,
+  createTransaction,
+  redoSession,
+  undoSession,
+  type DocumentSession,
+  type SessionFailureCode,
+  type SessionResult,
+  type SessionStep,
+  type Transaction,
+} from './session.js';

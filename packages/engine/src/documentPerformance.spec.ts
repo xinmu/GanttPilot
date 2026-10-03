@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { applyCommand, type DocumentCommand } from './command.js';
+import { jsonDeepEqual, type DeltaJournal, type DocumentJournal } from './journal.js';
 import {
   hasDocumentErrors,
   parseDocument,
@@ -8,6 +10,14 @@ import {
   validateDocument,
   type ProjectDocument,
 } from './schema.js';
+import {
+  addToTransaction,
+  applyToSession,
+  commitTransaction,
+  createSession,
+  createTransaction,
+  undoSession,
+} from './session.js';
 import {
   buildTaskTree,
   computeOutlineNumbers,
@@ -158,5 +168,132 @@ describe('G1.2 规模行为：调级在 1,000 任务上可用', () => {
     expect(reindexTasks(restored.value).map((entry) => [entry.id, entry.parentId, entry.outlineNumber])).toStrictEqual(
       doc.tasks.map((entry) => [entry.id, entry.parentId, entry.outlineNumber]),
     );
+  });
+});
+
+/**
+ * G1.3 的**规模行为**测试。
+ *
+ * 与上面两节同一口径：**只断言结构性事实，不做时序门禁**（理由见本文件头注释）。
+ * 这里断言的是 R-2 的核心收益与"日志规模与文档规模解耦"这两条**可证伪**的结构事实：
+ * 1. 字段级命令的日志条目数**与任务总数无关**（1,000 任务上仍是 1 条）；
+ * 2. 字段级 delta 的序列化体积远小于整份文档（< 5%）——这就是 R-2 说的"量级差"；
+ * 3. 层级调级的日志条目集合，与"测试侧独立算出的值变化集合"**逐项一致**（日志不多记、不漏记）；
+ * 4. 1,000 任务上 60 步撤销可用（无时序断言）。
+ */
+describe('G1.3 规模行为：日志与文档规模解耦', () => {
+  const base = (): ProjectDocument => largeDoc(1000);
+
+  it('字段级命令的日志只含 1 条任务条目（与 1,000 无关）', () => {
+    const doc = base();
+    const result = applyCommand(doc, { kind: 'task.update', id: 'p1-s1-l1', patch: { name: '改一行' } });
+    expect(result.ok).toBe(true);
+    if (!result.ok || !result.changed || result.journal.kind !== 'delta') {
+      throw new Error('字段更新应当成功并产生 delta 日志');
+    }
+    expect(result.journal.tasks).toHaveLength(1);
+    expect(result.journal.taskOrder).toBeNull();
+    expect(result.journal.linkOrder).toBeNull();
+  });
+
+  it('字段级 delta 的体积远小于整份文档（R-2 的量级差）', () => {
+    const doc = base();
+    const result = applyCommand(doc, { kind: 'task.update', id: 'p1-s1-l1', patch: { name: '改一行' } });
+    if (!result.ok || !result.changed) {
+      throw new Error('字段更新应当成功');
+    }
+    const journalSize = JSON.stringify(result.journal).length;
+    const documentSize = serializeDocument(doc).length;
+    expect(journalSize).toBeLessThan(documentSize * 0.05);
+  });
+
+  it('层级调级的日志条目集合 = 值真的变了的任务集合（不多记、不漏记）', () => {
+    const doc = base();
+    const result = applyCommand(doc, { kind: 'task.indent', id: 'p2' });
+    expect(result.ok).toBe(true);
+    if (!result.ok || !result.changed || result.journal.kind !== 'delta') {
+      throw new Error('调级应当成功并产生 delta 日志');
+    }
+    const journal: DeltaJournal = result.journal;
+
+    // 测试侧独立算出"值变了的任务 id 集合"：逐实体结构化比较（键序无关）
+    const journalIds = journal.tasks
+      .filter((change) => change.before !== null && change.after !== null)
+      .map((change) => change.id);
+    const changedIds = result.document.tasks
+      .filter((task) => {
+        const previous = doc.tasks.find((entry) => entry.id === task.id);
+        return previous !== undefined && !jsonDeepEqual(previous, task);
+      })
+      .map((task) => task.id);
+
+    expect(journalIds.slice().sort()).toStrictEqual(changedIds.slice().sort());
+    // 调级是 O(受影响任务)，不会退化成"整份镜像"
+    expect(journalIds.length).toBeGreaterThan(0);
+    expect(journalIds.length).toBeLessThan(doc.tasks.length);
+  });
+
+  it('整份替换的日志是 document 形态（批量事件明示 O(N)）', () => {
+    const doc = base();
+    const smaller = largeDoc(10);
+    const result = applyCommand(doc, { kind: 'document.replace', document: smaller });
+    expect(result.ok).toBe(true);
+    if (!result.ok || !result.changed) {
+      throw new Error('整份替换应当成功');
+    }
+    const journal: DocumentJournal = result.journal;
+    expect(journal.kind).toBe('document');
+  });
+
+  it('1,000 任务上 60 步撤销/重做可用（结构性事实，无时序断言）', () => {
+    const doc = base();
+    const commands: readonly DocumentCommand[] = Array.from({ length: 60 }, (_, index) => ({
+      kind: 'task.update',
+      id: 'p1-s1-l1',
+      patch: { notes: `步 ${String(index + 1)}`, progress: index / 60 },
+    }));
+
+    let session = createSession(doc);
+    for (const command of commands) {
+      const result = applyToSession(session, command);
+      expect(result.ok, command.kind).toBe(true);
+      if (!result.ok) {
+        return;
+      }
+      session = result.session;
+    }
+    expect(hasDocumentErrors(validateDocument(session.document))).toBe(false);
+
+    const peak = session.document;
+    for (let index = 0; index < commands.length; index += 1) {
+      const result = undoSession(session);
+      expect(result.ok).toBe(true);
+      if (!result.ok) {
+        return;
+      }
+      session = result.session;
+    }
+    expect(session.document).toStrictEqual(doc);
+    expect(peak).not.toStrictEqual(doc);
+  });
+
+  it('事务在 1,000 任务上只压一步（一次手势一次的收益可断言）', () => {
+    const doc = base();
+    const session = createSession(doc);
+    let transaction = createTransaction([
+      { kind: 'task.update', id: 'p1-s1-l1', patch: { name: '甲' } },
+    ]);
+    transaction = addToTransaction(transaction, {
+      kind: 'task.update',
+      id: 'p1-s1-l2',
+      patch: { name: '乙' },
+    });
+    const committed = commitTransaction(session, transaction);
+    expect(committed.ok).toBe(true);
+    if (!committed.ok || !committed.changed) {
+      throw new Error('事务应当成功');
+    }
+    expect(committed.session.undoStack).toHaveLength(1);
+    expect(committed.session.undoStack[0]?.commands).toHaveLength(2);
   });
 });
