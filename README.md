@@ -4,8 +4,9 @@
 
 **当前状态：G0（仓库骨架与测试/门禁护栏）已完成，三项证伪实验（G0-S）全部收口；
 G1.1（日历与日期算术：工作日序号化）、G1.2（文档 schema、版本迁移与 WBS 层级）、
-G1.3（命令层与事务）、G2（最小正向传播内核）与 G3（xlsx 导入/导出，仅可见列）** 已完成
-——**「Excel 导入 → 排程」这条链路在协议层已跑通**（尚无 UI）。
+G1.3（命令层与事务）、G2（最小正向传播内核）、G3（xlsx 导入/导出，仅可见列）与
+G4（纯 SVG 甘特渲染，含裁剪）** 已完成 ——
+**「Excel 导入 → 出图」这条主链路在浏览器里已跑通**（左表右图分屏、虚拟滚动、折叠、行内编辑、xlsx 导入）。
 `packages/engine` 已落地 O(1) 的「工作日序号 ↔ 日期」翻译与 `exceptions` 双集合
 （[落地记录](docs/01-roadmap/首版能力顺序.md)）、**冻结的文档模型**
 （规范化序列化与深比较往返、结构化诊断校验、`v1→v2→v3` 迁移与未知版本拒绝、WBS 调级，
@@ -16,23 +17,25 @@ G1.3（命令层与事务）、G2（最小正向传播内核）与 G3（xlsx 导
 **排程内核**：全量正向传播（4 类关系 + lag）、锚点四情形与会话锚点、汇总任务引擎侧聚合、
 负 lag 截断、结构性检环与受影响闭包
 （规范见 [SCHEDULE.md](packages/engine/SCHEDULE.md)，决策见 [ADR 0004](docs/02-adr/0004-排程契约.md) 与
-[ADR 0005](docs/02-adr/0005-排程内核落地补齐与结果形状.md)，证据见
-[S3 结论](spikes/g0-s3-cpm-perf/结论.md) 与差分参照实现
-[`tools/cpm-reference`](tools/cpm-reference/README.md)），
-以及 **xlsx 协议层**：9 列规范契约与双解析、单元格容差闭集、公式只读缓存值、
+[ADR 0005](docs/02-adr/0005-排程内核落地补齐与结果形状.md)），
+**xlsx 协议层**：9 列规范契约与双解析、单元格容差闭集、公式只读缓存值、
 确定性成环边丢弃、三层拼接的结构化诊断、规范化导出与部件指纹确定性
 （规范见 [PROTOCOL.md](packages/xlsx-protocol/PROTOCOL.md)，决策见
-[ADR 0006](docs/02-adr/0006-xlsx-协议契约.md) 与 [裁决 P-15](docs/00-baseline/裁决记录.md)，
-证据见 [S2 结论](spikes/g0-s2-xlsx-roundtrip/结论.md) 与跨语言参照实现
-[`tools/xlsx-reference`](tools/xlsx-reference/README.md)）。
-**下一步是 G4**（纯 SVG 甘特渲染，含裁剪）：把 `Schedule` 画出来，并把导入向导接到 `apps/web`。
-**G4 的开工前置已闭**：几何真相源与包边界、时间轴与 x 坐标、裁剪契约与验证矩阵已在
-[ADR 0007](docs/02-adr/0007-渲染几何与裁剪契约.md) 冻结（裁决 [P-16](docs/00-baseline/裁决记录.md)），
-**数值已由 [G4-S 准入定标实验](spikes/g0-s4-svg-clipping/结论.md) 回填**（`S4-a`…`S4-d` **全部通过**，
-裁决 [P-17](docs/00-baseline/裁决记录.md)，见 [ADR 0007 §11](docs/02-adr/0007-渲染几何与裁剪契约.md)）；
-另一项硬前置 [P-8](docs/00-baseline/裁决记录.md) 遗留 1（WPS 横向连接点 `idx=1/3` 实测）**已完成**：
-`idx_OOXML = COM − 1` 四站点实测成立。
-**尚无产品界面（v0.1 未发布）**。
+[ADR 0006](docs/02-adr/0006-xlsx-协议契约.md)），
+以及 **G4 的渲染几何与裁剪内核 `packages/render-core`**（视图模型、时间轴与 x 坐标、正交路由、
+行/边/水平三窗口裁剪、元素预算、受影响子集）与 **`apps/web` 的 Vue 视图层**
+（纯 SVG 甘特、左表右图分屏、虚拟滚动、折叠、行内编辑、xlsx 导入接线）
+（规范见 [render-core/SPEC.md](packages/render-core/SPEC.md)，决策见
+[ADR 0007](docs/02-adr/0007-渲染几何与裁剪契约.md)，落地裁决见
+[P-18](docs/00-baseline/裁决记录.md)，打包产物测量见
+[渲染计时证据](apps/web/evidence/render-timing-chrome152.md)）。
+**下一步是 G5**（拖拽三语义 + 撤销/重做 UI）。
+**G4 的开工前置在上一轮已闭**：[ADR 0007](docs/02-adr/0007-渲染几何与裁剪契约.md) 冻结形状与语义，
+**数值由 G4-S 准入定标实验回填**（`S4-a`…`S4-d` **全部通过**，
+裁决 [P-17](docs/00-baseline/裁决记录.md)）；另一项硬前置 [P-8](docs/00-baseline/裁决记录.md) 遗留 1
+（WPS 横向连接点 `idx=1/3` 实测）**已完成**。
+**G4-S 的探针目录已在 G4 落地时整体删除**（其四条门禁结论已复现为 `render-core` 的 spec，
+浏览器计时口径已移植为 [`scripts/measure-render.mjs`](scripts/measure-render.mjs)）。
 
 ---
 
@@ -71,18 +74,7 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 - **xlsx 往返的验证环境**：以 **WPS 表格**为准（「仅保存」与「编辑后保存」两种往返均已实测通过，
   见 [G0-S-S2 结论](spikes/g0-s2-xlsx-roundtrip/结论.md)）；**Microsoft Excel 与 Google Sheets 未经验证**，
   因此**不承诺**其往返行为；
-- **PPTX**：图形为原生形状（永不为位图）；若 connector 异常，降级为折线形状；
-- **性能口径**：排程内核的性能只在 **Node 侧**实测过（[G0-S-S3 结论](spikes/g0-s3-cpm-perf/结论.md)：
-  Node 24.15.0 下 1,000 任务 / 1,500 依赖的全量重算 p99 = 52.1 µs，2,000/3,000 为 129.8 µs）；
-  **拖拽帧率（G5）尚未测量**，因此**不承诺拖拽帧率**（用真实浏览器复测后再对外声明）；
-- **渲染侧已定标但仍是"记录制"**（[G4-S 结论](spikes/g0-s4-svg-clipping/结论.md)、裁决 [P-17](docs/00-baseline/裁决记录.md)）：
-  裁剪有效性在 Node 侧可测（元素数与文档规模解耦：10× 规模跨度下元素总数 1.104×，关掉裁剪 10.71×），
-  但**首屏与滚动数字来自单机单浏览器、无打包器的探针页**（Chrome 152 / headless / DPR 1 / 1280×640：
-  首屏 18.0–31.2 ms、10× 滚动 164.8–167.2 ms），因此：
-  ① 它**不是**门禁、不进 CI；② **G4/G8 必须在打包产物上复测**后才能对外声明首屏指标；
-  ③ 滚动数字是**程序化步进**（不是真实滚轮）；④ 2,000 任务压测与拖拽帧率仍归 v0.5 / G5；
-- **渲染规模声明**：v0.1 的 1,000 任务首屏 ≤1s **已由 G4-S 定标**（约 32× 余量），
-  §四 的"裁剪未达标 ⇒ 规模下调到 500 任务"降级**未触发**。
+- **PPTX**：图形为原生形状（永不为位图）；若 connector 异常，降级为折线形状。
 
 ## 文档
 
@@ -96,6 +88,7 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [文档 schema 规范](packages/engine/SCHEMA.md) | `@ganttpilot/engine` 的文档模型：字段语义、`null` 口径、未启用字段、迁移与调级约定 |
 | [命令层规范](packages/engine/COMMAND.md) | `@ganttpilot/engine` 的命令层：变更唯一通道、before 镜像（日志）形状、失败码、事务与撤销/重做语义 |
 | [排程内核规范](packages/engine/SCHEDULE.md) | `@ganttpilot/engine` 的排程内核：`compute()` 的输入/输出与哨兵、锚点四情形、汇总与里程碑、项目起点与截断、诊断码表、检环与闭包、容量配方、验证与门禁 |
+| [渲染几何与裁剪规范](packages/render-core/SPEC.md) | `@ganttpilot/render-core` 的权威规范：包边界与公共 API、时间轴与 x 坐标、行模型、路由几何、裁剪四条与元素预算、退化状态、编辑边界、验证矩阵与实测数字 |
 | [参照实现（排程）](tools/cpm-reference/README.md) | 排程差分的"另一套实现"：CLI 与 JSON 协议、语义清单、`GANTTPILOT_PYTHON` 与 Windows 9009 注意事项 |
 | [xlsx 协议规范](packages/xlsx-protocol/PROTOCOL.md) | `@ganttpilot/xlsx-protocol` 的权威规范：9 列契约、容差闭集、公式口径、双解析、22 条诊断码、成环丢弃顺序、导出物白名单与确定性、六层证据与实测数字 |
 | [参照实现（xlsx）](tools/xlsx-reference/README.md) | xlsx 差分的"另一套实现"（openpyxl）：CLI 与产出协议、双向差分口径、公式两通道互证、`openpyxl==3.1.5` |
@@ -105,8 +98,9 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [架构决策记录](docs/02-adr/0004-排程契约.md) | ADR 0004（G2 的开工前置，**冻结面**）：锚点规则与会话锚点、汇总/里程碑语义、项目起点与负 lag 截断、`Schedule` 形状与诊断码表、检环 API、范围（全量 + 闭包查询）与验证门禁 |
 | [架构决策记录](docs/02-adr/0005-排程内核落地补齐与结果形状.md) | ADR 0005：落地期补齐的口岸（结果形状、文档序索引与 `-1` 哨兵、工期解析、项目起点第②级、有效图 vs 结构图、容量入口、两处有意抛出） |
 | [架构决策记录](docs/02-adr/0006-xlsx-协议契约.md) | ADR 0006（G3 的开工前置，**冻结面**）：9 列契约、单元格容差闭集、公式只读缓存值、双解析优先级、协议层诊断码表、成环边丢弃顺序、导出物白名单与确定性判据、依赖与动态导入、验证门禁 |
-| [架构决策记录](docs/02-adr/0007-渲染几何与裁剪契约.md) | ADR 0007（G4 的开工前置，**冻结面**）：几何真相源与包边界（`packages/render-core`）、时间轴与 x 坐标（自然日连续 + 右边界规则）、行模型与折叠渲染、路由折点参数、裁剪四条与元素预算、验证矩阵与门禁分层、明确不做；**§11 数值已由 [G4-S](spikes/g0-s4-svg-clipping/结论.md) 回填**（+ 三条口径澄清） |
-| [G4-S 结论](spikes/g0-s4-svg-clipping/结论.md) | G4 准入定标实验：`S4-a`…`S4-d` 判定、ADR §11 回填值、浏览器首屏与滚动实测（含口径与坑）、P-8 遗留 1/2 的 WPS 实测 |
+| [架构决策记录](docs/02-adr/0007-渲染几何与裁剪契约.md) | ADR 0007（G4 的开工前置，**冻结面**）：几何真相源与包边界（`packages/render-core`）、时间轴与 x 坐标（自然日连续 + 右边界规则）、行模型与折叠渲染、路由折点参数、裁剪四条与元素预算、验证矩阵与门禁分层、明确不做；**§11 数值已由 G4-S 回填**（+ 三条口径澄清） |
+| G4-S 准入定标实验 | `S4-a`…`S4-d` 判定、ADR §11 回填值、浏览器首屏与滚动实测、P-8 遗留 1/2 的 WPS 实测。**探针目录已随 G4 落地删除**（[裁决 P-18](docs/00-baseline/裁决记录.md)），复现入口见 [render-core 规范](packages/render-core/SPEC.md) 与 [`scripts/measure-render.mjs`](scripts/measure-render.mjs) |
+| [渲染计时证据](apps/web/evidence/render-timing-chrome152.md) | **打包产物**的首屏与 10× 滚动实测（记录制，不进 `pnpm gate`）：由 `node scripts/measure-render.mjs` 采集，环境与数字一起登记 |
 | [贡献指南](CONTRIBUTING.md) | 环境、开发命令、铁律、依赖准入流程与提交约定 |
 
 ## 仓库结构
@@ -114,9 +108,9 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 ```
 packages/engine          @ganttpilot/engine          日期算术与排程内核（零 DOM / 零框架）
 packages/xlsx-protocol   @ganttpilot/xlsx-protocol   xlsx 导入/导出协议（G3 已落地）
-packages/render-core     @ganttpilot/render-core     渲染几何与裁剪内核（零 DOM / 零框架，G4 落地时创建）
+packages/render-core     @ganttpilot/render-core     渲染几何与裁剪内核（零 DOM / 零框架，G4 已落地）
 packages/pptx-renderer   @ganttpilot/pptx-renderer   PPTX 原生形状与 OOXML 补丁（G7 落地）
-apps/web                 @ganttpilot/web             前端应用：渲染与交互（G4/G5 落地）
+apps/web                 @ganttpilot/web             前端应用：渲染与交互（G4 已落地；G5 继续）
 tools/cpm-reference      排程内核的独立 Python 参照实现（差分的"另一套实现"）
 tools/xlsx-reference     xlsx 协议的独立 Python 参照实现（openpyxl，双向差分）
 ```
@@ -169,16 +163,27 @@ pnpm gate           # lint → typecheck → test → build → license:check（
   （`.bare.min.js` 842 KB），因此浏览器侧**必须动态 `import()`**，不得进首屏主 chunk；
 - **`.xls`(BIFF) 不支持**（ExcelJS 不支持）；**CSV 导出不在 v0.1 承诺内**；
 - **永不做 `.mpp`，且不承诺 MS Project 互操作**（[裁决 R-4](docs/00-baseline/裁决记录.md)）；
-- **性能口径**：Node 24/26 实测 + **浏览器/绘制侧未测量**（G4 用 [G4-S](docs/00-baseline/证伪实验计划.md) 定标、
-  G5 复测整帧预算）；**在 G4-S 给出实测数字之前，不对外声明渲染规模与首屏指标**；
-- **尚无产品界面**：G3 只交协议层纯函数，导入向导与渲染归 G4/G5。
+- **性能口径**：排程内核只在 **Node 侧**实测过（[G0-S-S3 结论](spikes/g0-s3-cpm-perf/结论.md)）；
+  **渲染侧已由 G4 在打包产物上定标**（[渲染计时证据](apps/web/evidence/render-timing-chrome152.md)，
+  **记录制、不进 CI**）：1,000 任务 / 1,500 依赖下首屏（`就绪 → 含依赖线首帧`）**6.9–15.0 ms**、
+  10× 滚动总墙钟 **约 500 ms**、主线程 p95（**只算同步工作量，不含帧等待**）**0.5–1.0 ms**、
+  空白行与 longtask 均为 **0**；**拖拽帧率（G5）仍未测量**，因此不承诺拖拽帧率；
+  换机器 / 换 Chrome 大版本 / headed / DPR>1 都会改变绝对值，引用时必须连口径一起读；
+- **渲染规模声明**：v0.1 的 1,000 任务首屏 ≤1s **已定标**（G4-S 探针页 18.0–31.2 ms、
+  G4 打包产物 6.9–15.0 ms），§四 的"裁剪未达标 ⇒ 规模下调到 500 任务"降级**未触发**；
+  **2,000 任务压测归 v0.5**；
+- **G4 的界面边界**：**不做拖拽三语义、拖拽建线、撤销/重做 UI、冲突标记、诊断清单 UI**（G5）；
+  **不做导出**（G7）；**不呈现任何诊断**（导入/排程的诊断只被计数，清单与标记归 G5）；
+  **同侧多线避让不做**（实测 70.7% 的边其竖向段穿过条形，是"日后另立 ADR"的量化触发依据）；
+  **季刻度、折叠展开动画、无障碍基础、主题跟随**归 v0.5；
+- **导入向导只做接线**：xlsx 导入目前是"选文件 → 协议层解析 → 落库"，列映射向导的 UI 打磨归 G5。
 
 ## 文档约定
 
 - **文档不做版本号另存**（不使用 `-v2`、`-第二轮` 之类的文件名）：内容修订由 **git 历史**承担，裁决类信息进 `裁决记录.md` 并按时间追加；
 - 文件名只表达**主题与稳定性**，不表达版本；
 - 架构决策写成 ADR 放 `docs/02-adr/`，按 `NNNN-主题.md` 编号；
-- `packages/*`（engine / xlsx-protocol / pptx-renderer）各自独立 semver、MIT 协议；`apps/web` 为私有应用包。
+- `packages/*`（engine / xlsx-protocol / render-core / pptx-renderer）各自独立 semver、MIT 协议；`apps/web` 为私有应用包。
 
 ## License
 
