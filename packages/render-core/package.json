@@ -1,0 +1,32 @@
+{
+  "name": "@ganttpilot/render-core",
+  "version": "0.0.0",
+  "description": "渲染几何与裁剪内核：文档 + Schedule + Calendar + 视口 → 视图模型（零 DOM / 零框架依赖）",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json --noEmit"
+  },
+  "dependencies": {
+    "@ganttpilot/engine": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1"
+  }
+}

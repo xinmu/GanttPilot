@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
+  },
+  "include": ["src/**/*.ts"],
+  // 测试与**测试侧手段**不进入发布产物：`*.spec.ts` 是测试，`checkers.spec.ts` 是
+  // 声明式期望值比对器与独立检查器（故意写成 `*.spec.ts`，与 engine 的
+  // `scheduleInvariants.spec.ts` 同一手法：可被别的 spec import，又不进 dist）。
+  // 两者仍受 `tsconfig.check.json`（typecheck）与 Vitest 覆盖。
+  "exclude": ["src/**/*.spec.ts", "lint-boundary"],
+  "references": [{ "path": "../engine" }]
+}

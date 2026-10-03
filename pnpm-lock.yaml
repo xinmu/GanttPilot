@@ -47,6 +47,15 @@ importers:
 
   apps/web:
     dependencies:
+      '@ganttpilot/engine':
+        specifier: workspace:*
+        version: link:../../packages/engine
+      '@ganttpilot/render-core':
+        specifier: workspace:*
+        version: link:../../packages/render-core
+      '@ganttpilot/xlsx-protocol':
+        specifier: workspace:*
+        version: link:../../packages/xlsx-protocol
       vue:
         specifier: ^3.5.43
         version: 3.5.43(typescript@5.9.3)
@@ -62,6 +71,16 @@ importers:
       '@ganttpilot/engine':
         specifier: workspace:*
         version: link:../engine
+
+  packages/render-core:
+    dependencies:
+      '@ganttpilot/engine':
+        specifier: workspace:*
+        version: link:../engine
+    devDependencies:
+      '@types/node':
+        specifier: ^24.19.1
+        version: 24.19.1
 
   packages/xlsx-protocol:
     dependencies:

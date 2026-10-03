@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "tsBuildInfoFile": null,
+    // 护栏自检与检查器需要 Node API（读夹具文本 / 路径解析），这是**测试环境**的需要，
+    // 不改变 src 的零 DOM 依赖约束（构建用的 tsconfig.json 仍然 types: []）。
+    "types": ["node"]
+  }
+}
