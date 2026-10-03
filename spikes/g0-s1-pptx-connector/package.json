@@ -1,0 +1,22 @@
+{
+  "name": "ganttpilot-spike-s1-pptx-connector",
+  "version": "0.0.0",
+  "private": true,
+  "description": "G0-S-S1 证伪实验：PPTX 原生 connector 吸附 + group 坐标（spike 代码，不进主干）",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "run": "node src/run-all.mts"
+  },
+  "dependencies": {
+    "pptxgenjs": "4.0.1",
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1"
+  }
+}

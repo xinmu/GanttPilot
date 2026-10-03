@@ -39,3 +39,8 @@ tmp/
 
 # vitest 输出
 .vitest-reports/
+
+# spike（G0-S）：证据与 fixture 定义入库，但安装产物与生成的 pptx 不入库（工件可再生、证据不可再生）
+# 见 spikes/g0-s1-pptx-connector/README.md
+spikes/*/out/
+spikes/*/node_modules/

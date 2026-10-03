@@ -107,4 +107,23 @@ export default [
       'no-restricted-properties': 'off',
     },
   },
+
+  // ------------------------------------------- spike（G0-S）：不进主干，但保持 lint 覆盖
+  // spike 目录不在 pnpm workspace 内（因此 build/typecheck/许可审计都不覆盖它），
+  // 但它仍是仓库里的源码，让它照常走 `pnpm lint` 能以近乎零成本抓住语法级错误。
+  // 代价：`pnpm lint` 会扫到 spike；若哪天它成为噪声源，把 `spikes/**` 加进 LINT_IGNORES，
+  // 并把该取舍记入 spike 的结论（这是有意识的例外，不是静默跳过）。
+  {
+    files: ['spikes/**/*.{ts,mts,js,mjs}'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        URL: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+      },
+    },
+  },
 ];
