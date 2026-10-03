@@ -2,7 +2,7 @@
 
 > 把 Excel 里长大的计划，变成专业排程的甘特图，一键输出可编辑的汇报 PPT——个人和小团队用得起、学得会的开源项目计划工具。
 
-**当前状态：立项阶段（v0.1 未发布，尚无产品代码）**
+**当前状态：G0（仓库骨架与测试/门禁护栏）已完成，尚无产品能力（v0.1 未发布）**
 
 ---
 
@@ -44,12 +44,42 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [裁决记录](docs/00-baseline/裁决记录.md) | **裁决的唯一权威登记处**，按时间追加 |
 | [证伪实验计划](docs/00-baseline/证伪实验计划.md) | 三项前置 spike 的可执行协议与通过/失败门禁 |
 | [首版能力顺序](docs/01-roadmap/首版能力顺序.md) | v0.1 的能力推进顺序与每块出口条件（取代按周数的路线图） |
+| [架构决策记录](docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md) | ADR 0001：本地质量门禁、零框架/零 DOM 铁律的执行方式，及其代价 |
+| [贡献指南](CONTRIBUTING.md) | 环境、开发命令、铁律、依赖准入流程与提交约定 |
+
+## 仓库结构（G0 骨架）
+
+```
+packages/engine          @ganttpilot/engine          日期算术与排程内核（零 DOM / 零框架）
+packages/xlsx-protocol   @ganttpilot/xlsx-protocol   xlsx 导入/导出协议（G3 落地）
+packages/pptx-renderer   @ganttpilot/pptx-renderer   PPTX 原生形状与 OOXML 补丁（G7 落地）
+apps/web                 @ganttpilot/web             前端应用：渲染与交互（G4/G5 落地）
+```
+
+## 本地质量门禁
+
+单人项目、当前无远端仓库，因此"合并门槛"落在**推送前的本地门禁**上（决策见 ADR 0001）：
+
+```bash
+pnpm install        # 顺带通过 prepare 钩子设置 core.hooksPath=.husky
+pnpm gate           # lint → typecheck → test → build → license:check（实测约 7 秒）
+```
+
+- `pnpm install` 后 `.husky/pre-push` 生效：**门禁任一步失败即阻断推送**；
+- 门禁检查的是磁盘上的当前内容，请保持工作区干净；
+- 确需绕过时用 `git push --no-verify`，并在提交信息里说明原因；
+- [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 是等价的远端流水线，接入 GitHub 后即可启用
+  （启用前它不会运行，因此不作为现有护栏）。
+
+三条铁律中"三包零框架/零 DOM 依赖"已可执行化：`pnpm lint` 会拦下三包内的框架 import 与 DOM 全局，
+`pnpm test` 里的护栏自检会证明这些规则确实生效（见 `packages/engine/src/boundary.spec.ts`）。
 
 ## 文档约定
 
 - **文档不做版本号另存**（不使用 `-v2`、`-第二轮` 之类的文件名）：内容修订由 **git 历史**承担，裁决类信息进 `裁决记录.md` 并按时间追加；
 - 文件名只表达**主题与稳定性**，不表达版本；
-- `packages/*`（engine / xlsx-protocol / pptx-renderer）与 `app` 各自独立 semver，MIT 协议。
+- 架构决策写成 ADR 放 `docs/02-adr/`，按 `NNNN-主题.md` 编号；
+- `packages/*`（engine / xlsx-protocol / pptx-renderer）各自独立 semver、MIT 协议；`apps/web` 为私有应用包。
 
 ## License
 
