@@ -195,11 +195,14 @@ type WbsResult<T> = { ok: true; value: T } | { ok: false; code: WbsFailureCode; 
 
 ## 五、明确不做（本块边界）
 
+> 与本文件配套的**排程侧**语义（`compute()` 的输入/输出、锚点规则、汇总聚合、截断与诊断码表、
+> 容量配方）见 [SCHEDULE.md](SCHEDULE.md)——本文件只描述**文档形状**，排程侧不改写文档。
+
 | 项 | 归属 |
 |---|---|
-| `endDate` 与 `startDate + durationDays` 的一致性校验 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §2）：`endDate` 是**派生显示值、工期为准**，不一致只给 `info`（`endDateStale`），**校验从不改写文档** |
-| 负 lag 越到项目起点之前的语义 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §4）：截断到项目起点 + 计数与诊断（`clampedStart`），**不阻断排程、不产出负序号**（[S3 §五.4](../../spikes/g0-s3-cpm-perf/结论.md)） |
-| 汇总任务（有子任务）与排程的关系 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §3）：汇总任务**不参与排程**（派生值由引擎产出）；`LINK_SUMMARY_ENDPOINT` 保留 `warning`、该边在传播中**被忽略**；里程碑（工期 0）照常参与 |
+| `endDate` 与 `startDate + durationDays` 的一致性校验 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §2 + [SCHEDULE.md](SCHEDULE.md) §四.2）：`endDate` 是**派生显示值、工期为准**，不一致只给 `info`（`endDateStale`，对含汇总在内的**所有任务**判定），**校验从不改写文档** |
+| 负 lag 越到项目起点之前的语义 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §4 + [SCHEDULE.md](SCHEDULE.md) §五）：截断到项目起点 + 计数与诊断（`clampedStart`），**不阻断排程、不产出负序号**（[S3 §五.4](../../spikes/g0-s3-cpm-perf/结论.md)） |
+| 汇总任务（有子任务）与排程的关系 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §3 + [SCHEDULE.md](SCHEDULE.md) §四.1/§四.4）：汇总任务**不参与排程**（派生值由引擎产出：`Schedule.summaryEs/summaryEf/summaryProgress`）；`LINK_SUMMARY_ENDPOINT` 保留 `warning`、该边在传播中**被忽略**（排程侧对应 `summaryIgnored`）；里程碑（工期 0）照常参与 |
 | `constraints[]` 与 `manual` 的语义 | **v0.5**（R-3；本块只留位） |
 | `baselines[].snapshot` 的内容 | **v0.5**（P1-03） |
 | 折叠的渲染行为 | **G4**（本块只承载 `collapsed` 状态） |

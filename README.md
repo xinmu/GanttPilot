@@ -3,19 +3,22 @@
 > 把 Excel 里长大的计划，变成专业排程的甘特图，一键输出可编辑的汇报 PPT——个人和小团队用得起、学得会的开源项目计划工具。
 
 **当前状态：G0（仓库骨架与测试/门禁护栏）已完成，三项证伪实验（G0-S）全部收口；
-G1.1（日历与日期算术：工作日序号化）、G1.2（文档 schema、版本迁移与 WBS 层级）与
-G1.3（命令层与事务）** 已完成——**G1 合集至此收口**。
+G1.1（日历与日期算术：工作日序号化）、G1.2（文档 schema、版本迁移与 WBS 层级）、
+G1.3（命令层与事务）与 G2（最小正向传播内核）** 已完成——**引擎的排程内核已可用**。
 `packages/engine` 已落地 O(1) 的「工作日序号 ↔ 日期」翻译与 `exceptions` 双集合
 （[落地记录](docs/01-roadmap/首版能力顺序.md)）、**冻结的文档模型**
 （规范化序列化与深比较往返、结构化诊断校验、`v1→v2→v3` 迁移与未知版本拒绝、WBS 调级，
-规范见 [SCHEMA.md](packages/engine/SCHEMA.md)，决策见 [ADR 0002](docs/02-adr/0002-文档模型与序列化契约.md)），
-以及**命令层与事务**：命令是唯一变更通道、before 镜像使回滚无需手写逆逻辑、
+规范见 [SCHEMA.md](packages/engine/SCHEMA.md)，决策见 [ADR 0002](docs/02-adr/0002-文档模型与序列化契约.md)）、
+**命令层与事务**：命令是唯一变更通道、before 镜像使回滚无需手写逆逻辑、
 一次手势 = 一条命令或一个事务（一次 Ctrl+Z 回退整次手势）
-（规范见 [COMMAND.md](packages/engine/COMMAND.md)，决策见 [ADR 0003](docs/02-adr/0003-命令层与事务契约.md)）。
-**下一步是 G2**（最小正向传播内核）：**形状与语义已在开工前冻结**——文档模型与命令层的形状见
-[裁决 P-10](docs/00-baseline/裁决记录.md)，**排程契约**（锚点规则、汇总与里程碑、项目起点与负 lag 截断、
-`Schedule` 形状与诊断码表、检环 API、验证与门禁）见 [ADR 0004](docs/02-adr/0004-排程契约.md) 与
-[裁决 P-12](docs/00-baseline/裁决记录.md)（G2 **不分解**；只交全量传播，**增量重算移出 v0.1**）。
+（规范见 [COMMAND.md](packages/engine/COMMAND.md)，决策见 [ADR 0003](docs/02-adr/0003-命令层与事务契约.md)），
+以及**排程内核**：全量正向传播（4 类关系 + lag）、锚点四情形与会话锚点、汇总任务引擎侧聚合、
+负 lag 截断、结构性检环与受影响闭包
+（规范见 [SCHEDULE.md](packages/engine/SCHEDULE.md)，决策见 [ADR 0004](docs/02-adr/0004-排程契约.md) 与
+[ADR 0005](docs/02-adr/0005-排程内核落地补齐与结果形状.md)，证据见
+[S3 结论](spikes/g0-s3-cpm-perf/结论.md) 与差分参照实现
+[`tools/cpm-reference`](tools/cpm-reference/README.md)）。
+**下一步是 G3**（xlsx 导入/导出，仅可见列）：导入后直接接 `compute()` 得到可渲染的 `Schedule`。
 **尚无产品能力（v0.1 未发布）**。
 
 ---
@@ -69,10 +72,13 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [首版能力顺序](docs/01-roadmap/首版能力顺序.md) | v0.1 的能力推进顺序与每块出口条件（取代按周数的路线图） |
 | [文档 schema 规范](packages/engine/SCHEMA.md) | `@ganttpilot/engine` 的文档模型：字段语义、`null` 口径、未启用字段、迁移与调级约定 |
 | [命令层规范](packages/engine/COMMAND.md) | `@ganttpilot/engine` 的命令层：变更唯一通道、before 镜像（日志）形状、失败码、事务与撤销/重做语义 |
+| [排程内核规范](packages/engine/SCHEDULE.md) | `@ganttpilot/engine` 的排程内核：`compute()` 的输入/输出与哨兵、锚点四情形、汇总与里程碑、项目起点与截断、诊断码表、检环与闭包、容量配方、验证与门禁 |
+| [参照实现](tools/cpm-reference/README.md) | 差分的"另一套实现"：CLI 与 JSON 协议、语义清单、`GANTTPILOT_PYTHON` 与 Windows 9009 注意事项 |
 | [架构决策记录](docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md) | ADR 0001：本地质量门禁、零框架/零 DOM 铁律的执行方式，及其代价 |
 | [架构决策记录](docs/02-adr/0002-文档模型与序列化契约.md) | ADR 0002：`null` 口径、`outlineNumber` 为派生值、版本策略、调级语义的取舍与代价 |
 | [架构决策记录](docs/02-adr/0003-命令层与事务契约.md) | ADR 0003：命令是纯数据、before 镜像 = 按 id 的差分、日志即唯一变更内核、事务 = 一个撤销单元 |
-| [架构决策记录](docs/02-adr/0004-排程契约.md) | ADR 0004（**G2 的开工前置**）：锚点规则与会话锚点、汇总/里程碑语义、项目起点与负 lag 截断、`Schedule` 形状与诊断码表、检环 API、范围（全量 + 闭包查询）与验证门禁 |
+| [架构决策记录](docs/02-adr/0004-排程契约.md) | ADR 0004（G2 的开工前置，**冻结面**）：锚点规则与会话锚点、汇总/里程碑语义、项目起点与负 lag 截断、`Schedule` 形状与诊断码表、检环 API、范围（全量 + 闭包查询）与验证门禁 |
+| [架构决策记录](docs/02-adr/0005-排程内核落地补齐与结果形状.md) | ADR 0005：落地期补齐的口岸（结果形状、文档序索引与 `-1` 哨兵、工期解析、项目起点第②级、有效图 vs 结构图、容量入口、两处有意抛出） |
 | [贡献指南](CONTRIBUTING.md) | 环境、开发命令、铁律、依赖准入流程与提交约定 |
 
 ## 仓库结构（G0 骨架）
@@ -98,7 +104,7 @@ apps/web                 @ganttpilot/web             前端应用：渲染与交
 
 ```bash
 pnpm install        # 顺带通过 prepare 钩子设置 core.hooksPath=.husky
-pnpm gate           # lint → typecheck → test → build → license:check（实测约 7 秒）
+pnpm gate           # lint → typecheck → test → build → license:check（实测约 12 秒，含差分）
 ```
 
 - `pnpm install` 后 `.husky/pre-push` 生效：**门禁任一步失败即阻断推送**；
@@ -106,10 +112,12 @@ pnpm gate           # lint → typecheck → test → build → license:check（
 - 确需绕过时用 `git push --no-verify`，并在提交信息里说明原因；
 - [`.github/workflows/ci.yml`](.github/workflows/ci.yml) 是等价的远端流水线，接入 GitHub 后即可启用
   （启用前它不会运行，因此不作为现有护栏）；
-- **G2 起**门禁将新增**排程内核差分测试**：与 `tools/cpm-reference/` 的**独立 Python 参照实现**逐字段比对
-  （≥1,000 随机图 + 200 成环图）。该步**需要 Python 3，缺失时失败而不是跳过**——
-  "全绿为合并硬门槛"不被静默跳过破坏（[裁决 P-12](docs/00-baseline/裁决记录.md) /
-  [ADR 0004](docs/02-adr/0004-排程契约.md) §9）。
+- **门禁含排程内核的差分测试**（G2 落地）：`pnpm test` 内的
+  `packages/engine/src/schedule.differential.spec.ts` 会与 [`tools/cpm-reference/`](tools/cpm-reference/README.md)
+  的**独立 Python 参照实现**逐字段比对（**1,000 随机 DAG + 200 成环图**，实测约 4.5 秒、0 不一致）。
+  该步**需要 Python 3，缺失时失败而不是跳过**——"全绿为合并硬门槛"不被静默跳过破坏
+  （[裁决 P-12](docs/00-baseline/裁决记录.md) / [ADR 0004](docs/02-adr/0004-排程契约.md) §9）；
+  可用 `GANTTPILOT_PYTHON` 指定解释器，随机种子固定并随失败信息打印。
 
 三条铁律中"三包零框架/零 DOM 依赖"已可执行化：`pnpm lint` 会拦下三包内的框架 import 与 DOM 全局，
 `pnpm test` 里的护栏自检会证明这些规则确实生效（见 `packages/engine/src/boundary.spec.ts`）。

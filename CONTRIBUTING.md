@@ -1,16 +1,17 @@
 # 贡献指南
 
 > 本项目当前处于 v0.1 的 **G1.1（日历与日期算术）、G1.2（文档 schema、版本迁移与 WBS 层级）
-> 与 G1.3（命令层与事务）均已完成**阶段：`packages/engine` 已落地工作日序号化日历与 O(1) 日期翻译、
-> **冻结的文档模型**（规范化序列化/解析、结构化诊断校验、`v1→v2→v3` 迁移、WBS 调级），
-> 以及**命令层**（唯一变更通道、before 镜像、事务与撤销/重做栈）——**G1 合集至此收口**。
-> **下一步是 G2**（最小正向传播内核）：**形状与语义已在开工前冻结**——
-> 排程契约见 [ADR 0004](docs/02-adr/0004-排程契约.md) 与 [裁决 P-12](docs/00-baseline/裁决记录.md)
-> （G2 **不分解**；只交全量传播 + 纯结构闭包查询，**增量重算移出 v0.1**）。**尚无产品能力**。
+> 与 G1.3（命令层与事务）以及 G2（最小正向传播内核）均已完成**阶段：`packages/engine` 已落地
+> 工作日序号化日历与 O(1) 日期翻译、**冻结的文档模型**（规范化序列化/解析、结构化诊断校验、
+> `v1→v2→v3` 迁移、WBS 调级）、**命令层**（唯一变更通道、before 镜像、事务与撤销/重做栈），
+> 以及**排程内核**（全量正向传播 + 锚点四情形 + 汇总聚合 + 结构性检环 + 受影响闭包）——**引擎已可用**。
+> **下一步是 G3**（xlsx 导入/导出，仅可见列）：导入后直接接 `compute()` 得到可渲染的 `Schedule`。
 > 能力顺序与每块出口条件见 [首版能力顺序](docs/01-roadmap/首版能力顺序.md)；
-> 关键决策见 [docs/02-adr](docs/02-adr/)；分解依据见 [裁决 P-10](docs/00-baseline/裁决记录.md)；
-> 文档模型规范见 [packages/engine/SCHEMA.md](packages/engine/SCHEMA.md)；
-> 命令层规范见 [packages/engine/COMMAND.md](packages/engine/COMMAND.md)。
+> 关键决策见 [docs/02-adr](docs/02-adr/)（排程契约 = [ADR 0004](docs/02-adr/0004-排程契约.md) +
+> [ADR 0005](docs/02-adr/0005-排程内核落地补齐与结果形状.md)）；分解依据见
+> [裁决 P-10](docs/00-baseline/裁决记录.md)；文档模型规范见 [packages/engine/SCHEMA.md](packages/engine/SCHEMA.md)；
+> 命令层规范见 [packages/engine/COMMAND.md](packages/engine/COMMAND.md)；
+> **排程内核规范见 [packages/engine/SCHEDULE.md](packages/engine/SCHEDULE.md)**。
 
 ## 环境
 
@@ -36,6 +37,7 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 | `pnpm lint` | ESLint（含三包零框架/零 DOM 铁律） |
 | `pnpm typecheck` | `tsc --noEmit`（包）与 `vue-tsc --noEmit`（应用） |
 | `pnpm test` | Vitest（纯函数测试）；缩小范围用 `pnpm vitest run packages/engine`（从仓库根执行） |
+| `pnpm vitest run packages/engine/src/schedule.differential.spec.ts` | **只跑排程差分**（1,000 DAG + 200 成环图，需 Python 3；缺解释器即失败，可用 `GANTTPILOT_PYTHON` 指定） |
 | `pnpm build` | 三包 `tsc -b`（产出 `dist/*.js` + `*.d.ts`）+ 应用 `vite build` |
 | `pnpm --filter @ganttpilot/engine build` | 只构建/类型检查某个包（`build`/`typecheck` 支持 `--filter`） |
 | `pnpm license:check` | 运行时依赖许可门禁（`--prod` 口径） |
@@ -101,6 +103,36 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 **负向对照**（逆操作承重、日志条目承重、守卫有牙）、以及规模结构断言
 （日志条目数与文档规模解耦）——它们都在 `journal.spec.ts` / `command.spec.ts` / `session.spec.ts` /
 `documentPerformance.spec.ts` 里，改语义前先看它们为什么那样写。
+
+## 排程内核契约（G2 之后必须遵守）
+
+排程内核规范见 [`packages/engine/SCHEDULE.md`](packages/engine/SCHEDULE.md)，
+冻结面见 [ADR 0004](docs/02-adr/0004-排程契约.md)、落地补齐见 [ADR 0005](docs/02-adr/0005-排程内核落地补齐与结果形状.md)。
+改代码前请先读这三份，其中最容易踩的七条：
+
+1. **`Schedule` 按 `document.tasks` 的文档序索引**，**汇总行 `es === -1`**（形状里唯一的汇总判别式，
+   G4 靠它选汇总条分支）、叶子行的 `summary*` 为 `-1`。索引换成"叶子压缩序"会逼渲染层再维护一张映射表。
+2. **`compute` 是纯函数且不写回文档**：不得修改入参（文档/日历/锚点），不得引入时钟或随机数，
+   同一输入必须得到深比较相同的 `Schedule`。排程结果永远是派生值，撤销只回退"输入 + 会话锚点"。
+3. **日期与工期不进热路径**：序号是唯一承载，日历只做"序号 ↔ 日期"翻译；
+   **同一次调用里每个 ISO 日期只解析一次**（`isoToDayNumber` 走正则 + `Date.UTC`，
+   不缓存会让 1,000 任务的全量传播 p99 从 0.53 ms 涨到约 2.5 ms）。
+4. **有效图 vs 结构图不要搞混**：传播**排除**汇总端点边（并报 `summaryIgnored`），
+   **检环用全部边**——`wouldCreateCycle(links, candidate)` 的签名看不到层级，两侧必须同口径。
+5. **`clampedStarts` 与 `clampedStart` 诊断同源同数**：新增任何截断路径都要同时计数与报诊断
+   （含"文档日期早于 `baseDay`"与"项目开始日早于 `baseDay`"两类）。
+6. **诊断码表是闭集**（ADR 0004 §5）：不要为"校验层的职责"新开码；`endDateStale` 是**文档级**一致性诊断
+   （对含汇总在内的所有任务判定），工期解析则只对叶子有意义。
+7. **容量规划走 `createScheduleCalendar(document)`**：它一次决定"哪份日历生效 + `baseDay` + `spanDays`"；
+   `compute` 内部虽会按需扩容保证序号不变，但**ISO 翻译是调用方的责任**，容量不足时 `isoOfOrdinal` 会抛错。
+
+改动排程内核时的测试要求（三层证据 + 负向对照，R-4 落地）：
+**手工推导用例表**（`schedule.manual.spec.ts`，内核无权改基准）、
+**不变量/性质**（`schedule.invariants.spec.ts` + 独立检查器 `scheduleInvariants.spec.ts`）、
+**跨语言差分**（`schedule.differential.spec.ts` + `tools/cpm-reference/cpm_reference.py`，
+缺 Python 3 即失败）、**性能**（`schedule.performance.spec.ts`，1,000/1,500 全量 p99 ≤ 1 ms）。
+改语义前先看这些用例为什么那样写；`perfHarness.spec.ts` 里的朴素实现是**性能负向对照**，
+若它与快实现的差距量不出来（<1.5×），说明计时骨架失效。
 
 ## 提交约定
 
