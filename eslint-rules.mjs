@@ -39,6 +39,10 @@ export const LINT_IGNORES = [
   '**/dist/**',
   '**/coverage/**',
   '**/.vitest-reports/**',
+  // 本地临时/草稿目录（`.gitignore` 同样排除它）：审计探针、差分中间产物、评估材料。
+  // 它不进产物、也不作为交付物，让 lint 覆盖它只会把一次性脚本的噪声变成"门禁失败"，
+  // 从而诱导 `git push --no-verify`——那才是真正的风险。
+  '**/tmp/**',
   // 类型声明文件由 tsc 校验，不由 ESLint 解析
   '**/*.d.ts',
   '**/*.d.mts',

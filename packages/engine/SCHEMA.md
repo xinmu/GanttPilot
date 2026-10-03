@@ -206,7 +206,7 @@ type WbsResult<T> = { ok: true; value: T } | { ok: false; code: WbsFailureCode; 
 | `constraints[]` 与 `manual` 的语义 | **v0.5**（R-3；本块只留位） |
 | `baselines[].snapshot` 的内容 | **v0.5**（P1-03） |
 | 折叠的渲染行为 | **G4**（本块只承载 `collapsed` 状态） |
-| xlsx 列契约、依赖列语法、导入容差 | **G3**（见 [S2 结论 §八](../../spikes/g0-s2-xlsx-roundtrip/结论.md)） |
+| xlsx 列契约、依赖列语法、导入容差 | **G3 已冻结**（开工前置）：9 列契约、容差闭集、公式只读缓存值、协议层诊断码表见 [ADR 0006](../../docs/02-adr/0006-xlsx-协议契约.md)（证据层见 [S2 结论 §八](../../spikes/g0-s2-xlsx-roundtrip/结论.md)） |
 | 命令层与事务、撤销栈 | **G1.3 已落地**（[COMMAND.md](COMMAND.md) + [ADR 0003](../../docs/02-adr/0003-命令层与事务契约.md)；本文件只描述文档形状，变更通道见该规范） |
 | 用户自定义排序 | **P1-04** |
 | 多日历生效（v0.1 只有项目日历生效） | **v0.5+**（R-1） |
