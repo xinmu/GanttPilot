@@ -5,11 +5,11 @@
  * - **G1.1 工作日序号化的日历与日期算术**（`date.ts`）；
  * - **G1.2 文档 schema、版本迁移与 WBS 层级**（`schema.ts` / `wbs.ts`）；
  * - **G1.3 命令层与事务**（`journal.ts` / `command.ts` / `session.ts`：
- *   before 镜像日志（唯一变更内核）、命令唯一变更通道、事务与撤销/重做栈）。
- *
- * `compute()` 排程内核在 G2 落地，届时本文件的导出面会继续扩张——
- * **此处不承诺最终 API 形状**。G2 的形状与语义已在开工前冻结（**排程契约**：
- * `docs/02-adr/0004-排程契约.md`；裁决 P-12：G2 不分解、只交全量传播）。
+ *   before 镜像日志（唯一变更内核）、命令唯一变更通道、事务与撤销/重做栈）；
+ * - **G2 排程内核**（`schedule.ts`）：全量正向传播 `compute()`（含锚点规则、汇总聚合、
+ *   检环与截断）、建边预检 `wouldCreateCycle()`、纯结构查询 `affectedClosure()`、容量规划
+ *   `createScheduleCalendar()`。形状与语义见 `packages/engine/SCHEDULE.md`、
+ *   `docs/02-adr/0004-排程契约.md`（冻结面）与 `docs/02-adr/0005-排程内核落地补齐与结果形状.md`。
  *
  * 铁律（以可执行检查保证）：本包不得 import 任何框架（Vue/React/…），
  * 也不得访问 DOM 全局。见 `docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md`。
@@ -20,14 +20,14 @@ export const ENGINE_VERSION = '0.0.0';
 
 /**
  * **本包最新完成**的能力块编号（G1 的合集语义：日历见 G1.1、文档 schema 见 G1.2、
- * 命令层见 G1.3，传播内核见 G2）。分解依据见裁决 P-10。
+ * 命令层见 G1.3；传播内核见 G2）。分解依据见裁决 P-10。
  *
  * 注意语义：它是"最新一个"，不是"唯一一个"——完整清单见 `COMPLETED_GATES`。
  */
-export const PLANNED_GATE = 'G1.3' as const;
+export const PLANNED_GATE = 'G2' as const;
 
 /** 已落地能力块清单（G0 的护栏不在本包内，故不计入）。 */
-export const COMPLETED_GATES = ['G1.1', 'G1.2', 'G1.3'] as const;
+export const COMPLETED_GATES = ['G1.1', 'G1.2', 'G1.3', 'G2'] as const;
 
 // ---------------------------------------------------------------- G1.1 日期与日历
 export {
@@ -185,3 +185,19 @@ export {
   type SessionStep,
   type Transaction,
 } from './session.js';
+
+// ---------------------------------------------------------------- G2 排程内核（正向传播）
+export {
+  affectedClosure,
+  compute,
+  createScheduleCalendar,
+  LEAF_SENTINEL,
+  wouldCreateCycle,
+  type Schedule,
+  type ScheduleDiagnostic,
+  type ScheduleDiagnosticCode,
+  type ScheduleFailure,
+  type ScheduleResult,
+  type ScheduleSuccess,
+  type SessionAnchor,
+} from './schedule.js';

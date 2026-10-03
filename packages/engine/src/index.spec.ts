@@ -5,8 +5,8 @@ import * as engine from './index.js';
 describe('@ganttpilot/engine 公共入口', () => {
   it('导出 G1.1 的日历与日期算术 API 与包标识', () => {
     expect(engine.ENGINE_VERSION).toBe('0.0.0');
-    expect(engine.PLANNED_GATE).toBe('G1.3');
-    expect(engine.COMPLETED_GATES).toStrictEqual(['G1.1', 'G1.2', 'G1.3']);
+    expect(engine.PLANNED_GATE).toBe('G2');
+    expect(engine.COMPLETED_GATES).toStrictEqual(['G1.1', 'G1.2', 'G1.3', 'G2']);
 
     // G0 的兼容面必须保持可用。
     expect(typeof engine.countWorkdays).toBe('function');
@@ -95,6 +95,89 @@ describe('@ganttpilot/engine 公共入口', () => {
     expect(typeof engine.commitTransaction).toBe('function');
     expect(typeof engine.undoSession).toBe('function');
     expect(typeof engine.redoSession).toBe('function');
+  });
+
+  it('导出 G2 的排程内核 API 与哨兵常量', () => {
+    expect(typeof engine.compute).toBe('function');
+    expect(typeof engine.wouldCreateCycle).toBe('function');
+    expect(typeof engine.affectedClosure).toBe('function');
+    expect(typeof engine.createScheduleCalendar).toBe('function');
+    expect(engine.LEAF_SENTINEL).toBe(-1);
+  });
+
+  it('通过公共入口走完「文档 + 日历 → 排程」（含汇总行哨兵与 iso 翻译）', () => {
+    const base = engine.createEmptyDocument('排程冒烟');
+    const doc: engine.ProjectDocument = {
+      ...base,
+      project: { ...base.project, startDate: '2025-01-06' },
+      tasks: [
+        {
+          id: 'w1',
+          parentId: null,
+          outlineNumber: '1',
+          name: '阶段',
+          startDate: null,
+          endDate: null,
+          durationDays: null,
+          progress: null,
+          milestone: false,
+          collapsed: false,
+          notes: null,
+          manual: false,
+          constraints: [],
+        },
+        {
+          id: 't1',
+          parentId: 'w1',
+          outlineNumber: '1.1',
+          name: '需求',
+          startDate: '2025-01-06',
+          endDate: '2025-01-10',
+          durationDays: 4,
+          progress: 0.5,
+          milestone: false,
+          collapsed: false,
+          notes: null,
+          manual: false,
+          constraints: [],
+        },
+        {
+          id: 't2',
+          parentId: 'w1',
+          outlineNumber: '1.2',
+          name: '开发',
+          startDate: null,
+          endDate: null,
+          durationDays: 3,
+          progress: null,
+          milestone: false,
+          collapsed: false,
+          notes: null,
+          manual: false,
+          constraints: [],
+        },
+      ],
+      links: [{ id: 'l1', from: 't1', to: 't2', type: 'FS', lagDays: 0 }],
+    };
+
+    const calendar = engine.createScheduleCalendar(doc);
+    const result = engine.compute(doc, calendar);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    const schedule = result.schedule;
+    expect(schedule.taskCount).toBe(3);
+    expect(schedule.es[0]).toBe(engine.LEAF_SENTINEL); // 汇总行
+    expect(schedule.es[1]).toBe(0);
+    expect(schedule.ef[1]).toBe(4);
+    expect(schedule.es[2]).toBe(4); // FS 从 t1 的排他结束起算
+    expect(schedule.summaryEs[0]).toBe(0);
+    expect(schedule.summaryEf[0]).toBe(7);
+    expect(schedule.summaryProgress[0]).toBeCloseTo(2 / 7, 10); // (4×0.5 + 3×0) / (4+3)
+    expect(schedule.summaryProgress[1]).toBe(engine.LEAF_SENTINEL);
+    expect(calendar.isoOfOrdinal(schedule.es[1]!)).toBe('2025-01-06');
+    expect(calendar.isoOfOrdinal(schedule.ef[2]!)).toBe('2025-01-15'); // 序号 7 = 第 8 个工作日
   });
 
   it('通过公共入口走完「应用命令 → 撤销 → 重做」（含 WBS 调级与跨字段变更）', () => {
