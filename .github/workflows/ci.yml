@@ -23,12 +23,18 @@ jobs:
           node-version: 24.x
           cache: pnpm
 
-      # 排程内核的差分测试（`pnpm test` 内的 `schedule.differential.spec.ts`）需要一个 Python 3
-      # 解释器：**缺失即失败、不静默跳过**（ADR 0004 §9 / 裁决 P-12）。ubuntu-latest 自带
-      # `python3`，这里显式固定版本，避免"以为跑过差分、其实没跑"。
+      # 差分测试需要 Python 3：
+      # - G2 的 `schedule.differential.spec.ts` 与 `tools/cpm-reference/` 比对；
+      # - G3 的 `xlsx.differential.spec.ts` 与 `tools/xlsx-reference/` 比对，**另需 `openpyxl==3.1.5`**。
+      # 两者都**缺失即失败、不静默跳过**（ADR 0004 §9 / ADR 0006 §12 / 裁决 P-12）。
+      # ubuntu-latest 自带 `python3`，这里显式固定版本，避免"以为跑过差分、其实没跑"。
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      # G3 的参照实现依赖（钉版本：ADR 0006 §12 与裁决 P-14 的 E10 实测口径）
+      - name: Install Python reference deps
+        run: python -m pip install --disable-pip-version-check openpyxl==3.1.5
 
       - name: Install
         run: pnpm install --frozen-lockfile

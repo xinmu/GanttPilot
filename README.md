@@ -4,24 +4,29 @@
 
 **当前状态：G0（仓库骨架与测试/门禁护栏）已完成，三项证伪实验（G0-S）全部收口；
 G1.1（日历与日期算术：工作日序号化）、G1.2（文档 schema、版本迁移与 WBS 层级）、
-G1.3（命令层与事务）与 G2（最小正向传播内核）** 已完成——**引擎的排程内核已可用**。
+G1.3（命令层与事务）、G2（最小正向传播内核）与 G3（xlsx 导入/导出，仅可见列）** 已完成
+——**「Excel 导入 → 排程」这条链路在协议层已跑通**（尚无 UI）。
 `packages/engine` 已落地 O(1) 的「工作日序号 ↔ 日期」翻译与 `exceptions` 双集合
 （[落地记录](docs/01-roadmap/首版能力顺序.md)）、**冻结的文档模型**
 （规范化序列化与深比较往返、结构化诊断校验、`v1→v2→v3` 迁移与未知版本拒绝、WBS 调级，
 规范见 [SCHEMA.md](packages/engine/SCHEMA.md)，决策见 [ADR 0002](docs/02-adr/0002-文档模型与序列化契约.md)）、
 **命令层与事务**：命令是唯一变更通道、before 镜像使回滚无需手写逆逻辑、
 一次手势 = 一条命令或一个事务（一次 Ctrl+Z 回退整次手势）
-（规范见 [COMMAND.md](packages/engine/COMMAND.md)，决策见 [ADR 0003](docs/02-adr/0003-命令层与事务契约.md)），
-以及**排程内核**：全量正向传播（4 类关系 + lag）、锚点四情形与会话锚点、汇总任务引擎侧聚合、
+（规范见 [COMMAND.md](packages/engine/COMMAND.md)，决策见 [ADR 0003](docs/02-adr/0003-命令层与事务契约.md)）、
+**排程内核**：全量正向传播（4 类关系 + lag）、锚点四情形与会话锚点、汇总任务引擎侧聚合、
 负 lag 截断、结构性检环与受影响闭包
 （规范见 [SCHEDULE.md](packages/engine/SCHEDULE.md)，决策见 [ADR 0004](docs/02-adr/0004-排程契约.md) 与
 [ADR 0005](docs/02-adr/0005-排程内核落地补齐与结果形状.md)，证据见
 [S3 结论](spikes/g0-s3-cpm-perf/结论.md) 与差分参照实现
-[`tools/cpm-reference`](tools/cpm-reference/README.md)）。
-**下一步是 G3**（xlsx 导入/导出，仅可见列）：导入后直接接 `compute()` 得到可渲染的 `Schedule`。
-**G3 的开工前置已闭**（[裁决 P-14](docs/00-baseline/裁决记录.md)）：列契约、单元格容差、公式口径、
-成环边丢弃顺序、导出物白名单与协议层诊断码表已在 [ADR 0006](docs/02-adr/0006-xlsx-协议契约.md) 冻结。
-**尚无产品能力（v0.1 未发布）**。
+[`tools/cpm-reference`](tools/cpm-reference/README.md)），
+以及 **xlsx 协议层**：9 列规范契约与双解析、单元格容差闭集、公式只读缓存值、
+确定性成环边丢弃、三层拼接的结构化诊断、规范化导出与部件指纹确定性
+（规范见 [PROTOCOL.md](packages/xlsx-protocol/PROTOCOL.md)，决策见
+[ADR 0006](docs/02-adr/0006-xlsx-协议契约.md) 与 [裁决 P-15](docs/00-baseline/裁决记录.md)，
+证据见 [S2 结论](spikes/g0-s2-xlsx-roundtrip/结论.md) 与跨语言参照实现
+[`tools/xlsx-reference`](tools/xlsx-reference/README.md)）。
+**下一步是 G4**（纯 SVG 甘特渲染，含裁剪）：把 `Schedule` 画出来，并把导入向导接到 `apps/web`。
+**尚无产品界面（v0.1 未发布）**。
 
 ---
 
@@ -77,7 +82,9 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [文档 schema 规范](packages/engine/SCHEMA.md) | `@ganttpilot/engine` 的文档模型：字段语义、`null` 口径、未启用字段、迁移与调级约定 |
 | [命令层规范](packages/engine/COMMAND.md) | `@ganttpilot/engine` 的命令层：变更唯一通道、before 镜像（日志）形状、失败码、事务与撤销/重做语义 |
 | [排程内核规范](packages/engine/SCHEDULE.md) | `@ganttpilot/engine` 的排程内核：`compute()` 的输入/输出与哨兵、锚点四情形、汇总与里程碑、项目起点与截断、诊断码表、检环与闭包、容量配方、验证与门禁 |
-| [参照实现](tools/cpm-reference/README.md) | 差分的"另一套实现"：CLI 与 JSON 协议、语义清单、`GANTTPILOT_PYTHON` 与 Windows 9009 注意事项 |
+| [参照实现（排程）](tools/cpm-reference/README.md) | 排程差分的"另一套实现"：CLI 与 JSON 协议、语义清单、`GANTTPILOT_PYTHON` 与 Windows 9009 注意事项 |
+| [xlsx 协议规范](packages/xlsx-protocol/PROTOCOL.md) | `@ganttpilot/xlsx-protocol` 的权威规范：9 列契约、容差闭集、公式口径、双解析、22 条诊断码、成环丢弃顺序、导出物白名单与确定性、六层证据与实测数字 |
+| [参照实现（xlsx）](tools/xlsx-reference/README.md) | xlsx 差分的"另一套实现"（openpyxl）：CLI 与产出协议、双向差分口径、公式两通道互证、`openpyxl==3.1.5` |
 | [架构决策记录](docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md) | ADR 0001：本地质量门禁、零框架/零 DOM 铁律的执行方式，及其代价 |
 | [架构决策记录](docs/02-adr/0002-文档模型与序列化契约.md) | ADR 0002：`null` 口径、`outlineNumber` 为派生值、版本策略、调级语义的取舍与代价 |
 | [架构决策记录](docs/02-adr/0003-命令层与事务契约.md) | ADR 0003：命令是纯数据、before 镜像 = 按 id 的差分、日志即唯一变更内核、事务 = 一个撤销单元 |
@@ -86,13 +93,15 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [架构决策记录](docs/02-adr/0006-xlsx-协议契约.md) | ADR 0006（G3 的开工前置，**冻结面**）：9 列契约、单元格容差闭集、公式只读缓存值、双解析优先级、协议层诊断码表、成环边丢弃顺序、导出物白名单与确定性判据、依赖与动态导入、验证门禁 |
 | [贡献指南](CONTRIBUTING.md) | 环境、开发命令、铁律、依赖准入流程与提交约定 |
 
-## 仓库结构（G0 骨架）
+## 仓库结构
 
 ```
 packages/engine          @ganttpilot/engine          日期算术与排程内核（零 DOM / 零框架）
-packages/xlsx-protocol   @ganttpilot/xlsx-protocol   xlsx 导入/导出协议（G3 落地）
+packages/xlsx-protocol   @ganttpilot/xlsx-protocol   xlsx 导入/导出协议（G3 已落地）
 packages/pptx-renderer   @ganttpilot/pptx-renderer   PPTX 原生形状与 OOXML 补丁（G7 落地）
 apps/web                 @ganttpilot/web             前端应用：渲染与交互（G4/G5 落地）
+tools/cpm-reference      排程内核的独立 Python 参照实现（差分的"另一套实现"）
+tools/xlsx-reference     xlsx 协议的独立 Python 参照实现（openpyxl，双向差分）
 ```
 
 ## 验证环境口径（裁决 P-4）
@@ -123,9 +132,28 @@ pnpm gate           # lint → typecheck → test → build → license:check（
   该步**需要 Python 3，缺失时失败而不是跳过**——"全绿为合并硬门槛"不被静默跳过破坏
   （[裁决 P-12](docs/00-baseline/裁决记录.md) / [ADR 0004](docs/02-adr/0004-排程契约.md) §9）；
   可用 `GANTTPILOT_PYTHON` 指定解释器，随机种子固定并随失败信息打印。
+- **门禁含 xlsx 协议的双向差分**（G3 落地）：`packages/xlsx-protocol/src/xlsx.differential.spec.ts`
+  与 [`tools/xlsx-reference/`](tools/xlsx-reference/README.md) 的独立 **openpyxl** 参照实现互读
+  （openpyxl 写 → JS 读、JS 写 → openpyxl 读）。该步**需要 Python 3 与 `openpyxl==3.1.5`，
+  缺失时失败而不是跳过**（[ADR 0006](docs/02-adr/0006-xlsx-协议契约.md) §12）。
 
 三条铁律中"三包零框架/零 DOM 依赖"已可执行化：`pnpm lint` 会拦下三包内的框架 import 与 DOM 全局，
 `pnpm test` 里的护栏自检会证明这些规则确实生效（见 `packages/engine/src/boundary.spec.ts`）。
+
+## 已知限制（随能力块增长）
+
+- **验证环境以 WPS 为准**：Microsoft PowerPoint / Microsoft Excel / Google Sheets **未经验证、不承诺**
+  （[裁决 P-4](docs/00-baseline/裁决记录.md) / [P-5](docs/00-baseline/裁决记录.md)）；
+- **xlsx 导出即规范化**：**不保留**用户的列顺序、样式与公式（T-2）；
+  项目级字段与日历例外**不在 9 个可见列里**，因此不随导出物往返（`exceptions` 的工作表表达归 v0.5）；
+- **跨时区读同一 xlsx** 时，真日期（序列号）对应的本地日历日可能偏移一天——
+  这是"真日期 + 序列号"编码的固有属性（Excel 的序列号语义就是"本地墙钟"）；
+- **`exceljs@4.4.0` 不可 tree-shaking**：`dist/exceljs.min.js` 实测 **925 KB min**
+  （`.bare.min.js` 842 KB），因此浏览器侧**必须动态 `import()`**，不得进首屏主 chunk；
+- **`.xls`(BIFF) 不支持**（ExcelJS 不支持）；**CSV 导出不在 v0.1 承诺内**；
+- **永不做 `.mpp`，且不承诺 MS Project 互操作**（[裁决 R-4](docs/00-baseline/裁决记录.md)）；
+- **性能口径**：Node 24/26 实测 + **浏览器/绘制侧未测量**（G4/G5 复测）；
+- **尚无产品界面**：G3 只交协议层纯函数，导入向导与渲染归 G4/G5。
 
 ## 文档约定
 

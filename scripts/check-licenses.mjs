@@ -27,10 +27,20 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const NOTICES_PATH = join(repoRoot, 'THIRD_PARTY_NOTICES.md');
 
-/** 允许的运行时依赖许可（PRD-06：MIT / Apache-2.0 等宽松 OSI 许可）。 */
+/**
+ * 允许的运行时依赖许可（PRD-06：MIT / Apache-2.0 等宽松 OSI 许可）。
+ *
+ * `Zlib` 与 `MIT/X11` 是 G3 引入 ExcelJS 后实测出现的**宽松许可**写法：
+ * - `pako@1.0.11` 声明 `(MIT AND Zlib)`——两个分支都是宽松许可；
+ * - `chainsaw` / `traverse` 声明 `MIT/X11`（非 SPDX 标识，实为 MIT 的别名写法）。
+ * 二者都落在 PRD-06 的"宽松 OSI 许可"口径内，故按**逐条评估后**登记在此，
+ * 依据见 `docs/00-baseline/裁决记录.md` 第十五轮（P-15）。
+ */
 const ALLOWED_LICENSES = new Set([
   'MIT',
+  'MIT/X11',
   'ISC',
+  'Zlib',
   'Apache-2.0',
   'Apache 2.0',
   'BSD-2-Clause',
@@ -64,7 +74,12 @@ const allScope = args.has('--all');
 const prodScope = args.has('--prod') || !allScope;
 
 /**
- * 许可声明是否可接受。支持 SPDX 的 `OR` 表达式（任一分支在白名单内即可）。
+ * 许可声明是否可接受。
+ *
+ * 支持 SPDF 的复合表达式：
+ * - `OR`：**任一**分支在白名单内即可（如 `MIT OR GPL-3.0-or-later` 取 MIT）；
+ * - `AND`：**全部分支**都必须在白名单内（如 `(MIT AND Zlib)`——两个都宽松才算宽松；
+ *   若只看"任一分支"，`MIT AND GPL-3.0-or-later` 会被误放行，这是**不得**发生的）。
  */
 function isAcceptable(license) {
   const normalized = String(license ?? '').trim();
@@ -74,10 +89,17 @@ function isAcceptable(license) {
   if (ALLOWED_LICENSES.has(normalized)) {
     return true;
   }
-  return normalized
+  const branches = normalized
+    .replace(/[()]/g, ' ')
     .split(/\s+OR\s+/i)
-    .map((part) => part.replace(/[()]/g, '').trim())
-    .some((part) => ALLOWED_LICENSES.has(part));
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+  return branches.some((branch) =>
+    branch
+      .split(/\s+AND\s+/i)
+      .map((part) => part.trim())
+      .every((part) => ALLOWED_LICENSES.has(part)),
+  );
 }
 
 /** 已知的开发依赖例外（按包名 + 许可核对，避免"换个包沿用旧例外"）。 */

@@ -1,3 +1,12 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+
+# `exceljs@4.4.0` 声明的 `unzipper@^0.10.11` 会拖入一棵**未声明许可**的子树
+# （`unzipper@0.10.x → fstream/binary → buffers@0.1.1`，其 package.json 的 `license` 字段为空、
+# 上游仓库已不可达；`chainsaw`/`traverse` 声明 `MIT/X11` 这类非 SPDX 标识）。
+# 这里把传递依赖抬到 `unzipper@0.12.5`（MIT），该版本已不再依赖 fstream/binary/buffers，
+# 从而让 `pnpm license:check` 能在**不新增白名单豁免**的前提下通过。
+# 依据与代价见 docs/00-baseline/裁决记录.md 第十五轮（P-15）与 ADR 0006 §11。
+overrides:
+  unzipper: 0.12.5
