@@ -48,12 +48,16 @@ evidence/                   证据链（入库；所有生成的文本证据统�
 cd spikes/g0-s1-pptx-connector
 pnpm install --ignore-workspace
 
-node src/run-all.mts                     # L1
-pwsh -File src/wps-native-reference.ps1  # 权威形态基准
-pwsh -File src/wps-capture.ps1           # L2 + L3
-pwsh -File src/wps-capture.ps1 -Fixture C-flat
-pwsh -File src/wps-drag.ps1              # L4
+node src/run-all.mts                     # L1：生成 fixture + 27 条结构断言
+pwsh -File src/wps-native-reference.ps1  # 权威形态基准（让 WPS 自己写出正确的 cxnSp）
+pwsh -File src/wps-capture.ps1           # L2 往返 + L3 渲染（A-absorption）
+pwsh -File src/wps-capture.ps1 -Fixture C-flat   # 拍平对照
+pwsh -File src/wps-drag.ps1              # L4 自动化拖动
+pwsh -File src/gen-pixel-evidence.ps1    # L3 侧证（需 Python + Pillow；可用 SPIKE_PYTHON 指定解释器）
 ```
+
+> 全部脚本会**全量重跑**生成证据；重新生成后工作区应保持干净（证据统一以 LF 写入，
+> 见 `src/wps-common.ps1` 的 `Write-LfText`）。若出现差异，说明生成不稳定，应先排查再提交。
 
 ## 证据分级（读结论前务必先看这张表）
 
@@ -63,15 +67,16 @@ pwsh -File src/wps-drag.ps1              # L4
 | L2 往返 | 经第三方编辑器打开并保存后吸附结构存活 | ✅ WPS |
 | L3 视觉 | 端点确实落在形状边上、走线正确、无裁剪 | ✅ WPS 渲染 + 模型视觉判读 |
 | L4 拖动 | 拖动后端点跟随、走线自动改道 | ✅ WPS 引擎（COM 自动化） |
-| L5 人工真机 | 人工在 **WPS** 中拖动观察端点跟随 | ✅ 人工确认（见 `evidence/powerpoint/人工验证记录.md`） |
+| L5 人工真机 | 人工在 **WPS** 中拖动观察端点跟随 | ✅ 人工确认（见 [`evidence/wps/人工验证记录.md`](evidence/wps/人工验证记录.md)） |
 
-## 验证环境口径（维护者决策）
+## 验证环境口径（裁决 P-4）
 
 **开发过程全部使用 WPS；门禁以 WPS 验证为准（含人工与 COM 自动化）；Microsoft PowerPoint 作为备查、不阻塞。**
 因此 L5 的"真机"是 **WPS**，G1-a 已闭合。代价：产品不对外承诺 PowerPoint 下的跟随行为。
 
-> 若将来要把 PowerPoint 提升为门禁，照 [`evidence/powerpoint/README.md`](evidence/powerpoint/README.md)
-> 执行一次即可，产物可用 `node src/run-all.mts` 复现。详见 [结论.md §七](结论.md)。
+见 [裁决记录 P-4](../../docs/00-baseline/裁决记录.md)。若将来要把 PowerPoint 提升为门禁，
+照 [`evidence/powerpoint/README.md`](evidence/powerpoint/README.md) 执行一次即可，
+产物可用 `node src/run-all.mts` 复现；详见 [结论.md §七](结论.md)。
 
 ## 两个最容易踩的坑（都已实证）
 
