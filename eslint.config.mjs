@@ -65,6 +65,30 @@ export default [
         parser: tseslint.parser,
         extraFileExtensions: ['.vue'],
       },
+      /**
+       * 应用层是 DOM 与浏览器的**唯一合法落点**（铁律的另一半）。
+       * 这里显式声明用到的浏览器全局：ESLint 的 `no-undef` 不认识 TS 的 `lib: DOM`，
+       * 若不声明，`File` / `HTMLInputElement` 这类类型会被误报成未定义。
+       * 不引入 `globals` 包，保持依赖面最小（与计算层同一取舍）。
+       */
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        File: 'readonly',
+        Blob: 'readonly',
+        Event: 'readonly',
+        HTMLElement: 'readonly',
+        HTMLInputElement: 'readonly',
+        SVGSVGElement: 'readonly',
+        ResizeObserver: 'readonly',
+        PerformanceObserver: 'readonly',
+        URLSearchParams: 'readonly',
+        requestAnimationFrame: 'readonly',
+        performance: 'readonly',
+        setTimeout: 'readonly',
+        console: 'readonly',
+      },
     },
     rules: {
       // 应用层显式放开计算层的三条限制（这是唯一的合法落点）
@@ -97,9 +121,16 @@ export default [
         process: 'readonly',
         console: 'readonly',
         URL: 'readonly',
+        URLSearchParams: 'readonly',
         Buffer: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        // `scripts/measure-render.mjs` 用 Node 内置能力驱动本机 Chrome（零新增依赖，P-17）：
+        // `fetch` 取 CDP 的 `/json/list`，内置 `WebSocket` 走 CDP 协议。
+        fetch: 'readonly',
+        WebSocket: 'readonly',
       },
     },
     rules: {
