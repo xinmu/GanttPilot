@@ -12,6 +12,9 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@ganttpilot/engine": "workspace:*",
+    "@ganttpilot/render-core": "workspace:*",
+    "@ganttpilot/xlsx-protocol": "workspace:*",
     "vue": "^3.5.43"
   },
   "devDependencies": {
