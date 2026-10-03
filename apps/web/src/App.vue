@@ -4,7 +4,9 @@
  * 甘特渲染、虚拟滚动与裁剪策略在 G4 落地，交互与撤销在 G5 落地。
  */
 const plan = [
-  { gate: 'G1', label: '数据模型、命令层与日历语义' },
+  { gate: 'G1.1', label: '日历与日期算术（工作日序号化）' },
+  { gate: 'G1.2', label: '文档 schema、版本迁移与 WBS 层级' },
+  { gate: 'G1.3', label: '命令层与事务（before 镜像逆操作）' },
   { gate: 'G2', label: '最小正向传播内核' },
   { gate: 'G3', label: 'xlsx 导入 / 导出（仅可见列）' },
   { gate: 'G4', label: '纯 SVG 甘特渲染（含裁剪）' },
@@ -21,7 +23,8 @@ const plan = [
       Excel 计划 → 排程引擎 → 原生可编辑 PPTX
     </p>
     <p class="status">
-      当前为 <strong>G0</strong> 骨架：仓库结构与质量护栏已就位，尚无产品能力。渲染能力见 G4。
+      当前为 <strong>G0</strong> 骨架：仓库结构与质量护栏已就位，尚无产品能力；
+      G1 已分解为 <strong>G1.1–G1.3</strong>（裁决 P-10），尚未开工。渲染能力见 G4。
     </p>
     <ol class="plan">
       <li
