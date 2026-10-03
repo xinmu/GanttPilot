@@ -1,0 +1,42 @@
+name: gate
+
+# 等价于本地 `pnpm gate`：安装 → lint → 类型检查 → 测试 → 构建 → 许可审计。
+#
+# 当前门禁落在本地 pre-push 钩子（见 docs/02-adr/0001）。本文件是"接上远端即可用"的等价物：
+# 在把仓库推到 GitHub 之前它不会运行，因此**尚未经过真实运行验证**，不要把它当作现有护栏。
+on:
+  push:
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: License audit
+        run: pnpm license:check

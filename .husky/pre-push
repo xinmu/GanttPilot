@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+# G0 本地合并门禁：推送前跑完整链条，任何一步失败即阻断推送。
+#
+# 由 `core.hooksPath=.husky` 生效（`pnpm install` 的 prepare 钩子会自动设置）。
+# 手动安装：pnpm hooks:install
+#
+# 铁律（见 docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md）：
+# 跳过门禁只能是有意识的例外，用 `git push --no-verify`，并在提交信息里说明原因。
+
+set -e
+
+if command -v pnpm >/dev/null 2>&1; then
+  echo '[pre-push] 运行 pnpm gate …'
+  pnpm gate
+  exit $?
+fi
+
+if command -v corepack >/dev/null 2>&1; then
+  echo '[pre-push] 运行 corepack pnpm gate …'
+  corepack pnpm gate
+  exit $?
+fi
+
+echo '[pre-push] 未找到 pnpm 或 corepack，改用 node 直接运行门禁脚本。'
+node scripts/gate.mjs
