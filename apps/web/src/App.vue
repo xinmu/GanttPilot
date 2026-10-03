@@ -31,7 +31,9 @@ const plan = [
       均已完成——<strong>「Excel 导入 → 排程」在协议层已跑通</strong>；
       尚无产品界面。下一步是 <strong>G4</strong>（纯 SVG 甘特渲染，含裁剪）：
       几何真相源与包边界、时间轴与 x 坐标、裁剪契约已在 <strong>ADR 0007</strong> 冻结，
-      数值由 <strong>G4-S</strong> 准入定标实验回填。
+      <strong>G4 的开工前置已闭</strong>——<strong>G4-S</strong> 准入定标实验已完成并回填了
+      ADR 0007 §11 的七项数值（裁剪有效性与规模解耦、首屏与滚动实测、4 类箭头可区分性；
+      判定 <code>S4-a</code>…<code>S4-d</code> 全部通过，裁决 <strong>P-17</strong>）。
     </p>
     <ol class="plan">
       <li

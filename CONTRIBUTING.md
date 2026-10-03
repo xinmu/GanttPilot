@@ -218,10 +218,14 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
    的"规模上限下调至 500 任务并明确声明"，且**判据来源是 G4-S 的 `S4-a`**；
    在 G4-S 给出数字之前，**不得对外声明渲染规模与首屏指标**。
 9. **门禁分层**（ADR 0007 §9）：几何期望值表 / 裁剪结构断言 / 不变量 / 负向对照**进 `pnpm gate`**；
-   **浏览器计时先进记录制**（P-9"哨兵 ≠ 门禁"口径）。
-   优先走**零新增依赖**路径：`vue` 自带 `@vue/server-renderer`，可在 Node 侧 SSR 出 SVG 做元素计数与结构断言。
-   要引入浏览器自动化（Playwright 等）或 DOM 环境（jsdom/happy-dom）时，走下面的"新增依赖的准入流程"，
-   并在裁决中写明"**是否进门禁、缺失时是失败还是跳过**"（P-12 口径）。
+   **浏览器计时维持"记录制"**（[裁决 P-17](docs/00-baseline/裁决记录.md)：需要本机 Chrome，而真正需要门禁的判据
+   已在 Node 侧；P-9"哨兵 ≠ 门禁"口径）。
+   零新增依赖路径已经验证可行：`vue` 自带 `@vue/server-renderer` 可在 Node 侧 SSR 出 SVG 做元素计数；
+   **浏览器计时用 Node 内置 `fetch` + `WebSocket` 通过 CDP 驱动本机 Chrome**（G4-S 已落地，见
+   [`spikes/g0-s4-svg-clipping/src/cdp.mjs`](spikes/g0-s4-svg-clipping/src/cdp.mjs)），
+   复现命令 `node spikes/g0-s4-svg-clipping/src/browser-run.mts`。
+   要引入 Playwright 等浏览器自动化或 jsdom/happy-dom 时，仍走下面的"新增依赖的准入流程"，
+   并在裁决中写明"**是否进门禁、缺失时是失败还是跳过**"（P-12 口径：**缺失即失败，不静默跳过**）。
 
 改动本块时的测试要求（与 G2/G3 同构）：**声明式几何期望值表**（内核无权改基准）、
 **裁剪结构断言 + 元素预算**（元素数与文档总规模解耦）、**反算不变量**、
