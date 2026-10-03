@@ -5,7 +5,8 @@ import * as engine from './index.js';
 describe('@ganttpilot/engine 公共入口', () => {
   it('导出 G1.1 的日历与日期算术 API 与包标识', () => {
     expect(engine.ENGINE_VERSION).toBe('0.0.0');
-    expect(engine.PLANNED_GATE).toBe('G1.1');
+    expect(engine.PLANNED_GATE).toBe('G1.2');
+    expect(engine.COMPLETED_GATES).toStrictEqual(['G1.1', 'G1.2']);
 
     // G0 的兼容面必须保持可用。
     expect(typeof engine.countWorkdays).toBe('function');
@@ -24,6 +25,110 @@ describe('@ganttpilot/engine 公共入口', () => {
     expect(engine.DEFAULT_PROJECT_BASE_DAY_ISO).toBe('2025-01-01');
     expect(engine.DEFAULT_HORIZON_DAYS).toBeGreaterThan(0);
     expect(engine.HORIZON_GUARD_DAYS).toBeGreaterThan(engine.DEFAULT_HORIZON_DAYS);
+  });
+
+  it('导出 G1.2 的文档模型、迁移与 WBS 层级 API', () => {
+    // 文档模型与序列化
+    expect(engine.CURRENT_DOCUMENT_VERSION).toBe(3);
+    expect(engine.MIN_SUPPORTED_DOCUMENT_VERSION).toBe(1);
+    expect(engine.SUPPORTED_DOCUMENT_VERSIONS).toStrictEqual([1, 2, 3]);
+    expect(typeof engine.serializeDocument).toBe('function');
+    expect(typeof engine.parseDocument).toBe('function');
+    expect(typeof engine.canonicalizeDocument).toBe('function');
+    expect(typeof engine.createEmptyDocument).toBe('function');
+    expect(typeof engine.reindexDocument).toBe('function');
+
+    // 校验与迁移
+    expect(typeof engine.validateDocument).toBe('function');
+    expect(typeof engine.hasDocumentErrors).toBe('function');
+    expect(typeof engine.migrateDocument).toBe('function');
+    expect(typeof engine.DocumentError).toBe('function');
+    expect(typeof engine.DocumentVersionError).toBe('function');
+
+    // 依赖关系枚举与范围常量
+    expect(engine.LINK_TYPES).toStrictEqual(['FS', 'SS', 'FF', 'SF']);
+    expect(engine.MAX_LAG_DAYS).toBeGreaterThan(0);
+    expect(engine.MAX_DURATION_DAYS).toBeGreaterThan(0);
+
+    // WBS 层级
+    expect(typeof engine.buildTaskTree).toBe('function');
+    expect(typeof engine.flattenTaskTree).toBe('function');
+    expect(typeof engine.computeOutlineNumbers).toBe('function');
+    expect(typeof engine.computeOutlineNumbersByScan).toBe('function');
+    expect(typeof engine.indentTask).toBe('function');
+    expect(typeof engine.outdentTask).toBe('function');
+    expect(typeof engine.moveTask).toBe('function');
+    expect(typeof engine.reindexTasks).toBe('function');
+    expect(typeof engine.isValidOutlineNumber).toBe('function');
+    expect(engine.OUTLINE_SEPARATOR).toBe('.');
+    expect(engine.MAX_OUTLINE_DEPTH).toBeGreaterThan(0);
+  });
+
+  it('通过公共入口就能走完「新建 → 建层级 → 序列化 → 解析」', () => {
+    const base = engine.createEmptyDocument('试点项目');
+    const withTasks: engine.ProjectDocument = {
+      ...base,
+      tasks: [
+        {
+          id: 'a',
+          parentId: null,
+          outlineNumber: '1',
+          name: '阶段',
+          startDate: null,
+          endDate: null,
+          durationDays: null,
+          progress: null,
+          milestone: false,
+          collapsed: false,
+          notes: null,
+          manual: false,
+          constraints: [],
+        },
+        {
+          id: 'b',
+          parentId: 'a',
+          outlineNumber: '1.1',
+          name: '子任务',
+          startDate: '2025-01-06',
+          endDate: '2025-01-10',
+          durationDays: 4,
+          progress: 0.5,
+          milestone: false,
+          collapsed: false,
+          notes: null,
+          manual: false,
+          constraints: [],
+        },
+      ],
+    };
+
+    const reparsed = engine.parseDocument(engine.serializeDocument(engine.reindexDocument(withTasks)));
+    expect(reparsed.tasks.map((entry) => [entry.id, entry.parentId, entry.outlineNumber])).toStrictEqual([
+      ['a', null, '1'],
+      ['b', 'a', '1.1'],
+    ]);
+  });
+
+  it('通过公共入口走一次调级：indent 后 outdent 回到原形状', () => {
+    const tasks = [
+      { id: 'a', parentId: null, outlineNumber: '1', name: 'a' },
+      { id: 'b', parentId: null, outlineNumber: '2', name: 'b' },
+    ];
+    const indented = engine.indentTask(tasks, 'b');
+    expect(indented.ok).toBe(true);
+    if (!indented.ok) {
+      return;
+    }
+    expect(indented.value.find((entry) => entry.id === 'b')?.parentId).toBe('a');
+
+    const back = engine.outdentTask(indented.value, 'b');
+    expect(back.ok).toBe(true);
+    if (!back.ok) {
+      return;
+    }
+    expect(back.value.map((entry) => [entry.id, entry.parentId, entry.outlineNumber])).toStrictEqual(
+      tasks.map((entry) => [entry.id, entry.parentId, entry.outlineNumber]),
+    );
   });
 
   it('通过公共入口就能走完「ISO → 序号 → ISO」与工作日推演', () => {
