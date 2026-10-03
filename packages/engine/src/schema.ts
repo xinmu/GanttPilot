@@ -156,7 +156,7 @@ export interface ProjectMeta {
    * 空字符串表示"未指定"——按 `calendars[0]` 解释。
    */
   readonly baseCalendarId: string;
-  /** 项目开始日（文档级留位；G2/G4 决定用途）。 */
+  /** 项目开始日：排程的**项目起点基准**（[ADR 0004](../../../docs/02-adr/0004-排程契约.md) §4）。 */
   readonly startDate: string | null;
   /** 项目完成日（同上）。 */
   readonly finishDate: string | null;
@@ -196,8 +196,9 @@ export interface DocumentLink {
   readonly to: string;
   readonly type: LinkType;
   /**
-   * lag（**工作日整数，可为负**）。负 lag 越到项目起点之前的语义归 G2
-   * （[S3 结论 §五.4](../../../spikes/g0-s3-cpm-perf/结论.md)），本块只保证**可表达 + 范围校验**。
+   * lag（**工作日整数，可为负**）。负 lag 越到项目起点之前的语义**已定**（截断到项目起点 +
+   * 计数与诊断，[ADR 0004](../../../docs/02-adr/0004-排程契约.md) §4；[S3 结论 §五.4](../../../spikes/g0-s3-cpm-perf/结论.md)），
+   * 本块只保证**可表达 + 范围校验**。
    */
   readonly lagDays: number;
 }

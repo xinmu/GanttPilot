@@ -70,7 +70,7 @@
 | `project.name` | 字符串 | 项目名（可为空串） |
 | `project.description` | 字符串 \| `null` | 项目说明 |
 | `project.baseCalendarId` | 字符串 | **v0.1 唯一生效的日历**（R-1）；必须存在于 `calendars[]` |
-| `project.startDate` / `finishDate` | ISO 日期 \| `null` | 文档级留位；G2/G4 决定用途，本块只校验格式 |
+| `project.startDate` / `finishDate` | ISO 日期 \| `null` | `startDate` = **排程的项目起点基准**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §4：非空则取它，否则回落锚点最小值）；`finishDate` 仍是文档级留位（G7 摘要可读）。本块只校验格式 |
 | `calendars[].id` | 字符串 | 日历标识；缺省 `'project'` |
 | `calendars[].workDays` | 整数数组 | `0=周日 … 6=周六`。**省略 = 用默认周一至周五**；空数组是"没有任何工作日"，**非法** |
 | `calendars[].exceptions` | 对象 | `nonWorking`（工作日→非工作日）与 `working`（休息日→工作日）两个 ISO 日期数组；**同日冲突时非工作日优先**（DM-06） |
@@ -197,8 +197,9 @@ type WbsResult<T> = { ok: true; value: T } | { ok: false; code: WbsFailureCode; 
 
 | 项 | 归属 |
 |---|---|
-| `endDate` 与 `startDate + durationDays` 的一致性校验 | **G2**（排程语义：日期是排程结果还是输入尚未定） |
-| 负 lag 越到项目起点之前的语义 | **G2**（[S3 §五.4](../../spikes/g0-s3-cpm-perf/结论.md)） |
+| `endDate` 与 `startDate + durationDays` 的一致性校验 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §2）：`endDate` 是**派生显示值、工期为准**，不一致只给 `info`（`endDateStale`），**校验从不改写文档** |
+| 负 lag 越到项目起点之前的语义 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §4）：截断到项目起点 + 计数与诊断（`clampedStart`），**不阻断排程、不产出负序号**（[S3 §五.4](../../spikes/g0-s3-cpm-perf/结论.md)） |
+| 汇总任务（有子任务）与排程的关系 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §3）：汇总任务**不参与排程**（派生值由引擎产出）；`LINK_SUMMARY_ENDPOINT` 保留 `warning`、该边在传播中**被忽略**；里程碑（工期 0）照常参与 |
 | `constraints[]` 与 `manual` 的语义 | **v0.5**（R-3；本块只留位） |
 | `baselines[].snapshot` 的内容 | **v0.5**（P1-03） |
 | 折叠的渲染行为 | **G4**（本块只承载 `collapsed` 状态） |
