@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@ganttpilot/engine": "workspace:*",
+    "@ganttpilot/render-core": "workspace:*",
     "exceljs": "4.4.0"
   },
   "devDependencies": {

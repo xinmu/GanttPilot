@@ -7,6 +7,12 @@
 >
 > **本包只交协议层纯函数**：字节流 ↔ 文档、列探测、结构化诊断。**不交任何 UI**（列映射向导、拖拽导入、
 > 文件对话框都在 `apps/web`），**不接触 DOM**，**不渲染、不排版、不算排程**。
+>
+> **列身份的所有权自 G5 起不在本包**（[ADR 0008](../../docs/02-adr/0008-列身份所有权与拖拽交互契约.md) §1–§3）：
+> `COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` 等由 `@ganttpilot/render-core` 的
+> `columns.ts` 唯一拥有，本包 `src/columns.ts` 只是**转型再导出**（公共 API 面一个符号不减，
+> 因此本文档下方所有 `ColumnKey` 用法不变）。**列契约的内容（9 列的键、表头、必需性、列宽）
+> 与 ADR 0006 §2 一字不改**，改的只是归属；改列集合请改 `render-core/src/columns.ts` 并同步本节。
 
 ## 一、四条铁律
 

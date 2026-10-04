@@ -87,6 +87,9 @@ importers:
       '@ganttpilot/engine':
         specifier: workspace:*
         version: link:../engine
+      '@ganttpilot/render-core':
+        specifier: workspace:*
+        version: link:../render-core
       exceljs:
         specifier: 4.4.0
         version: 4.4.0

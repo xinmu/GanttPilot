@@ -1,7 +1,7 @@
 {
   "name": "@ganttpilot/render-core",
   "version": "0.0.0",
-  "description": "渲染几何与裁剪内核：文档 + Schedule + Calendar + 视口 → 视图模型（零 DOM / 零框架依赖）",
+  "description": "渲染几何与裁剪内核 + 列身份与日期文本：文档 + Schedule + Calendar + 视口 → 视图模型（零 DOM / 零框架依赖）",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,

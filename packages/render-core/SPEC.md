@@ -33,7 +33,11 @@
 | `domain.ts` | 行序（树序经折叠过滤）、`barXRange`、`milestoneCenterX`、`taskBounds` |
 | `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点 |
 | `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges` |
-| `count.ts` | 元素计数（两路互证）与预算判定 |
+| `count.ts` | 元素计数（两路互证）与预算判定；G5 的覆盖层计数 `countOverlays`（`c₄`，**每帧固定开销**，不随规模增长） |
+| `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出） |
+| `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19） |
+| `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8）：命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture` |
+| `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
 | `affected.ts` | `affectedRenderSet`：受影响行 + 受影响边（编辑重绘的判据） |
 | `fixtures.ts` | 确定性夹具生成（演示 / 测量 / spec 同源） |
 
@@ -152,7 +156,27 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
   边取"任一端点受影响"的全部边（边的几何只由两端点决定）；
 - **折叠/展开会改变可见行集合**，因此窗口必须重算——这不是"整表重建"
   （出口条件禁止的是**行内编辑**触发整表重建）；`v-for` 的 `key` 仍是任务 id，DOM 复用不受影响；
-- 撤销/重做 UI 与命令回退栈的持久化归 G5/G6。
+- 撤销/重做 UI 在 `apps/web`（G5 已落地），命令回退栈的持久化归 G6。
+
+## 八之二、拖拽手势与交互态（G5，ADR 0008 §4–§11）
+
+- **纯内核在 `gesture.ts`**：入参是**归一化指针**（`{x, y, buttons, altKey, escPressed}`，
+  内容坐标；绝不出现 `MouseEvent`），出参是 `{ state, anchors, commands, link, rows, edges, cyclePath, preview }`。
+  `apps/web` 的 `useGesture.ts` 是**唯一碰 DOM 的手势代码**；
+- **三语义判定区**（`DRAG_EDGE_PX = 6`）：条的左端 ⇒ 改开始（完成日不动、工期随之变）、
+  右端 ⇒ 改工期、中部 ⇒ 整体移动；**里程碑按菱形中心分半**（只有整体移动与"改工期"两支）；
+  汇总行**不可拖**（汇总日期是聚合结果）但可作为建线端点；
+- **拖动期不写文档**：位置经**会话锚点**（`compute(document, calendar, anchors)`）生效，
+  松手才提交**一条**命令；`Esc` 取消 ⇒ 清锚点、不提交（⇒ IX-03 的"一次手势 = 一层撤销"）；
+- **`snap` / `allow`**：`snap` 把候选**夹到 `[0, 入边约束]`**（`snapCandidate`）；
+  `allow` 原样放行。**冲突判据只有 `compute` 的 `anchorConflict` 一处**——
+  "晚于约束"不是冲突（`ES = max(约束, 锚点)`），"**早于**约束"才是（SCHEDULE.md §四.3 情形④）；
+- **建线**：类型由相对位置反推（`to.xLeft ≥ from.xLeft ⇒ FS`，否则 `SS`）、`lagDays = 0`、
+  id 由本包给确定性建议值；**成环预检即拒绝**并把 `path` 交给高亮层；
+- **高亮是独立覆盖层**（`highlight.ts`）：**不进 `ViewModel`**——几何真相源只由
+  「文档 + `Schedule` + `Calendar` + 视口」决定，交互态进去会让期望值表与裁剪判据跟着手势漂移；
+- **元素预算**：覆盖层另立 **`c₄`**（`ELEMENT_MODEL_G5.overlay = 12`，**每帧固定开销**），
+  `c₁`/`c₂`/`c₃` 一字未改；`countElements` 与 `countElementsByEnumeration` 对覆盖层同样逐项互证。
 
 ## 九、验证与门禁
 
@@ -164,6 +188,10 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | ④ 负向对照 | NC1（端点可见性必须丢边 314 条）、NC2（关裁剪必须增长 10.71×）、NC3 | 必须被检出 | **进** |
 | ⑤ 浏览器计时 | `scripts/measure-render.mjs`（零依赖 CDP，**打包产物**） | 1,000 任务首屏 ≤ 1s；10× 滚动与《评估报告》§5.4 同尺 | **不进**（记录制，P-17） |
 | ⑥ 人工目视 | 仅备查 | "吸附/走线类判断必须量化，不得目视" | **不进** |
+| **G5 ①** P-19 判据 | `dateText.spec.ts` + `dateTextNegative.spec.ts` + `editCommand.spec.ts` + `textFixtures.spec.ts` | 开始 ≤ 完成、与 `Schedule` 同源、派生完成与显示的"开始"同源、编辑写回一致；**NC1/NC2 必须被检出** | **进** |
+| **G5 ②** 手势判据 | `gesture.spec.ts` | 三语义判定区、拖动三情形与松手命令、`Esc` 取消、汇总不可拖、`snap`/`allow` 四象限与 `anchorConflict` 对齐、建线与检环、命中反算 × 三档位 | **进** |
+| **G5 ③** 依赖方向护栏 | `boundary.spec.ts` | 本包发布源与**构建产物**都没有指向 `exceljs` 的模块边；本包铁律夹具被拦下 | **进** |
+| **G5 ④** 拖动计时 | `scripts/measure-render.mjs --drag` | 帧间隔 p95 ≤ 33.3 ms（≥30 fps）、松手 → 重算 + 冲突标记 ≤ 200 ms、下游跟随 | **不进**（记录制，ADR 0008 §11） |
 
 **元素预算的常数与实测**（[`apps/web/evidence/render-timing-chrome152.md`](../../apps/web/evidence/render-timing-chrome152.md)）：
 
@@ -185,9 +213,10 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 ## 十、明确不做（v0.1 内）
 
 - **季刻度**与折叠展开**动画**；
-- **拖拽三语义、拖拽建线、撤销/重做 UI、冲突标记、诊断清单 UI**（G5）；
 - **同侧多线分道/避让**（P-8 遗留 3，另立 ADR 才做）；
 - **导出路径的窗口裁剪**：导出是**全量渲染**，G7 只复用 §2/§3/§5 的几何，**不复用 §6**；
-- **Worker 化**、**2,000 任务正式压测**、**无障碍基础**（虚拟化的 `aria-rowcount/rowindex` 一并延后）、
+- **Worker 化**、**2,000 任务正式压测**、**无障碍基础**（虚拟化的 `aria-rowcount` / `aria-rowindex` 一并延后）、
   **主题跟随**（v0.5）；
-- **Tab/Shift+Tab 调级**（P1-07 → v0.5）。
+- **Tab/Shift+Tab 调级**（P1-07 → v0.5）；
+- **拖动期的边缘自动滚动**（指针移出窗格时不滚动，ADR 0008 §11）；
+- **诊断的行内徽标/悬浮卡**：G5 只交"三层拼接清单 + 冲突描边 + 成环高亮"的**受控收口**（ADR 0008 §9）。

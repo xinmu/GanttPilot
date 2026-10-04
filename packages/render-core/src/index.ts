@@ -118,16 +118,88 @@ export {
   type Viewport,
 } from './viewModel.js';
 
-// ---------------------------------------------------------------- 元素预算（ADR 0007 §6.7）
+// ---------------------------------------------------------------- 元素预算（ADR 0007 §6.7 + ADR 0008 §11）
 export {
   budgetConstantFor,
   countElements,
   countElementsByEnumeration,
+  countOverlays,
   type ElementCounts,
+  type OverlayCounts,
 } from './count.js';
+
+// ---------------------------------------------------------------- 拖拽手势内核（ADR 0008 §4–§8）
+export {
+  beginGesture,
+  dayDeltaFor,
+  dragModeFor,
+  entryConstraintFor,
+  idleGesture,
+  ordinalAtClamped,
+  reduceGesture,
+  resolvePointerTarget,
+  snapCandidate,
+  type AnchorMode,
+  type BeginGestureArgs,
+  type DragMode,
+  type GestureState,
+  type GestureUpdate,
+  type HitTarget,
+  type LinkPreview,
+  type PointerInput,
+  type ReduceGestureArgs,
+  type ResolvePointerArgs,
+} from './gesture.js';
+
+// ---------------------------------------------------------------- 交互态高亮（ADR 0008 §8/§9）
+export {
+  affectedRenderSetWithAnchors,
+  emptyHighlight,
+  highlightForConflict,
+  highlightForCyclePath,
+  highlightForLinkEndpoints,
+  highlightForTask,
+  type HighlightSet,
+} from './highlight.js';
 
 // ---------------------------------------------------------------- 受影响子图（ADR 0007 §8）
 export { affectedRenderSet, type AffectedRenderSet } from './affected.js';
+
+// ---------------------------------------------------------------- 列身份（ADR 0008 §1–§3；唯一真相源）
+export {
+  COLUMN_SPECS,
+  columnIndexOfKey,
+  columnKeyOfIndex,
+  columnSpecOfHeader,
+  DATE_LIKE_COLUMNS,
+  EDITABLE_COLUMNS,
+  HEADER_ROW,
+  SHEET_NAME,
+  TABLE_COLUMNS,
+  type ColumnKey,
+  type ColumnRequirement,
+  type ColumnSpec,
+  type TableColumn,
+} from './columns.js';
+
+// ---------------------------------------------------------------- 日期文本与编辑映射（P-19 迁落点）
+export {
+  cellText,
+  collapseToCommand,
+  dayOfIsoSafe,
+  derivedEndIso,
+  editToCommand,
+  formatProgress,
+  isoOfDaySafe,
+  isoOfOrdinalSafe,
+  parseIntInput,
+  parseIsoInput,
+  parseProgressInput,
+  type CellTextArgs,
+  type EditCommand,
+  type EditOutcome,
+  type EditToCommandArgs,
+} from './viewText.js';
 
 // ---------------------------------------------------------------- 确定性夹具（演示 / 测量 / 测试同源）
 export {
@@ -170,11 +242,13 @@ export type {
   CommandResult,
   DocumentCommand,
   DocumentDiagnostic,
+  DocumentLink,
   DocumentSession,
   ProjectDocument,
   Schedule,
   ScheduleDiagnostic,
   ScheduleResult,
+  SessionAnchor,
   SessionResult,
 } from '@ganttpilot/engine';
 

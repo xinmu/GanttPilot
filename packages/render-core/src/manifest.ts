@@ -154,6 +154,34 @@ export const ARROW_RASTER = { paddingPx: 1 } as const;
  */
 export const ELEMENT_MODEL = { perRenderedRow: 3, perRenderedEdge: 3 } as const;
 
+// ---------------------------------------------------------------- G5 交互常量（ADR 0008 §5/§11）
+
+/**
+ * 判定区宽度（px）：指针落在条的左右端 `DRAG_EDGE_PX` 内即"改开始 / 改工期"，其余为"整体移动"
+ * （ADR 0008 §5 的表）。取值与 `EDGE_STUB_PX`（8）同阶但**更小**：判定区压住折点引出段即可，
+ * 过大只会让"整体移动"（最常用的语义）变难命中。
+ */
+export const DRAG_EDGE_PX = 6;
+
+/**
+ * G5 每帧新增元素的常数 **`c₄`**（ADR 0008 §11）。
+ *
+ * 与 `c₁`/`c₂`/`c₃` 一样，它必须与渲染层**真的发射了哪些元素**一一对应；
+ * 与它们不同的是：`c₄` 是**每帧的固定开销**，不随行数、边数或文档规模增长——
+ * 拖动覆盖层（轮廓 + 起止标记）、建线预览线 + 箭头、冲突标红描边、成环路径高亮描边。
+ *
+ * | 项 | 元素 | 何时发射 |
+ * |---|---|---|
+ * | 拖动轮廓 | `<rect>` | 拖动中（1 个） |
+ * | 拖动起止标记 | 2 × `<line>` | 拖动中（改开始/改工期各 1 条，整体移动 2 条） |
+ * | 建线预览 | `<path>` + 箭头 `<polygon>` | 建线中（2 个） |
+ * | 冲突/成环描边 | `<path>` 或 `<rect>` | 有冲突或高亮时（≤ 2 个） |
+ *
+ * **维护纪律**：改 `GanttChart.vue` 的覆盖层模板必须同步这里的 `c4` 与 `countElements` 的分类计数；
+ * `countElements` 与 `countElementsByEnumeration` 必须继续逐项相等。
+ */
+export const ELEMENT_MODEL_G5 = { overlay: 12 } as const;
+
 /** 视口默认值（测量口径的一部分：换视口必须重新登记数字）。 */
 export const VIEWPORT_DEFAULT = {
   width: 1280,
