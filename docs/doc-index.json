@@ -99,6 +99,12 @@
       "note": "P-32：G5 批次 B 的契约先行与落地（ADR 0008 §16）"
     },
     {
+      "path": "docs/00-baseline/裁决R32.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-33：G6 的落地口径与两项待定的收口"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
@@ -196,6 +202,12 @@
       "cap": "contract"
     },
     {
+      "path": "docs/02-adr/0009-持久化契约.md",
+      "role": "contract",
+      "cap": "contract",
+      "note": "G6 持久化契约：记录形状、SnapshotStore、恢复语义、失败码闭集"
+    },
+    {
       "path": "docs/02-adr/附录/0007-增补.md",
       "role": "record",
       "cap": "record",
@@ -221,6 +233,12 @@
       "path": "packages/engine/SCHEDULE.md",
       "role": "spec",
       "cap": "spec"
+    },
+    {
+      "path": "packages/engine/PERSISTENCE.md",
+      "role": "spec",
+      "cap": "spec",
+      "note": "G6 持久化的数值、公共 API 与验证矩阵（形状在 ADR 0009）"
     },
     {
       "path": "packages/render-core/SPEC.md",

@@ -311,6 +311,7 @@ export {
   createSession,
   redoSession,
   reindexDocument,
+  restoreSession,
   undoSession,
   validateDocument,
 } from '@ganttpilot/engine';
@@ -326,6 +327,8 @@ export type {
   ScheduleResult,
   SessionAnchor,
   SessionResult,
+  SessionStep,
+  SessionStacks,
 } from '@ganttpilot/engine';
 
 /** 任务字段上限（行内编辑用它做范围校验；值与 ADR 0002 的 schema 约束同源）。 */

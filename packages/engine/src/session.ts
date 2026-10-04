@@ -110,6 +110,39 @@ export function createSession(document: ProjectDocument, revision = 0): Document
   return { document, revision, undoStack: [], redoStack: [] };
 }
 
+/** 两个栈的初值（`restoreSession` 的入参）。 */
+export interface SessionStacks {
+  readonly undo?: readonly SessionStep[];
+  readonly redo?: readonly SessionStep[];
+}
+
+/**
+ * 由"文档 + 两个栈"构造会话（**G6 的恢复入口**）。
+ *
+ * 与 `createSession` 的分工：`createSession` 是"新会话"（栈必空）；本函数是"续上一个会话"，
+ * 因此要显式带 `revision` 与两个栈。存在的理由是**不给调用方手搓 `DocumentSession` 字面量**
+ * 的机会——`revision` 与栈深度的自洽（`undoStack[i]` 是第 `i + 1` 次状态变化的步）只在
+ * 会话层内可保证，散落在持久化模块或测试里必然分叉。
+ *
+ * `undoStack[i]` 与 `revision` 的对应关系是**约定**（`createSession` 从 0 起、每次成功变化 +1），
+ * 恢复路径据此把"检查点之后的步"切片（见 `persistence.ts` 的 `sessionRecordOf`）。
+ *
+ * **`document` 传引用、不克隆**：与 `createSession` 同口径（会话文档本来就是不可变值的一段）。
+ * 恢复路径的入参由 `persistence.ts` 从记录里克隆而来，因此不会与日志的冻结副本共享引用。
+ */
+export function restoreSession(
+  document: ProjectDocument,
+  revision: number,
+  stacks: SessionStacks = {},
+): DocumentSession {
+  return {
+    document,
+    revision,
+    undoStack: [...(stacks.undo ?? [])],
+    redoStack: [...(stacks.redo ?? [])],
+  };
+}
+
 /** 新建空事务。 */
 export function createTransaction(commands: readonly DocumentCommand[] = []): Transaction {
   return { commands: [...commands] };

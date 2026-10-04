@@ -9,7 +9,11 @@
  * - **G2 排程内核**（`schedule.ts`）：全量正向传播 `compute()`（含锚点规则、汇总聚合、
  *   检环与截断）、建边预检 `wouldCreateCycle()`、纯结构查询 `affectedClosure()`、容量规划
  *   `createScheduleCalendar()`。形状与语义见 `packages/engine/SCHEDULE.md`、
- *   `docs/02-adr/0004-排程契约.md`（冻结面）与 `docs/02-adr/0005-排程内核落地补齐与结果形状.md`。
+ *   `docs/02-adr/0004-排程契约.md`（冻结面）与 `docs/02-adr/0005-排程内核落地补齐与结果形状.md`；
+ * - **G6 持久化**（`persistence.ts`）：记录形状（`StoredSession` = 检查点基线 + 其后的增量）、
+ *   恢复语义（`planRestoreOf` / `restoreSessionOf`）、检查点保留与触发策略（纯状态机）、
+ *   存储接口 `SnapshotStore` 与内存适配器。形状见 `docs/02-adr/0009-持久化契约.md`，
+ *   数值与验证矩阵见 `packages/engine/PERSISTENCE.md`。
  *
  * 铁律（以可执行检查保证）：本包不得 import 任何框架（Vue/React/…），
  * 也不得访问 DOM 全局。见 `docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md`。
@@ -20,14 +24,14 @@ export const ENGINE_VERSION = '0.0.0';
 
 /**
  * **本包最新完成**的能力块编号（G1 的合集语义：日历见 G1.1、文档 schema 见 G1.2、
- * 命令层见 G1.3；传播内核见 G2）。分解依据见裁决 P-10。
+ * 命令层见 G1.3；传播内核见 G2；持久化见 G6）。分解依据见裁决 P-10。
  *
  * 注意语义：它是"最新一个"，不是"唯一一个"——完整清单见 `COMPLETED_GATES`。
  */
-export const PLANNED_GATE = 'G2' as const;
+export const PLANNED_GATE = 'G6' as const;
 
-/** 已落地能力块清单（G0 的护栏不在本包内，故不计入）。 */
-export const COMPLETED_GATES = ['G1.1', 'G1.2', 'G1.3', 'G2'] as const;
+/** 已落地能力块清单（G0 的护栏不在本包内，故不计入；G6 的应用侧接线在 `apps/web`）。 */
+export const COMPLETED_GATES = ['G1.1', 'G1.2', 'G1.3', 'G2', 'G6'] as const;
 
 // ---------------------------------------------------------------- G1.1 日期与日历
 export {
@@ -178,10 +182,12 @@ export {
   createSession,
   createTransaction,
   redoSession,
+  restoreSession,
   undoSession,
   type DocumentSession,
   type SessionFailureCode,
   type SessionResult,
+  type SessionStacks,
   type SessionStep,
   type Transaction,
 } from './session.js';
@@ -201,3 +207,47 @@ export {
   type ScheduleSuccess,
   type SessionAnchor,
 } from './schedule.js';
+
+// ---------------------------------------------------------------- G6 持久化（记录形状 / 恢复 / 策略）
+export {
+  AUTOSAVE_DEBOUNCE_MS,
+  AUTOSAVE_MAX_INTERVAL_MS,
+  CHECKPOINT_EVERY_STEPS,
+  CHECKPOINT_INTERVAL_MS,
+  CHECKPOINT_KEEP,
+  checkJournalShape,
+  createMemorySnapshotStore,
+  createPolicyState,
+  createRetentionPolicy,
+  decodeCandidates,
+  effectiveKeep,
+  PERSIST_FAILURE_CODES,
+  PERSIST_RECORD_VERSION,
+  planCheckpoint,
+  planRestoreOf,
+  policyReduce,
+  QUOTA_DEGRADED_KEEP,
+  restoreFromSnapshot,
+  restoreSessionOf,
+  sameRecord,
+  sessionRecordOf,
+  type CheckpointKeepPlan,
+  type CheckpointRef,
+  type DecodedCandidates,
+  type GestureActivity,
+  type PersistFailure,
+  type PersistFailureCode,
+  type PersistResult,
+  type PolicyAction,
+  type PolicyEvent,
+  type PolicyState,
+  type PolicyStep,
+  type RecordMeta,
+  type RestoreCandidates,
+  type RestorePlan,
+  type RetentionPolicy,
+  type SnapshotStore,
+  type StoredSession,
+  type StoredSnapshot,
+  type StoredStep,
+} from './persistence.js';

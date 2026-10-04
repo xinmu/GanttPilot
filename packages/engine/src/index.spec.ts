@@ -5,8 +5,8 @@ import * as engine from './index.js';
 describe('@ganttpilot/engine 公共入口', () => {
   it('导出 G1.1 的日历与日期算术 API 与包标识', () => {
     expect(engine.ENGINE_VERSION).toBe('0.0.0');
-    expect(engine.PLANNED_GATE).toBe('G2');
-    expect(engine.COMPLETED_GATES).toStrictEqual(['G1.1', 'G1.2', 'G1.3', 'G2']);
+    expect(engine.PLANNED_GATE).toBe('G6');
+    expect(engine.COMPLETED_GATES).toStrictEqual(['G1.1', 'G1.2', 'G1.3', 'G2', 'G6']);
 
     // G0 的兼容面必须保持可用。
     expect(typeof engine.countWorkdays).toBe('function');
@@ -103,6 +103,27 @@ describe('@ganttpilot/engine 公共入口', () => {
     expect(typeof engine.affectedClosure).toBe('function');
     expect(typeof engine.createScheduleCalendar).toBe('function');
     expect(engine.LEAF_SENTINEL).toBe(-1);
+  });
+
+  it('导出 G6 的持久化 API 与常量（记录形状 / 恢复 / 策略 / 存储）', () => {
+    expect(engine.PERSIST_RECORD_VERSION).toBe(1);
+    expect(engine.PERSIST_FAILURE_CODES).toContain('PERSIST_QUOTA_EXCEEDED');
+    expect(engine.AUTOSAVE_MAX_INTERVAL_MS).toBeLessThanOrEqual(5_000);
+    expect(typeof engine.sessionRecordOf).toBe('function');
+    expect(typeof engine.restoreSessionOf).toBe('function');
+    expect(typeof engine.restoreFromSnapshot).toBe('function');
+    expect(typeof engine.planRestoreOf).toBe('function');
+    expect(typeof engine.decodeCandidates).toBe('function');
+    expect(typeof engine.planCheckpoint).toBe('function');
+    expect(typeof engine.createRetentionPolicy).toBe('function');
+    expect(typeof engine.createPolicyState).toBe('function');
+    expect(typeof engine.policyReduce).toBe('function');
+    expect(typeof engine.effectiveKeep).toBe('function');
+    expect(typeof engine.checkJournalShape).toBe('function');
+    expect(typeof engine.sameRecord).toBe('function');
+    expect(typeof engine.createMemorySnapshotStore).toBe('function');
+    // 会话构造的导出入口（恢复路径不手搓 `DocumentSession` 字面量）。
+    expect(typeof engine.restoreSession).toBe('function');
   });
 
   it('通过公共入口走完「文档 + 日历 → 排程」（含汇总行哨兵与 iso 翻译）', () => {
