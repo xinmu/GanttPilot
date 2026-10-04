@@ -14,13 +14,18 @@
 > `apps/web` 交 Vue 视图层（左表右图分屏、虚拟滚动、折叠、行内编辑、xlsx 导入接线、
 > **拖拽三语义 / 建线 / 撤销重做 / 冲突与成环标记 / 诊断清单**）。
 > **至此「Excel 导入 → 出图 → 拖动 → 撤销」这条主链路在浏览器里已跑通**（拖拽帧率已定标：
-> 帧间隔 p50/p95 = 16.6/16.8 ms、松手 → 重算 + 冲突标记 8.2 ms）。
+> 帧间隔 p50/p95 = 16.6/16.9 ms、松手 → 重算 + 冲突标记 8.2 ms、**位移判据**：松手后 `startDate`
+> = 按下时的开始序号 + 天数）。
 > **下一步是 G6**（持久化：自动保存 + 命令回退栈）。
 > **G5 的落地记录见 [《首版能力顺序》§三 G5](docs/01-roadmap/首版能力顺序.md) 与
 > [裁决 P-20](docs/00-baseline/裁决记录.md)**：列身份所有权与拖拽交互契约在
-> [ADR 0008](docs/02-adr/0008-列身份所有权与拖拽交互契约.md) 冻结，
+> [ADR 0008](docs/02-adr/0008-列身份所有权与拖拽交互契约.md) 冻结（**§13 为 P-22 批次 A 的口径修订**：
+> 指针归一化、条体命中、按模式的候选、预览与提交同源），
 > 规范见 [`packages/render-core/SPEC.md`](packages/render-core/SPEC.md)，
-> 记录制实测见 [`apps/web/evidence/drag-timing-chrome152.md`](apps/web/evidence/drag-timing-chrome152.md)。
+> 记录制实测见 [`apps/web/evidence/drag-timing-chrome152.md`](apps/web/evidence/drag-timing-chrome152.md)
+> 与 [`apps/web/evidence/import-cyclic-sample-chrome152.md`](apps/web/evidence/import-cyclic-sample-chrome152.md)。
+> **G5 的人工复核（[裁决 P-21](docs/00-baseline/裁决记录.md)）的批次 A 已落地、批次 D/C/B 未执行**，
+> **第 13 条（导入与成环清单）已由 [P-22](docs/00-baseline/裁决记录.md) 闭合**。
 > **G4 的落地记录见 [《首版能力顺序》§三 G4](docs/01-roadmap/首版能力顺序.md) 与
 > [裁决 P-18](docs/00-baseline/裁决记录.md)**：几何真相源与包边界、时间轴与 x 坐标、
 > 裁剪契约在 [ADR 0007](docs/02-adr/0007-渲染几何与裁剪契约.md) 冻结，
@@ -66,7 +71,9 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 | `pnpm vitest run packages/xlsx-protocol/src/xlsx.differential.spec.ts` | **只跑 xlsx 差分**（openpyxl 写 → JS 读、JS 写 → openpyxl 读；缺 Python 3 或 `openpyxl` 即失败） |
 | `pnpm vitest run packages/render-core` | **只跑渲染几何与裁剪**（几何期望值表、裁剪与元素预算、规模解耦、箭头可区分性、受影响子集） |
 | `node scripts/measure-render.mjs` | **打包产物测量**（记录制、**不进 `pnpm gate`**）：先 `pnpm --filter @ganttpilot/web build`，再驱本机 Chrome 测首屏与 10× 滚动并写 `apps/web/evidence/render-timing-chrome<大版本>.md`。缺 Chrome 即失败，可用 `GANTTPILOT_CHROME` 指定；`--zoom=day|week|month` / `--rounds=` / `--steps=` / `--no-reference` 可选 |
-| `node scripts/measure-render.mjs --drag` | **G5 拖动测量**（记录制）：同样先构建，再用**真实指针事件**拖 3 个工作日，测帧间隔、主线程同步工作量、松手 → 重算 + 冲突标记的墙钟与"下游跟随"的 DOM 证据，写 `apps/web/evidence/drag-timing-chrome<大版本>.md`；`--day-delta=` / `--drag-frames=` 可选 |
+| `node scripts/measure-render.mjs --drag` | **G5 拖动测量**（记录制）：同样先构建，再用**真实指针事件**拖 3 个工作日，测帧间隔、主线程同步工作量、松手 → 重算 + 冲突标记的墙钟、"下游跟随"的 DOM 证据，以及**位移判据**（松手后 `startDate` = 按下时的开始序号 + 天数），写 `apps/web/evidence/drag-timing-chrome<大版本>.md`；`--day-delta=` / `--drag-frames=` 可选 |
+| `node scripts/make-sample.mjs` | **成环样本**生成（P-21 遗留 3）：写 `tmp/samples/cyclic-dependency.xlsx`（三列 / 6 行 / `t5→t6` 成环；**`tmp/` 已 gitignore，不入库二进制**） |
+| `node scripts/measure-render.mjs --import=<xlsx>` | **G5 导入测量**（记录制）：用 CDP 的 `DOM.setFileInputFiles` 走真实导入入口，读回任务/依赖计数、诊断清单与"不可排程"占位，写 `apps/web/evidence/import-cyclic-sample-chrome<大版本>.md` |
 | `pnpm build` | 四包 `tsc -b`（产出 `dist/*.js` + `*.d.ts`）+ 应用 `vite build` |
 | `pnpm --filter @ganttpilot/engine build` | 只构建/类型检查某个包（`build`/`typecheck` 支持 `--filter`） |
 | `pnpm license:check` | 运行时依赖许可门禁（`--prod` 口径） |
@@ -308,26 +315,54 @@ Vite 因此报一条 `INEFFECTIVE_DYNAMIC_IMPORT`；该静态边已随所有权�
    出参是 `{anchors, commands, link, rows, edges, cyclePath, preview}`。
    `apps/web/src/composables/useGesture.ts` 是**唯一**碰 DOM 的手势代码——
    把判定逻辑写进组件就等于把它移出门禁（P-19 的教训）；
-2. **拖动期文档一字不改**：位置经**会话锚点**（`compute(document, calendar, anchors)`）；
+   **屏幕坐标 → 内容坐标只有一条路**：`pointerFromClient({clientX, clientY, paneLeft, paneTop, scrollLeft, scrollTop, …})`。
+   **禁止用 `MouseEvent.offsetX/offsetY`**——它们相对**事件目标元素**，`mousedown` 落在条体上时会被当成内容坐标
+   （P-21 的 R1，判据见 `gesture.spec.ts` 的"与事件目标无关"一例）。
+2. **判定区的前提是"命中条体"**：`beginGesture` 先过 `barHitFor`（包围盒 ± `HIT_TOLERANCE_PX = 2`），
+   否则 `idle`；里程碑用菱形包围盒；**竖向不设限**（行即竖向单位）。同一行的空白处按下不得改日期（P-21 的 R2）。
+3. **候选序号是"抓取点相对"的，且按模式分别定义**（[ADR 0008 §13](docs/02-adr/0008-列身份所有权与拖拽交互契约.md)）：
+   `move`/`resize-start` 的候选是新**开始**、`resize-duration` 是新**完成**；
+   **基准必须取"被拖任务在按下时捕获的序号"**（`state.originOrdinal`），
+   **不得取"指针当前所在行的 `es`"**——拖动期视图带着会话锚点重算，后者会**累积成加速拖动**
+   （P-22 由记录制 `--drag` 的位移断言抓出，判据见"带会话锚点重算也不会累积"一例）；
+   **零位移不产出命令**（按住不动即松手 ⇒ 文档一字不改、不压撤销栈）；
+   **零时长的完成日 = 开始日**（与 `derivedEndIso` 同口径）。
+4. **锚点、预览与松手命令同源**：`resolveDragOutcome` 是唯一的结果解析处，
+   覆盖层用 `dragPreviewFor` 画**结果轮廓**（`resize-duration` 拖动期条体本体不动）。
+   改覆盖层必须保持"预览区间 == 落库 + `compute` + `taskBounds` 之后的区间"这条判据为真；
+5. **拖动期文档一字不改**：位置经**会话锚点**（`compute(document, calendar, anchors)`）；
    松手才提交**一条** `task.update` / `link.insert` 并清锚点（一次手势 = 一层撤销，IX-03）；
    `Esc` 取消 ⇒ 清锚点、不提交；
-3. **冲突判据只有 `compute` 的 `anchorConflict` 一处**：**"晚于入边约束"不是冲突**
+6. **冲突判据只有 `compute` 的 `anchorConflict` 一处**：**"晚于入边约束"不是冲突**
    （`ES = max(约束, 锚点)`，任务往后排正是用户要的）；**"早于"约束才是**
    （[SCHEDULE.md](packages/engine/SCHEDULE.md) §四.3 情形④）。UI 不自己判"算不算冲突"，
    只做样式映射——不新开诊断码；
-4. **`snapCandidate` 夹的是上界**：`min(max(candidate, 0), 约束)`。
+7. **`snapCandidate` 夹的是上界**：`min(max(candidate, 0), 约束)`。
    "约束之前的位置必须**留在**约束之前"这条**上界**断言是唯一能抓出方向错误的判据
    （落地期实测：把约束当下界会用 `max` 写出一个**违反**约束的锚点，而"不得违反约束"的断言反而抓不到）；
-5. **高亮不进 `ViewModel`**：`ViewModel` 只由「文档 + `Schedule` + `Calendar` + 视口」决定，
+8. **高亮不进 `ViewModel`**：`ViewModel` 只由「文档 + `Schedule` + `Calendar` + 视口」决定，
    交互态进去会让几何期望值表与裁剪判据跟着手势漂移。高亮走 `highlight.ts` 的独立覆盖层；
-6. **元素预算另立 `c₄`**：改 `GanttChart.vue` 的覆盖层模板必须同步 `ELEMENT_MODEL_G5.overlay`
+9. **元素预算另立 `c₄`**：改 `GanttChart.vue` 的覆盖层模板必须同步 `ELEMENT_MODEL_G5.overlay`
    与 `countOverlays` / `countElementsByEnumeration` 的覆盖层分支（两路必须逐项相等）；
-   覆盖层**一律 `pointer-events: none`**，不得抢走条体/边的交互热区（ADR 0007 §5）。
+   覆盖层**一律 `pointer-events: none`**，不得抢走条体/边的交互热区（ADR 0007 §5）；
+10. **协议层诊断必须留下导入时的快照**：`importXlsx` 的诊断只在导入那一刻存在，
+   而文档层与排程层是每帧重算的——只记条数会让 `XLSX_CYCLE_EDGE_DROPPED` 这类条目
+   永远进不了面板（G5 出口条件⑤，P-22 修过一次）。
 
 **记录制实测**：`node scripts/measure-render.mjs --drag`
 （先 `pnpm --filter @ganttpilot/web build`；缺 Chrome 即失败，`GANTTPILOT_CHROME` 可指定）。
 它驱动**真实指针事件**（`mousedown → mousemove×N → mouseup`），测帧间隔、主线程同步工作量、
-松手 → 重算 + 冲突标记的墙钟，以及"拖动期 DOM 确实变化"这条下游跟随证据。
+松手 → 重算 + 冲突标记的墙钟、拖动期 DOM 确实变化，以及**位移判据**：
+松手后的 `startDate` 必须等于「按下时的开始序号 + 拖动天数」（旧口径只断言"非空"，
+因此"拖了但没有效位移"也会算通过——那是恒真式，已删除）。
+拖动基准是**按下时的序号**（不是拖动期视图里跟着锚点走的 `es`），否则"拖 3 天"会累积成加速拖动。
+
+**记录制实测（导入）**：`node scripts/make-sample.mjs`（写 `tmp/samples/cyclic-dependency.xlsx`，
+**不入库二进制**）→ `node scripts/measure-render.mjs --import=tmp/samples/cyclic-dependency.xlsx`。
+它用 CDP 的 `DOM.setFileInputFiles` 走**真实导入入口**，再从 DOM 读回任务/依赖计数、诊断清单与
+"不可排程"占位，写 `apps/web/evidence/import-cyclic-sample-chrome<大版本>.md`。
+成环边**丢弃**的语义由 `packages/xlsx-protocol/src/xlsxDependencies.spec.ts` 在门禁里覆盖；
+记录制守的是**应用层那一遍**（P-21 遗留 3 / P-22）。
 
 ## 提交约定
 

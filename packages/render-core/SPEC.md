@@ -36,7 +36,7 @@
 | `count.ts` | 元素计数（两路互证）与预算判定；G5 的覆盖层计数 `countOverlays`（`c₄`，**每帧固定开销**，不随规模增长） |
 | `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出） |
 | `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19） |
-| `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8）：命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture` |
+| `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13**）：屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、位移与候选 `deltaFor` / `candidateOrdinalFor`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture`、结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor` |
 | `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
 | `affected.ts` | `affectedRenderSet`：受影响行 + 受影响边（编辑重绘的判据） |
 | `fixtures.ts` | 确定性夹具生成（演示 / 测量 / spec 同源） |
@@ -158,25 +158,43 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
   （出口条件禁止的是**行内编辑**触发整表重建）；`v-for` 的 `key` 仍是任务 id，DOM 复用不受影响；
 - 撤销/重做 UI 在 `apps/web`（G5 已落地），命令回退栈的持久化归 G6。
 
-## 八之二、拖拽手势与交互态（G5，ADR 0008 §4–§11）
+## 八之二、拖拽手势与交互态（G5，ADR 0008 §4–§11 + **§13**）
 
 - **纯内核在 `gesture.ts`**：入参是**归一化指针**（`{x, y, buttons, altKey, escPressed}`，
   内容坐标；绝不出现 `MouseEvent`），出参是 `{ state, anchors, commands, link, rows, edges, cyclePath, preview }`。
   `apps/web` 的 `useGesture.ts` 是**唯一碰 DOM 的手势代码**；
+- **屏幕坐标 → 内容坐标只有一条路**（ADR 0008 §13；P-22 批次 A 的 R1）：
+  `pointerFromClient({clientX, clientY, paneLeft, paneTop, scrollLeft, scrollTop, buttons, …})`，
+  即 `x = clientX − paneLeft + scrollLeft`。**禁止** `MouseEvent.offsetX/offsetY`——它们相对**事件目标元素**，
+  `mousedown` 落在条体上时会被当成内容坐标；
+- **命中条体是判定区的前提**（§13；R2）：`beginGesture` 要求
+  `x ∈ [xLeft − HIT_TOLERANCE_PX, xRight + HIT_TOLERANCE_PX]`（`HIT_TOLERANCE_PX = 2`），
+  否则 `idle`；里程碑用**菱形包围盒**；**竖向不设限**（行即竖向单位，ADR 0007 §4）——
+  因此"同一行的空白处按下"不再改日期；
 - **三语义判定区**（`DRAG_EDGE_PX = 6`）：条的左端 ⇒ 改开始（完成日不动、工期随之变）、
   右端 ⇒ 改工期、中部 ⇒ 整体移动；**里程碑按菱形中心分半**（只有整体移动与"改工期"两支）；
   汇总行**不可拖**（汇总日期是聚合结果）但可作为建线端点；
+- **候选序号是"抓取点相对"，且按模式分别定义**（§13；R7）：
+  `delta = ordinalAtClamped(view, pointer) − state.grabOrdinal`（`grabOrdinal` = **按下那一刻**的序号），
+  `move`/`resize-start` 的候选 = `originOrdinal + delta`（新**开始**）、
+  `resize-duration` 的候选 = `originOrdinal + max(1, D) − 1 + delta`（新**完成**）。
+  **基准必须取"被拖任务在按下时捕获的序号"**，不取"指针当前所在行"（拖动期视图带着锚点重算，
+  后者会累积成加速拖动）；**零位移不产出命令**；**零时长的完成日 = 开始日**；
 - **拖动期不写文档**：位置经**会话锚点**（`compute(document, calendar, anchors)`）生效，
   松手才提交**一条**命令；`Esc` 取消 ⇒ 清锚点、不提交（⇒ IX-03 的"一次手势 = 一层撤销"）；
-- **`snap` / `allow`**：`snap` 把候选**夹到 `[0, 入边约束]`**（`snapCandidate`）；
-  `allow` 原样放行。**冲突判据只有 `compute` 的 `anchorConflict` 一处**——
+- **`snap` / `allow`**：`snap` 把**开始**语义的候选夹到 `[0, 入边约束]`（`snapCandidate`），
+  `resize-duration` 不夹取；`allow` 原样放行。**冲突判据只有 `compute` 的 `anchorConflict` 一处**——
   "晚于约束"不是冲突（`ES = max(约束, 锚点)`），"**早于**约束"才是（SCHEDULE.md §四.3 情形④）；
+- **预览与提交同源**（§13）：`resolveDragOutcome({state, document, calendar})` 是锚点/预览/松手 patch 的
+  **唯一**来源；覆盖层用 `dragPreviewFor(...)` 画**结果轮廓**（`resize-duration` 拖动期条体本体不动，
+  会话锚点形状不扩）；判据是"预览区间 == 落库 + `compute` + `taskBounds` 之后的区间"；
 - **建线**：类型由相对位置反推（`to.xLeft ≥ from.xLeft ⇒ FS`，否则 `SS`）、`lagDays = 0`、
   id 由本包给确定性建议值；**成环预检即拒绝**并把 `path` 交给高亮层；
 - **高亮是独立覆盖层**（`highlight.ts`）：**不进 `ViewModel`**——几何真相源只由
   「文档 + `Schedule` + `Calendar` + 视口」决定，交互态进去会让期望值表与裁剪判据跟着手势漂移；
 - **元素预算**：覆盖层另立 **`c₄`**（`ELEMENT_MODEL_G5.overlay = 12`，**每帧固定开销**），
   `c₁`/`c₂`/`c₃` 一字未改；`countElements` 与 `countElementsByEnumeration` 对覆盖层同样逐项互证。
+  批次 A 只改覆盖层的**坐标**（预览几何），**不新增元素** ⇒ `c₄` 不变。
 
 ## 九、验证与门禁
 
@@ -190,8 +208,10 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | ⑥ 人工目视 | 仅备查 | "吸附/走线类判断必须量化，不得目视" | **不进** |
 | **G5 ①** P-19 判据 | `dateText.spec.ts` + `dateTextNegative.spec.ts` + `editCommand.spec.ts` + `textFixtures.spec.ts` | 开始 ≤ 完成、与 `Schedule` 同源、派生完成与显示的"开始"同源、编辑写回一致；**NC1/NC2 必须被检出** | **进** |
 | **G5 ②** 手势判据 | `gesture.spec.ts` | 三语义判定区、拖动三情形与松手命令、`Esc` 取消、汇总不可拖、`snap`/`allow` 四象限与 `anchorConflict` 对齐、建线与检环、命中反算 × 三档位 | **进** |
+| **G5 ②b** 批次 A 判据（[P-22](../../docs/00-baseline/裁决记录.md)、ADR 0008 §13） | 同 `gesture.spec.ts`（**13 → 24 例**） | 屏幕坐标 → 内容坐标**与事件目标无关**（含 NC）、条体命中 ± `HIT_TOLERANCE_PX`（含里程碑包围盒）、三语义**零位移不产出命令**、`move` 中部抓取**不跳位**、`resize-start` 完成日不动、`resize-duration` 按下**不翻倍**、里程碑完成日 = 开始日、**预览与提交同源**、带**会话锚点**重算**不累积**；五组负向对照逐条验证过判别力 | **进** |
 | **G5 ③** 依赖方向护栏 | `boundary.spec.ts` | 本包发布源与**构建产物**都没有指向 `exceljs` 的模块边；本包铁律夹具被拦下 | **进** |
-| **G5 ④** 拖动计时 | `scripts/measure-render.mjs --drag` | 帧间隔 p95 ≤ 33.3 ms（≥30 fps）、松手 → 重算 + 冲突标记 ≤ 200 ms、下游跟随 | **不进**（记录制，ADR 0008 §11） |
+| **G5 ④** 拖动计时 | `scripts/measure-render.mjs --drag` | 帧间隔 p95 ≤ 33.3 ms（≥30 fps）、松手 → 重算 + 冲突标记 ≤ 200 ms、下游跟随、**位移**（松手后 `startDate` = 按下时的开始序号 + 天数） | **不进**（记录制，ADR 0008 §11） |
+| **G5 ⑤** 导入（第 13 条，[P-22](../../docs/00-baseline/裁决记录.md)） | `scripts/measure-render.mjs --import=<xlsx>` + `scripts/make-sample.mjs` | 成环样本 ⇒ 6 任务 / 5 依赖 / 恰 1 条 `XLSX_CYCLE_EDGE_DROPPED`（带成环路径）/ 无"不可排程" | **不进**（记录制） |
 
 **元素预算的常数与实测**（[`apps/web/evidence/render-timing-chrome152.md`](../../apps/web/evidence/render-timing-chrome152.md)）：
 
