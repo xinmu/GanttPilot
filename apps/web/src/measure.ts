@@ -457,8 +457,7 @@ export function exposeMeasurement(args: {
 export interface DragMeasurementHost {
   /** 当前渲染的视图模型（含 `scrollTop` / `pxPerDay` / 行序），用于把任务换算成屏幕坐标。 */
   readonly view: () => ViewModel | null;
-  readonly calendar: () => { dayOfOrdinal(ordinal: number): number };
-  /** 真实指针入口（**与用户操作走同一条路径**）。 */
+  readonly calendar: () => { dayOfOrdinal(ordinal: number): number; isoOfOrdinal(ordinal: number): string | undefined };  /** 真实指针入口（**与用户操作走同一条路径**）。 */
   readonly pointer: {
     readonly down: (event: MouseEvent) => void;
     readonly move: (event: MouseEvent) => void;
@@ -494,13 +493,24 @@ export interface DragMeasureResult {
   readonly observedWidthChanges: number;
   readonly anchorsAfterRelease: number;
   readonly documentStartAfter: string | null;
+  /** 拖动前该行的开始序号（**绝对基准**：位移按它 + `dayDelta` 断言）。 */
+  readonly anchorOrdinal: number | null;
+  /** 期望的松手后 `startDate`（= `isoOfOrdinal(anchorOrdinal + dayDelta)`）。 */
+  readonly expectedStartAfter: string | null;
 }
-
-/** 把任务换算成"按住条体中部"的屏幕坐标（内容坐标 + 窗格偏移）。 */
+/**
+ * 把任务换算成屏幕坐标（内容坐标 + 窗格偏移）。
+ *
+ * **必须传 `anchorOrdinal`（拖动前的开始序号），不能用当前视图里的 `row.es`**：
+ * 拖动期视图带着**会话锚点**重算，`row.es` 会跟着候选走，用它当基准会让
+ * "每帧按当前位置再前进一段"累积成加速拖动——那样"拖 3 个工作日"就不成立了。
+ * 抓取点是第一个工作日格的**中点**（`+ pxPerDay / 2`），其序号恰好是 `anchorOrdinal`。
+ */
 function dragScreenPoint(
   host: DragMeasurementHost,
   pane: HTMLElement,
   taskId: string,
+  anchorOrdinal: number,
   ordinalOffset: number,
 ): { readonly clientX: number; readonly clientY: number } | null {
   const view = host.view();
@@ -508,8 +518,7 @@ function dragScreenPoint(
   const row = view.rows.find((item) => item.id === taskId);
   if (row === undefined) return null;
   const calendar = host.calendar();
-  const targetDay = calendar.dayOfOrdinal(row.es + ordinalOffset);
-  const contentX = (targetDay - view.axisOriginDay) * view.pxPerDay + view.pxPerDay / 2;
+  const targetDay = calendar.dayOfOrdinal(anchorOrdinal + ordinalOffset);  const contentX = (targetDay - view.axisOriginDay) * view.pxPerDay + view.pxPerDay / 2;
   const contentY = row.row * view.rowHeight + view.rowHeight / 2;
   const rect = pane.getBoundingClientRect();
   return {
@@ -525,9 +534,10 @@ function dragScreenPoint(
  * - 用**真实指针事件**驱动（`mousedown → mousemove×N → mouseup`），与用户路径一致；
  * - **主线程工作量** = 派发事件 + `await nextTick()`（不含帧等待）——与 G4 的滚动口径同源；
  * - **帧间隔**用连续 rAF 记录，只作记录（≥30 fps ⇒ p95 ≤ 33.3 ms）；
- * - **松手耗时** = `mouseup` → 命令落库 + `compute` + 覆盖层清空 的墙钟。
- */
-export async function runDragMeasurement(args: {
+ * - **松手耗时** = `mouseup` → 命令落库 + `compute` + 覆盖层清空 的墙钟；
+ * - **位移判据（P-22 补上）**：松手后的文档 `startDate` 必须等于「拖动前的开始序号 + `dayDelta`
+ *   个工作日」。旧证据只断言"非空"，因此"拖了但没有效位移"也会算通过（该恒真式已删除）。
+ */export async function runDragMeasurement(args: {
   readonly host: DragMeasurementHost;
   readonly fixtureSpec: FixtureSpec;
   readonly dayDelta: number;
@@ -544,11 +554,16 @@ export async function runDragMeasurement(args: {
     return emptyDragResult(args, ['渲染窗口内没有可拖动的叶子任务']);
   }
 
-  const start = dragScreenPoint(args.host, pane, target.taskId, 0);
+  // **绝对基准**：拖动前该行的开始序号（拖动期视图会带着锚点重算，不能事后取）。
+  const anchorOrdinal = args.host.view()?.rows.find((item) => item.id === target.taskId)?.es ?? null;
+  if (anchorOrdinal === null) {
+    return emptyDragResult(args, ['无法取到目标任务在拖动前的开始序号（位移判据需要它作基准）']);
+  }
+
+  const start = dragScreenPoint(args.host, pane, target.taskId, anchorOrdinal, 0);
   if (start === null) {
     return emptyDragResult(args, ['无法把目标任务换算成屏幕坐标']);
   }
-
   const dispatch = (type: 'down' | 'move' | 'up', point: { clientX: number; clientY: number }): void => {
     const event = new MouseEvent(type === 'down' ? 'mousedown' : type === 'move' ? 'mousemove' : 'mouseup', {
       bubbles: true,
@@ -578,8 +593,7 @@ export async function runDragMeasurement(args: {
   const frames = args.frames;
   for (let index = 1; index <= frames; index += 1) {
     const offset = Math.round((args.dayDelta * index) / frames);
-    const point = dragScreenPoint(args.host, pane, target.taskId, offset) ?? start;
-    const started = performance.now();
+    const point = dragScreenPoint(args.host, pane, target.taskId, anchorOrdinal, offset) ?? start;    const started = performance.now();
     dispatch('move', point);
     await nextTick();
     mainThreadMs.push(round(performance.now() - started));
@@ -600,13 +614,22 @@ export async function runDragMeasurement(args: {
   }
 
   const releaseStart = performance.now();
-  const endPoint = dragScreenPoint(args.host, pane, target.taskId, args.dayDelta) ?? start;
-  dispatch('up', endPoint);
+  const endPoint = dragScreenPoint(args.host, pane, target.taskId, anchorOrdinal, args.dayDelta) ?? start;  dispatch('up', endPoint);
   await nextTick();
   const releaseMs = round(performance.now() - releaseStart);
 
-  let longTasks = 0;
-  if (typeof PerformanceObserver !== 'undefined') {
+  // **位移判据**（P-22 补上）：松手后的 `startDate` 必须等于"拖动前的开始序号 + dayDelta"。
+  // 旧证据只断言"非空"，于是 `2026-10-05`（与拖前相同的项目起点）也被算作通过 —— 那是恒真式。
+  const documentStartAfter = args.host.startDateOf(target.taskId);
+  const expectedStartAfter = args.host.calendar().isoOfOrdinal(anchorOrdinal + args.dayDelta) ?? null;
+  if (documentStartAfter !== expectedStartAfter) {
+    errors.push(
+      `拖动位移与文档不符：startDate = ${String(documentStartAfter)}，期望 ${String(expectedStartAfter)}` +
+        `（拖动前开始序号 ${String(anchorOrdinal)} + ${String(args.dayDelta)} 个工作日）`,
+    );
+  }
+
+  let longTasks = 0;  if (typeof PerformanceObserver !== 'undefined') {
     // 记录制：只统计拖动期间已经产生的 longtask 条目（观察者本身不阻塞）。
     try {
       const entries = performance.getEntriesByType('longtask');
@@ -633,9 +656,10 @@ export async function runDragMeasurement(args: {
     releaseMs,
     observedWidthChanges,
     anchorsAfterRelease: args.host.anchors(),
-    documentStartAfter: args.host.startDateOf(target.taskId),
-  };
-}
+    documentStartAfter,
+    anchorOrdinal,
+    expectedStartAfter,
+  };}
 
 function pickDragTarget(host: DragMeasurementHost): { readonly taskId: string } | null {
   const view = host.view();
@@ -682,8 +706,9 @@ function emptyDragResult(
     observedWidthChanges: 0,
     anchorsAfterRelease: 0,
     documentStartAfter: null,
-  };
-}
+    anchorOrdinal: null,
+    expectedStartAfter: null,
+  };}
 
 /** 供 CDP 侧核对：本测量钩子的版本标记（避免与旧产物混淆）。 */
 export const MEASURE_HOOK_VERSION = 'g5-1';

@@ -31,11 +31,11 @@ import { computed } from 'vue';
 import {
   arrowPolygons,
   emptyHighlight,
+  type DragPreview,
   type GestureUpdate,
   type HighlightSet,
   type ViewModel,
 } from '@ganttpilot/render-core';
-
 const props = withDefaults(
   defineProps<{
     readonly view: ViewModel | null;
@@ -50,8 +50,13 @@ const props = withDefaults(
     readonly preview?: GestureUpdate['preview'];
     /** 冲突行（`anchorConflict` 的任务 id；判据来自引擎，ADR 0008 §6）。 */
     readonly conflictTaskIds?: readonly string[];
-    /** 正在拖动/建线的任务 id。 */
-    readonly activeTaskId?: string | null;
+    /**
+     * 拖动预览几何：`dragPreviewFor` 的产物，**与松手提交同源**（ADR 0008 §13）。
+     *
+     * 覆盖层画的是**结果**轮廓（`resize-duration` 拖动期条体本体不动，可见反馈靠它）。
+     * `null` = 当前没有拖动，或该行不在渲染窗口内。
+     */
+    readonly dragPreview?: DragPreview | null;
   }>(),
   {
     cyclePath: () => [],
@@ -59,10 +64,9 @@ const props = withDefaults(
     highlight: () => emptyHighlight(),
     preview: null,
     conflictTaskIds: () => [],
-    activeTaskId: null,
+    dragPreview: null,
   },
 );
-
 type Edge = ViewModel['edges'][number];
 type Row = ViewModel['rows'][number];
 
@@ -84,12 +88,6 @@ const highlightedEdges = computed<Edge[]>(() => {
   return view.edges.filter((edge) => wanted.has(edge.linkIndex));
 });
 
-/** 正在拖动/建线的行（画一条醒目轮廓）。 */
-const activeRow = computed<Row | null>(() => {
-  const view = props.view;
-  if (view === null || props.activeTaskId === null) return null;
-  return view.rows.find((row) => row.id === props.activeTaskId) ?? null;
-});
 
 /** 冲突行（只画描边，不改条形填充——"条形 = 文档数据"这条语义不动）。 */
 const conflictRows = computed<Row[]>(() => {
@@ -296,37 +294,38 @@ const scrollTransform = computed(() => {
 
       <!--
         G5 覆盖层（元素数计入 `c₄`，ADR 0008 §11）：
-        拖动轮廓 + 起止标记、建线预览、冲突描边、成环/选中高亮。
+        拖动轮廓 + 起止标记（取 `dragPreviewFor` 的**结果几何**，ADR 0008 §13）、建线预览、
+        冲突描边、成环/选中高亮。
         **全部是独立图元**：不给可见条形/连线加大热区（ADR 0007 §5），也不改它们的填充。
-      -->
-      <g class="overlays">
-        <!-- 拖动/建线中的行：轮廓 -->
-        <rect
-          v-if="activeRow !== null"
-          class="drag-outline"
-          :x="activeRow.xLeft - 3"
-          :y="activeRow.barY - 3"
-          :width="Math.max(6, activeRow.xRight - activeRow.xLeft + 6)"
-          :height="activeRow.barHeight + 6"
-          :rx="3"
-        />
-        <template v-if="activeRow !== null">
-          <line
-            class="drag-marker"
-            :x1="activeRow.xLeft"
-            :x2="activeRow.xLeft"
-            :y1="activeRow.y - 6"
-            :y2="activeRow.y + 6"
+      -->      <g class="overlays">
+        <!--
+          拖动预览：**结果轮廓**（`dragPreviewFor`，与松手提交同源，ADR 0008 §13）。
+          轮廓 1 + 起止标记 2 = 3 个元素，`c₄` 与两路计数的口径不变。
+        -->
+        <template v-if="dragPreview !== null">
+          <rect
+            class="drag-outline"
+            :x="dragPreview.xLeft - 3"
+            :y="dragPreview.barY - 3"
+            :width="Math.max(6, dragPreview.xRight - dragPreview.xLeft + 6)"
+            :height="dragPreview.barHeight + 6"
+            :rx="3"
           />
           <line
             class="drag-marker"
-            :x1="activeRow.xRight"
-            :x2="activeRow.xRight"
-            :y1="activeRow.y - 6"
-            :y2="activeRow.y + 6"
+            :x1="dragPreview.xLeft"
+            :x2="dragPreview.xLeft"
+            :y1="dragPreview.y - 6"
+            :y2="dragPreview.y + 6"
+          />
+          <line
+            class="drag-marker"
+            :x1="dragPreview.xRight"
+            :x2="dragPreview.xRight"
+            :y1="dragPreview.y - 6"
+            :y2="dragPreview.y + 6"
           />
         </template>
-
         <!-- 冲突（`anchorConflict`）：只描边，不动填充 -->
         <rect
           v-for="row in conflictRows"

@@ -5,9 +5,9 @@
  *
  * ## 分工（G5 的落地口径，ADR 0008 §4）
  *
- * - **手势逻辑在 `render-core`**（纯函数、进门禁）：本文件只把 DOM 事件归一化成
- *   `PointerInput`（内容坐标 + 原始 `buttons`）并交给 `useGesture`；
- * - **拖动期不写文档**：位置经**会话锚点**进 `compute`（`useProject` 的 `anchors`），
+ * - **手势逻辑在 `render-core`**（纯函数、进门禁）：本文件只把窗格矩形与滚动位置喂给
+ *   `pointerFromClient`（屏幕坐标 → 内容坐标，ADR 0008 §13），再把 `PointerInput`
+ *   交给 `useGesture`； * - **拖动期不写文档**：位置经**会话锚点**进 `compute`（`useProject` 的 `anchors`），
  *   松手才提交命令（一次手势 = 一层撤销，IX-03）；
  * - **冲突与成环的判据来自引擎**：`anchorConflict` 诊断 / `wouldCreateCycle` 的 `path`，
  *   本层只做样式映射（不新开诊断码、不自己判"算不算冲突"）。
@@ -19,13 +19,14 @@
  * 因此 `ViewModel.scrollTop` / `scrollLeft` 就是真实滚动位置，反算函数（`dayAtX`/`ordinalAtX`）自洽。
  */
 
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import {
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';import {
   collapseToCommand,
   countElements,
   countOverlays,
+  dragPreviewFor,
   editToCommand,
   formatProgress,
+  pointerFromClient,
   RENDER_CORE_VERSION,
   ROW_HEIGHT,
   type ColumnKey,
@@ -33,7 +34,6 @@ import {
   type PointerInput,
   type ZoomKey,
 } from '@ganttpilot/render-core';
-
 import GanttChart from './components/GanttChart.vue';
 import TaskTable from './components/TaskTable.vue';
 import Toolbar from './components/Toolbar.vue';
@@ -99,9 +99,7 @@ const {
   anchorMode,
   highlight,
   preview,
-  activeTaskId,
 } = gesture;
-
 const notice = ref<{ readonly level: 'info' | 'error'; readonly text: string } | null>(null);
 
 /**
@@ -116,9 +114,32 @@ const tableVisible = ref(true);
 /** 诊断清单是否展开（G-8 的**受控收口**：计数 + 可展开列表；完整向导形态归后续）。 */
 const diagnosticsOpen = ref(false);
 
-/** 全部诊断（三层拼接里的后两层；协议层随导入即时给出）。 */
-const diagnostics = computed(() => [...documentDiagnostics.value, ...scheduleDiagnostics.value]);
+/**
+ * 协议层诊断（**导入那一刻的快照**）。
+ *
+ * 为什么必须存下来：`importXlsx` 的诊断只在导入时存在（成环丢弃、未识别列、公式无缓存值…），
+ * 而文档校验层与排程层的诊断是**每帧重算**的。G5 出口条件⑤要求"导入的成环边进问题清单"，
+ * 但此前应用层只把**条数**写进提示、没有保留数组，于是 `XLSX_CYCLE_EDGE_DROPPED` 从未进过面板
+ * （P-22 由第 13 条的记录制导入当场抓出）。
+ *
+ * 类型写成**结构子集**而不是 `import type { XlsxDiagnostic }`：对协议包的静态 import 会在
+ * 类型图上造出指向 `exceljs` 的边（ADR 0008 §1 的候选 B 正是因此被否），而本层只消费四个字段。
+ */
+interface ImportDiagnostic {
+  readonly severity: 'error' | 'warning' | 'info';
+  readonly code: string;
+  readonly message: string;
+  readonly taskId?: string;
+}
 
+const importDiagnostics = shallowRef<readonly ImportDiagnostic[]>([]);
+
+/** 全部诊断（**三层拼接**：协议层 = 上一次导入的快照，后两层每帧重算；ADR 0006 §7）。 */
+const diagnostics = computed(() => [
+  ...importDiagnostics.value,
+  ...documentDiagnostics.value,
+  ...scheduleDiagnostics.value,
+]);
 /** `anchorConflict` 的行（**判据来自引擎**，ADR 0008 §6）——冲突标红的唯一来源。 */
 const conflictTaskIds = computed(() =>
   scheduleDiagnostics.value
@@ -206,49 +227,72 @@ function onZoom(next: ZoomKey): void {
 /**
  * DOM 事件 → **归一化指针**（内容坐标）。
  *
- * `offsetX` / `offsetY` 是相对 SVG 可视区的坐标（不含滚动偏移），而 `ViewModel` 的
- * `scrollTop` / `scrollLeft` 是内容坐标系的偏移——因此这里显式加回，让内核看到与
- * `dayAtX` / `resolvePointerTarget` 同一套坐标（ADR 0007 §3）。
+ * **屏幕坐标 → 内容坐标只有一条路**：`pointerFromClient`（`render-core` 的纯函数，ADR 0008 §13）。
+ * 本函数只负责把窗格的 `getBoundingClientRect()` 与滚动位置喂给它——
+ * 绝不用 `event.offsetX/offsetY`：它们**相对事件目标元素**，`mousedown` 落在条体 `<rect>` 上时
+ * 会被当成内容坐标（P-21 §2 的 R1：按下即跳位、条体外点击改日期）。
+ * 返回 `null` = 窗格或视图还没就绪，调用方直接丢弃这次事件。
+ *
+ * 松手（`mouseup` 挂在 window 上）走**同一个**换算——拖出窗格时坐标仍然自洽。
  */
-function pointerFrom(event: MouseEvent): PointerInput {
+function pointerFrom(event: MouseEvent): PointerInput | null {
+  const pane = paneRef.value;
   const current = view.value;
-  const scrollLeft = current?.scrollLeft ?? 0;
-  const scrollTop = current?.scrollTop ?? 0;
-  return {
-    x: event.offsetX + scrollLeft,
-    y: event.offsetY + scrollTop,
+  if (pane === null || current === null) return null;
+  const rect = pane.getBoundingClientRect();
+  return pointerFromClient({
+    clientX: event.clientX,
+    clientY: event.clientY,
+    paneLeft: rect.left,
+    paneTop: rect.top,
+    scrollLeft: current.scrollLeft,
+    scrollTop: current.scrollTop,
     buttons: event.buttons,
     ...(event.altKey ? { altKey: true } : {}),
     ...(event.shiftKey ? { shiftKey: true } : {}),
-  };
+  });
 }
+
+/**
+ * 拖动预览几何（ADR 0008 §13）：**与松手提交同源**的纯函数产物。
+ *
+ * 会话锚点只有 `startOrdinal`，因此 `resize-duration` 拖动期条体本体不会移动；
+ * 覆盖层改画"结果轮廓"，三种语义在拖动期都有诚实的可见反馈。
+ */
+const dragPreview = computed(() =>
+  view.value === null
+    ? null
+    : dragPreviewFor({
+        view: view.value,
+        document: document.value,
+        calendar: calendar.value,
+        state: gesture.state.value,
+      }),
+);
 
 function onChartPointerDown(event: MouseEvent): void {
   if (event.button !== 0) return;
-  gesture.onPointerDown(pointerFrom(event));
+  const pointer = pointerFrom(event);
+  if (pointer === null) return;
+  gesture.onPointerDown(pointer);
 }
 
 function onChartPointerMove(event: MouseEvent): void {
   if (gesture.state.value.kind === 'idle') return;
-  gesture.onPointerMove(pointerFrom(event));
+  const pointer = pointerFrom(event);
+  if (pointer === null) return;
+  gesture.onPointerMove(pointer);
 }
 
 function onWindowPointerUp(event: MouseEvent): void {
   if (gesture.state.value.kind === 'idle') return;
   // 松手可能在图表之外（拖出窗格），因此监听挂在 window 上；坐标仍按内容坐标系换算。
-  const pane = paneRef.value;
-  if (pane !== null) {
-    const rect = pane.getBoundingClientRect();
-    const current = view.value;
-    gesture.onPointerUp({
-      x: event.clientX - rect.left + (current?.scrollLeft ?? 0),
-      y: event.clientY - rect.top + (current?.scrollTop ?? 0),
-      buttons: 0,
-      ...(event.altKey ? { altKey: true } : {}),
-    });
+  const pointer = pointerFrom(event);
+  if (pointer === null) {
+    gesture.cancel();
     return;
   }
-  gesture.cancel();
+  gesture.onPointerUp({ ...pointer, buttons: 0 });
 }
 
 // ---------------------------------------------------------------- G5：撤销 / 重做
@@ -307,8 +351,9 @@ async function onImportFile(file: File): Promise<void> {
     const { importXlsx } = await import('@ganttpilot/xlsx-protocol');
     const bytes = new Uint8Array(await file.arrayBuffer());
     const result = await importXlsx(bytes);
-    const problems = result.diagnostics.length;
-    if (!result.ok) {
+    // 协议层诊断**必须留下来**（见 `importDiagnostics` 的说明）——它只在导入那一刻存在。
+    importDiagnostics.value = result.diagnostics;
+    const problems = result.diagnostics.length;    if (!result.ok) {
       show('error', `导入失败：${String(problems)} 条问题 —— 详见诊断清单`);
       return;
     }
@@ -331,6 +376,8 @@ async function onImportFile(file: File): Promise<void> {
 
 function resetToDemo(): void {
   project.reset(createPrimaryDemoDocument());
+  // 重置会换掉整份文档：上一次导入的协议层诊断随之作废（否则面板会显示别份文档的问题）。
+  importDiagnostics.value = [];
   show('info', '已重置为演示数据（1,000 任务 / 1,500 依赖的确定性夹具）');
 }
 
@@ -393,11 +440,19 @@ onMounted(() => {
           view: () => view.value,
           calendar: () => calendar.value,
           pointer: {
-            down: (event) => gesture.onPointerDown(pointerFrom(event)),
-            move: (event) => gesture.onPointerMove(pointerFrom(event)),
-            up: (event) => gesture.onPointerUp({ ...pointerFrom(event), buttons: 0 }),
-          },
-          gestureKind: () => gesture.state.value.kind,
+            down: (event) => {
+              const pointer = pointerFrom(event);
+              if (pointer !== null) gesture.onPointerDown(pointer);
+            },
+            move: (event) => {
+              const pointer = pointerFrom(event);
+              if (pointer !== null) gesture.onPointerMove(pointer);
+            },
+            up: (event) => {
+              const pointer = pointerFrom(event);
+              if (pointer !== null) gesture.onPointerUp({ ...pointer, buttons: 0 });
+            },
+          },          gestureKind: () => gesture.state.value.kind,
           anchors: () => anchors.value.length,
           startDateOf: (taskId: string) =>
             document.value.tasks.find((task) => task.id === taskId)?.startDate ?? null,
@@ -487,9 +542,8 @@ onUnmounted(() => {
           :highlight="highlight"
           :preview="preview"
           :conflict-task-ids="conflictTaskIds"
-          :active-task-id="activeTaskId"
-        />
-      </div>
+          :drag-preview="dragPreview"
+        />      </div>
     </main>
 
     <section

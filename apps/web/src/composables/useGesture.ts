@@ -13,9 +13,8 @@
  *
  * 指针的 **x 是内容坐标**（含 `scrollLeft`）、**y 是内容坐标**（含 `scrollTop`）——
  * 与 `ViewModel.scrollTop` / `scrollLeft` 的定义一致（ADR 0007 §3）。
- * 组件传入的 `offsetX/offsetY` 已经不含滚动偏移，因此这里显式加回，
- * 让内核看到的是与 `dayAtX` / `resolvePointerTarget` 同一套坐标。
- */
+ * **换算已经完成**：组件的 `pointerFrom` 走 `pointerFromClient`（ADR 0008 §13），
+ * 绝不用 `offsetX/offsetY`（它们相对事件目标，是 P-21 的 R1）。本文件只做转发，不做坐标算术。 */
 
 import { computed, ref, shallowRef, type ComputedRef, type Ref } from 'vue';
 import {
