@@ -227,26 +227,31 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 
 ## 九、验证与门禁
 
-| 层 | 手段 | 判据 | 进 `pnpm gate`？ |
-|---|---|---|---|
-| ① 几何期望值表 | `geometryExpectations.spec.ts`（声明式，内核无权改基准） | 13/13 条；NC3 三条变造必须被检出 | **进** |
-| ② 裁剪结构断言 | `clipping.spec.ts` + `scaleInvariance.spec.ts` | 12 组预算全过；元素数与规模解耦（10× 规模 → 1.104×）；跨屏长边不被误裁 | **进** |
-| ③ 不变量 | 同 ① ②（反算往返、端点贴合、汇总覆盖、哨兵守卫） | 全过 | **进** |
-| ④ 负向对照 | NC1（端点可见性必须丢边 314 条）、NC2（关裁剪必须增长 10.71×）、NC3 | 必须被检出 | **进** |
-| ⑤ 浏览器计时 | `scripts/measure-render.mjs`（零依赖 CDP，**打包产物**） | 1,000 任务首屏 ≤ 1s；10× 滚动与《评估报告》§5.4 同尺 | **不进**（记录制，P-17） |
-| ⑥ 人工目视 | 仅备查 | "吸附/走线类判断必须量化，不得目视" | **不进** |
-| **G5 ①** P-19 判据 | `dateText.spec.ts` + `dateTextNegative.spec.ts` + `editCommand.spec.ts` + `textFixtures.spec.ts` | 开始 ≤ 完成、与 `Schedule` 同源、派生完成与显示的"开始"同源、编辑写回一致；**NC1/NC2 必须被检出** | **进** |
-| **G5 ②** 手势判据 | `gesture.spec.ts` | 三语义判定区、拖动三情形与松手命令、`Esc` 取消、汇总不可拖、`snap`/`allow` 四象限与 `anchorConflict` 对齐、建线与检环、命中反算 × 三档位 | **进** |
-| **G5 ②b** 批次 A 判据（[P-22](../../docs/00-baseline/裁决记录.md)、ADR 0008 §13） | 同 `gesture.spec.ts`（**13 → 24 例**） | 屏幕坐标 → 内容坐标**与事件目标无关**（含 NC）、条体命中 ± `HIT_TOLERANCE_PX`（含里程碑包围盒）、三语义**零位移不产出命令**、`move` 中部抓取**不跳位**、`resize-start` 完成日不动、`resize-duration` 按下**不翻倍**、里程碑完成日 = 开始日、**预览与提交同源**、带**会话锚点**重算**不累积**；五组负向对照逐条验证过判别力 | **进** |
-| **G5 ③** 依赖方向护栏 | `boundary.spec.ts` | 本包发布源与**构建产物**都没有指向 `exceljs` 的模块边；本包铁律夹具被拦下 | **进** |
-| **G5 ④** 拖动计时 | `scripts/measure-render.mjs --drag` | 帧间隔 p95 ≤ 33.3 ms（≥30 fps）、松手 → 重算 + 冲突标记 ≤ 200 ms、下游跟随、**位移**（松手后 `startDate` = 按下时的开始序号 + 天数） | **不进**（记录制，ADR 0008 §11） |
-| **G5 ⑤** 导入（第 13 条，[P-22](../../docs/00-baseline/裁决记录.md)） | `scripts/measure-render.mjs --import=<xlsx>` + `scripts/make-sample.mjs` | 成环样本 ⇒ 6 任务 / 5 依赖 / 恰 1 条 `XLSX_CYCLE_EDGE_DROPPED`（带成环路径）/ 无"不可排程" | **不进**（记录制） |
-| **G5 ⑥** 两栏行对齐判读（批次 D，[P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)、ADR §14/§15） | `align.ts` + `align.spec.ts`（**20 例**） | 正例"未变造时零检出" + **每条机制一条负向对照**（③双重偏移 / ②缺表头带 / ①测量过期 / R8 盒≠viewBox / R9 行外高 / 表体高 / 表头高 / 轴纵向或**横向**不覆盖 / **刻度侵入第一行** / **R11 滚动范围** / 单行漂移 / 滚动不同步 / 所见≠所点 / 空白带 / 空样本） | **进** |
-| **G5 ⑥** 两栏行对齐（真实 DOM） | `scripts/measure-render.mjs --align[=<label>]`（**左表在场**） | **6 个 (top,left) 位置**（含 0 与 `maxScroll` 两个方向）逐行 \|Δ\| ≤ 0.5 px；`pinned`/`svgBoxAligned`/`headerAligned`/`heightAligned`/`rowHeightAligned`/`scrollInSync`/`contentRangeAligned`/`labelsInHeader`/`hitTestOk` 全真；空白带 0；轴四边覆盖 + 刻度在表头带内 | **不进**（记录制，需本机 Chrome） |
-| **G5 ⑦** 拖动画的是结果（[P-24](../../docs/00-baseline/裁决记录.md)、ADR 0008 §14） | `gesture.spec.ts`（24 → 26 例） | 三语义下 `drawnBarForRow` == 落库重算后的 `taskBounds`；与**锚点视图**的对照（`resize-start` 的右端固定）；未被拖行不受影响 | **进** |
-| **G5 ⑧** 滚动状态下的反算与命中（[P-25](../../docs/00-baseline/裁决记录.md)、ADR 0007 §16 / ADR 0008 §15） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** |
-| **G5 ⑧** 滚动状态下的拖动（记录制） | `scripts/measure-render.mjs --drag` | **两个滚动状态各一次**（`(0,0)` 与 `(480,600)`）：各自的"松手后 `startDate` = 按下时的开始序号 + 天数"都必须成立；目标行必须**无有效入边约束**（否则 `snap` 夹住候选 = 假红） | **不进**（记录制，需本机 Chrome） |
-| **G4/G5 ②** 内容横向范围（[P-24](../../docs/00-baseline/裁决记录.md)、ADR §15） | `viewModel.spec.ts`（16 → 19 例） | `contentWidth` 覆盖**全部任务最右缘** + 引出段 + 回绕走廊；随项目末端单调；空文档回落窗格宽；**负向对照**：旧式"按窗格宽推导"必须不满足 | **进** |
+> **本表是判据的登记处**（分层规范见 [`docs/DOC-SPEC.md`](../../docs/DOC-SPEC.md) §一）：
+> 一行一条判据，去掉按轮次重复的行。**逐轮的过程细节**（每批改了什么、四条/五条负向对照的实测、
+> 三轮人工复核的报文与判定）不在这里复述，指向 [首版-记录-G5](../../docs/01-roadmap/首版-记录-G5.md) 与
+> [ADR 0007 增补](../../docs/02-adr/附录/0007-增补.md)、[ADR 0008 增补](../../docs/02-adr/附录/0008-增补.md)。
+> 列「增补记录」标出该行来自哪一轮裁决。
+
+| 层 | 手段（住哪个 spec） | 判据（只搬不改） | 进 `pnpm gate`？ | 增补记录 |
+|---|---|---|---|---|
+| ① 几何期望值表 | `geometryExpectations.spec.ts`（声明式，内核无权改基准） | 13/13 条；NC3 三条变造必须被检出 | **进** | — |
+| ② 裁剪结构断言 | `clipping.spec.ts` + `scaleInvariance.spec.ts` | 12 组预算全过；元素数与规模解耦（10× 规模 → 1.104×）；跨屏长边不被误裁 | **进** | — |
+| ③ 不变量 | 同 ① ②（反算往返、端点贴合、汇总覆盖、哨兵守卫） | 全过 | **进** | — |
+| ④ 负向对照 | NC1（端点可见性必须丢边 314 条）、NC2（关裁剪必须增长 10.71×）、NC3 | 必须被检出 | **进** | — |
+| ⑤ 浏览器计时 | `scripts/measure-render.mjs`（零依赖 CDP，**打包产物**） | 1,000 任务首屏 ≤ 1s；10× 滚动与《评估报告》§5.4 同尺 | **不进**（记录制，P-17） | — |
+| ⑥ 人工目视 | 仅备查 | "吸附/走线类判断必须量化，不得目视" | **不进** | — |
+| G5 ① 日期口径（P-19） | `dateText.spec.ts` + `dateTextNegative.spec.ts` + `editCommand.spec.ts` + `textFixtures.spec.ts` | 开始 ≤ 完成、与 `Schedule` 同源、派生完成与显示的"开始"同源、编辑写回一致；**NC1/NC2 必须被检出** | **进** | [P-20](../../docs/01-roadmap/首版-记录-G5.md) |
+| G5 ② 手势与三语义（P-20） | `gesture.spec.ts` | 三语义判定区、拖动三情形与松手命令、`Esc` 取消、汇总不可拖、`snap`/`allow` 四象限与 `anchorConflict` 对齐、建线与检环、命中反算 × 三档位；**屏幕坐标 → 内容坐标与事件目标无关**（含 NC）、条体命中 ± `HIT_TOLERANCE_PX`（含里程碑包围盒）、三语义**零位移不产出命令**、`move` 中部抓取**不跳位**、`resize-start` 完成日不动、`resize-duration` 按下**不翻倍**、里程碑完成日 = 开始日、**预览与提交同源**、带**会话锚点**重算**不累积**（13 → 24 例；五组负向对照逐条验证过判别力） | **进** | [P-22](../../docs/01-roadmap/首版-记录-G5.md) / [ADR 0008 §13](../../docs/02-adr/附录/0008-增补.md) |
+| G5 ③ 依赖方向护栏 | `boundary.spec.ts` | 本包发布源与**构建产物**都没有指向 `exceljs` 的模块边；本包铁律夹具被拦下 | **进** | — |
+| G5 ④ 拖动计时 | `scripts/measure-render.mjs --drag` | 帧间隔 p95 ≤ 33.3 ms（≥30 fps）、松手 → 重算 + 冲突标记 ≤ 200 ms、下游跟随、**位移**（松手后 `startDate` = 按下时的开始序号 + 天数） | **不进**（记录制，ADR 0008 §11） | [P-22](../../docs/01-roadmap/首版-记录-G5.md) |
+| G5 ⑤ 导入与成环清单（第 13 条） | `scripts/measure-render.mjs --import=<xlsx>` + `scripts/make-sample.mjs` | 成环样本 ⇒ 6 任务 / 5 依赖 / 恰 1 条 `XLSX_CYCLE_EDGE_DROPPED`（带成环路径）/ 无"不可排程" | **不进**（记录制） | [P-22](../../docs/01-roadmap/首版-记录-G5.md) |
+| G5 ⑥ 两栏行对齐判读（P-23 / P-24） | `align.ts` + `align.spec.ts`（**20 例**） | 正例"未变造时零检出" + **每条机制一条负向对照**（③双重偏移 / ②缺表头带 / ①测量过期 / R8 盒≠viewBox / R9 行外高 / 表体高 / 表头高 / 轴纵向或**横向**不覆盖 / **刻度侵入第一行** / **R11 滚动范围** / 单行漂移 / 滚动不同步 / 所见≠所点 / 空白带 / 空样本） | **进** | [记录层](../../docs/01-roadmap/首版-记录-G5.md) / [ADR 0007 §14–§15](../../docs/02-adr/附录/0007-增补.md) |
+| G5 ⑥ 两栏行对齐（真实 DOM） | `scripts/measure-render.mjs --align[=<label>]`（**左表在场**） | **6 个 (top,left) 位置**（含 0 与 `maxScroll` 两个方向）逐行 \|Δ\| ≤ 0.5 px；`pinned`/`svgBoxAligned`/`headerAligned`/`heightAligned`/`rowHeightAligned`/`scrollInSync`/`contentRangeAligned`/`labelsInHeader`/`hitTestOk` 全真；空白带 0；轴四边覆盖 + 刻度在表头带内 | **不进**（记录制，需本机 Chrome） | [P-23](../../docs/01-roadmap/首版-记录-G5.md) / [P-24](../../docs/01-roadmap/首版-记录-G5.md) |
+| G5 ⑦ 拖动期画的是结果（P-24） | `gesture.spec.ts`（24 → 26 例） | 三语义下 `drawnBarForRow` == 落库重算后的 `taskBounds`；与**锚点视图**的对照（`resize-start` 的右端固定）；未被拖行不受影响 | **进** | [ADR 0008 §14](../../docs/02-adr/附录/0008-增补.md) |
+| G5 ⑧ 滚动状态下的反算与命中（P-25） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** | [ADR 0007 §16](../../docs/02-adr/附录/0007-增补.md) / [ADR 0008 §15](../../docs/02-adr/附录/0008-增补.md) |
+| G5 ⑧ 滚动状态下的拖动（记录制） | `scripts/measure-render.mjs --drag` | **两个滚动状态各一次**（`(0,0)` 与 `(480,600)`）：各自的"松手后 `startDate` = 按下时的开始序号 + 天数"都必须成立；目标行必须**无有效入边约束**（否则 `snap` 夹住候选 = 假红） | **不进**（记录制，需本机 Chrome） | [P-25](../../docs/01-roadmap/首版-记录-G5.md) |
+| G4/G5 ② 内容横向范围（P-24） | `viewModel.spec.ts`（16 → 19 例） | `contentWidth` 覆盖**全部任务最右缘** + 引出段 + 回绕走廊；随项目末端单调；空文档回落窗格宽；**负向对照**：旧式"按窗格宽推导"必须不满足 | **进** | [ADR 0007 §15](../../docs/02-adr/附录/0007-增补.md) |
 
 **元素预算的常数与实测**（[`apps/web/evidence/render-timing-chrome152.md`](../../apps/web/evidence/render-timing-chrome152.md)）：
 
