@@ -3,12 +3,21 @@
  * 纯 SVG 甘特图（ADR 0007 §2/§3/§5/§6/§7）。T-4：刻度、色带、条形、进度、里程碑、汇总条、
  * 依赖线（正交折线 + 类型箭头）**全部为 SVG**，不用 Canvas，也不做位图。
  *
- * ## 坐标口径（唯一）
+ * ## 坐标口径（唯一，ADR 0007 §14）
  *
- * 图表窗格是原生滚动容器，SVG 与窗格可视区等大并固定在其中（`overflow: hidden`）。
+ * 滚动容器（绘制区）在 `App.vue` 里是 `.chart-pane`，**SVG 是它的兄弟**（同在 `.chart-pane-wrap` 内），
+ * 因此 SVG **不随内容滚动**——这一点是硬要求：SVG 若作为滚动容器的 abspos 子元素，
+ * 会随内容一起滚，再叠加内层 `translate(−scrollLeft, −scrollTop)` 就是**双重偏移**
+ * （图形区滚动比左表快一倍、下方留白、轴元素移出绘制区；P-23 诊断实测 = 机制③）。
+ *
  * **全部内容放在一个 `<g>` 里，用 `translate(−scrollLeft, −scrollTop)` 抵消滚动**——
  * 于是行与边直接使用 `ViewModel` 的内容坐标（`row.y`、`points`），不需要任何二次换算。
  * 这也让 `dayAtX` / `ordinalAtX` 保持自洽：SVG 的 x 轴就是内容坐标系。
+ *
+ * **尺寸必须 1 用户单位 = 1 CSS px**：SVG 的盒子由上方的 `width`/`height` **属性**给出
+ * （= `view.width/height` = 绘制区 `clientWidth/clientHeight`），CSS **不再**用 `inset: 0` 拉伸——
+ * 盒与 `viewBox` 一旦不等，默认 `preserveAspectRatio` 会等比缩放 + 居中留白，
+ * 让条形既偏 x 又偏 y（判据 `svgBoxAligned`）。
  *
  * ## 元素模型与 `render-core` 的计数一一对应（**维护纪律**）
  *
@@ -30,7 +39,10 @@
 import { computed } from 'vue';
 import {
   arrowPolygons,
+  drawnBarForRow,
   emptyHighlight,
+  HEADER_HEIGHT_PX,
+  type AxisElement,
   type DragPreview,
   type GestureUpdate,
   type HighlightSet,
@@ -163,9 +175,8 @@ function arrowFill(edge: Edge): string {
   return arrowForm(edge) === 'hollow' ? '#ffffff' : '#475467';
 }
 
-/** 里程碑菱形的点串（中心与边长来自 `ViewModel`）。 */
-function diamondPoints(row: Row): string {
-  const milestone = row.milestone;
+/** 里程碑菱形的点串（中心与边长来自 `ViewModel` **或拖动预览**）。 */
+function diamondPoints(milestone: { readonly cx: number; readonly cy: number; readonly size: number } | null): string {
   if (milestone === null) return '';
   const half = milestone.size / 2;
   return [
@@ -178,85 +189,132 @@ function diamondPoints(row: Row): string {
     .join(' ');
 }
 
+/**
+ * SVG 盒高 = **表头带 + 绘制区**（ADR 0007 §15）。盒与 `viewBox` 同时取它 ⇒ 1 用户单位 = 1 CSS px。
+ */
+const svgHeight = computed(() => (props.view === null ? 0 : props.view.height + HEADER_HEIGHT_PX));
+
+/** 行 / 边 / 覆盖层的滚动抵消（内容坐标系 → 屏幕）；绘制区在 SVG 里的起点是 `HEADER_HEIGHT_PX`。 */
 const scrollTransform = computed(() => {
   const view = props.view;
   if (view === null) return 'translate(0 0)';
-  return `translate(${String(-view.scrollLeft)} ${String(-view.scrollTop)})`;
+  return `translate(${String(-view.scrollLeft)} ${String(HEADER_HEIGHT_PX - view.scrollTop)})`;
 });
+
+/**
+ * **轴**住在**窗口坐标**里（`buildAxis` 已扣 `scrollLeft`、只发射视口内的元素，ADR 0007 §11.1 ③）。
+ *
+ * 两条硬约束（都由 P-24 的实测抓出，见 ADR 0007 §15）：
+ * 1. 轴**不得**放进上面的内容滚动组——那会再叠一次 `−scrollLeft`（**横向双重偏移**；
+ *    `scrollLeft = 0` 处不可见），右侧新滚出的区域因此没有任何网格线与灰度带；
+ * 2. 色带与网格线要落在**绘制区**（`y = 0 .. height`）⇒ 整体下移 `HEADER_HEIGHT_PX`；
+ *    日期标签要落在**表头带**里 ⇒ 标签组不偏移（`y` 取带内基线）。
+ */
+const axisBandsTransform = `translate(0 ${String(HEADER_HEIGHT_PX)})`;
+const axisBands = computed<readonly AxisElement[]>(() =>
+  props.view === null ? [] : props.view.axis.filter((element) => element.kind !== 'label'),
+);
+const axisLabels = computed<readonly Extract<AxisElement, { kind: 'label' }>[]>(() =>
+  props.view === null ? [] : props.view.axis.filter((element): element is Extract<AxisElement, { kind: 'label' }> => element.kind === 'label'),
+);
+
+/**
+ * 每行**要画的条**：被拖行改用**预览结果几何**（ADR 0008 §14 / 裁决 P-24），其余行用自身几何。
+ *
+ * 逐行预先算一次（而不是在模板里反复调用）：每帧每行一个对象，渲染窗口内最多几十个。
+ */
+const drawnRows = computed(() =>
+  props.view === null
+    ? []
+    : props.view.rows.map((row) => ({ row, drawn: drawnBarForRow(row, props.dragPreview) })),
+);
 </script>
 
 <template>
-  <!-- 视口与窗格可视区等大；全部内容在一个 `<g>` 里抵消滚动 -->
+  <!--
+    SVG 覆盖**整列**（表头带 + 绘制区）：盒与 `viewBox` 同时取 `svgHeight` ⇒ 1 用户单位 = 1 CSS px。
+    表头带的底色/边框仍由 `App.vue` 的 `.chart-header` 出（本 SVG 背景透明），日期刻度画在带内。
+  -->
   <svg
     v-if="view !== null"
     class="gantt-svg"
     :width="view.width"
-    :height="view.height"
-    :viewBox="`0 0 ${view.width} ${view.height}`"
+    :height="svgHeight"
+    :viewBox="`0 0 ${view.width} ${svgHeight}`"
     shape-rendering="crispEdges"
   >
-    <g :transform="scrollTransform">
-      <!-- 轴：非工作日色带 + 网格线 + 标签（水平窗口裁剪已在 render-core 完成） -->
-      <g class="axis">
-        <template
-          v-for="(element, index) in view.axis"
-          :key="`axis-${String(index)}`"
-        >
-          <rect
-            v-if="element.kind === 'band'"
-            :x="element.x"
-            y="0"
-            :width="element.width"
-            :height="view.height"
-            fill="#f4f6f8"
-          />
-          <line
-            v-else-if="element.kind === 'gridline'"
-            :x1="element.x"
-            :x2="element.x"
-            y1="0"
-            :y2="view.height"
-            stroke="#e4e7ec"
-            stroke-width="1"
-          />
-          <text
-            v-else
-            :x="element.x + 2"
-            y="12"
-            font-size="10"
-            fill="#667085"
-          >{{ element.text }}</text>
-        </template>
-      </g>
+    <!-- 轴（窗口坐标）：色带 + 网格线落在**绘制区**（下移一个表头带） -->
+    <g
+      class="axis"
+      :transform="axisBandsTransform"
+    >
+      <template
+        v-for="element in axisBands"
+        :key="`axis-band-${String(element.x)}`"
+      >
+        <rect
+          v-if="element.kind === 'band'"
+          :x="element.x"
+          y="0"
+          :width="element.width"
+          :height="view.height"
+          fill="#f4f6f8"
+        />
+        <line
+          v-else
+          :x1="element.x"
+          :x2="element.x"
+          y1="0"
+          :y2="view.height"
+          stroke="#e4e7ec"
+          stroke-width="1"
+        />
+      </template>
+    </g>
 
-      <!-- 行：条 / 进度 / 里程碑菱形 -->
+    <!-- 日期刻度：画在**表头带**内（0 .. HEADER_HEIGHT_PX），不侵入第一行的条形区 -->
+    <g class="axis-labels">
+      <text
+        v-for="element in axisLabels"
+        :key="`axis-label-${String(element.x)}`"
+        :x="element.x + 2"
+        y="18"
+        font-size="10"
+        fill="#667085"
+      >{{ element.text }}</text>
+    </g>
+
+    <!-- 内容坐标系（行 / 边 / 覆盖层）：抵消滚动，绘制区起点 = HEADER_HEIGHT_PX -->
+    <g :transform="scrollTransform">
+      <!-- 行：条 / 进度 / 里程碑菱形（被拖行画的是**预览结果几何**，ADR 0008 §14） -->
       <g class="rows">
         <g
-          v-for="row in view.rows"
-          :key="`row-${row.id}`"
+          v-for="item in drawnRows"
+          :key="`row-${item.row.id}`"
+          :data-task-id="item.row.id"
         >
           <polygon
-            v-if="row.isMilestone"
-            :points="diamondPoints(row)"
+            v-if="item.drawn.isMilestone"
+            :points="diamondPoints(item.drawn.milestone)"
             fill="#ed7d31"
             stroke="#b1551a"
             stroke-width="1"
           />
           <template v-else>
             <rect
-              :x="row.xLeft"
-              :y="row.barY"
-              :width="Math.max(1, row.xRight - row.xLeft)"
-              :height="row.barHeight"
-              :fill="row.kind === 'summary' ? '#7a8699' : '#2e75b6'"
-              :rx="row.kind === 'summary' ? 0 : 2"
+              :x="item.drawn.xLeft"
+              :y="item.drawn.barY"
+              :width="Math.max(1, item.drawn.xRight - item.drawn.xLeft)"
+              :height="item.drawn.barHeight"
+              :fill="item.row.kind === 'summary' ? '#7a8699' : '#2e75b6'"
+              :rx="item.row.kind === 'summary' ? 0 : 2"
             />
             <rect
-              v-if="row.hasProgress"
-              :x="row.xLeft"
-              :y="row.barY + 1"
-              :width="Math.max(0, row.progressWidth)"
-              :height="Math.max(0, row.barHeight - 2)"
+              v-if="item.row.hasProgress"
+              :x="item.drawn.xLeft"
+              :y="item.drawn.barY + 1"
+              :width="Math.max(0, (item.drawn.xRight - item.drawn.xLeft) * item.row.progressRatio)"
+              :height="Math.max(0, item.drawn.barHeight - 2)"
               fill="#1f4e79"
             />
           </template>
@@ -401,24 +459,31 @@ const scrollTransform = computed(() => {
 <style scoped>
 .gantt-svg {
   /**
-   * 与窗格可视区重合。
+   * 覆盖**整列**：定位祖先是 `.chart-column`（表头带 + 绘制区），因此 `top: 0` 就是表头带顶。
    *
-   * `view.width/height` 取窗格的 `clientWidth/clientHeight`（**不含滚动条**），
-   * 而 `left/top/right/bottom: 0` 让 SVG 铺满 `padding box`（含滚动条那条）。
-   * 两者相差约 15 px——把这点差额让出去，图表右侧就不会露出空白；
-   * 坐标映射（`dayAtX` 等）仍以 `scrollLeft` 为基准，不受这点宽度差影响。
+   * 尺寸**只由 `width`/`height` 属性决定**（`view.width` × `svgHeight = view.height + 表头带`），
+   * 这里刻意**不写** `right`/`bottom`/`width`/`height`：
+   * `inset: 0` 会把盒子撑到定位祖先的 padding box（比客户区多出滚动条那 15 px），
+   * 与 `viewBox` 不等 ⇒ 默认 `preserveAspectRatio` 等比缩放 + 居中留白，行与条形一起偏
+   * （判据 `align.ts` 的 `svg-box-not-1to1`）。让出去的那 15 px 落在窗格自己的滚动条上，
+   * 两处底色都是白，视觉无差。
+   *
+   * **背景必须透明**：表头带的底色/边框由 `.chart-header` 出、绘制区的白底由 `.chart-pane` 出；
+   * 本 SVG 只在它们之上画图元（含画在表头带内的日期刻度）。
+   *
+   * `pointer-events: none`：SVG 覆盖在滚动容器**之上**，若参与命中就会抢走条体/边的交互热区。
+   * 命中判定走几何（`barHitFor`），不靠 DOM 事件目标。
    */
   position: absolute;
   left: 0;
   top: 0;
-  right: 0;
-  bottom: 0;
   overflow: hidden;
-  background: #ffffff;
+  pointer-events: none;
 }
 
-/* 轴标签不参与命中，避免遮住边的热区 */
-.axis text {
+/* 轴标签不参与命中，避免遮住边的热区（`.axis` 的色带/网格线 + `.axis-labels` 的刻度文本） */
+.axis text,
+.axis-labels text {
   pointer-events: none;
   user-select: none;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -487,7 +552,12 @@ const scrollTransform = computed(() => {
 }
 
 .unschedulable {
+  /* 退化占位现在是滚动容器的**兄弟**（覆盖层），因此自己负责铺满绘制区。 */
+  position: absolute;
+  inset: 0;
+  overflow: auto;
   padding: 2rem;
+  background: #ffffff;
   color: #b42318;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }

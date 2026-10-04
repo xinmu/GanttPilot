@@ -1,15 +1,25 @@
 /**
- * 视口与几何接线：`文档 + Schedule + Calendar + 视口 → ViewModel`（ADR 0007 §2/§4/§6）。
+ * 视口与几何接线：`文档 + Schedule + Calendar + 视口 → ViewModel`（ADR 0007 §2/§4/§6/§14）。
  *
- * ## 滚动模型（唯一坐标口径）
+ * ## 两栏布局与滚动模型（唯一坐标口径）
  *
- * 图表窗格是**原生滚动容器**：内层 spacer 撑出 `rowCount × ROW_HEIGHT` 的高度，
- * SVG 用 `translate(scrollLeft, scrollTop)` **钉在窗格可视区**。
- * 于是：
+ * 图表列 = **表头带**（`HEADER_HEIGHT_PX`，与左表表头同高）+ **原生滚动容器**（绘制区）；
+ * 左表 = 同高的表头 + 表体。两栏因此共享同一条行屏幕几何（ADR 0007 §14）：
+ *
+ * ```
+ * 行屏幕 y = 列顶 + HEADER_HEIGHT_PX + row × ROW_HEIGHT − scrollTop
+ * ```
+ *
+ * - **SVG 是滚动容器的兄弟，不是它的子元素**：`<svg>` 若作为滚动容器的 abspos 子元素，
+ *   会**随内容滚动**（abspos 子元素定位在内容原点），再叠加内层
+ *   `translate(−scrollLeft, −scrollTop)` 就是**双重偏移**——图形区滚动比左表快一倍、下方留白、
+ *   轴元素移出绘制区（P-21 第 5/14.2 项；P-23 诊断实测 = 机制③）；
+ * - **`paneHeight` = 绘制区高**（滚动容器 `clientHeight`，已扣表头带与滚动条），行窗口与轴高都用它；
+ *   **`columnHeight` = 整列外高**（= 表头带 + 绘制区），左表用它定高，否则两栏底边会差一个表头；
  * - 滚动条长度天然正确（内容高 = 渲染行数 × 行高）；
  * - `ViewModel` 的 `scrollTop` / `scrollLeft` 就是窗格的真实滚动位置；
- * - `dayAtX` / `ordinalAtX` 的坐标自洽：SVG 的 x 轴保持"内容坐标系"，
- *   屏幕 x = SVG x − `scrollLeft` ⇒ 事件在 SVG 内取 `offsetX` 后无需再修正滚动偏移。
+ * - `dayAtX` / `ordinalAtX` 的坐标自洽：内层 `<g>` 抵消滚动后，SVG 的 y 轴就是"内容坐标系"，
+ *   屏幕坐标 = 内容坐标 − `scroll*`（`pointerFromClient` 的唯一口径，ADR 0008 §13）。
  *
  * ## 响应式口径（T-1）
  *
@@ -21,6 +31,7 @@ import { computed, onMounted, ref, shallowRef, watch, type ComputedRef, type Ref
 import {
   affectedRenderSet,
   buildView,
+  HEADER_HEIGHT_PX,
   ROW_BUFFER,
   ROW_HEIGHT,
   zoomPxPerDay,
@@ -40,7 +51,10 @@ export interface UseChart {
   readonly scrollTop: Ref<number>;
   readonly scrollLeft: Ref<number>;
   readonly paneWidth: Ref<number>;
+  /** **绘制区高**（滚动容器 `clientHeight`；已扣表头带与滚动条）。 */
   readonly paneHeight: Ref<number>;
+  /** **整列外高** = `paneHeight + HEADER_HEIGHT_PX`（左表用它定高，两栏底边才对得上）。 */
+  readonly columnHeight: ComputedRef<number>;
   readonly viewport: ComputedRef<Viewport>;
   readonly view: ComputedRef<ViewModel | null>;
   /** 渲染窗口占用的内容宽度（spacer 宽度）。 */
@@ -91,14 +105,16 @@ export function useChart(args: {
     });
   });
 
-  const contentWidth = computed(() => {
-    const vm = view.value;
-    if (vm === null) return paneWidth.value;
-    const lastRowBottom = vm.rowCount * vm.rowHeight;
-    // 内容宽度：轴线起点之前留出 gutter（SS/SF 的回绕走廊），之后按可见天数铺开。
-    const days = Math.max(60, vm.width / vm.pxPerDay + 32);
-    return lastRowBottom > 0 ? Math.ceil(days * vm.pxPerDay) + 32 : paneWidth.value;
-  });
+  const columnHeight = computed(() => paneHeight.value + HEADER_HEIGHT_PX);
+
+  /**
+   * 内容宽度 = 滚动范围（spacer 宽）。
+   *
+   * **真相源在 `render-core`**（`ViewModel.contentWidth`，ADR 0007 §15 / 裁决 P-24）：
+   * 它由文档的日期范围（`Schedule.projectFinish`）推出，不是"按窗格宽 + 若干天"外推——
+   * 后者会让大项目只能向右滚开头几十天（P-24 实测：1,000 任务夹具只给到约 61 天）。
+   */
+  const contentWidth = computed(() => view.value?.contentWidth ?? paneWidth.value);
 
   const contentHeight = computed(() => {
     const vm = view.value;
@@ -153,6 +169,7 @@ export function useChart(args: {
     scrollLeft,
     paneWidth,
     paneHeight,
+    columnHeight,
     viewport,
     view,
     contentWidth,

@@ -31,14 +31,23 @@ import {
   countElements,
   createScheduleCalendar,
   DATASETS,
+  diagnoseRowAlignment,
+  entryConstraintFor,
   PRIMARY_DATASET_KEY,
   REFERENCE_DATASET,
   ROW_BUFFER,
   ROW_HEIGHT,
+  summarizeAlignment,
   THRESHOLDS,
   ZOOM_ORDER,
+  ZOOM_UNIT_DAYS,
   type FixtureSpec,
+  type PointerInput,
   type ProjectDocument,
+  type RowAlignProbe,
+  type RowAlignSample,
+  type RowAlignVerdict,
+  type Schedule,
   type ViewModel,
   type ZoomKey,
 } from '@ganttpilot/render-core';
@@ -274,10 +283,12 @@ export async function runMeasurement(args: {
           c3: result.counts.c3,
           withinBudget: result.counts.withinBudget,
         };
-        const paneAfter = window.document.getElementById('chart-pane');
-        domCounts.renderedRows = paneAfter?.querySelectorAll('.gantt-svg .rows > g').length ?? 0;
-        domCounts.renderedEdges = paneAfter?.querySelectorAll('.gantt-svg .edges > g').length ?? 0;
-        domCounts.svgElements = paneAfter?.querySelectorAll('.gantt-svg *').length ?? 0;
+        // 选择器**不锚在 `#chart-pane` 上**：SVG 是滚动容器的**兄弟**（ADR 0007 §14），
+        // 锚在窗格内会恒得 0，于是"元素预算两路互证"变成假绿（P-23 落地时当场抓到）。
+        const svgAfter = window.document.querySelector('.chart-pane-wrap .gantt-svg, #chart-pane .gantt-svg');
+        domCounts.renderedRows = svgAfter?.querySelectorAll('.rows > g').length ?? 0;
+        domCounts.renderedEdges = svgAfter?.querySelectorAll('.edges > g').length ?? 0;
+        domCounts.svgElements = svgAfter?.querySelectorAll('*').length ?? 0;
         if (!result.counts.withinBudget) {
           errors.push(
             `元素超预算：${String(result.counts.total)} > ${String(result.counts.bound)}（c₁·rows + c₂·edges + c₃）`,
@@ -365,7 +376,8 @@ export async function runMeasurement(args: {
     const workTimes = steps.map((step) => step.workMs);
     const warmDeltas = rafDeltas.slice(1); // 第一个 delta 含"启动采样"的等待
     return {
-      status: 'ok',
+      // `errors` 非空即 `error`（此前恒 `ok`，于是"DOM 与元素模型不一致"只会安静地写进 raw JSON）。
+      status: errors.length === 0 ? 'ok' : 'error',
       ...base,
       prepareMs,
       firstScreen,
@@ -399,8 +411,10 @@ export function exposeMeasurement(args: {
   readonly loadDocument: (document: ProjectDocument) => Promise<void>;
   /** G5：拖动测量所需的实时状态与控制入口（不传则 `__GANTTPILOT_MEASURE_DRAG__` 不存在）。 */
   readonly drag?: DragMeasurementHost;
+  /** G5 批次 D：两栏行对齐所需的只读入口（不传则 `__GANTTPILOT_MEASURE_ALIGN__` 不存在）。 */
+  readonly align?: AlignMeasurementHost;
 }): void {
-  const host = window as unknown as { __GANTTPILOT_MEASURE__?: unknown; __GANTTPILOT_MEASURE_DRAG__?: unknown };
+  const host = window as unknown as { __GANTTPILOT_MEASURE__?: unknown; __GANTTPILOT_MEASURE_DRAG__?: unknown; __GANTTPILOT_MEASURE_ALIGN__?: unknown };
   host.__GANTTPILOT_MEASURE__ = async (options: {
     readonly dataset?: string;
     readonly zoom?: string;
@@ -434,6 +448,8 @@ export function exposeMeasurement(args: {
       readonly dataset?: string;
       readonly dayDelta?: number;
       readonly frames?: number;
+      readonly scrollTop?: number;
+      readonly scrollLeft?: number;
     }): Promise<DragMeasureResult> => {
       const spec = specOfDataset(options.dataset ?? PRIMARY_DATASET_KEY);
       const document = args.buildFixtureDocument(spec.key);
@@ -446,17 +462,45 @@ export function exposeMeasurement(args: {
           Number.isFinite(options.frames) && (options.frames ?? 0) > 2
             ? Math.min(120, Math.floor(options.frames ?? 12))
             : 12,
+        scrollTop: Number.isFinite(options.scrollTop) ? Math.max(0, Math.trunc(options.scrollTop ?? 0)) : 0,
+        scrollLeft: Number.isFinite(options.scrollLeft) ? Math.max(0, Math.trunc(options.scrollLeft ?? 0)) : 0,
+      });
+    };
+  }
+
+  if (args.align !== undefined) {
+    const alignHost = args.align;
+    host.__GANTTPILOT_MEASURE_ALIGN__ = async (options: {
+      readonly dataset?: string;
+      readonly positions?: readonly { readonly top: number; readonly left: number }[];
+    }): Promise<AlignMeasureResult> => {
+      const spec = specOfDataset(options.dataset ?? PRIMARY_DATASET_KEY);
+      const document = args.buildFixtureDocument(spec.key);
+      await args.loadDocument(document);
+      const requested = Array.isArray(options.positions) ? options.positions : [];
+      return runAlignMeasurement({
+        host: alignHost,
+        dataset: spec.key,
+        positions:
+          requested.length > 0
+            ? requested.map((item) => ({
+                top: Math.max(0, Math.trunc(Number(item.top) || 0)),
+                left: Math.max(0, Math.trunc(Number(item.left) || 0)),
+              }))
+            : [...ALIGN_PROBES],
       });
     };
   }
 }
-
 // ---------------------------------------------------------------- G5：拖动测量（记录制，ADR 0008 §11）
 
 /** 拖动测量的宿主：由 `App.vue` 提供的实时状态与真实指针入口。 */
 export interface DragMeasurementHost {
   /** 当前渲染的视图模型（含 `scrollTop` / `pxPerDay` / 行序），用于把任务换算成屏幕坐标。 */
   readonly view: () => ViewModel | null;
+  /** 文档与排程（挑选目标行：位移判据要求该行**无有效入边约束**，否则 `snap` 会夹住候选）。 */
+  readonly document: () => ProjectDocument;
+  readonly schedule: () => Schedule | null;
   readonly calendar: () => { dayOfOrdinal(ordinal: number): number; isoOfOrdinal(ordinal: number): string | undefined };  /** 真实指针入口（**与用户操作走同一条路径**）。 */
   readonly pointer: {
     readonly down: (event: MouseEvent) => void;
@@ -490,11 +534,14 @@ export interface DragMeasureResult {
   /** 松手 → 命令落库 + 重算 + 冲突标记完成 的墙钟。 */
   readonly releaseMs: number;
   /** 拖动中是否观察到 DOM 上的条形位置变化（"下游跟随"的间接证据）。 */
-  readonly observedWidthChanges: number;
+  readonly observedGeometryChanges: number;
   readonly anchorsAfterRelease: number;
   readonly documentStartAfter: string | null;
   /** 拖动前该行的开始序号（**绝对基准**：位移按它 + `dayDelta` 断言）。 */
   readonly anchorOrdinal: number | null;
+  /** 本轮的滚动位置（P-25：滚动状态下的拖动必须与未滚动时同样成立）。 */
+  readonly scrollTop: number;
+  readonly scrollLeft: number;
   /** 期望的松手后 `startDate`（= `isoOfOrdinal(anchorOrdinal + dayDelta)`）。 */
   readonly expectedStartAfter: string | null;
 }
@@ -542,12 +589,23 @@ function dragScreenPoint(
   readonly fixtureSpec: FixtureSpec;
   readonly dayDelta: number;
   readonly frames: number;
+  /** 先把窗格滚到这里再拖（P-25：R13/R14 都**只在滚动后**现形）。 */
+  readonly scrollTop?: number;
+  readonly scrollLeft?: number;
 }): Promise<DragMeasureResult> {
   const errors: string[] = [];
   const pane = document.getElementById('chart-pane');
   if (pane === null) {
     return emptyDragResult(args, ['找不到图表窗格（#chart-pane）']);
   }
+
+  // 滚动到指定位置：**等两帧**（`scroll` 事件先于下一帧派发；不等帧就会在"状态已变、DOM 未变"的
+  // 中间态上挑目标行与换算坐标——那样判据测的是别的东西）。
+  pane.scrollTop = args.scrollTop ?? 0;
+  pane.scrollLeft = args.scrollLeft ?? 0;
+  await nextTick();
+  await oneFrame();
+  await oneFrame();
 
   const target = pickDragTarget(args.host);
   if (target === null) {
@@ -580,8 +638,8 @@ function dragScreenPoint(
 
   const mainThreadMs: number[] = [];
   const frameGapsMs: number[] = [];
-  let observedWidthChanges = 0;
-  let previousWidths = collectBarWidths();
+  let observedGeometryChanges = 0;
+  let previousGeometry = collectBarGeometry();
 
   dispatch('down', start);
   await nextTick();
@@ -607,10 +665,10 @@ function dragScreenPoint(
       });
     });
 
-    // "下游跟随"的间接证据：拖动期条宽/位置变化过（而不是只有覆盖层在动）。
-    const widths = collectBarWidths();
-    if (widths !== previousWidths) observedWidthChanges += 1;
-    previousWidths = widths;
+    // "下游跟随"的间接证据：拖动期条形的几何（x/y/宽/高/点列）变化过（而不是只有覆盖层在动）。
+    const geometry = collectBarGeometry();
+    if (geometry !== previousGeometry) observedGeometryChanges += 1;
+    previousGeometry = geometry;
   }
 
   const releaseStart = performance.now();
@@ -654,38 +712,80 @@ function dragScreenPoint(
     frameGapP95Ms: percentile(frameGapsMs, 0.95),
     longTasks,
     releaseMs,
-    observedWidthChanges,
+    observedGeometryChanges,
     anchorsAfterRelease: args.host.anchors(),
     documentStartAfter,
     anchorOrdinal,
     expectedStartAfter,
+    scrollTop: pane.scrollTop,
+    scrollLeft: pane.scrollLeft,
   };}
 
+/**
+ * 挑一个可拖的目标行：渲染窗口内、**非里程碑、非汇总、且无有效入边约束**。
+ *
+ * 最后一条不可省（P-25 落地时踩到）：`snap` 模式会把候选夹到入边约束之下，
+ * 于是"拖 3 个工作日"这条位移判据对有前置约束的行**必然**报错——那是判据自己选错了样本，
+ * 不是应用错了。`gesture.spec.ts` 的 `pickLeaf` 一直是这么过滤的，记录制这一侧必须同口径。
+ */
 function pickDragTarget(host: DragMeasurementHost): { readonly taskId: string } | null {
   const view = host.view();
-  if (view === null) return null;
-  // 取第一个"可见行内、非里程碑、非汇总"的行（渲染窗口内的行才可交互）。
+  const document = host.document();
+  const schedule = host.schedule();
+  if (view === null || schedule === null) return null;
   for (let row = view.renderFirst; row <= view.renderLast; row += 1) {
     const bounded = view.rows.find((item) => item.row === row);
     if (bounded === undefined) continue;
     if (bounded.isMilestone || bounded.kind === 'summary') continue;
+    const constraint = entryConstraintFor({
+      document,
+      schedule,
+      taskId: bounded.id,
+      durationDays: document.tasks.find((task) => task.id === bounded.id)?.durationDays ?? 0,
+    });
+    if (Number.isFinite(constraint)) continue;
     return { taskId: bounded.id };
   }
   return null;
 }
 
-/** 当前 DOM 上全部条形的宽度串（用于判断"渲染侧真的更新了"）。 */
-function collectBarWidths(): string {
-  const rects = document.querySelectorAll('#chart-pane .rows rect, #chart-pane .rows polygon');
+/**
+ * 当前 DOM 上**全部条形的几何串**（用于判断"渲染侧真的更新了"= 下游跟随的间接证据）。
+ *
+ * 两处口径（P-23 落地时当场抓到第一处）：
+ * - **选择器**同时覆盖两种排布（SVG 是滚动容器的**兄弟**〔修后〕或子元素〔修前 / 负向对照〕）：
+ *   修后只查 `#chart-pane .rows` 会恒得空串 ⇒ 假阴性；
+ * - **必须带上 `x`/`y`**：`move`（整体移动）只改位置、不改宽度，只串 `width`/`points`
+ *   会把"正在跟随的一次 `move`"报成 0 帧变化。
+ * 覆盖层不在此列（只查 `.rows`），因此任何变化都意味着**条形本身**被重绘了。
+ */
+function collectBarGeometry(): string {
+  const nodes = document.querySelectorAll(
+    '.chart-pane-wrap .rows rect, .chart-pane-wrap .rows polygon, #chart-pane .rows rect, #chart-pane .rows polygon',
+  );
   const parts: string[] = [];
-  rects.forEach((node) => {
-    parts.push(node.getAttribute('width') ?? node.getAttribute('points') ?? '');
+  nodes.forEach((node) => {
+    parts.push(
+      [
+        node.getAttribute('x') ?? '',
+        node.getAttribute('y') ?? '',
+        node.getAttribute('width') ?? '',
+        node.getAttribute('height') ?? '',
+        node.getAttribute('points') ?? '',
+      ].join(','),
+    );
   });
   return parts.join('|');
 }
 
 function emptyDragResult(
-  args: { readonly fixtureSpec: FixtureSpec; readonly dayDelta: number; readonly frames: number },
+  args: {
+    readonly fixtureSpec: FixtureSpec;
+    readonly dayDelta: number;
+    readonly frames: number;
+    readonly scrollTop?: number;
+    readonly scrollLeft?: number;
+  },
   errors: readonly string[],
 ): DragMeasureResult {
   return {
@@ -703,12 +803,336 @@ function emptyDragResult(
     frameGapP95Ms: 0,
     longTasks: 0,
     releaseMs: 0,
-    observedWidthChanges: 0,
+    observedGeometryChanges: 0,
     anchorsAfterRelease: 0,
     documentStartAfter: null,
     anchorOrdinal: null,
     expectedStartAfter: null,
+    scrollTop: args.scrollTop ?? 0,
+    scrollLeft: args.scrollLeft ?? 0,
   };}
 
+// ---------------------------------------------------------------- G5 批次 D：两栏行对齐（记录制，ADR 0007 §14 / 裁决 P-23）
+
+/** 对齐测量的宿主：由 `App.vue` 提供的**只读**入口。 */
+export interface AlignMeasurementHost {
+  /** 当前渲染的视图模型（提供行序、行高、条形的**内容坐标**）。 */
+  readonly view: () => ViewModel | null;
+  /** 滚动容器（绘制区）元素。 */
+  readonly pane: () => HTMLElement | null;
+  /**
+   * 屏幕坐标 → 内容坐标（**与用户操作同一条路**：`App.vue` 的 `pointerFrom` 走的纯函数）。
+   * **只读**：不派发事件、不进入手势状态机。
+   */
+  readonly pointerFromClientOf: (clientX: number, clientY: number) => PointerInput | null;
+}
+
+/** 一次探测（一个 `scrollTop` × `scrollLeft` 位置）的结果。 */
+export interface AlignProbeResult {
+  /** 请求的 `scrollTop` / `scrollLeft`；浏览器会夹到可表示范围，**真值**见 `probe`。 */
+  readonly requestedScrollTop: number;
+  readonly requestedScrollLeft: number;
+  readonly probe: RowAlignProbe;
+  readonly verdict: RowAlignVerdict;
+}
+
+/** 对齐测量的结果（判读逻辑在 `render-core/align.ts`，**那份进 `pnpm gate`**）。 */
+export interface AlignMeasureResult {
+  readonly status: 'ok' | 'error';
+  readonly errors: readonly string[];
+  readonly dataset: string;
+  readonly probes: readonly AlignProbeResult[];
+  readonly summary: {
+    readonly ok: boolean;
+    readonly probes: number;
+    readonly failingProbes: number;
+    readonly maxAbsRowDeltaPx: number;
+    readonly maxAbsBarXDeltaPx: number;
+    readonly mechanisms: readonly string[];
+  };
+}
+
+/**
+ * 默认探测位置：**横向与纵向都必须含 0 与"尽量大"**（`9_999_999` 由浏览器夹到 `maxScroll`）。
+ *
+ * 三条硬要求：
+ * ① 双重偏移在 `scrollTop = 0` 处恒为 0（机制**不可见**）⇒ 至少两个位置才判得出机制（P-22 遗留 1）；
+ * ② 最末那个大值由浏览器夹到 `maxScroll` ⇒ 空白带（"下方/右侧新区域空白"）也在被测范围内；
+ * ③ **横向同样要探**（P-24）：轴的横向双重偏移在 `scrollLeft = 0` 处同样不可见，
+ *    只探纵向会漏掉"右侧新区域没有网格线/灰度带"。
+ */
+const ALIGN_PROBES: readonly { readonly top: number; readonly left: number }[] = [
+  { top: 0, left: 0 },
+  { top: 120, left: 0 },
+  { top: 480, left: 600 },
+  { top: 9_999_999, left: 0 },
+  { top: 0, left: 9_999_999 },
+  { top: 9_999_999, left: 9_999_999 },
+];
+
+/** 只读地取一个元素的外接矩形（`null` = 元素不存在）。 */
+function boxOf(
+  element: { getBoundingClientRect(): { readonly top: number; readonly left: number; readonly width: number; readonly height: number } } | null,
+): { readonly top: number; readonly left: number; readonly width: number; readonly height: number } | null {
+  return element === null ? null : element.getBoundingClientRect();
+}
+
+/**
+ * 跑一次两栏行对齐测量（G5 批次 D，**记录制**）。
+ *
+ * 口径（必须与数字一起引用）：
+ * - **只读**：只设 `scrollTop` 并读矩形，**不改文档、不派发指针事件、不进手势**；结束把 `scrollTop` 复位 0；
+ * - 每个位置读 DOM 后等 `nextTick` + **两帧**：`scroll` 事件先于下一帧派发，
+ *   不等帧会读到"状态已变、DOM 未变"或反之的中间态（那正是会把结论判反的读法）；
+ * - 行按 `data-task-id` 配对（图表 `<g>` ↔ 左表 `.row`），**两侧计数必须与被渲染行数相等**；
+ * - 判读全部交 `diagnoseRowAlignment`（纯函数、进门禁），本函数只负责采数。
+ */
+export async function runAlignMeasurement(args: {
+  readonly host: AlignMeasurementHost;
+  readonly dataset: string;
+  readonly positions: readonly { readonly top: number; readonly left: number }[];
+}): Promise<AlignMeasureResult> {
+  const emptySummary = {
+    ok: false,
+    probes: 0,
+    failingProbes: 0,
+    maxAbsRowDeltaPx: 0,
+    maxAbsBarXDeltaPx: 0,
+    mechanisms: [] as readonly string[],
+  };
+  const failed = (errors: readonly string[]): AlignMeasureResult => ({
+    status: 'error',
+    errors,
+    dataset: args.dataset,
+    probes: [],
+    summary: emptySummary,
+  });
+
+  const pane = args.host.pane() ?? document.getElementById('chart-pane');
+  if (pane === null) return failed(['找不到图表窗格（#chart-pane，或宿主未就绪）']);
+  if (document.querySelector('.table-body') === null) {
+    return failed([
+      '找不到左表表体（.table-body）——`--align` 必须在**左表可见**的页面上跑（不要加 `?table=0`）',
+    ]);
+  }
+
+  const errors: string[] = [];
+  const probes: AlignProbeResult[] = [];
+
+  for (const requested of args.positions) {
+    // 先设纵向再设横向：两个方向都要等帧（`scroll` 事件先于下一帧派发）。
+    pane.scrollTop = requested.top;
+    pane.scrollLeft = requested.left;
+    await nextTick();
+    await oneFrame();
+    await oneFrame();
+
+    const view = args.host.view();
+    if (view === null) {
+      errors.push(`top=${String(requested.top)}/left=${String(requested.left)}：ViewModel 为 null（不可排程？）`);
+      continue;
+    }
+
+    const paneBox = boxOf(pane);
+    if (paneBox === null) {
+      errors.push(`top=${String(requested.top)}/left=${String(requested.left)}：读不到窗格矩形`);
+      continue;
+    }
+
+    // 选择器同时覆盖两种排布：SVG 是滚动容器的**兄弟**（修后）或子元素（修前/负向对照）——
+    // 判据必须能在"坏结构"上照样采到数，否则负向对照无从谈起。
+    const rowGroups = [
+      ...document.querySelectorAll(
+        '.chart-pane-wrap .rows > g[data-task-id], #chart-pane .rows > g[data-task-id]',
+      ),
+    ];
+    const tableRows = [...document.querySelectorAll('.table-body .row-block .row[data-task-id]')];
+    // 左表行的 **DOM 外高**（R9 的直接签名：它必须等于模型行高）。
+    const tableRowHeight = tableRows.length === 0 ? 0 : (boxOf(tableRows[0] ?? null)?.height ?? 0);
+    if (rowGroups.length !== view.rows.length || tableRows.length !== view.rows.length) {
+      errors.push(
+        `scrollTop=${String(pane.scrollTop)}：两侧行数与渲染行数不一致（图表 ${String(rowGroups.length)} / 左表 ${String(tableRows.length)} / 渲染 ${String(view.rows.length)}）`,
+      );
+    }
+
+    const chartById = new Map<
+      string,
+      { readonly centerY: number; readonly barLeft: number | null; readonly barRight: number | null }
+    >();
+    for (const group of rowGroups) {
+      const id = group.getAttribute('data-task-id');
+      const box = boxOf(group);
+      if (id === null || box === null) continue;
+      // **行中心**：`<g>` 没有自己的盒子，它的矩形是子元素（条 / 菱形）的并集，
+      // 而条在行内垂直居中（`ViewModel.barY`）⇒ 条中心 = 行中心，两栏才可比。
+      const bar = boxOf(group.querySelector('rect'));
+      chartById.set(id, {
+        centerY: box.top + box.height / 2,
+        barLeft: bar === null ? null : bar.left,
+        barRight: bar === null ? null : bar.left + bar.width,
+      });
+    }
+
+    const geometryOf = new Map(view.rows.map((row) => [row.id, row]));
+    const samples: RowAlignSample[] = [];
+    for (const tableRow of tableRows) {
+      const id = tableRow.getAttribute('data-task-id');
+      if (id === null) continue;
+      const chart = chartById.get(id);
+      const table = boxOf(tableRow);
+      const geometry = geometryOf.get(id);
+      if (chart === undefined || table === null || geometry === undefined) continue;
+      const expectedBarLeft = geometry.isMilestone ? null : paneBox.left + geometry.xLeft - view.scrollLeft;
+      samples.push({
+        id,
+        row: geometry.row,
+        chartCenterY: chart.centerY,
+        // 左表按**模型行高**取行中心（不按 DOM 外高——外高含 1 px 边框，那正是 R9 被抓住的地方）。
+        tableCenterY: table.top + view.rowHeight / 2,
+        barLeft: chart.barLeft,
+        barRight: chart.barRight,
+        expectedBarLeft,
+        expectedBarRight: expectedBarLeft === null ? null : paneBox.left + geometry.xRight - view.scrollLeft,
+      });
+    }
+    if (samples.length < 8) {
+      errors.push(`scrollTop=${String(pane.scrollTop)}：可配对的行不足 8 行（实际 ${String(samples.length)}）`);
+      continue;
+    }
+
+    // 所见 = 所点：取中间那一行的**行中心屏幕 y**，走应用自己的换算。
+    const middle = samples[Math.floor(samples.length / 2)];
+    let hitTest: RowAlignProbe['hitTest'] = null;
+    if (middle !== undefined) {
+      const clientY = middle.chartCenterY;
+      const pointer = args.host.pointerFromClientOf(paneBox.left + 1, clientY);
+      hitTest = {
+        id: middle.id,
+        row: middle.row,
+        clientY,
+        expectedContentY: middle.row * view.rowHeight + view.rowHeight / 2,
+        actualContentY: pointer === null ? Number.NaN : pointer.y,
+      };
+    }
+
+    // 轴覆盖：优先用色带（矩形，无描边误差），没有色带时退到网格线（±0.5 px 描边）。
+    // **四边都要量**（P-24）：轴的横向双重偏移在 `scrollLeft = 0` 处不可见，
+    // 只看纵向会让"右侧新区域空白"从判据下溜走。
+    const bandBoxes = [
+      ...document.querySelectorAll('.chart-pane-wrap .axis rect, #chart-pane .axis rect'),
+    ]
+      .map((element) => boxOf(element))
+      .filter((box) => box !== null);
+    const lineBoxes =
+      bandBoxes.length > 0
+        ? []
+        : [...document.querySelectorAll('.chart-pane-wrap .axis line, #chart-pane .axis line')]
+            .map((element) => boxOf(element))
+            .filter((box) => box !== null);
+    const axisBoxes = bandBoxes.length > 0 ? bandBoxes : lineBoxes;
+    const axisCoverage =
+      axisBoxes.length === 0
+        ? null
+        : {
+            top: Math.min(...axisBoxes.map((box) => box.top)),
+            bottom: Math.max(...axisBoxes.map((box) => box.top + box.height)),
+            left: Math.min(...axisBoxes.map((box) => box.left)),
+            right: Math.max(...axisBoxes.map((box) => box.left + box.width)),
+          };
+    // **横向覆盖**用刻度（网格线）：色带是稀疏的，它的并集本来就不该触到左右缘。
+    const tickBoxes = [...document.querySelectorAll('.chart-pane-wrap .axis line, #chart-pane .axis line')]
+      .map((element) => boxOf(element))
+      .filter((box) => box !== null);
+    const axisTicks =
+      tickBoxes.length === 0
+        ? null
+        : {
+            left: Math.min(...tickBoxes.map((box) => box.left)),
+            right: Math.max(...tickBoxes.map((box) => box.left + box.width)),
+          };
+
+    // 日期刻度文本的并集：判"刻度在表头带内、不侵入第一行"（P-24 第 ③ 条）。
+    const labelBoxes = [
+      ...document.querySelectorAll('.chart-pane-wrap .axis-labels text, #chart-pane .axis-labels text'),
+    ]
+      .map((element) => boxOf(element))
+      .filter((box) => box !== null);
+    const axisLabels =
+      labelBoxes.length === 0
+        ? null
+        : {
+            top: Math.min(...labelBoxes.map((box) => box.top)),
+            bottom: Math.max(...labelBoxes.map((box) => box.top + box.height)),
+          };
+
+    const headerChart = boxOf(document.querySelector('.chart-header'));
+    const headerTable = boxOf(document.querySelector('.table-header'));
+    const tableBody = boxOf(document.querySelector('.table-body'));
+    const svg = boxOf(document.querySelector('.chart-pane-wrap .gantt-svg, #chart-pane .gantt-svg'));
+    const spacer = boxOf(document.querySelector('#chart-pane .chart-spacer'));
+
+    const probe: RowAlignProbe = {
+      scrollTop: pane.scrollTop,
+      viewScrollTop: view.scrollTop,
+      scrollLeft: pane.scrollLeft,
+      viewScrollLeft: view.scrollLeft,
+      paneTop: paneBox.top,
+      paneLeft: paneBox.left,
+      paneHeight: pane.clientHeight,
+      paneWidth: pane.clientWidth,
+      headerHeightChart: headerChart === null ? 0 : headerChart.height,
+      headerHeightTable: headerTable === null ? 0 : headerTable.height,
+      tableBodyHeight: tableBody === null ? 0 : tableBody.height,
+      svgTop: svg === null ? paneBox.top : svg.top,
+      svgLeft: svg === null ? paneBox.left : svg.left,
+      svgWidth: svg === null ? 0 : svg.width,
+      svgHeight: svg === null ? 0 : svg.height,
+      viewWidth: view.width,
+      viewHeight: view.height,
+      spacerHeight: spacer === null ? 0 : spacer.height,
+      spacerWidth: spacer === null ? 0 : spacer.width,
+      viewContentWidth: view.contentWidth,
+      rowCount: view.rowCount,
+      rowHeight: view.rowHeight,
+      tableRowHeight,
+      samples,
+      axisCoverage,
+      axisTicks,
+      tickSpacingPx: view.pxPerDay * (ZOOM_UNIT_DAYS[view.zoom] ?? 1),
+      axisLabels,
+      hitTest,
+    };
+    probes.push({
+      requestedScrollTop: requested.top,
+      requestedScrollLeft: requested.left,
+      probe,
+      verdict: diagnoseRowAlignment(probe),
+    });
+  }
+
+  // 复位（诊断是只读的：不给下一次测量留下滚动位置）。
+  pane.scrollTop = 0;
+  pane.scrollLeft = 0;
+
+  if (probes.length !== args.positions.length) {
+    errors.push(`有效探测 ${String(probes.length)} / 请求 ${String(args.positions.length)}`);
+  }
+  const summary = summarizeAlignment(probes.map((item) => item.verdict));
+  if (!summary.ok) {
+    errors.push(
+      `两栏行对齐未通过：最大行差 ${summary.maxAbsRowDeltaPx.toFixed(3)} px、` +
+        `最大条形 x 偏差 ${summary.maxAbsBarXDeltaPx.toFixed(3)} px、机制 ${summary.mechanisms.join(' / ') || '(无)'}`,
+    );
+  }
+
+  return {
+    status: errors.length === 0 && summary.ok ? 'ok' : 'error',
+    errors,
+    dataset: args.dataset,
+    probes,
+    summary,
+  };
+}
+
 /** 供 CDP 侧核对：本测量钩子的版本标记（避免与旧产物混淆）。 */
-export const MEASURE_HOOK_VERSION = 'g5-1';
+export const MEASURE_HOOK_VERSION = 'g5-2';

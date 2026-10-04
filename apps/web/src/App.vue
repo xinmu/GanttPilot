@@ -26,6 +26,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } fr
   dragPreviewFor,
   editToCommand,
   formatProgress,
+  HEADER_HEIGHT_PX,
   pointerFromClient,
   RENDER_CORE_VERSION,
   ROW_HEIGHT,
@@ -56,7 +57,7 @@ const chart = useChart({
  * **不会**丢失响应性；但反过来说，`project.documentDiagnostics` 是 `ComputedRef` 而不是数组
  * ——所以下面一律用解构出来的名字，不再经 `project.*` 取值（这是本文件最容易踩的一处）。
  */
-const { view, zoom, scrollTop, paneHeight, contentHeight, contentWidth, paneRef } = chart;
+const { view, zoom, scrollTop, columnHeight, contentHeight, contentWidth, paneRef } = chart;
 const {
   document,
   schedule,
@@ -225,29 +226,46 @@ function onZoom(next: ZoomKey): void {
 // ---------------------------------------------------------------- G5：指针 → 手势
 
 /**
- * DOM 事件 → **归一化指针**（内容坐标）。
+ * 屏幕坐标 → **归一化指针**（内容坐标）的唯一实现。
  *
- * **屏幕坐标 → 内容坐标只有一条路**：`pointerFromClient`（`render-core` 的纯函数，ADR 0008 §13）。
+ * **只有一条路**：`pointerFromClient`（`render-core` 的纯函数，ADR 0008 §13）。
  * 本函数只负责把窗格的 `getBoundingClientRect()` 与滚动位置喂给它——
  * 绝不用 `event.offsetX/offsetY`：它们**相对事件目标元素**，`mousedown` 落在条体 `<rect>` 上时
  * 会被当成内容坐标（P-21 §2 的 R1：按下即跳位、条体外点击改日期）。
  * 返回 `null` = 窗格或视图还没就绪，调用方直接丢弃这次事件。
  *
- * 松手（`mouseup` 挂在 window 上）走**同一个**换算——拖出窗格时坐标仍然自洽。
+ * **测量钩子（G5 批次 D）与用户操作共用本函数**：`--align` 的"所见 = 所点"判据必须走同一条换算，
+ * 否则它证明的只是一条平行的公式。
  */
-function pointerFrom(event: MouseEvent): PointerInput | null {
+function pointerFromClientPoint(
+  clientX: number,
+  clientY: number,
+  buttons: number,
+  modifiers: { readonly altKey?: boolean; readonly shiftKey?: boolean } = {},
+): PointerInput | null {
   const pane = paneRef.value;
   const current = view.value;
   if (pane === null || current === null) return null;
   const rect = pane.getBoundingClientRect();
   return pointerFromClient({
-    clientX: event.clientX,
-    clientY: event.clientY,
+    clientX,
+    clientY,
     paneLeft: rect.left,
     paneTop: rect.top,
     scrollLeft: current.scrollLeft,
     scrollTop: current.scrollTop,
-    buttons: event.buttons,
+    buttons,
+    ...(modifiers.altKey === true ? { altKey: true } : {}),
+    ...(modifiers.shiftKey === true ? { shiftKey: true } : {}),
+  });
+}
+
+/**
+ * DOM 事件 → 归一化指针。松手（`mouseup` 挂在 window 上）走**同一个**换算——
+ * 拖出窗格时坐标仍然自洽。
+ */
+function pointerFrom(event: MouseEvent): PointerInput | null {
+  return pointerFromClientPoint(event.clientX, event.clientY, event.buttons, {
     ...(event.altKey ? { altKey: true } : {}),
     ...(event.shiftKey ? { shiftKey: true } : {}),
   });
@@ -438,6 +456,8 @@ onMounted(() => {
         // G5：拖动测量的宿主——**走真实指针入口**（`useGesture`），不另开测试后门。
         drag: {
           view: () => view.value,
+          document: () => document.value,
+          schedule: () => schedule.value,
           calendar: () => calendar.value,
           pointer: {
             down: (event) => {
@@ -456,6 +476,15 @@ onMounted(() => {
           anchors: () => anchors.value.length,
           startDateOf: (taskId: string) =>
             document.value.tasks.find((task) => task.id === taskId)?.startDate ?? null,
+        },
+        // G5 批次 D：两栏行对齐的**只读**采数入口（判读在 `render-core` 的 `diagnoseRowAlignment`）。
+        // `pointerFromClientOf` 走**用户操作的同一个换算**（`pointerFromClientPoint`）——
+        // "所见 = 所点"判据因此不是一条平行公式（ADR 0007 §14）。
+        align: {
+          view: () => view.value,
+          pane: () => paneRef.value,
+          pointerFromClientOf: (clientX: number, clientY: number) =>
+            pointerFromClientPoint(clientX, clientY, 1),
         },
       });
       window.__GANTTPILOT_READY__ = true;
@@ -507,7 +536,7 @@ onUnmounted(() => {
         :calendar="calendar"
         :revision="revision"
         :scroll-top="scrollTop"
-        :pane-height="paneHeight"
+        :column-height="columnHeight"
         :content-height="contentHeight"
         :conflict-task-ids="conflictTaskIds"
         :disabled="false"
@@ -522,28 +551,43 @@ onUnmounted(() => {
         不可排程：左表只显示占位
       </div>
 
-      <div
-        id="chart-pane"
-        ref="paneRef"
-        class="chart-pane"
-        @scroll="chart.handleScroll()"
-        @mousedown="onChartPointerDown"
-        @mousemove="onChartPointerMove"
-      >
+      <!--
+        图表列 = **表头带**（与左表表头同高，ADR 0007 §14）+ 滚动容器（绘制区）+ SVG 覆盖层。
+        SVG 必须是滚动容器的**兄弟**（同在 `.chart-pane-wrap` 内）：若作为滚动容器的 abspos
+        子元素，它会随内容滚动，再叠加内层 `translate(−scrollLeft, −scrollTop)` 就是**双重偏移**
+        （P-23 诊断实测 = 机制③）。
+      -->
+      <div class="chart-column">
         <div
-          class="chart-spacer"
-          :style="{ width: `${String(contentWidth)}px`, height: `${String(contentHeight)}px` }"
+          class="chart-header"
+          :style="{ height: `${String(HEADER_HEIGHT_PX)}px` }"
         />
-        <GanttChart
-          :view="view"
-          :cycle-message="cycleMessage"
-          :cycle-path="cyclePath"
-          :cycle-labels="cycleLabels"
-          :highlight="highlight"
-          :preview="preview"
-          :conflict-task-ids="conflictTaskIds"
-          :drag-preview="dragPreview"
-        />      </div>
+        <div class="chart-pane-wrap">
+          <div
+            id="chart-pane"
+            ref="paneRef"
+            class="chart-pane"
+            @scroll="chart.handleScroll()"
+            @mousedown="onChartPointerDown"
+            @mousemove="onChartPointerMove"
+          >
+            <div
+              class="chart-spacer"
+              :style="{ width: `${String(contentWidth)}px`, height: `${String(contentHeight)}px` }"
+            />
+          </div>
+          <GanttChart
+            :view="view"
+            :cycle-message="cycleMessage"
+            :cycle-path="cyclePath"
+            :cycle-labels="cycleLabels"
+            :highlight="highlight"
+            :preview="preview"
+            :conflict-task-ids="conflictTaskIds"
+            :drag-preview="dragPreview"
+          />
+        </div>
+      </div>
     </main>
 
     <section
@@ -631,10 +675,40 @@ body {
   border-top: 1px solid #e4e7ec;
 }
 
+/**
+ * 图表列 = 表头带 + 绘制区。**外高与左表列相同**，因此两栏的行屏幕几何同式（ADR 0007 §14）：
+ * `行屏幕 y = 列顶 + HEADER_HEIGHT_PX + row × ROW_HEIGHT − scrollTop`。
+ */
+.chart-column {
+  /* `position: relative` 是**必需的**：SVG（`.gantt-svg`）的定位祖先是本列，
+     它的 `top: 0` 就是表头带顶、盒高 = 表头带 + 绘制区（ADR 0007 §15）。 */
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 与 `.table-header` 同高、同底色：两栏表头连成一条带（高度由 `HEADER_HEIGHT_PX` 内联喂入）。 */
+.chart-header {
+  flex: 0 0 auto;
+  /* `border-box` 让 `HEADER_HEIGHT_PX` 是**外高**（含 1 px 下边框）——与左表表头同口径，
+     否则两栏差 1 px、整列行都偏（P-23 诊断实测 `header-height-mismatch`）。 */
+  box-sizing: border-box;
+  border-bottom: 1px solid #e4e7ec;
+  background: #f9fafb;
+}
+
+/* SVG 与滚动容器是**兄弟**（SVG 不随内容滚动 = "钉住"），二者的定位祖先是 `.chart-column`。 */
+.chart-pane-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
 .chart-pane {
   position: relative;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
+  height: 100%;
   overflow: auto;
   background: #ffffff;
 }

@@ -11,15 +11,23 @@
  *   编辑一个单元格不会重建整张表（折叠/展开才会改变可见行集合，那是必要的重算）；
  * - `wbs` / `predecessors` 只读（前者是派生值，后者改边归 G5 的建线）。
  *
- * ## 滚动模型
+ * ## 滚动模型与两栏对齐（ADR 0007 §4/§14）
  *
  * 与图表同一坐标系：内容高 = 可见行数 × 行高，行块用 `translateY(−scrollTop)` 钉在可视区。
  * `scrollTop` 由图表窗格驱动（唯一真相源），两栏因此天然同步。
+ *
+ * **两条硬约束**（P-23 的诊断实测各抓出过一条，都表现为"逐行漂移"）：
+ * ① 表头与图表表头带**同高**（`HEADER_HEIGHT_PX`，`box-sizing: border-box` 使 28 px 是外高），
+ *    表体高 = `columnHeight − HEADER_HEIGHT_PX`；
+ * ② **行外高必须等于模型行高**（`box-sizing: border-box`）——`content-box` 下 24 + 1 px 边框 = 25 px，
+ *    32 行就漂 32 px（R9）。
+ * 判据：`node scripts/measure-render.mjs --align`（记录制）+ `render-core/align.spec.ts`（进 `pnpm gate`）。
  */
 
 import { computed, ref, watch } from 'vue';
 import {
   cellText,
+  HEADER_HEIGHT_PX,
   TABLE_COLUMNS,
   type ColumnKey,
   type ProjectDocument,
@@ -36,7 +44,8 @@ const props = defineProps<{
   readonly calendar: Calendar;
   readonly revision: number;
   readonly scrollTop: number;
-  readonly paneHeight: number;
+  /** **整列外高** = 表头带 + 表体（= 图表列的外高；由 `useChart.columnHeight` 给出）。 */
+  readonly columnHeight: number;
   readonly contentHeight: number;
   /** 冲突行（`anchorConflict` 的任务 id；判据来自引擎，ADR 0008 §6）。 */
   readonly conflictTaskIds: readonly string[];
@@ -167,7 +176,7 @@ void emit;
 <template>
   <div
     class="table-pane"
-    :style="{ height: `${String(paneHeight)}px` }"
+    :style="{ height: `${String(columnHeight)}px`, '--header-h': `${String(HEADER_HEIGHT_PX)}px` }"
   >
     <div class="table-header">
       <div
@@ -182,7 +191,7 @@ void emit;
 
     <div
       class="table-body"
-      :style="{ height: `${String(Math.max(0, paneHeight - 28))}px` }"
+      :style="{ height: `${String(Math.max(0, columnHeight - HEADER_HEIGHT_PX))}px` }"
     >
       <div
         class="spacer"
@@ -196,6 +205,7 @@ void emit;
           v-for="row in view.rows"
           :key="row.id"
           class="row"
+          :data-task-id="row.id"
           :class="{ summary: row.kind === 'summary', conflict: isConflicting(row.id) }"
           :style="{ height: `${String(view.rowHeight)}px` }"
         >
@@ -261,8 +271,11 @@ void emit;
 .table-header {
   display: grid;
   grid-template-columns: 28px 200px 92px 92px 56px 150px 56px 56px 160px;
-  height: 28px;
-  line-height: 28px;
+  /* 表头高由 `HEADER_HEIGHT_PX` 经 `--header-h` 喂进来（**两栏同源**，ADR 0007 §14）；
+     `border-box` 让"28 px"是**外高**（含 1 px 下边框），否则与表体高差 1 px。 */
+  box-sizing: border-box;
+  height: var(--header-h);
+  line-height: var(--header-h);
   background: #f9fafb;
   border-bottom: 1px solid #e4e7ec;
   font-weight: 600;
@@ -289,6 +302,9 @@ void emit;
   display: grid;
   grid-template-columns: 28px 200px 92px 92px 56px 150px 56px 56px 160px;
   align-items: center;
+  /* **外高必须 = 模型行高**（ADR 0007 §4 的固定行高）：`content-box` 下 24 + 1 px 边框 = 25 px，
+     每行多 1 px ⇒ 逐行累积漂移（P-23 诊断实测的 R9）。 */
+  box-sizing: border-box;
   border-bottom: 1px solid #f2f4f7;
   white-space: nowrap;
 }
