@@ -1,6 +1,6 @@
 {
   "env": {
-    "采集时刻": "2026-10-04T07:55:40.585Z",
+    "采集时刻": "2026-10-04T09:54:02.910Z",
     "机器": "FAIRY",
     "系统": "win32 x64",
     "Node": "v26.7.0",
@@ -13,7 +13,7 @@
   "result": {
     "file": "D:\\workspace\\GanttPilot\\tmp\\samples\\cyclic-dependency.xlsx",
     "sizeBytes": 6669,
-    "sha256": "3c897f6a2f652055bc59113fc65335d133bf7f7be8847fad7caaadd2e5cbcdd9",
+    "sha256": "7e5f96c6b3abff31ce7c78005e5409d429b5cb0805f8f55fdc386f2179ba053b",
     "footer": " 任务 6 · 依赖 5 · 可见行 6 · 渲染行 6 · 渲染边 5 · 元素 63/81（c₃ = 36、c₄ = 12、 覆盖层 0）  档位 day（px/day 24）· 行高 24 px · render-core 0.0.0 诊断 2 条（已展开）  锚点 0 · 冲突 0 首个汇总进度 -100%已导入 cyclic-dependency.xlsx：6 个任务、5 条依赖；问题 1 条",
     "tasks": 6,
     "links": 5,

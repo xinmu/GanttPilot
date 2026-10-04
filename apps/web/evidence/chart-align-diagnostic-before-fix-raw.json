@@ -1,0 +1,2411 @@
+{
+  "env": {
+    "采集时刻": "2026-10-04T08:30:37.287Z",
+    "机器": "FAIRY",
+    "系统": "win32 x64",
+    "Node": "v26.7.0",
+    "Chrome": "Chrome/152.0.7977.83",
+    "Chrome 模式": "--headless=new",
+    "DPR": 1,
+    "视口": "1280×800（窗格尺寸随结果登记）",
+    "数据集": "dense",
+    "左表": "在场（不带 ?table=0）",
+    "探测位置": "0 / 120 / 480 / 9999999"
+  },
+  "result": {
+    "status": "error",
+    "errors": [
+      "两栏行对齐未通过：最大行差 22936.199 px、最大条形 x 偏差 0.000 px、机制 table-body-height-mismatch / header-height-mismatch / row-offset / hit-test-mismatch / coverage-gap / svg-scrolls-with-content / axis-not-covering"
+    ],
+    "dataset": "dense",
+    "probes": [
+      {
+        "requestedScrollTop": 0,
+        "probe": {
+          "scrollTop": 0,
+          "viewScrollTop": 0,
+          "paneTop": 58.375,
+          "paneLeft": 891,
+          "paneHeight": 663,
+          "paneWidth": 374,
+          "headerHeightChart": 0,
+          "headerHeightTable": 29,
+          "tableBodyHeight": 634,
+          "svgTop": 58.375,
+          "svgLeft": 891,
+          "svgWidth": 374,
+          "svgHeight": 663,
+          "viewWidth": 374,
+          "viewHeight": 663,
+          "spacerHeight": 23544,
+          "rowCount": 981,
+          "rowHeight": 24,
+          "samples": [
+            {
+              "id": "s1",
+              "row": 0,
+              "chartTop": 66.17500305175781,
+              "tableTop": 87.375,
+              "barLeft": 1083,
+              "barRight": 1347,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t1",
+              "row": 1,
+              "chartTop": 87.17500305175781,
+              "tableTop": 112.375,
+              "barLeft": 1083,
+              "barRight": 1299,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t2",
+              "row": 2,
+              "chartTop": 111.17500305175781,
+              "tableTop": 137.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t3",
+              "row": 3,
+              "chartTop": 135.1750030517578,
+              "tableTop": 162.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t4",
+              "row": 4,
+              "chartTop": 159.1750030517578,
+              "tableTop": 187.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t5",
+              "row": 5,
+              "chartTop": 183.1750030517578,
+              "tableTop": 212.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t6",
+              "row": 6,
+              "chartTop": 207.1750030517578,
+              "tableTop": 237.375,
+              "barLeft": 1083,
+              "barRight": 1299,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t7",
+              "row": 7,
+              "chartTop": 231.1750030517578,
+              "tableTop": 262.375,
+              "barLeft": 1083,
+              "barRight": 1275,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1275
+            },
+            {
+              "id": "t8",
+              "row": 8,
+              "chartTop": 255.1750030517578,
+              "tableTop": 287.375,
+              "barLeft": 1083,
+              "barRight": 1275,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1275
+            },
+            {
+              "id": "t9",
+              "row": 9,
+              "chartTop": 279.17498779296875,
+              "tableTop": 312.375,
+              "barLeft": 1083,
+              "barRight": 1299,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t10",
+              "row": 10,
+              "chartTop": 303.17498779296875,
+              "tableTop": 337.375,
+              "barLeft": 1083,
+              "barRight": 1203,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t11",
+              "row": 11,
+              "chartTop": 327.17498779296875,
+              "tableTop": 362.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t12",
+              "row": 12,
+              "chartTop": 351.17498779296875,
+              "tableTop": 387.375,
+              "barLeft": 1083,
+              "barRight": 1179,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1179
+            },
+            {
+              "id": "t13",
+              "row": 13,
+              "chartTop": 375.17498779296875,
+              "tableTop": 412.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t14",
+              "row": 14,
+              "chartTop": 399.17498779296875,
+              "tableTop": 437.375,
+              "barLeft": 1083,
+              "barRight": 1275,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1275
+            },
+            {
+              "id": "t15",
+              "row": 15,
+              "chartTop": 423.17498779296875,
+              "tableTop": 462.375,
+              "barLeft": 1107,
+              "barRight": 1299,
+              "expectedBarLeft": 1107,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t16",
+              "row": 16,
+              "chartTop": 447.17498779296875,
+              "tableTop": 487.375,
+              "barLeft": 1083,
+              "barRight": 1347,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t17",
+              "row": 17,
+              "chartTop": 471.17498779296875,
+              "tableTop": 512.375,
+              "barLeft": 1083,
+              "barRight": 1203,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t18",
+              "row": 18,
+              "chartTop": 495.17498779296875,
+              "tableTop": 537.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t19",
+              "row": 19,
+              "chartTop": 520.375,
+              "tableTop": 562.375,
+              "barLeft": null,
+              "barRight": null,
+              "expectedBarLeft": null,
+              "expectedBarRight": null
+            },
+            {
+              "id": "s2",
+              "row": 20,
+              "chartTop": 546.1749877929688,
+              "tableTop": 587.375,
+              "barLeft": 1083,
+              "barRight": 1611,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1611
+            },
+            {
+              "id": "t20",
+              "row": 21,
+              "chartTop": 567.1749877929688,
+              "tableTop": 612.375,
+              "barLeft": 1083,
+              "barRight": 1203,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t21",
+              "row": 22,
+              "chartTop": 591.1749877929688,
+              "tableTop": 637.375,
+              "barLeft": 1083,
+              "barRight": 1107,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1107
+            },
+            {
+              "id": "t22",
+              "row": 23,
+              "chartTop": 615.1749877929688,
+              "tableTop": 662.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t23",
+              "row": 24,
+              "chartTop": 639.1749877929688,
+              "tableTop": 687.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t24",
+              "row": 25,
+              "chartTop": 663.1749877929688,
+              "tableTop": 712.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t25",
+              "row": 26,
+              "chartTop": 687.1749877929688,
+              "tableTop": 737.375,
+              "barLeft": 1299,
+              "barRight": 1323,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t26",
+              "row": 27,
+              "chartTop": 711.1749877929688,
+              "tableTop": 762.375,
+              "barLeft": 1323,
+              "barRight": 1347,
+              "expectedBarLeft": 1323,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t27",
+              "row": 28,
+              "chartTop": 735.1749877929688,
+              "tableTop": 787.375,
+              "barLeft": 1275,
+              "barRight": 1443,
+              "expectedBarLeft": 1275,
+              "expectedBarRight": 1443
+            },
+            {
+              "id": "t28",
+              "row": 29,
+              "chartTop": 759.1749877929688,
+              "tableTop": 812.375,
+              "barLeft": 1179,
+              "barRight": 1299,
+              "expectedBarLeft": 1179,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t29",
+              "row": 30,
+              "chartTop": 783.1749877929688,
+              "tableTop": 837.375,
+              "barLeft": 1107,
+              "barRight": 1347,
+              "expectedBarLeft": 1107,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t30",
+              "row": 31,
+              "chartTop": 807.1749877929688,
+              "tableTop": 862.375,
+              "barLeft": 1299,
+              "barRight": 1467,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1467
+            },
+            {
+              "id": "t31",
+              "row": 32,
+              "chartTop": 831.1749877929688,
+              "tableTop": 887.375,
+              "barLeft": 1299,
+              "barRight": 1515,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1515
+            }
+          ],
+          "axisCoverage": {
+            "top": 58.375,
+            "bottom": 721.375
+          },
+          "hitTest": {
+            "id": "t16",
+            "row": 16,
+            "clientY": 459.17498779296875,
+            "expectedContentY": 396,
+            "actualContentY": 400.79998779296875
+          }
+        },
+        "verdict": {
+          "ok": false,
+          "maxAbsRowDeltaPx": 56.2,
+          "maxAbsBarXDeltaPx": 0,
+          "rowDeltas": [
+            {
+              "id": "s1",
+              "row": 0,
+              "deltaPx": -21.2
+            },
+            {
+              "id": "t1",
+              "row": 1,
+              "deltaPx": -25.2
+            },
+            {
+              "id": "t2",
+              "row": 2,
+              "deltaPx": -26.2
+            },
+            {
+              "id": "t3",
+              "row": 3,
+              "deltaPx": -27.2
+            },
+            {
+              "id": "t4",
+              "row": 4,
+              "deltaPx": -28.2
+            },
+            {
+              "id": "t5",
+              "row": 5,
+              "deltaPx": -29.2
+            },
+            {
+              "id": "t6",
+              "row": 6,
+              "deltaPx": -30.2
+            },
+            {
+              "id": "t7",
+              "row": 7,
+              "deltaPx": -31.2
+            },
+            {
+              "id": "t8",
+              "row": 8,
+              "deltaPx": -32.2
+            },
+            {
+              "id": "t9",
+              "row": 9,
+              "deltaPx": -33.2
+            },
+            {
+              "id": "t10",
+              "row": 10,
+              "deltaPx": -34.2
+            },
+            {
+              "id": "t11",
+              "row": 11,
+              "deltaPx": -35.2
+            },
+            {
+              "id": "t12",
+              "row": 12,
+              "deltaPx": -36.2
+            },
+            {
+              "id": "t13",
+              "row": 13,
+              "deltaPx": -37.2
+            },
+            {
+              "id": "t14",
+              "row": 14,
+              "deltaPx": -38.2
+            },
+            {
+              "id": "t15",
+              "row": 15,
+              "deltaPx": -39.2
+            },
+            {
+              "id": "t16",
+              "row": 16,
+              "deltaPx": -40.2
+            },
+            {
+              "id": "t17",
+              "row": 17,
+              "deltaPx": -41.2
+            },
+            {
+              "id": "t18",
+              "row": 18,
+              "deltaPx": -42.2
+            },
+            {
+              "id": "t19",
+              "row": 19,
+              "deltaPx": -42
+            },
+            {
+              "id": "s2",
+              "row": 20,
+              "deltaPx": -41.2
+            },
+            {
+              "id": "t20",
+              "row": 21,
+              "deltaPx": -45.2
+            },
+            {
+              "id": "t21",
+              "row": 22,
+              "deltaPx": -46.2
+            },
+            {
+              "id": "t22",
+              "row": 23,
+              "deltaPx": -47.2
+            },
+            {
+              "id": "t23",
+              "row": 24,
+              "deltaPx": -48.2
+            },
+            {
+              "id": "t24",
+              "row": 25,
+              "deltaPx": -49.2
+            },
+            {
+              "id": "t25",
+              "row": 26,
+              "deltaPx": -50.2
+            },
+            {
+              "id": "t26",
+              "row": 27,
+              "deltaPx": -51.2
+            },
+            {
+              "id": "t27",
+              "row": 28,
+              "deltaPx": -52.2
+            },
+            {
+              "id": "t28",
+              "row": 29,
+              "deltaPx": -53.2
+            },
+            {
+              "id": "t29",
+              "row": 30,
+              "deltaPx": -54.2
+            },
+            {
+              "id": "t30",
+              "row": 31,
+              "deltaPx": -55.2
+            },
+            {
+              "id": "t31",
+              "row": 32,
+              "deltaPx": -56.2
+            }
+          ],
+          "pinned": true,
+          "svgBoxAligned": true,
+          "headerAligned": false,
+          "heightAligned": false,
+          "scrollInSync": true,
+          "coverage": {
+            "topBandPx": 7.8,
+            "bottomBandPx": 0
+          },
+          "mechanisms": [
+            "table-body-height-mismatch",
+            "header-height-mismatch",
+            "row-offset",
+            "hit-test-mismatch",
+            "coverage-gap"
+          ]
+        }
+      },
+      {
+        "requestedScrollTop": 120,
+        "probe": {
+          "scrollTop": 120,
+          "viewScrollTop": 120,
+          "paneTop": 58.375,
+          "paneLeft": 891,
+          "paneHeight": 663,
+          "paneWidth": 374,
+          "headerHeightChart": 0,
+          "headerHeightTable": 29,
+          "tableBodyHeight": 634,
+          "svgTop": -61.625,
+          "svgLeft": 891,
+          "svgWidth": 374,
+          "svgHeight": 663,
+          "viewWidth": 374,
+          "viewHeight": 663,
+          "spacerHeight": 23544,
+          "rowCount": 981,
+          "rowHeight": 24,
+          "samples": [
+            {
+              "id": "s1",
+              "row": 0,
+              "chartTop": -173.8249969482422,
+              "tableTop": -32.625,
+              "barLeft": 1083,
+              "barRight": 1347,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t1",
+              "row": 1,
+              "chartTop": -152.8249969482422,
+              "tableTop": -7.625,
+              "barLeft": 1083,
+              "barRight": 1299,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t2",
+              "row": 2,
+              "chartTop": -128.8249969482422,
+              "tableTop": 17.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t3",
+              "row": 3,
+              "chartTop": -104.82499694824219,
+              "tableTop": 42.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t4",
+              "row": 4,
+              "chartTop": -80.82499694824219,
+              "tableTop": 67.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t5",
+              "row": 5,
+              "chartTop": -56.82499694824219,
+              "tableTop": 92.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t6",
+              "row": 6,
+              "chartTop": -32.82499694824219,
+              "tableTop": 117.375,
+              "barLeft": 1083,
+              "barRight": 1299,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t7",
+              "row": 7,
+              "chartTop": -8.824996948242188,
+              "tableTop": 142.375,
+              "barLeft": 1083,
+              "barRight": 1275,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1275
+            },
+            {
+              "id": "t8",
+              "row": 8,
+              "chartTop": 15.175003051757812,
+              "tableTop": 167.375,
+              "barLeft": 1083,
+              "barRight": 1275,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1275
+            },
+            {
+              "id": "t9",
+              "row": 9,
+              "chartTop": 39.17500305175781,
+              "tableTop": 192.375,
+              "barLeft": 1083,
+              "barRight": 1299,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t10",
+              "row": 10,
+              "chartTop": 63.17500305175781,
+              "tableTop": 217.375,
+              "barLeft": 1083,
+              "barRight": 1203,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t11",
+              "row": 11,
+              "chartTop": 87.17498779296875,
+              "tableTop": 242.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t12",
+              "row": 12,
+              "chartTop": 111.17498779296875,
+              "tableTop": 267.375,
+              "barLeft": 1083,
+              "barRight": 1179,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1179
+            },
+            {
+              "id": "t13",
+              "row": 13,
+              "chartTop": 135.17498779296875,
+              "tableTop": 292.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t14",
+              "row": 14,
+              "chartTop": 159.17498779296875,
+              "tableTop": 317.375,
+              "barLeft": 1083,
+              "barRight": 1275,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1275
+            },
+            {
+              "id": "t15",
+              "row": 15,
+              "chartTop": 183.17498779296875,
+              "tableTop": 342.375,
+              "barLeft": 1107,
+              "barRight": 1299,
+              "expectedBarLeft": 1107,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t16",
+              "row": 16,
+              "chartTop": 207.17498779296875,
+              "tableTop": 367.375,
+              "barLeft": 1083,
+              "barRight": 1347,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t17",
+              "row": 17,
+              "chartTop": 231.17498779296875,
+              "tableTop": 392.375,
+              "barLeft": 1083,
+              "barRight": 1203,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t18",
+              "row": 18,
+              "chartTop": 255.17498779296875,
+              "tableTop": 417.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t19",
+              "row": 19,
+              "chartTop": 280.375,
+              "tableTop": 442.375,
+              "barLeft": null,
+              "barRight": null,
+              "expectedBarLeft": null,
+              "expectedBarRight": null
+            },
+            {
+              "id": "s2",
+              "row": 20,
+              "chartTop": 306.17498779296875,
+              "tableTop": 467.375,
+              "barLeft": 1083,
+              "barRight": 1611,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1611
+            },
+            {
+              "id": "t20",
+              "row": 21,
+              "chartTop": 327.17498779296875,
+              "tableTop": 492.375,
+              "barLeft": 1083,
+              "barRight": 1203,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t21",
+              "row": 22,
+              "chartTop": 351.17498779296875,
+              "tableTop": 517.375,
+              "barLeft": 1083,
+              "barRight": 1107,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1107
+            },
+            {
+              "id": "t22",
+              "row": 23,
+              "chartTop": 375.17498779296875,
+              "tableTop": 542.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t23",
+              "row": 24,
+              "chartTop": 399.17498779296875,
+              "tableTop": 567.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t24",
+              "row": 25,
+              "chartTop": 423.17498779296875,
+              "tableTop": 592.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t25",
+              "row": 26,
+              "chartTop": 447.17498779296875,
+              "tableTop": 617.375,
+              "barLeft": 1299,
+              "barRight": 1323,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t26",
+              "row": 27,
+              "chartTop": 471.17498779296875,
+              "tableTop": 642.375,
+              "barLeft": 1323,
+              "barRight": 1347,
+              "expectedBarLeft": 1323,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t27",
+              "row": 28,
+              "chartTop": 495.17498779296875,
+              "tableTop": 667.375,
+              "barLeft": 1275,
+              "barRight": 1443,
+              "expectedBarLeft": 1275,
+              "expectedBarRight": 1443
+            },
+            {
+              "id": "t28",
+              "row": 29,
+              "chartTop": 519.1749877929688,
+              "tableTop": 692.375,
+              "barLeft": 1179,
+              "barRight": 1299,
+              "expectedBarLeft": 1179,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t29",
+              "row": 30,
+              "chartTop": 543.1749877929688,
+              "tableTop": 717.375,
+              "barLeft": 1107,
+              "barRight": 1347,
+              "expectedBarLeft": 1107,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t30",
+              "row": 31,
+              "chartTop": 567.1749877929688,
+              "tableTop": 742.375,
+              "barLeft": 1299,
+              "barRight": 1467,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1467
+            },
+            {
+              "id": "t31",
+              "row": 32,
+              "chartTop": 591.1749877929688,
+              "tableTop": 767.375,
+              "barLeft": 1299,
+              "barRight": 1515,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1515
+            },
+            {
+              "id": "t32",
+              "row": 33,
+              "chartTop": 615.1749877929688,
+              "tableTop": 792.375,
+              "barLeft": 1083,
+              "barRight": 1347,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t33",
+              "row": 34,
+              "chartTop": 639.1749877929688,
+              "tableTop": 817.375,
+              "barLeft": 1443,
+              "barRight": 1491,
+              "expectedBarLeft": 1443,
+              "expectedBarRight": 1491
+            },
+            {
+              "id": "t34",
+              "row": 35,
+              "chartTop": 663.1749877929688,
+              "tableTop": 842.375,
+              "barLeft": 1107,
+              "barRight": 1203,
+              "expectedBarLeft": 1107,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t35",
+              "row": 36,
+              "chartTop": 687.1749877929688,
+              "tableTop": 867.375,
+              "barLeft": 1299,
+              "barRight": 1371,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1371
+            },
+            {
+              "id": "t36",
+              "row": 37,
+              "chartTop": 711.1749877929688,
+              "tableTop": 892.375,
+              "barLeft": 1347,
+              "barRight": 1611,
+              "expectedBarLeft": 1347,
+              "expectedBarRight": 1611
+            }
+          ],
+          "axisCoverage": {
+            "top": -181.625,
+            "bottom": 481.375
+          },
+          "hitTest": {
+            "id": "t19",
+            "row": 19,
+            "clientY": 292.375,
+            "expectedContentY": 468,
+            "actualContentY": 354
+          }
+        },
+        "verdict": {
+          "ok": false,
+          "maxAbsRowDeltaPx": 181.2,
+          "maxAbsBarXDeltaPx": 0,
+          "rowDeltas": [
+            {
+              "id": "s1",
+              "row": 0,
+              "deltaPx": -141.2
+            },
+            {
+              "id": "t1",
+              "row": 1,
+              "deltaPx": -145.2
+            },
+            {
+              "id": "t2",
+              "row": 2,
+              "deltaPx": -146.2
+            },
+            {
+              "id": "t3",
+              "row": 3,
+              "deltaPx": -147.2
+            },
+            {
+              "id": "t4",
+              "row": 4,
+              "deltaPx": -148.2
+            },
+            {
+              "id": "t5",
+              "row": 5,
+              "deltaPx": -149.2
+            },
+            {
+              "id": "t6",
+              "row": 6,
+              "deltaPx": -150.2
+            },
+            {
+              "id": "t7",
+              "row": 7,
+              "deltaPx": -151.2
+            },
+            {
+              "id": "t8",
+              "row": 8,
+              "deltaPx": -152.2
+            },
+            {
+              "id": "t9",
+              "row": 9,
+              "deltaPx": -153.2
+            },
+            {
+              "id": "t10",
+              "row": 10,
+              "deltaPx": -154.2
+            },
+            {
+              "id": "t11",
+              "row": 11,
+              "deltaPx": -155.2
+            },
+            {
+              "id": "t12",
+              "row": 12,
+              "deltaPx": -156.2
+            },
+            {
+              "id": "t13",
+              "row": 13,
+              "deltaPx": -157.2
+            },
+            {
+              "id": "t14",
+              "row": 14,
+              "deltaPx": -158.2
+            },
+            {
+              "id": "t15",
+              "row": 15,
+              "deltaPx": -159.2
+            },
+            {
+              "id": "t16",
+              "row": 16,
+              "deltaPx": -160.2
+            },
+            {
+              "id": "t17",
+              "row": 17,
+              "deltaPx": -161.2
+            },
+            {
+              "id": "t18",
+              "row": 18,
+              "deltaPx": -162.2
+            },
+            {
+              "id": "t19",
+              "row": 19,
+              "deltaPx": -162
+            },
+            {
+              "id": "s2",
+              "row": 20,
+              "deltaPx": -161.2
+            },
+            {
+              "id": "t20",
+              "row": 21,
+              "deltaPx": -165.2
+            },
+            {
+              "id": "t21",
+              "row": 22,
+              "deltaPx": -166.2
+            },
+            {
+              "id": "t22",
+              "row": 23,
+              "deltaPx": -167.2
+            },
+            {
+              "id": "t23",
+              "row": 24,
+              "deltaPx": -168.2
+            },
+            {
+              "id": "t24",
+              "row": 25,
+              "deltaPx": -169.2
+            },
+            {
+              "id": "t25",
+              "row": 26,
+              "deltaPx": -170.2
+            },
+            {
+              "id": "t26",
+              "row": 27,
+              "deltaPx": -171.2
+            },
+            {
+              "id": "t27",
+              "row": 28,
+              "deltaPx": -172.2
+            },
+            {
+              "id": "t28",
+              "row": 29,
+              "deltaPx": -173.2
+            },
+            {
+              "id": "t29",
+              "row": 30,
+              "deltaPx": -174.2
+            },
+            {
+              "id": "t30",
+              "row": 31,
+              "deltaPx": -175.2
+            },
+            {
+              "id": "t31",
+              "row": 32,
+              "deltaPx": -176.2
+            },
+            {
+              "id": "t32",
+              "row": 33,
+              "deltaPx": -177.2
+            },
+            {
+              "id": "t33",
+              "row": 34,
+              "deltaPx": -178.2
+            },
+            {
+              "id": "t34",
+              "row": 35,
+              "deltaPx": -179.2
+            },
+            {
+              "id": "t35",
+              "row": 36,
+              "deltaPx": -180.2
+            },
+            {
+              "id": "t36",
+              "row": 37,
+              "deltaPx": -181.2
+            }
+          ],
+          "pinned": false,
+          "svgBoxAligned": true,
+          "headerAligned": false,
+          "heightAligned": false,
+          "scrollInSync": true,
+          "coverage": {
+            "topBandPx": 0,
+            "bottomBandPx": 0
+          },
+          "mechanisms": [
+            "svg-scrolls-with-content",
+            "table-body-height-mismatch",
+            "header-height-mismatch",
+            "row-offset",
+            "hit-test-mismatch",
+            "axis-not-covering"
+          ]
+        }
+      },
+      {
+        "requestedScrollTop": 480,
+        "probe": {
+          "scrollTop": 480,
+          "viewScrollTop": 480,
+          "paneTop": 58.375,
+          "paneLeft": 891,
+          "paneHeight": 663,
+          "paneWidth": 374,
+          "headerHeightChart": 0,
+          "headerHeightTable": 29,
+          "tableBodyHeight": 634,
+          "svgTop": -421.625,
+          "svgLeft": 891,
+          "svgWidth": 374,
+          "svgHeight": 663,
+          "viewWidth": 374,
+          "viewHeight": 663,
+          "spacerHeight": 23544,
+          "rowCount": 981,
+          "rowHeight": 24,
+          "samples": [
+            {
+              "id": "t15",
+              "row": 15,
+              "chartTop": -536.8250122070312,
+              "tableTop": -32.625,
+              "barLeft": 1107,
+              "barRight": 1299,
+              "expectedBarLeft": 1107,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t16",
+              "row": 16,
+              "chartTop": -512.8250122070312,
+              "tableTop": -7.625,
+              "barLeft": 1083,
+              "barRight": 1347,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t17",
+              "row": 17,
+              "chartTop": -488.82501220703125,
+              "tableTop": 17.375,
+              "barLeft": 1083,
+              "barRight": 1203,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t18",
+              "row": 18,
+              "chartTop": -464.82501220703125,
+              "tableTop": 42.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t19",
+              "row": 19,
+              "chartTop": -439.625,
+              "tableTop": 67.375,
+              "barLeft": null,
+              "barRight": null,
+              "expectedBarLeft": null,
+              "expectedBarRight": null
+            },
+            {
+              "id": "s2",
+              "row": 20,
+              "chartTop": -413.82501220703125,
+              "tableTop": 92.375,
+              "barLeft": 1083,
+              "barRight": 1611,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1611
+            },
+            {
+              "id": "t20",
+              "row": 21,
+              "chartTop": -392.82501220703125,
+              "tableTop": 117.375,
+              "barLeft": 1083,
+              "barRight": 1203,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t21",
+              "row": 22,
+              "chartTop": -368.82501220703125,
+              "tableTop": 142.375,
+              "barLeft": 1083,
+              "barRight": 1107,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1107
+            },
+            {
+              "id": "t22",
+              "row": 23,
+              "chartTop": -344.82501220703125,
+              "tableTop": 167.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t23",
+              "row": 24,
+              "chartTop": -320.82501220703125,
+              "tableTop": 192.375,
+              "barLeft": 1083,
+              "barRight": 1131,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1131
+            },
+            {
+              "id": "t24",
+              "row": 25,
+              "chartTop": -296.82501220703125,
+              "tableTop": 217.375,
+              "barLeft": 1083,
+              "barRight": 1323,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t25",
+              "row": 26,
+              "chartTop": -272.82501220703125,
+              "tableTop": 242.375,
+              "barLeft": 1299,
+              "barRight": 1323,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1323
+            },
+            {
+              "id": "t26",
+              "row": 27,
+              "chartTop": -248.82501220703125,
+              "tableTop": 267.375,
+              "barLeft": 1323,
+              "barRight": 1347,
+              "expectedBarLeft": 1323,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t27",
+              "row": 28,
+              "chartTop": -224.82501220703125,
+              "tableTop": 292.375,
+              "barLeft": 1275,
+              "barRight": 1443,
+              "expectedBarLeft": 1275,
+              "expectedBarRight": 1443
+            },
+            {
+              "id": "t28",
+              "row": 29,
+              "chartTop": -200.82501220703125,
+              "tableTop": 317.375,
+              "barLeft": 1179,
+              "barRight": 1299,
+              "expectedBarLeft": 1179,
+              "expectedBarRight": 1299
+            },
+            {
+              "id": "t29",
+              "row": 30,
+              "chartTop": -176.82501220703125,
+              "tableTop": 342.375,
+              "barLeft": 1107,
+              "barRight": 1347,
+              "expectedBarLeft": 1107,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t30",
+              "row": 31,
+              "chartTop": -152.82501220703125,
+              "tableTop": 367.375,
+              "barLeft": 1299,
+              "barRight": 1467,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1467
+            },
+            {
+              "id": "t31",
+              "row": 32,
+              "chartTop": -128.82501220703125,
+              "tableTop": 392.375,
+              "barLeft": 1299,
+              "barRight": 1515,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1515
+            },
+            {
+              "id": "t32",
+              "row": 33,
+              "chartTop": -104.82501220703125,
+              "tableTop": 417.375,
+              "barLeft": 1083,
+              "barRight": 1347,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t33",
+              "row": 34,
+              "chartTop": -80.82501220703125,
+              "tableTop": 442.375,
+              "barLeft": 1443,
+              "barRight": 1491,
+              "expectedBarLeft": 1443,
+              "expectedBarRight": 1491
+            },
+            {
+              "id": "t34",
+              "row": 35,
+              "chartTop": -56.82501220703125,
+              "tableTop": 467.375,
+              "barLeft": 1107,
+              "barRight": 1203,
+              "expectedBarLeft": 1107,
+              "expectedBarRight": 1203
+            },
+            {
+              "id": "t35",
+              "row": 36,
+              "chartTop": -32.82501220703125,
+              "tableTop": 492.375,
+              "barLeft": 1299,
+              "barRight": 1371,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1371
+            },
+            {
+              "id": "t36",
+              "row": 37,
+              "chartTop": -8.82501220703125,
+              "tableTop": 517.375,
+              "barLeft": 1347,
+              "barRight": 1611,
+              "expectedBarLeft": 1347,
+              "expectedBarRight": 1611
+            },
+            {
+              "id": "t37",
+              "row": 38,
+              "chartTop": 15.17498779296875,
+              "tableTop": 542.375,
+              "barLeft": 1179,
+              "barRight": 1275,
+              "expectedBarLeft": 1179,
+              "expectedBarRight": 1275
+            },
+            {
+              "id": "t38",
+              "row": 39,
+              "chartTop": 40.375,
+              "tableTop": 567.375,
+              "barLeft": null,
+              "barRight": null,
+              "expectedBarLeft": null,
+              "expectedBarRight": null
+            },
+            {
+              "id": "s3",
+              "row": 40,
+              "chartTop": 66.17498779296875,
+              "tableTop": 592.375,
+              "barLeft": 1083,
+              "barRight": 1947,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 1947
+            },
+            {
+              "id": "s4",
+              "row": 41,
+              "chartTop": 90.17498779296875,
+              "tableTop": 617.375,
+              "barLeft": 1083,
+              "barRight": 2115,
+              "expectedBarLeft": 1083,
+              "expectedBarRight": 2115
+            },
+            {
+              "id": "t58",
+              "row": 42,
+              "chartTop": 111.17498779296875,
+              "tableTop": 642.375,
+              "barLeft": 1179,
+              "barRight": 1275,
+              "expectedBarLeft": 1179,
+              "expectedBarRight": 1275
+            },
+            {
+              "id": "t59",
+              "row": 43,
+              "chartTop": 135.175048828125,
+              "tableTop": 667.375,
+              "barLeft": 1179,
+              "barRight": 1347,
+              "expectedBarLeft": 1179,
+              "expectedBarRight": 1347
+            },
+            {
+              "id": "t60",
+              "row": 44,
+              "chartTop": 159.175048828125,
+              "tableTop": 692.375,
+              "barLeft": 1515,
+              "barRight": 1611,
+              "expectedBarLeft": 1515,
+              "expectedBarRight": 1611
+            },
+            {
+              "id": "t61",
+              "row": 45,
+              "chartTop": 183.175048828125,
+              "tableTop": 717.375,
+              "barLeft": 1251,
+              "barRight": 1515,
+              "expectedBarLeft": 1251,
+              "expectedBarRight": 1515
+            },
+            {
+              "id": "t62",
+              "row": 46,
+              "chartTop": 207.175048828125,
+              "tableTop": 742.375,
+              "barLeft": 1467,
+              "barRight": 1539,
+              "expectedBarLeft": 1467,
+              "expectedBarRight": 1539
+            },
+            {
+              "id": "t63",
+              "row": 47,
+              "chartTop": 231.175048828125,
+              "tableTop": 767.375,
+              "barLeft": 1635,
+              "barRight": 1659,
+              "expectedBarLeft": 1635,
+              "expectedBarRight": 1659
+            },
+            {
+              "id": "t64",
+              "row": 48,
+              "chartTop": 255.175048828125,
+              "tableTop": 792.375,
+              "barLeft": 1659,
+              "barRight": 1779,
+              "expectedBarLeft": 1659,
+              "expectedBarRight": 1779
+            },
+            {
+              "id": "t65",
+              "row": 49,
+              "chartTop": 279.175048828125,
+              "tableTop": 817.375,
+              "barLeft": 1299,
+              "barRight": 1539,
+              "expectedBarLeft": 1299,
+              "expectedBarRight": 1539
+            },
+            {
+              "id": "t66",
+              "row": 50,
+              "chartTop": 303.175048828125,
+              "tableTop": 842.375,
+              "barLeft": 1611,
+              "barRight": 1659,
+              "expectedBarLeft": 1611,
+              "expectedBarRight": 1659
+            },
+            {
+              "id": "t67",
+              "row": 51,
+              "chartTop": 327.175048828125,
+              "tableTop": 867.375,
+              "barLeft": 1803,
+              "barRight": 2115,
+              "expectedBarLeft": 1803,
+              "expectedBarRight": 2115
+            },
+            {
+              "id": "t68",
+              "row": 52,
+              "chartTop": 351.175048828125,
+              "tableTop": 892.375,
+              "barLeft": 1659,
+              "barRight": 1683,
+              "expectedBarLeft": 1659,
+              "expectedBarRight": 1683
+            }
+          ],
+          "axisCoverage": {
+            "top": -901.625,
+            "bottom": -238.625
+          },
+          "hitTest": {
+            "id": "t33",
+            "row": 34,
+            "clientY": -68.82501220703125,
+            "expectedContentY": 828,
+            "actualContentY": 352.79998779296875
+          }
+        },
+        "verdict": {
+          "ok": false,
+          "maxAbsRowDeltaPx": 541.2,
+          "maxAbsBarXDeltaPx": 0,
+          "rowDeltas": [
+            {
+              "id": "t15",
+              "row": 15,
+              "deltaPx": -504.2
+            },
+            {
+              "id": "t16",
+              "row": 16,
+              "deltaPx": -505.2
+            },
+            {
+              "id": "t17",
+              "row": 17,
+              "deltaPx": -506.2
+            },
+            {
+              "id": "t18",
+              "row": 18,
+              "deltaPx": -507.2
+            },
+            {
+              "id": "t19",
+              "row": 19,
+              "deltaPx": -507
+            },
+            {
+              "id": "s2",
+              "row": 20,
+              "deltaPx": -506.2
+            },
+            {
+              "id": "t20",
+              "row": 21,
+              "deltaPx": -510.2
+            },
+            {
+              "id": "t21",
+              "row": 22,
+              "deltaPx": -511.2
+            },
+            {
+              "id": "t22",
+              "row": 23,
+              "deltaPx": -512.2
+            },
+            {
+              "id": "t23",
+              "row": 24,
+              "deltaPx": -513.2
+            },
+            {
+              "id": "t24",
+              "row": 25,
+              "deltaPx": -514.2
+            },
+            {
+              "id": "t25",
+              "row": 26,
+              "deltaPx": -515.2
+            },
+            {
+              "id": "t26",
+              "row": 27,
+              "deltaPx": -516.2
+            },
+            {
+              "id": "t27",
+              "row": 28,
+              "deltaPx": -517.2
+            },
+            {
+              "id": "t28",
+              "row": 29,
+              "deltaPx": -518.2
+            },
+            {
+              "id": "t29",
+              "row": 30,
+              "deltaPx": -519.2
+            },
+            {
+              "id": "t30",
+              "row": 31,
+              "deltaPx": -520.2
+            },
+            {
+              "id": "t31",
+              "row": 32,
+              "deltaPx": -521.2
+            },
+            {
+              "id": "t32",
+              "row": 33,
+              "deltaPx": -522.2
+            },
+            {
+              "id": "t33",
+              "row": 34,
+              "deltaPx": -523.2
+            },
+            {
+              "id": "t34",
+              "row": 35,
+              "deltaPx": -524.2
+            },
+            {
+              "id": "t35",
+              "row": 36,
+              "deltaPx": -525.2
+            },
+            {
+              "id": "t36",
+              "row": 37,
+              "deltaPx": -526.2
+            },
+            {
+              "id": "t37",
+              "row": 38,
+              "deltaPx": -527.2
+            },
+            {
+              "id": "t38",
+              "row": 39,
+              "deltaPx": -527
+            },
+            {
+              "id": "s3",
+              "row": 40,
+              "deltaPx": -526.2
+            },
+            {
+              "id": "s4",
+              "row": 41,
+              "deltaPx": -527.2
+            },
+            {
+              "id": "t58",
+              "row": 42,
+              "deltaPx": -531.2
+            },
+            {
+              "id": "t59",
+              "row": 43,
+              "deltaPx": -532.2
+            },
+            {
+              "id": "t60",
+              "row": 44,
+              "deltaPx": -533.2
+            },
+            {
+              "id": "t61",
+              "row": 45,
+              "deltaPx": -534.2
+            },
+            {
+              "id": "t62",
+              "row": 46,
+              "deltaPx": -535.2
+            },
+            {
+              "id": "t63",
+              "row": 47,
+              "deltaPx": -536.2
+            },
+            {
+              "id": "t64",
+              "row": 48,
+              "deltaPx": -537.2
+            },
+            {
+              "id": "t65",
+              "row": 49,
+              "deltaPx": -538.2
+            },
+            {
+              "id": "t66",
+              "row": 50,
+              "deltaPx": -539.2
+            },
+            {
+              "id": "t67",
+              "row": 51,
+              "deltaPx": -540.2
+            },
+            {
+              "id": "t68",
+              "row": 52,
+              "deltaPx": -541.2
+            }
+          ],
+          "pinned": false,
+          "svgBoxAligned": true,
+          "headerAligned": false,
+          "heightAligned": false,
+          "scrollInSync": true,
+          "coverage": {
+            "topBandPx": 0,
+            "bottomBandPx": 346.2
+          },
+          "mechanisms": [
+            "svg-scrolls-with-content",
+            "table-body-height-mismatch",
+            "header-height-mismatch",
+            "row-offset",
+            "hit-test-mismatch",
+            "coverage-gap",
+            "axis-not-covering"
+          ]
+        }
+      },
+      {
+        "requestedScrollTop": 9999999,
+        "probe": {
+          "scrollTop": 22881,
+          "viewScrollTop": 22881,
+          "paneTop": 58.375,
+          "paneLeft": 891,
+          "paneHeight": 663,
+          "paneWidth": 374,
+          "headerHeightChart": 0,
+          "headerHeightTable": 29,
+          "tableBodyHeight": 634,
+          "svgTop": -22822.625,
+          "svgLeft": 891,
+          "svgWidth": 374,
+          "svgHeight": 663,
+          "viewWidth": 374,
+          "viewHeight": 663,
+          "spacerHeight": 23544,
+          "rowCount": 981,
+          "rowHeight": 24,
+          "samples": [
+            {
+              "id": "t919",
+              "row": 948,
+              "chartTop": -22946.82421875,
+              "tableTop": -41.625,
+              "barLeft": 10011,
+              "barRight": 10203,
+              "expectedBarLeft": 10011,
+              "expectedBarRight": 10203
+            },
+            {
+              "id": "t920",
+              "row": 949,
+              "chartTop": -22922.82421875,
+              "tableTop": -16.625,
+              "barLeft": 10707,
+              "barRight": 10899,
+              "expectedBarLeft": 10707,
+              "expectedBarRight": 10899
+            },
+            {
+              "id": "t921",
+              "row": 950,
+              "chartTop": -22898.82421875,
+              "tableTop": 8.375,
+              "barLeft": 10347,
+              "barRight": 10611,
+              "expectedBarLeft": 10347,
+              "expectedBarRight": 10611
+            },
+            {
+              "id": "t922",
+              "row": 951,
+              "chartTop": -22874.82421875,
+              "tableTop": 33.375,
+              "barLeft": 10899,
+              "barRight": 11043,
+              "expectedBarLeft": 10899,
+              "expectedBarRight": 11043
+            },
+            {
+              "id": "t923",
+              "row": 952,
+              "chartTop": -22850.82421875,
+              "tableTop": 58.375,
+              "barLeft": 10659,
+              "barRight": 10683,
+              "expectedBarLeft": 10659,
+              "expectedBarRight": 10683
+            },
+            {
+              "id": "t924",
+              "row": 953,
+              "chartTop": -22826.82421875,
+              "tableTop": 83.375,
+              "barLeft": 11067,
+              "barRight": 11259,
+              "expectedBarLeft": 11067,
+              "expectedBarRight": 11259
+            },
+            {
+              "id": "t925",
+              "row": 954,
+              "chartTop": -22802.82421875,
+              "tableTop": 108.375,
+              "barLeft": 10491,
+              "barRight": 10611,
+              "expectedBarLeft": 10491,
+              "expectedBarRight": 10611
+            },
+            {
+              "id": "t926",
+              "row": 955,
+              "chartTop": -22778.82421875,
+              "tableTop": 133.375,
+              "barLeft": 10875,
+              "barRight": 11115,
+              "expectedBarLeft": 10875,
+              "expectedBarRight": 11115
+            },
+            {
+              "id": "t927",
+              "row": 956,
+              "chartTop": -22754.82421875,
+              "tableTop": 158.375,
+              "barLeft": 10875,
+              "barRight": 11043,
+              "expectedBarLeft": 10875,
+              "expectedBarRight": 11043
+            },
+            {
+              "id": "t928",
+              "row": 957,
+              "chartTop": -22730.82421875,
+              "tableTop": 183.375,
+              "barLeft": 10227,
+              "barRight": 10515,
+              "expectedBarLeft": 10227,
+              "expectedBarRight": 10515
+            },
+            {
+              "id": "t929",
+              "row": 958,
+              "chartTop": -22706.82421875,
+              "tableTop": 208.375,
+              "barLeft": 10995,
+              "barRight": 11091,
+              "expectedBarLeft": 10995,
+              "expectedBarRight": 11091
+            },
+            {
+              "id": "t930",
+              "row": 959,
+              "chartTop": -22682.82421875,
+              "tableTop": 233.375,
+              "barLeft": 10899,
+              "barRight": 11019,
+              "expectedBarLeft": 10899,
+              "expectedBarRight": 11019
+            },
+            {
+              "id": "t931",
+              "row": 960,
+              "chartTop": -22657.625,
+              "tableTop": 258.375,
+              "barLeft": null,
+              "barRight": null,
+              "expectedBarLeft": null,
+              "expectedBarRight": null
+            },
+            {
+              "id": "s50",
+              "row": 961,
+              "chartTop": -22631.82421875,
+              "tableTop": 283.375,
+              "barLeft": 9867,
+              "barRight": 11451,
+              "expectedBarLeft": 9867,
+              "expectedBarRight": 11451
+            },
+            {
+              "id": "t932",
+              "row": 962,
+              "chartTop": -22610.82421875,
+              "tableTop": 308.375,
+              "barLeft": 10587,
+              "barRight": 10875,
+              "expectedBarLeft": 10587,
+              "expectedBarRight": 10875
+            },
+            {
+              "id": "t933",
+              "row": 963,
+              "chartTop": -22586.82421875,
+              "tableTop": 333.375,
+              "barLeft": 10851,
+              "barRight": 11115,
+              "expectedBarLeft": 10851,
+              "expectedBarRight": 11115
+            },
+            {
+              "id": "t934",
+              "row": 964,
+              "chartTop": -22562.82421875,
+              "tableTop": 358.375,
+              "barLeft": 10683,
+              "barRight": 10923,
+              "expectedBarLeft": 10683,
+              "expectedBarRight": 10923
+            },
+            {
+              "id": "t935",
+              "row": 965,
+              "chartTop": -22538.82421875,
+              "tableTop": 383.375,
+              "barLeft": 11187,
+              "barRight": 11451,
+              "expectedBarLeft": 11187,
+              "expectedBarRight": 11451
+            },
+            {
+              "id": "t936",
+              "row": 966,
+              "chartTop": -22514.82421875,
+              "tableTop": 408.375,
+              "barLeft": 10491,
+              "barRight": 10755,
+              "expectedBarLeft": 10491,
+              "expectedBarRight": 10755
+            },
+            {
+              "id": "t937",
+              "row": 967,
+              "chartTop": -22490.82421875,
+              "tableTop": 433.375,
+              "barLeft": 10755,
+              "barRight": 10851,
+              "expectedBarLeft": 10755,
+              "expectedBarRight": 10851
+            },
+            {
+              "id": "t938",
+              "row": 968,
+              "chartTop": -22466.82421875,
+              "tableTop": 458.375,
+              "barLeft": 11043,
+              "barRight": 11187,
+              "expectedBarLeft": 11043,
+              "expectedBarRight": 11187
+            },
+            {
+              "id": "t939",
+              "row": 969,
+              "chartTop": -22442.82421875,
+              "tableTop": 483.375,
+              "barLeft": 9867,
+              "barRight": 10107,
+              "expectedBarLeft": 9867,
+              "expectedBarRight": 10107
+            },
+            {
+              "id": "t940",
+              "row": 970,
+              "chartTop": -22418.82421875,
+              "tableTop": 508.375,
+              "barLeft": 10995,
+              "barRight": 11067,
+              "expectedBarLeft": 10995,
+              "expectedBarRight": 11067
+            },
+            {
+              "id": "t941",
+              "row": 971,
+              "chartTop": -22394.82421875,
+              "tableTop": 533.375,
+              "barLeft": 10659,
+              "barRight": 10779,
+              "expectedBarLeft": 10659,
+              "expectedBarRight": 10779
+            },
+            {
+              "id": "t942",
+              "row": 972,
+              "chartTop": -22370.82421875,
+              "tableTop": 558.375,
+              "barLeft": 10995,
+              "barRight": 11187,
+              "expectedBarLeft": 10995,
+              "expectedBarRight": 11187
+            },
+            {
+              "id": "t943",
+              "row": 973,
+              "chartTop": -22346.82421875,
+              "tableTop": 583.375,
+              "barLeft": 10683,
+              "barRight": 10851,
+              "expectedBarLeft": 10683,
+              "expectedBarRight": 10851
+            },
+            {
+              "id": "t944",
+              "row": 974,
+              "chartTop": -22322.82421875,
+              "tableTop": 608.375,
+              "barLeft": 11331,
+              "barRight": 11427,
+              "expectedBarLeft": 11331,
+              "expectedBarRight": 11427
+            },
+            {
+              "id": "t945",
+              "row": 975,
+              "chartTop": -22298.82421875,
+              "tableTop": 633.375,
+              "barLeft": 10659,
+              "barRight": 10899,
+              "expectedBarLeft": 10659,
+              "expectedBarRight": 10899
+            },
+            {
+              "id": "t946",
+              "row": 976,
+              "chartTop": -22274.82421875,
+              "tableTop": 658.375,
+              "barLeft": 11163,
+              "barRight": 11211,
+              "expectedBarLeft": 11163,
+              "expectedBarRight": 11211
+            },
+            {
+              "id": "t947",
+              "row": 977,
+              "chartTop": -22250.82421875,
+              "tableTop": 683.375,
+              "barLeft": 11163,
+              "barRight": 11379,
+              "expectedBarLeft": 11163,
+              "expectedBarRight": 11379
+            },
+            {
+              "id": "t948",
+              "row": 978,
+              "chartTop": -22226.82421875,
+              "tableTop": 708.375,
+              "barLeft": 10587,
+              "barRight": 10899,
+              "expectedBarLeft": 10587,
+              "expectedBarRight": 10899
+            },
+            {
+              "id": "t949",
+              "row": 979,
+              "chartTop": -22202.82421875,
+              "tableTop": 733.375,
+              "barLeft": 10851,
+              "barRight": 10947,
+              "expectedBarLeft": 10851,
+              "expectedBarRight": 10947
+            },
+            {
+              "id": "t950",
+              "row": 980,
+              "chartTop": -22177.625,
+              "tableTop": 758.375,
+              "barLeft": null,
+              "barRight": null,
+              "expectedBarLeft": null,
+              "expectedBarRight": null
+            }
+          ],
+          "axisCoverage": {
+            "top": -45703.625,
+            "bottom": -45040.625
+          },
+          "hitTest": {
+            "id": "t934",
+            "row": 964,
+            "clientY": -22550.82421875,
+            "expectedContentY": 23148,
+            "actualContentY": 271.80078125
+          }
+        },
+        "verdict": {
+          "ok": false,
+          "maxAbsRowDeltaPx": 22936.199,
+          "maxAbsBarXDeltaPx": 0,
+          "rowDeltas": [
+            {
+              "id": "t919",
+              "row": 948,
+              "deltaPx": -22905.199
+            },
+            {
+              "id": "t920",
+              "row": 949,
+              "deltaPx": -22906.199
+            },
+            {
+              "id": "t921",
+              "row": 950,
+              "deltaPx": -22907.199
+            },
+            {
+              "id": "t922",
+              "row": 951,
+              "deltaPx": -22908.199
+            },
+            {
+              "id": "t923",
+              "row": 952,
+              "deltaPx": -22909.199
+            },
+            {
+              "id": "t924",
+              "row": 953,
+              "deltaPx": -22910.199
+            },
+            {
+              "id": "t925",
+              "row": 954,
+              "deltaPx": -22911.199
+            },
+            {
+              "id": "t926",
+              "row": 955,
+              "deltaPx": -22912.199
+            },
+            {
+              "id": "t927",
+              "row": 956,
+              "deltaPx": -22913.199
+            },
+            {
+              "id": "t928",
+              "row": 957,
+              "deltaPx": -22914.199
+            },
+            {
+              "id": "t929",
+              "row": 958,
+              "deltaPx": -22915.199
+            },
+            {
+              "id": "t930",
+              "row": 959,
+              "deltaPx": -22916.199
+            },
+            {
+              "id": "t931",
+              "row": 960,
+              "deltaPx": -22916
+            },
+            {
+              "id": "s50",
+              "row": 961,
+              "deltaPx": -22915.199
+            },
+            {
+              "id": "t932",
+              "row": 962,
+              "deltaPx": -22919.199
+            },
+            {
+              "id": "t933",
+              "row": 963,
+              "deltaPx": -22920.199
+            },
+            {
+              "id": "t934",
+              "row": 964,
+              "deltaPx": -22921.199
+            },
+            {
+              "id": "t935",
+              "row": 965,
+              "deltaPx": -22922.199
+            },
+            {
+              "id": "t936",
+              "row": 966,
+              "deltaPx": -22923.199
+            },
+            {
+              "id": "t937",
+              "row": 967,
+              "deltaPx": -22924.199
+            },
+            {
+              "id": "t938",
+              "row": 968,
+              "deltaPx": -22925.199
+            },
+            {
+              "id": "t939",
+              "row": 969,
+              "deltaPx": -22926.199
+            },
+            {
+              "id": "t940",
+              "row": 970,
+              "deltaPx": -22927.199
+            },
+            {
+              "id": "t941",
+              "row": 971,
+              "deltaPx": -22928.199
+            },
+            {
+              "id": "t942",
+              "row": 972,
+              "deltaPx": -22929.199
+            },
+            {
+              "id": "t943",
+              "row": 973,
+              "deltaPx": -22930.199
+            },
+            {
+              "id": "t944",
+              "row": 974,
+              "deltaPx": -22931.199
+            },
+            {
+              "id": "t945",
+              "row": 975,
+              "deltaPx": -22932.199
+            },
+            {
+              "id": "t946",
+              "row": 976,
+              "deltaPx": -22933.199
+            },
+            {
+              "id": "t947",
+              "row": 977,
+              "deltaPx": -22934.199
+            },
+            {
+              "id": "t948",
+              "row": 978,
+              "deltaPx": -22935.199
+            },
+            {
+              "id": "t949",
+              "row": 979,
+              "deltaPx": -22936.199
+            },
+            {
+              "id": "t950",
+              "row": 980,
+              "deltaPx": -22936
+            }
+          ],
+          "pinned": false,
+          "svgBoxAligned": true,
+          "headerAligned": false,
+          "heightAligned": false,
+          "scrollInSync": true,
+          "coverage": {
+            "topBandPx": 0,
+            "bottomBandPx": 22875
+          },
+          "mechanisms": [
+            "svg-scrolls-with-content",
+            "table-body-height-mismatch",
+            "header-height-mismatch",
+            "row-offset",
+            "hit-test-mismatch",
+            "coverage-gap",
+            "axis-not-covering"
+          ]
+        }
+      }
+    ],
+    "summary": {
+      "ok": false,
+      "probes": 4,
+      "failingProbes": 4,
+      "maxAbsRowDeltaPx": 22936.199,
+      "maxAbsBarXDeltaPx": 0,
+      "mechanisms": [
+        "table-body-height-mismatch",
+        "header-height-mismatch",
+        "row-offset",
+        "hit-test-mismatch",
+        "coverage-gap",
+        "svg-scrolls-with-content",
+        "axis-not-covering"
+      ]
+    }
+  }
+}

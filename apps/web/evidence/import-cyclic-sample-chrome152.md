@@ -9,7 +9,7 @@
 
 | 项 | 值 |
 |---|---|
-| 采集时刻 | 2026-10-04T07:55:40.585Z |
+| 采集时刻 | 2026-10-04T09:54:02.910Z |
 | 机器 | FAIRY |
 | 系统 | win32 x64 |
 | Node | v26.7.0 |
@@ -25,7 +25,7 @@
 |---|---|
 | 路径 | `D:\workspace\GanttPilot\tmp\samples\cyclic-dependency.xlsx` |
 | 体积 | 6669 字节 |
-| sha256 | `3c897f6a2f652055bc59113fc65335d133bf7f7be8847fad7caaadd2e5cbcdd9` |
+| sha256 | `7e5f96c6b3abff31ce7c78005e5409d429b5cb0805f8f55fdc386f2179ba053b` |
 | 形状 | 表 `任务`，表头 `WBS / 任务名称 / 前置任务`（**仅三列**），6 行 |
 | 环 | 第 6 行的 `前置任务=5` 闭合 `t5→t6`，被 `wouldCreateCycle` 判为成环 ⇒ 丢弃 |
 
