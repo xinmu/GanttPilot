@@ -1,0 +1,60 @@
+{
+  "env": {
+    "采集时刻": "2026-10-04T05:22:53.252Z",
+    "机器": "FAIRY",
+    "系统": "win32 x64",
+    "Node": "v26.7.0",
+    "Chrome": "Chrome/152.0.7977.83",
+    "Chrome 模式": "--headless=new",
+    "DPR": 1,
+    "视口": "1280×800（窗格尺寸随结果登记）",
+    "数据集": "dense",
+    "拖动天数": 3,
+    "测试帧数": 12
+  },
+  "result": {
+    "status": "ok",
+    "errors": [],
+    "dataset": "dense",
+    "taskId": "t1",
+    "dayDelta": 3,
+    "frames": 12,
+    "mainThreadMs": [
+      2.9,
+      2.4,
+      2.2,
+      2.2,
+      2,
+      2,
+      1.9,
+      2,
+      1.9,
+      1.8,
+      1.8,
+      1.7
+    ],
+    "mainThreadP50Ms": 2,
+    "mainThreadP95Ms": 2.9,
+    "frameGapsMs": [
+      4.3,
+      3.9,
+      14,
+      16.8,
+      16.6,
+      16.6,
+      16.8,
+      16.7,
+      16.5,
+      16.7,
+      16.7,
+      16.6
+    ],
+    "frameGapP50Ms": 16.6,
+    "frameGapP95Ms": 16.8,
+    "longTasks": 0,
+    "releaseMs": 8.2,
+    "observedWidthChanges": 4,
+    "anchorsAfterRelease": 0,
+    "documentStartAfter": "2026-10-05"
+  }
+}

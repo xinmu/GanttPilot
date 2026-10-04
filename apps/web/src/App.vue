@@ -1,11 +1,16 @@
 <script setup lang="ts">
 /**
- * 应用外壳（G4）：左表右图分屏 + 滚动同步 + 档位切换 + 折叠 + 行内编辑 + xlsx 导入。
+ * 应用外壳（G4 + G5）：左表右图分屏 + 滚动同步 + 档位切换 + 折叠 + 行内编辑 + xlsx 导入
+ * + **拖拽三语义 / 建线 / 撤销重做 / 冲突与成环标记 / 诊断清单**。
  *
- * ## 范围（ADR 0007 §1/§10）
+ * ## 分工（G5 的落地口径，ADR 0008 §4）
  *
- * **不做**：拖拽三语义、拖拽建线、撤销/重做 UI、冲突标记、诊断清单 UI、导出（G5/G6/G7）。
- * 诊断只被**计数**（"G4 不呈现任何诊断"），清单与标记归 G5。
+ * - **手势逻辑在 `render-core`**（纯函数、进门禁）：本文件只把 DOM 事件归一化成
+ *   `PointerInput`（内容坐标 + 原始 `buttons`）并交给 `useGesture`；
+ * - **拖动期不写文档**：位置经**会话锚点**进 `compute`（`useProject` 的 `anchors`），
+ *   松手才提交命令（一次手势 = 一层撤销，IX-03）；
+ * - **冲突与成环的判据来自引擎**：`anchorConflict` 诊断 / `wouldCreateCycle` 的 `path`，
+ *   本层只做样式映射（不新开诊断码、不自己判"算不算冲突"）。
  *
  * ## 滚动与坐标（唯一真相源）
  *
@@ -14,18 +19,28 @@
  * 因此 `ViewModel.scrollTop` / `scrollLeft` 就是真实滚动位置，反算函数（`dayAtX`/`ordinalAtX`）自洽。
  */
 
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import { countElements, RENDER_CORE_VERSION, ROW_HEIGHT, type ZoomKey } from '@ganttpilot/render-core';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import {
+  collapseToCommand,
+  countElements,
+  countOverlays,
+  editToCommand,
+  formatProgress,
+  RENDER_CORE_VERSION,
+  ROW_HEIGHT,
+  type ColumnKey,
+  type DocumentLink,
+  type PointerInput,
+  type ZoomKey,
+} from '@ganttpilot/render-core';
 
 import GanttChart from './components/GanttChart.vue';
 import TaskTable from './components/TaskTable.vue';
 import Toolbar from './components/Toolbar.vue';
 import { useChart } from './composables/useChart.js';
+import { useGesture } from './composables/useGesture.js';
 import { useProject, type DispatchResult } from './composables/useProject.js';
 import { createDemoDocumentOf, createPrimaryDemoDocument } from './demo.js';
-import { collapseToCommand, editToCommand } from './edit.js';
-import { formatProgress } from './shared.js';
-import type { ColumnKey } from '@ganttpilot/xlsx-protocol';
 
 const project = useProject();
 const chart = useChart({
@@ -46,12 +61,46 @@ const {
   document,
   schedule,
   scheduleError,
+  calendar,
   canUndo,
   canRedo,
   revision,
   documentDiagnostics,
   scheduleDiagnostics,
+  anchors,
 } = project;
+
+/**
+ * 手势接线（G5）：**DOM 只到这里为止**，其余交给 `render-core` 的纯内核。
+ *
+ * 落库走命令层唯一通道：`task.update` 与 `link.insert` 各一条命令 ⇒ 一次手势 = 一层撤销（IX-03）。
+ */
+const gesture = useGesture({
+  view,
+  document,
+  schedule,
+  calendar,
+  dispatch: (command) => project.dispatch(command),
+  dispatchLink: (link: DocumentLink) => project.dispatch({ kind: 'link.insert', link }),
+  setAnchors: project.setAnchors,
+  clearAnchors: project.clearAnchors,
+  notify: (commit) => {
+    if (commit.kind === 'rejected') {
+      show('error', `建线被拒绝：会形成环（${commit.cyclePath.join(' → ')}）——已高亮成环路径`);
+      return;
+    }
+    if (commit.code !== undefined) {
+      show('error', `命令被拒绝：${commit.code} —— ${commit.message ?? ''}`);
+    }
+  },
+});
+
+const {
+  anchorMode,
+  highlight,
+  preview,
+  activeTaskId,
+} = gesture;
 
 const notice = ref<{ readonly level: 'info' | 'error'; readonly text: string } | null>(null);
 
@@ -64,16 +113,50 @@ const notice = ref<{ readonly level: 'info' | 'error'; readonly text: string } |
  */
 const tableVisible = ref(true);
 
-/** 渲染窗口内的元素计数（状态栏显示；判据本体在 `render-core` 的 spec 里）。 */
+/** 诊断清单是否展开（G-8 的**受控收口**：计数 + 可展开列表；完整向导形态归后续）。 */
+const diagnosticsOpen = ref(false);
+
+/** 全部诊断（三层拼接里的后两层；协议层随导入即时给出）。 */
+const diagnostics = computed(() => [...documentDiagnostics.value, ...scheduleDiagnostics.value]);
+
+/** `anchorConflict` 的行（**判据来自引擎**，ADR 0008 §6）——冲突标红的唯一来源。 */
+const conflictTaskIds = computed(() =>
+  scheduleDiagnostics.value
+    .filter((item) => item.code === 'anchorConflict' && item.taskId !== undefined)
+    .map((item) => item.taskId as string),
+);
+
+/** 渲染窗口内的元素计数（含 G5 覆盖层；判据本体在 `render-core` 的 spec 里）。 */
 const counts = computed(() => {
   const current = view.value;
-  return current === null ? null : countElements(current);
+  if (current === null) return null;
+  const overlays = {
+    dragOverlay: gesture.state.value.kind === 'dragging',
+    linkPreview: preview.value !== null,
+    conflict: conflictTaskIds.value.length > 0,
+    highlightRows: highlight.value.rows.length,
+    highlightEdges: highlight.value.edges.length,
+  };
+  return { ...countElements(current, overlays), overlays: countOverlays(overlays) };
 });
 
-const diagnosticCount = computed(() => documentDiagnostics.value.length + scheduleDiagnostics.value.length);
+const diagnosticCount = computed(() => diagnostics.value.length);
 
-/** `compute` 失败时不画条形与连线，只显示占位（ADR 0007 §7）。 */
+/** `compute` 失败时不画条形与连线，只显示占位（ADR 0007 §7）；G5 额外给出成环路径摘要。 */
 const cycleMessage = computed(() => scheduleError.value?.message ?? null);
+const cyclePath = computed(() => scheduleError.value?.cyclePath ?? []);
+
+/**
+ * 成环路径的**可读标注**（`compute` 失败时没有 `ViewModel`，因此没有行/边可高亮——
+ * 这一份列表就是"高亮成环路径"在不可排程态下的等价物；出口条件⑤的可判定形式）。
+ */
+const cycleLabels = computed(() =>
+  cyclePath.value.map((taskId) => {
+    const task = document.value.tasks.find((item) => item.id === taskId);
+    if (task === undefined) return taskId;
+    return `${task.outlineNumber} ${task.name}`;
+  }),
+);
 
 function show(level: 'info' | 'error', text: string): void {
   notice.value = { level, text };
@@ -95,6 +178,8 @@ function onCellEdit(payload: { readonly taskId: string; readonly column: ColumnK
     taskId: payload.taskId,
     column: payload.column,
     text: payload.text,
+    // P-19：派生 `endDate` 必须用**与图表同一个**日历（`createScheduleCalendar`）。
+    calendar: calendar.value,
   });
   if (!outcome.ok) {
     show('error', outcome.reason);
@@ -116,12 +201,105 @@ function onZoom(next: ZoomKey): void {
   chart.setZoom(next);
 }
 
+// ---------------------------------------------------------------- G5：指针 → 手势
+
+/**
+ * DOM 事件 → **归一化指针**（内容坐标）。
+ *
+ * `offsetX` / `offsetY` 是相对 SVG 可视区的坐标（不含滚动偏移），而 `ViewModel` 的
+ * `scrollTop` / `scrollLeft` 是内容坐标系的偏移——因此这里显式加回，让内核看到与
+ * `dayAtX` / `resolvePointerTarget` 同一套坐标（ADR 0007 §3）。
+ */
+function pointerFrom(event: MouseEvent): PointerInput {
+  const current = view.value;
+  const scrollLeft = current?.scrollLeft ?? 0;
+  const scrollTop = current?.scrollTop ?? 0;
+  return {
+    x: event.offsetX + scrollLeft,
+    y: event.offsetY + scrollTop,
+    buttons: event.buttons,
+    ...(event.altKey ? { altKey: true } : {}),
+    ...(event.shiftKey ? { shiftKey: true } : {}),
+  };
+}
+
+function onChartPointerDown(event: MouseEvent): void {
+  if (event.button !== 0) return;
+  gesture.onPointerDown(pointerFrom(event));
+}
+
+function onChartPointerMove(event: MouseEvent): void {
+  if (gesture.state.value.kind === 'idle') return;
+  gesture.onPointerMove(pointerFrom(event));
+}
+
+function onWindowPointerUp(event: MouseEvent): void {
+  if (gesture.state.value.kind === 'idle') return;
+  // 松手可能在图表之外（拖出窗格），因此监听挂在 window 上；坐标仍按内容坐标系换算。
+  const pane = paneRef.value;
+  if (pane !== null) {
+    const rect = pane.getBoundingClientRect();
+    const current = view.value;
+    gesture.onPointerUp({
+      x: event.clientX - rect.left + (current?.scrollLeft ?? 0),
+      y: event.clientY - rect.top + (current?.scrollTop ?? 0),
+      buttons: 0,
+      ...(event.altKey ? { altKey: true } : {}),
+    });
+    return;
+  }
+  gesture.cancel();
+}
+
+// ---------------------------------------------------------------- G5：撤销 / 重做
+
+function undo(): void {
+  applyCommandResult(project.undo());
+}
+
+function redo(): void {
+  applyCommandResult(project.redo());
+}
+
+/**
+ * `Ctrl+Z` / `Ctrl+Y`（`Ctrl+Shift+Z` 等价）。
+ *
+ * **编辑态优先**：左表单元格正在编辑时（焦点在 `input` / `textarea` 上）把快捷键让给输入框的
+ * 原生撤销——否则用户想撤掉刚敲的字，结果整份文档回退了一步（ADR 0008 §10）。
+ */
+function onKeyDown(event: KeyboardEvent): void {
+  const target = event.target;
+  const editing =
+    target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+  if (event.key === 'Escape') {
+    gesture.cancel();
+    return;
+  }
+  if (!(event.ctrlKey || event.metaKey)) return;
+  const key = event.key.toLowerCase();
+  if (key === 'z' && editing) return;
+  if (key === 'z' && event.shiftKey) {
+    event.preventDefault();
+    redo();
+    return;
+  }
+  if (key === 'z') {
+    event.preventDefault();
+    undo();
+    return;
+  }
+  if (key === 'y') {
+    event.preventDefault();
+    redo();
+  }
+}
+
 /**
  * xlsx 导入（G3 的协议层 + 本块的接线）。
  *
  * - 入口是**用户动作**，因此 925 KB 的 `exceljs` **只准动态 `import()`**（ADR 0006 §11）；
  * - 导入产物经 `document.replace` 落库（命令层唯一通道）；
- * - 问题清单**只计数**（呈现归 G5 的 G-8）。
+ * - 问题清单进**诊断面板**（G-8 的受控收口：计数 + 可展开列表）。
  */
 async function onImportFile(file: File): Promise<void> {
   show('info', `正在导入 ${file.name}…`);
@@ -131,7 +309,7 @@ async function onImportFile(file: File): Promise<void> {
     const result = await importXlsx(bytes);
     const problems = result.diagnostics.length;
     if (!result.ok) {
-      show('error', `导入失败：${String(problems)} 条问题（清单归 G5；G4 只计数）`);
+      show('error', `导入失败：${String(problems)} 条问题 —— 详见诊断清单`);
       return;
     }
     applyCommandResult(project.ingestDocument(result.document));
@@ -139,6 +317,13 @@ async function onImportFile(file: File): Promise<void> {
       'info',
       `已导入 ${file.name}：${String(result.document.tasks.length)} 个任务、${String(result.document.links.length)} 条依赖；问题 ${String(problems)} 条`,
     );
+    // 导入的成环边已由 G3 按确定性顺序丢弃（ADR 0006 §1）——这里把"是否还有环"如实呈现：
+    // 若导入产物仍不可排程，`scheduleError` 会带出 `cyclePath`，由图表层高亮。
+    const failed = project.scheduleError.value;
+    if (failed !== null && failed.cyclePath.length > 0) {
+      gesture.showCyclePath(failed.cyclePath);
+      show('error', `导入产物仍不可排程：${failed.message}`);
+    }
   } catch (error) {
     show('error', `导入出错：${error instanceof Error ? error.message : String(error)}`);
   }
@@ -203,12 +388,36 @@ onMounted(() => {
             }
           },
         }),
+        // G5：拖动测量的宿主——**走真实指针入口**（`useGesture`），不另开测试后门。
+        drag: {
+          view: () => view.value,
+          calendar: () => calendar.value,
+          pointer: {
+            down: (event) => gesture.onPointerDown(pointerFrom(event)),
+            move: (event) => gesture.onPointerMove(pointerFrom(event)),
+            up: (event) => gesture.onPointerUp({ ...pointerFrom(event), buttons: 0 }),
+          },
+          gestureKind: () => gesture.state.value.kind,
+          anchors: () => anchors.value.length,
+          startDateOf: (taskId: string) =>
+            document.value.tasks.find((task) => task.id === taskId)?.startDate ?? null,
+        },
       });
       window.__GANTTPILOT_READY__ = true;
     } catch (error) {
       show('error', `测量钩子加载失败：${error instanceof Error ? error.message : String(error)}`);
     }
   })();
+});
+
+// G5：`Esc` 取消手势、`Ctrl+Z` / `Ctrl+Y` 撤销重做；松手监听挂 window（拖出窗格也能收尾）。
+onMounted(() => {
+  window.addEventListener('keydown', onKeyDown);
+  window.addEventListener('mouseup', onWindowPointerUp);
+});
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeyDown);
+  window.removeEventListener('mouseup', onWindowPointerUp);
 });
 </script>
 
@@ -220,10 +429,18 @@ onMounted(() => {
       :can-undo="canUndo"
       :can-redo="canRedo"
       :table-visible="tableVisible"
+      :anchor-mode="anchorMode"
+      :diagnostic-count="diagnosticCount"
+      :diagnostics-open="diagnosticsOpen"
+      :drag-active="gesture.state.value.kind === 'dragging'"
       @zoom="onZoom"
       @import-file="onImportFile"
       @reset="resetToDemo"
       @toggle-table="tableVisible = !tableVisible"
+      @undo="undo"
+      @redo="redo"
+      @set-anchor-mode="gesture.setAnchorMode"
+      @toggle-diagnostics="diagnosticsOpen = !diagnosticsOpen"
     />
 
     <main class="split">
@@ -232,10 +449,12 @@ onMounted(() => {
         :view="view"
         :document="document"
         :schedule="schedule"
+        :calendar="calendar"
         :revision="revision"
         :scroll-top="scrollTop"
         :pane-height="paneHeight"
         :content-height="contentHeight"
+        :conflict-task-ids="conflictTaskIds"
         :disabled="false"
         @cell-edit="onCellEdit"
         @toggle-collapse="onToggleCollapse"
@@ -245,7 +464,7 @@ onMounted(() => {
         v-else-if="view === null"
         class="table-placeholder"
       >
-        不可排程：左表只显示占位（诊断 UI 归 G5）
+        不可排程：左表只显示占位
       </div>
 
       <div
@@ -253,6 +472,8 @@ onMounted(() => {
         ref="paneRef"
         class="chart-pane"
         @scroll="chart.handleScroll()"
+        @mousedown="onChartPointerDown"
+        @mousemove="onChartPointerMove"
       >
         <div
           class="chart-spacer"
@@ -261,22 +482,61 @@ onMounted(() => {
         <GanttChart
           :view="view"
           :cycle-message="cycleMessage"
+          :cycle-path="cyclePath"
+          :cycle-labels="cycleLabels"
+          :highlight="highlight"
+          :preview="preview"
+          :conflict-task-ids="conflictTaskIds"
+          :active-task-id="activeTaskId"
         />
       </div>
     </main>
+
+    <section
+      v-if="diagnosticsOpen"
+      class="diagnostics"
+    >
+      <header>
+        <strong>诊断清单（{{ diagnosticCount }} 条）</strong>
+        <span class="hint">协议层 + 文档校验层 + 排程层三层拼接（ADR 0006 §7）；G5 只呈现，不改判据</span>
+      </header>
+      <ul>
+        <li
+          v-for="(item, index) in diagnostics"
+          :key="`diag-${String(index)}`"
+          :class="item.severity"
+        >
+          <code>{{ item.code }}</code>
+          <span>{{ item.message }}</span>
+          <em v-if="item.taskId !== undefined">{{ item.taskId }}</em>
+        </li>
+      </ul>
+      <p
+        v-if="diagnostics.length === 0"
+        class="hint"
+      >
+        没有诊断。
+      </p>
+    </section>
 
     <footer class="status">
       <span>
         任务 {{ document.tasks.length }} · 依赖 {{ document.links.length }} ·
         可见行 {{ view?.rowCount ?? 0 }} · 渲染行 {{ view?.rows.length ?? 0 }} ·
         渲染边 {{ view?.edges.length ?? 0 }} ·
-        元素 {{ counts?.total ?? 0 }}/{{ counts?.bound ?? 0 }}（c₃ = {{ counts?.c3 ?? 0 }}）
+        元素 {{ counts?.total ?? 0 }}/{{ counts?.bound ?? 0 }}（c₃ = {{ counts?.c3 ?? 0 }}、c₄ = {{ counts?.c4 ?? 0 }}、
+        覆盖层 {{ counts?.overlays ?? 0 }}）
       </span>
       <span>
         档位 {{ zoom }}（px/day {{ view?.pxPerDay ?? 0 }}）· 行高 {{ ROW_HEIGHT }} px ·
         render-core {{ RENDER_CORE_VERSION }}
       </span>
-      <span :class="{ warn: diagnosticCount > 0 }">诊断 {{ diagnosticCount }} 条（G4 只计数，呈现归 G5）</span>
+      <span :class="{ warn: diagnosticCount > 0 }">
+        诊断 {{ diagnosticCount }} 条（{{ diagnosticsOpen ? '已展开' : '点击工具栏「诊断」查看' }}）
+      </span>
+      <span :class="{ warn: conflictTaskIds.length > 0 }">
+        锚点 {{ anchors.length }} · 冲突 {{ conflictTaskIds.length }}
+      </span>
       <span v-if="schedule !== null">
         首个汇总进度 {{ formatProgress(schedule.summaryProgress[0]) }}
       </span>
@@ -355,5 +615,57 @@ body {
 
 .notice.error {
   color: #b42318;
+}
+
+.diagnostics {
+  max-height: 30vh;
+  overflow: auto;
+  padding: 0.4rem 0.75rem;
+  border-top: 1px solid #e4e7ec;
+  background: #fcfcfd;
+  font-size: 12px;
+}
+
+.diagnostics header {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.25rem;
+}
+
+.diagnostics ul {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.diagnostics li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.diagnostics li.error {
+  color: #b42318;
+}
+
+.diagnostics li.warning {
+  color: #b54708;
+}
+
+.diagnostics li.info {
+  color: #475467;
+}
+
+.diagnostics code {
+  font-family: ui-monospace, Consolas, monospace;
+}
+
+.diagnostics em {
+  color: #98a2b3;
+  font-style: normal;
+}
+
+.hint {
+  color: #667085;
 }
 </style>

@@ -18,19 +18,28 @@
  */
 
 import { computed, ref, watch } from 'vue';
-import type { ProjectDocument, Schedule, ViewModel } from '@ganttpilot/render-core';
-import type { ColumnKey } from '@ganttpilot/xlsx-protocol';
-
-import { TABLE_COLUMNS, cellText } from '../shared.js';
+import {
+  cellText,
+  TABLE_COLUMNS,
+  type ColumnKey,
+  type ProjectDocument,
+  type Schedule,
+  type ViewModel,
+} from '@ganttpilot/render-core';
+import type { Calendar } from '@ganttpilot/engine';
 
 const props = defineProps<{
   readonly view: ViewModel;
   readonly document: ProjectDocument;
   readonly schedule: Schedule | null;
+  /** **与图表同一个日历**（`createScheduleCalendar(document)`）——左表日期与图表同源的唯一前提（P-19）。 */
+  readonly calendar: Calendar;
   readonly revision: number;
   readonly scrollTop: number;
   readonly paneHeight: number;
   readonly contentHeight: number;
+  /** 冲突行（`anchorConflict` 的任务 id；判据来自引擎，ADR 0008 §6）。 */
+  readonly conflictTaskIds: readonly string[];
   readonly disabled: boolean;
 }>();
 
@@ -75,7 +84,13 @@ const rowBlockTop = computed(() => Math.max(0, props.view.renderFirst * props.vi
 function displayOf(docIndex: number, column: ColumnKey): { text: string; derived: boolean } {
   const schedule = props.schedule;
   if (schedule === null) return { text: '', derived: false };
-  return cellText({ key: column, document: props.document, schedule, docIndex });
+  return cellText({
+    key: column,
+    document: props.document,
+    schedule,
+    docIndex,
+    calendar: props.calendar,
+  });
 }
 
 function rawOf(docIndex: number, column: ColumnKey): string {
@@ -141,6 +156,11 @@ function collapsedOf(docIndex: number): boolean {
   return props.document.tasks[docIndex]?.collapsed ?? false;
 }
 
+/** 该行是否处于 `anchorConflict`（拖动"允许"模式下的标红；判据来自 `compute`）。 */
+function isConflicting(taskId: string): boolean {
+  return props.conflictTaskIds.includes(taskId);
+}
+
 void emit;
 </script>
 
@@ -176,7 +196,7 @@ void emit;
           v-for="row in view.rows"
           :key="row.id"
           class="row"
-          :class="{ summary: row.kind === 'summary' }"
+          :class="{ summary: row.kind === 'summary', conflict: isConflicting(row.id) }"
           :style="{ height: `${String(view.rowHeight)}px` }"
         >
           <template
@@ -276,6 +296,12 @@ void emit;
 .row.summary {
   font-weight: 600;
   background: #fbfcfd;
+}
+
+/* 冲突行（`anchorConflict`）：与图表覆盖层的 `.conflict-outline` 同色，两处一眼对得上 */
+.row.conflict {
+  background: #fef3f2;
+  box-shadow: inset 2px 0 0 #b42318;
 }
 
 .cell {

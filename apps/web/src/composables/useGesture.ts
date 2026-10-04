@@ -1,0 +1,265 @@
+/**
+ * 手势接线（ADR 0008 §4–§10）：**把 DOM 事件归一化，其余一律交给纯内核**。
+ *
+ * ## 分工（本文件是唯一允许碰 DOM 的地方）
+ *
+ * | 层 | 职责 |
+ * |---|---|
+ * | `packages/render-core/src/gesture.ts` | 指针（归一化）→ 状态机 → `{anchors, commands, link}`（**纯函数、进门禁**） |
+ * | 本文件 | 事件 → 归一化指针；把产出落到会话（`applyToSession` 唯一通道）；维护高亮集合 |
+ * | `GanttChart.vue` | 把数字写成 SVG 属性（覆盖层） |
+ *
+ * ## 坐标口径
+ *
+ * 指针的 **x 是内容坐标**（含 `scrollLeft`）、**y 是内容坐标**（含 `scrollTop`）——
+ * 与 `ViewModel.scrollTop` / `scrollLeft` 的定义一致（ADR 0007 §3）。
+ * 组件传入的 `offsetX/offsetY` 已经不含滚动偏移，因此这里显式加回，
+ * 让内核看到的是与 `dayAtX` / `resolvePointerTarget` 同一套坐标。
+ */
+
+import { computed, ref, shallowRef, type ComputedRef, type Ref } from 'vue';
+import {
+  beginGesture,
+  affectedRenderSetWithAnchors,
+  emptyHighlight,
+  highlightForConflict,
+  highlightForCyclePath,
+  highlightForLinkEndpoints,
+  highlightForTask,
+  reduceGesture,
+  type AnchorMode,
+  type GestureState,
+  type GestureUpdate,
+  type HighlightSet,
+  type PointerInput,
+  type ProjectDocument,
+  type Schedule,
+  type SessionAnchor,
+  type ViewModel,
+} from '@ganttpilot/render-core';
+import type { Calendar, DocumentLink } from '@ganttpilot/engine';
+
+/** 一次手势提交后需要告诉调用方的东西。 */
+export interface GestureCommit {
+  readonly kind: 'command' | 'link' | 'rejected';
+  readonly code?: string;
+  readonly message?: string;
+  readonly cyclePath: readonly string[];
+}
+
+/** `useGesture` 的入参。 */
+export interface UseGestureArgs {
+  readonly view: ComputedRef<ViewModel | null>;
+  readonly document: Ref<ProjectDocument>;
+  readonly schedule: ComputedRef<Schedule | null>;
+  readonly calendar: ComputedRef<Calendar>;
+  /** 落库（命令层唯一通道）。 */
+  readonly dispatch: (command: {
+    readonly kind: 'task.update';
+    readonly id: string;
+    readonly patch: Record<string, unknown>;
+  }) => { readonly ok: boolean; readonly changed: boolean; readonly code?: string; readonly message?: string };
+  readonly dispatchLink: (link: DocumentLink) => {
+    readonly ok: boolean;
+    readonly changed: boolean;
+    readonly code?: string;
+    readonly message?: string;
+  };
+  readonly setAnchors: (anchors: readonly SessionAnchor[]) => void;
+  readonly clearAnchors: () => void;
+  /** 松手（或建线）之后的提示出口。 */
+  readonly notify?: (commit: GestureCommit) => void;
+}
+
+/** 手势接线暴露给组件的全部状态与操作。 */
+export interface UseGesture {
+  readonly state: Ref<GestureState>;
+  readonly anchorMode: Ref<AnchorMode>;
+  readonly highlight: Ref<HighlightSet>;
+  readonly preview: Ref<GestureUpdate['preview']>;
+  readonly activeTaskId: ComputedRef<string | null>;
+  /** 拖动/建线期需要重绘的行与边（渲染侧最小重建，ADR 0008 §11）。 */
+  readonly affectedRows: ComputedRef<{ readonly rows: readonly number[]; readonly edges: readonly number[] }>;
+  setAnchorMode: (mode: AnchorMode) => void;
+  /** 指针按下（**内容坐标** + 原始 `buttons`）。 */
+  onPointerDown: (pointer: PointerInput) => void;
+  onPointerMove: (pointer: PointerInput) => void;
+  onPointerUp: (pointer: PointerInput) => void;
+  /** 显式取消（`Esc`）。 */
+  cancel: () => void;
+  /** 把"外部产生的成环路径"交给高亮层（例如导入清单里点一条环）。 */
+  showCyclePath: (path: readonly string[]) => void;
+}
+
+/**
+ * 建手势接线。
+ *
+ * 关键口径（ADR 0008 §6）：**拖动期文档一字不改**——每帧只更新锚点，
+ * 由 `useProject` 的 `schedule` 计算属性带着锚点重算；松手才提交命令并清锚点。
+ */
+export function useGesture(args: UseGestureArgs): UseGesture {
+  const state = shallowRef<GestureState>({ kind: 'idle' });
+  const anchorMode = ref<AnchorMode>('snap');
+  const highlight = shallowRef<HighlightSet>(emptyHighlight());
+  const preview = shallowRef<GestureUpdate['preview']>(null);
+
+  const activeTaskId = computed<string | null>(() => {
+    const current = state.value;
+    switch (current.kind) {
+      case 'dragging':
+      case 'released':
+        return current.taskId;
+      case 'linking':
+      case 'rejected':
+        return current.fromTaskId;
+      default:
+        return null;
+    }
+  });
+
+  /** 内核入参（`view` / `schedule` 缺席时手势不成立）。 */
+  function baseArgs(): {
+    readonly view: ViewModel;
+    readonly document: ProjectDocument;
+    readonly schedule: Schedule;
+    readonly calendar: Calendar;
+  } | null {
+    const view = args.view.value;
+    const schedule = args.schedule.value;
+    if (view === null || schedule === null) return null;
+    return { view, document: args.document.value, schedule, calendar: args.calendar.value };
+  }
+
+  /** 把内核产出落到会话与高亮（唯一的"副作用"集中点）。 */
+  function apply(update: GestureUpdate): void {
+    state.value = update.state;
+    preview.value = update.preview;
+
+    if (update.anchors.length > 0) args.setAnchors(update.anchors);
+    else if (update.state.kind === 'idle' || update.state.kind === 'released' || update.state.kind === 'rejected') {
+      args.clearAnchors();
+    }
+
+    // 高亮：成环路径优先（它是"拒绝"的可见依据），其次建线预览、拖动行、冲突行。
+    const document = args.document.value;
+    if (update.cyclePath.length > 0) {
+      highlight.value = highlightForCyclePath(document, update.cyclePath);
+    } else if (update.state.kind === 'linking') {
+      highlight.value = highlightForLinkEndpoints(document, update.state.fromTaskId, update.state.toTaskId);
+    } else if (update.state.kind === 'dragging') {
+      highlight.value = highlightForTask(document, update.state.taskId);
+    } else if (update.state.kind === 'rejected') {
+      highlight.value = highlightForTask(document, update.state.fromTaskId);
+    } else {
+      highlight.value = emptyHighlight();
+    }
+
+    // 松手提交：命令 / 建线（各至多一条 ⇒ IX-03 的"一次手势 = 一层撤销"）。
+    for (const command of update.commands) {
+      const result = args.dispatch(command);
+      args.notify?.({
+        kind: 'command',
+        ...(result.code === undefined ? {} : { code: result.code }),
+        ...(result.message === undefined ? {} : { message: result.message }),
+        cyclePath: [],
+      });
+    }
+    if (update.link !== null) {
+      const result = args.dispatchLink(update.link);
+      args.notify?.({
+        kind: 'link',
+        ...(result.code === undefined ? {} : { code: result.code }),
+        ...(result.message === undefined ? {} : { message: result.message }),
+        cyclePath: [],
+      });
+    }
+    if (update.state.kind === 'rejected' && update.cyclePath.length > 0) {
+      args.notify?.({ kind: 'rejected', cyclePath: update.cyclePath });
+    }
+  }
+
+  function onPointerDown(pointer: PointerInput): void {
+    const base = baseArgs();
+    if (base === null || (pointer.buttons & 1) === 0) return;
+    apply(beginGesture({ ...base, pointer, anchorMode: anchorMode.value }));
+  }
+
+  function onPointerMove(pointer: PointerInput): void {
+    const base = baseArgs();
+    if (base === null) return;
+    if (state.value.kind === 'idle') return;
+    apply(reduceGesture({ ...base, pointer, anchorMode: anchorMode.value, state: state.value }));
+  }
+
+  function onPointerUp(pointer: PointerInput): void {
+    const base = baseArgs();
+    if (base === null) {
+      state.value = { kind: 'idle' };
+      args.clearAnchors();
+      return;
+    }
+    if (state.value.kind === 'idle') return;
+    apply(reduceGesture({ ...base, pointer: { ...pointer, buttons: 0 }, anchorMode: anchorMode.value, state: state.value }));
+  }
+
+  function cancel(): void {
+    state.value = { kind: 'idle' };
+    preview.value = null;
+    highlight.value = emptyHighlight();
+    args.clearAnchors();
+  }
+
+  /**
+   * 拖动期的"受影响行 + 受影响边"（ADR 0008 §11 的**渲染侧最小重建**）。
+   * 松手前后共用同一判据：拖动中用锚点做种子，松手后用命令触碰的 id 做种子。
+   */
+  const affectedRows = computed<{ readonly rows: readonly number[]; readonly edges: readonly number[] }>(() => {
+    const document = args.document.value;
+    const seedIds: readonly string[] =
+      state.value.kind === 'dragging'
+        ? [state.value.taskId]
+        : state.value.kind === 'released'
+          ? [state.value.taskId]
+          : state.value.kind === 'linking'
+            ? state.value.toTaskId === null
+              ? [state.value.fromTaskId]
+              : [state.value.fromTaskId, state.value.toTaskId]
+            : [];
+    if (seedIds.length === 0) return { rows: [], edges: [] };
+    const affected = affectedRenderSetWithAnchors(
+      document,
+      seedIds.map((taskId) => ({ taskId })),
+    );
+    return { rows: affected.rows, edges: affected.edges };
+  });
+
+  return {
+    state,
+    anchorMode,
+    highlight,
+    preview,
+    activeTaskId,
+    affectedRows,
+    setAnchorMode: (mode: AnchorMode) => {
+      anchorMode.value = mode;
+    },
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    cancel,
+    showCyclePath: (path: readonly string[]) => {
+      highlight.value = path.length === 0 ? emptyHighlight() : highlightForCyclePath(args.document.value, path);
+    },
+  };
+}
+
+/** 把 `Schedule` 的 `anchorConflict` 诊断映射成"标红集合"（**判据来自引擎**，见 ADR 0008 §6）。 */
+export function conflictHighlightOf(
+  document: ProjectDocument,
+  diagnostics: readonly { readonly code: string; readonly taskId?: string }[],
+): HighlightSet {
+  const ids = diagnostics
+    .filter((item) => item.code === 'anchorConflict' && item.taskId !== undefined)
+    .map((item) => item.taskId as string);
+  return highlightForConflict(document, ids);
+}

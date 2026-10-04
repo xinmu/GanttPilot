@@ -23,6 +23,8 @@
  * `main.ts` 用 `await import('./measure.js')` 动态引入，因此普通用户的首屏主 chunk **不含**本模块。
  */
 
+import { nextTick } from 'vue';
+
 import { compute } from '@ganttpilot/engine';
 import {
   buildView,
@@ -395,8 +397,10 @@ export function exposeMeasurement(args: {
   readonly buildFixtureDocument: (key: string) => ProjectDocument;
   readonly controllerOf: (document: ProjectDocument) => MeasureController;
   readonly loadDocument: (document: ProjectDocument) => Promise<void>;
+  /** G5：拖动测量所需的实时状态与控制入口（不传则 `__GANTTPILOT_MEASURE_DRAG__` 不存在）。 */
+  readonly drag?: DragMeasurementHost;
 }): void {
-  const host = window as unknown as { __GANTTPILOT_MEASURE__?: unknown };
+  const host = window as unknown as { __GANTTPILOT_MEASURE__?: unknown; __GANTTPILOT_MEASURE_DRAG__?: unknown };
   host.__GANTTPILOT_MEASURE__ = async (options: {
     readonly dataset?: string;
     readonly zoom?: string;
@@ -423,7 +427,263 @@ export function exposeMeasurement(args: {
           : 10,
     });
   };
+
+  if (args.drag !== undefined) {
+    const dragHost = args.drag;
+    host.__GANTTPILOT_MEASURE_DRAG__ = async (options: {
+      readonly dataset?: string;
+      readonly dayDelta?: number;
+      readonly frames?: number;
+    }): Promise<DragMeasureResult> => {
+      const spec = specOfDataset(options.dataset ?? PRIMARY_DATASET_KEY);
+      const document = args.buildFixtureDocument(spec.key);
+      await args.loadDocument(document);
+      return runDragMeasurement({
+        host: dragHost,
+        fixtureSpec: spec,
+        dayDelta: Number.isFinite(options.dayDelta) ? Math.trunc(options.dayDelta ?? 3) : 3,
+        frames:
+          Number.isFinite(options.frames) && (options.frames ?? 0) > 2
+            ? Math.min(120, Math.floor(options.frames ?? 12))
+            : 12,
+      });
+    };
+  }
+}
+
+// ---------------------------------------------------------------- G5：拖动测量（记录制，ADR 0008 §11）
+
+/** 拖动测量的宿主：由 `App.vue` 提供的实时状态与真实指针入口。 */
+export interface DragMeasurementHost {
+  /** 当前渲染的视图模型（含 `scrollTop` / `pxPerDay` / 行序），用于把任务换算成屏幕坐标。 */
+  readonly view: () => ViewModel | null;
+  readonly calendar: () => { dayOfOrdinal(ordinal: number): number };
+  /** 真实指针入口（**与用户操作走同一条路径**）。 */
+  readonly pointer: {
+    readonly down: (event: MouseEvent) => void;
+    readonly move: (event: MouseEvent) => void;
+    readonly up: (event: MouseEvent) => void;
+  };
+  /** 拖动是否仍在进行（用于断言"松手后锚点已清空"）。 */
+  readonly gestureKind: () => string;
+  readonly anchors: () => number;
+  /** 松手后落到文档里的 `startDate`（断言"命令真的落库了"）。 */
+  readonly startDateOf: (taskId: string) => string | null;
+}
+
+/** 拖动测量的结果（记录制：帧预算与松手耗时都不进 `pnpm gate`）。 */
+export interface DragMeasureResult {
+  readonly status: 'ok' | 'error';
+  readonly errors: readonly string[];
+  readonly dataset: string;
+  readonly taskId: string;
+  readonly dayDelta: number;
+  readonly frames: number;
+  /** 拖动期每个测试帧的"主线程同步工作量"（只含事件派发 + Vue 更新，不含帧等待）。 */
+  readonly mainThreadMs: readonly number[];
+  readonly mainThreadP50Ms: number;
+  readonly mainThreadP95Ms: number;
+  /** 拖动期连续 rAF 的帧间隔（记录用；目标 ≥30 fps ⇒ ≤33.3 ms）。 */
+  readonly frameGapsMs: readonly number[];
+  readonly frameGapP50Ms: number;
+  readonly frameGapP95Ms: number;
+  readonly longTasks: number;
+  /** 松手 → 命令落库 + 重算 + 冲突标记完成 的墙钟。 */
+  readonly releaseMs: number;
+  /** 拖动中是否观察到 DOM 上的条形位置变化（"下游跟随"的间接证据）。 */
+  readonly observedWidthChanges: number;
+  readonly anchorsAfterRelease: number;
+  readonly documentStartAfter: string | null;
+}
+
+/** 把任务换算成"按住条体中部"的屏幕坐标（内容坐标 + 窗格偏移）。 */
+function dragScreenPoint(
+  host: DragMeasurementHost,
+  pane: HTMLElement,
+  taskId: string,
+  ordinalOffset: number,
+): { readonly clientX: number; readonly clientY: number } | null {
+  const view = host.view();
+  if (view === null) return null;
+  const row = view.rows.find((item) => item.id === taskId);
+  if (row === undefined) return null;
+  const calendar = host.calendar();
+  const targetDay = calendar.dayOfOrdinal(row.es + ordinalOffset);
+  const contentX = (targetDay - view.axisOriginDay) * view.pxPerDay + view.pxPerDay / 2;
+  const contentY = row.row * view.rowHeight + view.rowHeight / 2;
+  const rect = pane.getBoundingClientRect();
+  return {
+    clientX: rect.left + contentX - view.scrollLeft,
+    clientY: rect.top + contentY - view.scrollTop,
+  };
+}
+
+/**
+ * 跑一次拖动测量（G5 出口条件 ① ②，**记录制**）。
+ *
+ * 口径（必须与数字一起引用）：
+ * - 用**真实指针事件**驱动（`mousedown → mousemove×N → mouseup`），与用户路径一致；
+ * - **主线程工作量** = 派发事件 + `await nextTick()`（不含帧等待）——与 G4 的滚动口径同源；
+ * - **帧间隔**用连续 rAF 记录，只作记录（≥30 fps ⇒ p95 ≤ 33.3 ms）；
+ * - **松手耗时** = `mouseup` → 命令落库 + `compute` + 覆盖层清空 的墙钟。
+ */
+export async function runDragMeasurement(args: {
+  readonly host: DragMeasurementHost;
+  readonly fixtureSpec: FixtureSpec;
+  readonly dayDelta: number;
+  readonly frames: number;
+}): Promise<DragMeasureResult> {
+  const errors: string[] = [];
+  const pane = document.getElementById('chart-pane');
+  if (pane === null) {
+    return emptyDragResult(args, ['找不到图表窗格（#chart-pane）']);
+  }
+
+  const target = pickDragTarget(args.host);
+  if (target === null) {
+    return emptyDragResult(args, ['渲染窗口内没有可拖动的叶子任务']);
+  }
+
+  const start = dragScreenPoint(args.host, pane, target.taskId, 0);
+  if (start === null) {
+    return emptyDragResult(args, ['无法把目标任务换算成屏幕坐标']);
+  }
+
+  const dispatch = (type: 'down' | 'move' | 'up', point: { clientX: number; clientY: number }): void => {
+    const event = new MouseEvent(type === 'down' ? 'mousedown' : type === 'move' ? 'mousemove' : 'mouseup', {
+      bubbles: true,
+      cancelable: true,
+      clientX: point.clientX,
+      clientY: point.clientY,
+      buttons: type === 'up' ? 0 : 1,
+      view: window,
+    });
+    if (type === 'down') args.host.pointer.down(event);
+    else if (type === 'move') args.host.pointer.move(event);
+    else args.host.pointer.up(event);
+  };
+
+  const mainThreadMs: number[] = [];
+  const frameGapsMs: number[] = [];
+  let observedWidthChanges = 0;
+  let previousWidths = collectBarWidths();
+
+  dispatch('down', start);
+  await nextTick();
+  if (args.host.gestureKind() !== 'dragging') {
+    errors.push(`按下后未进入拖动（实际 ${args.host.gestureKind()}）`);
+  }
+
+  let lastFrameAt = performance.now();
+  const frames = args.frames;
+  for (let index = 1; index <= frames; index += 1) {
+    const offset = Math.round((args.dayDelta * index) / frames);
+    const point = dragScreenPoint(args.host, pane, target.taskId, offset) ?? start;
+    const started = performance.now();
+    dispatch('move', point);
+    await nextTick();
+    mainThreadMs.push(round(performance.now() - started));
+
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => {
+        const now = performance.now();
+        frameGapsMs.push(round(now - lastFrameAt));
+        lastFrameAt = now;
+        resolve();
+      });
+    });
+
+    // "下游跟随"的间接证据：拖动期条宽/位置变化过（而不是只有覆盖层在动）。
+    const widths = collectBarWidths();
+    if (widths !== previousWidths) observedWidthChanges += 1;
+    previousWidths = widths;
+  }
+
+  const releaseStart = performance.now();
+  const endPoint = dragScreenPoint(args.host, pane, target.taskId, args.dayDelta) ?? start;
+  dispatch('up', endPoint);
+  await nextTick();
+  const releaseMs = round(performance.now() - releaseStart);
+
+  let longTasks = 0;
+  if (typeof PerformanceObserver !== 'undefined') {
+    // 记录制：只统计拖动期间已经产生的 longtask 条目（观察者本身不阻塞）。
+    try {
+      const entries = performance.getEntriesByType('longtask');
+      longTasks = entries.length;
+    } catch {
+      longTasks = 0;
+    }
+  }
+
+  return {
+    status: errors.length === 0 ? 'ok' : 'error',
+    errors,
+    dataset: args.fixtureSpec.key,
+    taskId: target.taskId,
+    dayDelta: args.dayDelta,
+    frames,
+    mainThreadMs,
+    mainThreadP50Ms: percentile(mainThreadMs, 0.5),
+    mainThreadP95Ms: percentile(mainThreadMs, 0.95),
+    frameGapsMs,
+    frameGapP50Ms: percentile(frameGapsMs, 0.5),
+    frameGapP95Ms: percentile(frameGapsMs, 0.95),
+    longTasks,
+    releaseMs,
+    observedWidthChanges,
+    anchorsAfterRelease: args.host.anchors(),
+    documentStartAfter: args.host.startDateOf(target.taskId),
+  };
+}
+
+function pickDragTarget(host: DragMeasurementHost): { readonly taskId: string } | null {
+  const view = host.view();
+  if (view === null) return null;
+  // 取第一个"可见行内、非里程碑、非汇总"的行（渲染窗口内的行才可交互）。
+  for (let row = view.renderFirst; row <= view.renderLast; row += 1) {
+    const bounded = view.rows.find((item) => item.row === row);
+    if (bounded === undefined) continue;
+    if (bounded.isMilestone || bounded.kind === 'summary') continue;
+    return { taskId: bounded.id };
+  }
+  return null;
+}
+
+/** 当前 DOM 上全部条形的宽度串（用于判断"渲染侧真的更新了"）。 */
+function collectBarWidths(): string {
+  const rects = document.querySelectorAll('#chart-pane .rows rect, #chart-pane .rows polygon');
+  const parts: string[] = [];
+  rects.forEach((node) => {
+    parts.push(node.getAttribute('width') ?? node.getAttribute('points') ?? '');
+  });
+  return parts.join('|');
+}
+
+function emptyDragResult(
+  args: { readonly fixtureSpec: FixtureSpec; readonly dayDelta: number; readonly frames: number },
+  errors: readonly string[],
+): DragMeasureResult {
+  return {
+    status: 'error',
+    errors,
+    dataset: args.fixtureSpec.key,
+    taskId: '',
+    dayDelta: args.dayDelta,
+    frames: args.frames,
+    mainThreadMs: [],
+    mainThreadP50Ms: 0,
+    mainThreadP95Ms: 0,
+    frameGapsMs: [],
+    frameGapP50Ms: 0,
+    frameGapP95Ms: 0,
+    longTasks: 0,
+    releaseMs: 0,
+    observedWidthChanges: 0,
+    anchorsAfterRelease: 0,
+    documentStartAfter: null,
+  };
 }
 
 /** 供 CDP 侧核对：本测量钩子的版本标记（避免与旧产物混淆）。 */
-export const MEASURE_HOOK_VERSION = 'g4-1';
+export const MEASURE_HOOK_VERSION = 'g5-1';

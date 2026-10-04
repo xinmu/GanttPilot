@@ -43,7 +43,18 @@ const REFERENCE_DATASET = 'dense2200';
 
 /** @param {string[]} argv */
 function parseArgs(argv) {
-  const options = { zooms: [...ZOOM_KEYS], rounds: 5, scrollSteps: 10, includeReference: true };
+  const options = {
+    zooms: [...ZOOM_KEYS],
+    rounds: 5,
+    scrollSteps: 10,
+    includeReference: true,
+    /** G5：只跑拖动测量（记录制），并写 `drag-timing-chrome<大版本>.md`。 */
+    drag: false,
+    /** G5：拖动跨越的工作日数（US-2 的口径是 3 天）。 */
+    dayDelta: 3,
+    /** G5：拖动期的测试帧数。 */
+    dragFrames: 12,
+  };
   for (const arg of argv) {
     if (arg.startsWith('--zoom=')) {
       const value = arg.slice('--zoom='.length);
@@ -54,6 +65,12 @@ function parseArgs(argv) {
       options.scrollSteps = Number(arg.slice('--steps='.length)) || options.scrollSteps;
     } else if (arg === '--no-reference') {
       options.includeReference = false;
+    } else if (arg === '--drag') {
+      options.drag = true;
+    } else if (arg.startsWith('--day-delta=')) {
+      options.dayDelta = Number(arg.slice('--day-delta='.length)) || options.dayDelta;
+    } else if (arg.startsWith('--drag-frames=')) {
+      options.dragFrames = Number(arg.slice('--drag-frames='.length)) || options.dragFrames;
     }
   }
   return options;
@@ -365,6 +382,67 @@ function renderEvidence({ env, runs, options }) {
   return lines.join('\n');
 }
 
+/** G5 拖动证据（记录制）：帧预算 ≥30 fps、松手 ≤200 ms、下游跟随、松手清锚点。 */
+function renderDragEvidence({ env, result, options }) {
+  const lines = [];
+  const mainP95 = Number(result?.mainThreadP95Ms ?? 0);
+  const gapP50 = Number(result?.frameGapP50Ms ?? 0);
+  const gapP95 = Number(result?.frameGapP95Ms ?? 0);
+  const releaseMs = Number(result?.releaseMs ?? 0);
+  const followObserved = Number(result?.observedWidthChanges ?? 0) > 0;
+  const anchorsCleared = Number(result?.anchorsAfterRelease ?? -1) === 0;
+  const fpsOk = gapP95 > 0 && gapP95 <= 1000 / 30;
+  const releaseOk = releaseMs > 0 && releaseMs <= 200;
+  const wroteDocument = result?.documentStartAfter !== null && result?.documentStartAfter !== undefined;
+
+  lines.push('# G5 拖动测量（记录制，不进 `pnpm gate`）');
+  lines.push('');
+  lines.push('> 由 `node scripts/measure-render.mjs --drag` 采集；**这是测量快照，不是门禁**');
+  lines.push('> （[ADR 0008 §11](../../../docs/02-adr/0008-列身份所有权与拖拽交互契约.md)、[裁决 P-9/P-17](../../../docs/00-baseline/裁决记录.md)）。');
+  lines.push('> 拖动的判据本身（手势状态机、候选序号、松手命令、成环拒绝）在 `packages/render-core/src/gesture.spec.ts` 里，**进 `pnpm gate`**。');
+  lines.push('');
+  lines.push('## 环境（与数字一起登记）');
+  lines.push('');
+  lines.push('| 项 | 值 |');
+  lines.push('|---|---|');
+  for (const [key, value] of Object.entries(env)) lines.push(`| ${key} | ${String(value)} |`);
+  lines.push('');
+  lines.push('## 口径');
+  lines.push('');
+  lines.push('- 数据来源 = 合成夹具 + 页面内 `createScheduleCalendar` + `compute`（**不含 xlsx 导入**，`exceljs` 只准动态 `import()`）；');
+  lines.push('- 驱动方式 = **真实指针事件**（`mousedown → mousemove×N → mouseup`）走 `useGesture` 的同一条入口，不另开测试后门；');
+  lines.push(`- 拖动跨度 = **${String(options.dayDelta)} 个工作日**（US-2 的口径），拆成 **${String(options.dragFrames)}** 个测试帧；`);
+  lines.push('- **主线程工作量** = 派发事件 + `await nextTick()`（**不含帧等待**）——与 G4 的滚动口径同源；');
+  lines.push('- **帧间隔** = 连续 rAF 的间隔（只作记录；**不能用双 rAF 测帧时长**，那会把等待算进来）；');
+  lines.push('- **松手耗时** = `mouseup` → 命令落库 + `compute` + 覆盖层清空 的墙钟；');
+  lines.push('- **下游跟随**的间接证据 = 拖动期 DOM 上条形的宽度/位置串发生过变化（不是只有覆盖层在动）。');
+  lines.push('');
+  lines.push('## 结果');
+  lines.push('');
+  lines.push('| 量 | 值 | 判据 | 判定 |');
+  lines.push('|---|---|---|---|');
+  lines.push(`| 主线程同步工作量 p50 | ${mainP95 === 0 ? '—' : `${Number(result?.mainThreadP50Ms ?? 0).toFixed(2)} ms`} | 记录 | — |`);
+  lines.push(`| 主线程同步工作量 p95 | ${mainP95.toFixed(2)} ms | ≤ 16.7 ms（帧预算候选） | ${mainP95 <= 16.7 ? '✅' : '⚠️'} |`);
+  lines.push(`| 帧间隔 p50 | ${gapP50.toFixed(1)} ms | 记录 | — |`);
+  lines.push(`| 帧间隔 p95 | ${gapP95.toFixed(1)} ms | ≥30 fps ⇒ ≤ 33.3 ms | ${fpsOk ? '✅' : '⚠️'} |`);
+  lines.push(`| 松手 → 重算 + 冲突标记 | ${releaseMs.toFixed(1)} ms | ≤ 200 ms（IX-04） | ${releaseOk ? '✅' : '⚠️'} |`);
+  lines.push(`| 拖动期 DOM 变化帧数 | ${String(result?.observedWidthChanges ?? 0)} / ${String(result?.frames ?? 0)} | > 0（下游跟随） | ${followObserved ? '✅' : '❌'} |`);
+  lines.push(`| longtask 条目 | ${String(result?.longTasks ?? 0)} | 记录 | — |`);
+  lines.push(`| 松手后锚点数 | ${String(result?.anchorsAfterRelease ?? '-')} | = 0（锚点不进文档、松手即清） | ${anchorsCleared ? '✅' : '❌'} |`);
+  lines.push(`| 松手后文档 startDate | ${String(result?.documentStartAfter ?? '—')} | 非空（命令真的落库） | ${wroteDocument ? '✅' : '❌'} |`);
+  lines.push('');
+  lines.push(`> 拖动目标任务：\`${String(result?.taskId ?? '')}\`；数据集 \`${String(result?.dataset ?? '')}\`。`);
+  if ((result?.errors ?? []).length > 0) {
+    lines.push('');
+    lines.push('**页面内报错**：');
+    for (const error of result.errors) lines.push(`- ${String(error)}`);
+  }
+  lines.push('');
+  lines.push(`> 生成参数：${JSON.stringify(options)}`);
+  lines.push('');
+  return lines.join('\n');
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (!existsSync(join(distRoot, 'index.html'))) {
@@ -432,6 +510,53 @@ async function main() {
     const plans = [];
     for (const zoom of options.zooms) plans.push({ dataset: PRIMARY_DATASET, zoom });
     if (options.includeReference) plans.push({ dataset: REFERENCE_DATASET, zoom: 'day' });
+
+    // ---------------------------------------------------------------- G5：拖动测量（记录制）
+    if (options.drag) {
+      const dragReady = await cdp.evaluate('typeof window.__GANTTPILOT_MEASURE_DRAG__ === "function"');
+      if (dragReady !== true) throw new Error('拖动测量钩子未就绪（页面里没有 __GANTTPILOT_MEASURE_DRAG__）');
+      const dragResult = await cdp.evaluate(
+        `window.__GANTTPILOT_MEASURE_DRAG__(${JSON.stringify({
+          dataset: PRIMARY_DATASET,
+          dayDelta: options.dayDelta,
+          frames: options.dragFrames,
+        })})`,
+      );
+      const env = {
+        采集时刻: new Date().toISOString(),
+        机器: process.env.COMPUTERNAME ?? 'local',
+        系统: `${process.platform} ${process.arch}`,
+        Node: process.version,
+        Chrome: chromeVersion,
+        'Chrome 模式': '--headless=new',
+        DPR: 1,
+        视口: '1280×800（窗格尺寸随结果登记）',
+        数据集: PRIMARY_DATASET,
+        拖动天数: options.dayDelta,
+        测试帧数: options.dragFrames,
+      };
+      const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
+      const dragEvidencePath = join(evidenceDir, `drag-timing-chrome${major}.md`);
+      writeFileSync(dragEvidencePath, renderDragEvidence({ env, result: dragResult, options }), 'utf8');
+      writeFileSync(
+        join(evidenceDir, 'drag-timing-raw.json'),
+        `${JSON.stringify({ env, result: dragResult }, null, 2)}\n`,
+        'utf8',
+      );
+      console.log(
+        `[drag] 主线程 p95 ${Number(dragResult?.mainThreadP95Ms ?? 0).toFixed(2)} ms、` +
+          `帧间隔 p50/p95 ${Number(dragResult?.frameGapP50Ms ?? 0).toFixed(1)}/${Number(dragResult?.frameGapP95Ms ?? 0).toFixed(1)} ms、` +
+          `松手 ${Number(dragResult?.releaseMs ?? 0).toFixed(1)} ms、` +
+          `DOM 变化帧 ${String(dragResult?.observedWidthChanges ?? 0)}、` +
+          `松手后锚点 ${String(dragResult?.anchorsAfterRelease ?? '-')}`,
+      );
+      if (dragResult?.status === 'error') {
+        console.error(`[drag] errors: ${(dragResult.errors ?? []).join('；')}`);
+        process.exitCode = 1;
+      }
+      console.log(`[measure] 拖动证据已写入 ${dragEvidencePath}`);
+      return;
+    }
 
     const runs = [];
     for (const plan of plans) {

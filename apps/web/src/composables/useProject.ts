@@ -35,6 +35,7 @@ import {
   type Schedule,
   type ScheduleDiagnostic,
   type ScheduleResult,
+  type SessionAnchor,
 } from '@ganttpilot/render-core';
 import { compute, type Calendar } from '@ganttpilot/engine';
 
@@ -78,7 +79,16 @@ export interface UseProject {
   readonly documentDiagnostics: ComputedRef<readonly DocumentDiagnostic[]>;
   readonly scheduleDiagnostics: ComputedRef<readonly ScheduleDiagnostic[]>;
   readonly lastFailure: Ref<{ readonly code: string; readonly message: string } | null>;
+  /**
+   * 会话内锚点（G5 的拖拽跟手位置，ADR 0004 §2 / ADR 0008 §6）。
+   *
+   * **不进文档、不进撤销栈、重开后不保留**：它只影响 `compute` 的入参。
+   */
+  readonly anchors: Ref<readonly SessionAnchor[]>;
   dispatch: (command: DocumentCommand) => DispatchResult;
+  /** 拖动期设锚点（替换式：会话里最后一次拖动才是用户意图）。 */
+  setAnchors: (anchors: readonly SessionAnchor[]) => void;
+  clearAnchors: () => void;
   ingestDocument: (document: ProjectDocument) => DispatchResult;
   undo: () => DispatchResult;
   redo: () => DispatchResult;
@@ -95,9 +105,13 @@ export function useProject(initial?: ProjectDocument): UseProject {
   const documentRef = shallowRef<ProjectDocument>(markRaw(initial ?? createDemoDocument()));
   const sessionRef = shallowRef<DocumentSession>(markRaw(createSession(documentRef.value)));
   const lastFailure = ref<{ code: string; message: string } | null>(null);
+  const anchors = shallowRef<readonly SessionAnchor[]>([]);
 
   const calendar = computed<Calendar>(() => markRaw(createScheduleCalendar(documentRef.value)));
-  const scheduleResult = computed<ScheduleResult>(() => compute(documentRef.value, calendar.value));
+  // 锚点是 `compute` 的**第三个入参**（唯一可选入参）：拖拽期间的跟手位置由此进入排程，文档一字不改。
+  const scheduleResult = computed<ScheduleResult>(() =>
+    compute(documentRef.value, calendar.value, anchors.value),
+  );
 
   function commit(result: ReturnType<typeof applyToSession>, touchedTaskIds: readonly string[]): DispatchResult {
     if (!result.ok) {
@@ -137,7 +151,14 @@ export function useProject(initial?: ProjectDocument): UseProject {
     documentDiagnostics: computed<readonly DocumentDiagnostic[]>(() => validateDocument(documentRef.value)),
     scheduleDiagnostics: computed<readonly ScheduleDiagnostic[]>(() => scheduleDiagnosticsOf(scheduleResult.value)),
     lastFailure,
+    anchors,
     dispatch,
+    setAnchors: (next: readonly SessionAnchor[]) => {
+      anchors.value = next;
+    },
+    clearAnchors: () => {
+      anchors.value = [];
+    },
     ingestDocument: (document: ProjectDocument) =>
       commit(applyToSession(sessionRef.value, { kind: 'document.replace', document }), []),
     undo: () => commit(undoSession(sessionRef.value), []),
@@ -147,6 +168,8 @@ export function useProject(initial?: ProjectDocument): UseProject {
       documentRef.value = value;
       sessionRef.value = markRaw(createSession(value));
       lastFailure.value = null;
+      // 锚点不属于文档：重置时一并清空，避免"锚在一个已经不存在的任务上"。
+      anchors.value = [];
     },
   };
 }

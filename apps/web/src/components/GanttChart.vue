@@ -28,15 +28,110 @@
  */
 
 import { computed } from 'vue';
-import { arrowPolygons, type ViewModel } from '@ganttpilot/render-core';
+import {
+  arrowPolygons,
+  emptyHighlight,
+  type GestureUpdate,
+  type HighlightSet,
+  type ViewModel,
+} from '@ganttpilot/render-core';
 
-const props = defineProps<{
-  readonly view: ViewModel | null;
-  readonly cycleMessage: string | null;
-}>();
+const props = withDefaults(
+  defineProps<{
+    readonly view: ViewModel | null;
+    readonly cycleMessage: string | null;
+    /** 成环路径（`compute` 失败时非空）——用于提示文案。 */
+    readonly cyclePath?: readonly string[];
+    /** 成环路径的**可读标注**（`编号 名称`；不可排程态没有行/边可高亮，用列表代替）。 */
+    readonly cycleLabels?: readonly string[];
+    /** G5 的交互态高亮（成环 / 选中 / 冲突 / 建线端点）。 */
+    readonly highlight?: HighlightSet;
+    /** 建线预览（端点由 `render-core` 给出；折点在这里按 STUB 口径序列化）。 */
+    readonly preview?: GestureUpdate['preview'];
+    /** 冲突行（`anchorConflict` 的任务 id；判据来自引擎，ADR 0008 §6）。 */
+    readonly conflictTaskIds?: readonly string[];
+    /** 正在拖动/建线的任务 id。 */
+    readonly activeTaskId?: string | null;
+  }>(),
+  {
+    cyclePath: () => [],
+    cycleLabels: () => [],
+    highlight: () => emptyHighlight(),
+    preview: null,
+    conflictTaskIds: () => [],
+    activeTaskId: null,
+  },
+);
 
 type Edge = ViewModel['edges'][number];
 type Row = ViewModel['rows'][number];
+
+// ---------------------------------------------------------------- G5 覆盖层（元素计入 `c₄`）
+
+/** 高亮命中的渲染行。 */
+const highlightedRows = computed<Row[]>(() => {
+  const view = props.view;
+  if (view === null) return [];
+  const wanted = new Set(props.highlight.rows);
+  return view.rows.filter((row) => wanted.has(row.docIndex));
+});
+
+/** 高亮命中的渲染边。 */
+const highlightedEdges = computed<Edge[]>(() => {
+  const view = props.view;
+  if (view === null) return [];
+  const wanted = new Set(props.highlight.edges);
+  return view.edges.filter((edge) => wanted.has(edge.linkIndex));
+});
+
+/** 正在拖动/建线的行（画一条醒目轮廓）。 */
+const activeRow = computed<Row | null>(() => {
+  const view = props.view;
+  if (view === null || props.activeTaskId === null) return null;
+  return view.rows.find((row) => row.id === props.activeTaskId) ?? null;
+});
+
+/** 冲突行（只画描边，不改条形填充——"条形 = 文档数据"这条语义不动）。 */
+const conflictRows = computed<Row[]>(() => {
+  const view = props.view;
+  if (view === null || props.conflictTaskIds.length === 0) return [];
+  const wanted = new Set(props.conflictTaskIds);
+  return view.rows.filter((row) => wanted.has(row.id));
+});
+
+/**
+ * 建线预览的正交路径：出端 → 竖直段 → 入端。
+ *
+ * STUB 用固定 8 px（与 `EDGE_STUB_PX` 同值、同样**不随 `pxPerDay` 缩放**）：
+ * 预览只是"将从哪里连到哪里"的示意，真正的几何在提交后由 `routeEdge` 给出。
+ */
+const previewPath = computed(() => {
+  const preview = props.preview;
+  if (preview === null) return '';
+  const [ex, ey] = preview.exitPoint;
+  const [nx, ny] = preview.enterPoint;
+  const midX = nx >= ex ? Math.min(ex + 8, Math.max(ex, nx)) : Math.max(ex - 8, Math.min(ex, nx));
+  return `M${String(ex)} ${String(ey)}H${String(midX)}V${String(ny)}H${String(nx)}`;
+});
+
+/** 预览箭头：朝向由入端相对出端决定（+1 = +x）。 */
+function previewArrowPoints(): string {
+  const preview = props.preview;
+  if (preview === null) return '';
+  const [tipX, tipY] = preview.enterPoint;
+  const dir: 1 | -1 = preview.enterPoint[0] >= preview.exitPoint[0] ? 1 : -1;
+  const [origin, left, right] = arrowPolygons({ dir, fill: 'solid' }).outer;
+  return [
+    [tipX + origin[0], tipY + origin[1]],
+    [tipX + left[0], tipY + left[1]],
+    [tipX + right[0], tipY + right[1]],
+  ]
+    .map(([x, y]) => `${String(x)},${String(y)}`)
+    .join(' ');
+}
+
+/** 预览线是否被预检判为成环（成环时用警示色、并在提示里给出路径）。 */
+const previewCyclic = computed(() => props.preview?.cyclic === true);
 
 /** 正交折线的 `d`（点列由 `render-core` 给出，这里只做序列化）。 */
 function pathData(points: readonly (readonly [number, number])[]): string {
@@ -198,6 +293,84 @@ const scrollTransform = computed(() => {
           />
         </g>
       </g>
+
+      <!--
+        G5 覆盖层（元素数计入 `c₄`，ADR 0008 §11）：
+        拖动轮廓 + 起止标记、建线预览、冲突描边、成环/选中高亮。
+        **全部是独立图元**：不给可见条形/连线加大热区（ADR 0007 §5），也不改它们的填充。
+      -->
+      <g class="overlays">
+        <!-- 拖动/建线中的行：轮廓 -->
+        <rect
+          v-if="activeRow !== null"
+          class="drag-outline"
+          :x="activeRow.xLeft - 3"
+          :y="activeRow.barY - 3"
+          :width="Math.max(6, activeRow.xRight - activeRow.xLeft + 6)"
+          :height="activeRow.barHeight + 6"
+          :rx="3"
+        />
+        <template v-if="activeRow !== null">
+          <line
+            class="drag-marker"
+            :x1="activeRow.xLeft"
+            :x2="activeRow.xLeft"
+            :y1="activeRow.y - 6"
+            :y2="activeRow.y + 6"
+          />
+          <line
+            class="drag-marker"
+            :x1="activeRow.xRight"
+            :x2="activeRow.xRight"
+            :y1="activeRow.y - 6"
+            :y2="activeRow.y + 6"
+          />
+        </template>
+
+        <!-- 冲突（`anchorConflict`）：只描边，不动填充 -->
+        <rect
+          v-for="row in conflictRows"
+          :key="`conflict-${row.id}`"
+          class="conflict-outline"
+          :x="row.xLeft - 2"
+          :y="row.barY - 2"
+          :width="Math.max(4, row.xRight - row.xLeft + 4)"
+          :height="row.barHeight + 4"
+          :rx="2"
+        />
+
+        <!-- 高亮：成环路径的行与边 -->
+        <rect
+          v-for="row in highlightedRows"
+          :key="`hl-row-${row.id}`"
+          class="highlight-outline"
+          :x="row.xLeft - 3"
+          :y="row.barY - 3"
+          :width="Math.max(6, row.xRight - row.xLeft + 6)"
+          :height="row.barHeight + 6"
+          :rx="2"
+        />
+        <path
+          v-for="edge in highlightedEdges"
+          :key="`hl-edge-${edge.linkId}`"
+          class="highlight-edge"
+          :d="pathData(edge.points)"
+        />
+
+        <!-- 建线预览：折线 + 箭头 -->
+        <template v-if="preview !== null">
+          <path
+            class="preview-path"
+            :class="{ cyclic: previewCyclic }"
+            :d="previewPath"
+          />
+          <polygon
+            class="preview-arrow"
+            :class="{ cyclic: previewCyclic }"
+            :points="previewArrowPoints()"
+          />
+        </template>
+      </g>
     </g>
   </svg>
 
@@ -207,8 +380,21 @@ const scrollTransform = computed(() => {
     class="unschedulable"
   >
     <p>不可排程：{{ cycleMessage ?? '排程失败' }}</p>
+    <template v-if="cycleLabels.length > 0">
+      <p class="hint">
+        成环路径（{{ cycleLabels.length }} 个节点）——「高亮成环路径」在不可排程态下的呈现方式：
+      </p>
+      <ol class="cycle-list">
+        <li
+          v-for="(label, index) in cycleLabels"
+          :key="`cycle-${String(index)}`"
+        >
+          {{ label }}
+        </li>
+      </ol>
+    </template>
     <p class="hint">
-      （G4 只做占位；诊断清单与冲突标记归 G5）
+      （诊断清单见工具栏「诊断」；导入的成环边已由协议层按确定性顺序丢弃并进问题清单）
     </p>
   </div>
 </template>
@@ -239,6 +425,68 @@ const scrollTransform = computed(() => {
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
+/**
+ * G5 覆盖层：**全部 `pointer-events: none`**。
+ *
+ * 理由：覆盖层是为"看得见"而存在的，若它参与命中，就会抢走条体/边的交互热区——
+ * 那样"按住条拖动"会在有高亮时失效（ADR 0007 §5 的同一条纪律：不得给可见图元加大热区）。
+ */
+.overlays {
+  pointer-events: none;
+}
+
+.drag-outline {
+  fill: none;
+  stroke: #175cd3;
+  stroke-width: 2;
+  stroke-dasharray: 4 2;
+}
+
+.drag-marker {
+  stroke: #175cd3;
+  stroke-width: 2;
+}
+
+.conflict-outline {
+  fill: none;
+  stroke: #b42318;
+  stroke-width: 2;
+}
+
+.highlight-outline {
+  fill: none;
+  stroke: #b54708;
+  stroke-width: 2;
+  stroke-dasharray: 3 2;
+}
+
+.highlight-edge {
+  fill: none;
+  stroke: #b54708;
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.preview-path {
+  fill: none;
+  stroke: #175cd3;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.preview-arrow {
+  fill: #175cd3;
+  stroke: #175cd3;
+  stroke-width: 1;
+}
+
+.preview-path.cyclic,
+.preview-arrow.cyclic {
+  stroke: #b42318;
+  fill: #b42318;
+}
+
 .unschedulable {
   padding: 2rem;
   color: #b42318;
@@ -247,6 +495,15 @@ const scrollTransform = computed(() => {
 
 .hint {
   color: #667085;
+  font-size: 0.85rem;
+}
+
+.cycle-list {
+  max-height: 40vh;
+  overflow: auto;
+  margin: 0.25rem 0;
+  padding-left: 1.5rem;
+  color: #b42318;
   font-size: 0.85rem;
 }
 </style>

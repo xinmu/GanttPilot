@@ -78,6 +78,9 @@ export default [
         File: 'readonly',
         Blob: 'readonly',
         Event: 'readonly',
+        // G5 的手势接线需要事件类型（`MouseEvent` / `KeyboardEvent`）。
+        MouseEvent: 'readonly',
+        KeyboardEvent: 'readonly',
         HTMLElement: 'readonly',
         HTMLInputElement: 'readonly',
         SVGSVGElement: 'readonly',
