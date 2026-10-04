@@ -15,6 +15,8 @@
     "test": "vitest run",
     "build": "pnpm -r --if-present build",
     "gate": "node scripts/gate.mjs",
+    "docs:check": "node scripts/check-docs.mjs",
+    "docs:index": "node scripts/make-doc-index.mjs",
     "sample:cyclic": "node scripts/make-sample.mjs",
     "license:check": "node scripts/check-licenses.mjs --prod",
     "license:check:all": "node scripts/check-licenses.mjs --all",

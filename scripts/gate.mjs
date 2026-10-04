@@ -30,6 +30,9 @@ const STEPS = [
   { name: 'test', args: ['test'] },
   { name: 'build', args: ['build'] },
   { name: 'license:check', args: ['license:check'] },
+  // 文档结构检查放最后：它最便宜，但只有在工作区内容确定之后判定才有意义
+  // （检查的是磁盘上的链接、锚点、台账与体量，规范见 docs/DOC-SPEC.md）。
+  { name: 'docs:check', args: ['docs:check'] },
 ];
 
 for (const [index, step] of STEPS.entries()) {
@@ -56,4 +59,4 @@ for (const [index, step] of STEPS.entries()) {
   }
 }
 
-console.log('\n[gate] 全部通过：lint / typecheck / test / build / license:check。');
+console.log('\n[gate] 全部通过：lint / typecheck / test / build / license:check / docs:check。');

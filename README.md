@@ -214,9 +214,16 @@ pnpm gate           # lint → typecheck → test → build → license:check（
 
 ## 文档约定
 
-- **文档不做版本号另存**（不使用 `-v2`、`-第二轮` 之类的文件名）：内容修订由 **git 历史**承担，裁决类信息进 `裁决记录.md` 并按时间追加；
+- **文档不做版本号另存**（不使用 `-v2`、`-第二轮` 之类的文件名）：内容修订由 **git 历史**承担；
+- **文档分五层、同类信息只有一处权威陈述**：导航入口 [docs/README.md](docs/README.md)、
+  分层规范 [docs/DOC-SPEC.md](docs/DOC-SPEC.md)（权威裁决 `P-27`）。**会话交接/上下文注入建议只读三份**：
+  [docs/README.md](docs/README.md)、[裁决记录台账](docs/00-baseline/裁决记录.md)、
+  [首版-文档索引](docs/01-roadmap/首版-文档索引.md)（`pnpm docs:index` 生成）；
+- **裁决登记**只在 [裁决记录](docs/00-baseline/裁决记录.md)（唯一权威登记处，只追加条目行），
+  逐轮细则在按轮次存档 `docs/00-baseline/裁决R*.md`（**一轮一份、只追加、不重写**；该例外由 P-27 授权）；
 - 文件名只表达**主题与稳定性**，不表达版本；
-- 架构决策写成 ADR 放 `docs/02-adr/`，按 `NNNN-主题.md` 编号；
+- 架构决策写成 ADR 放 `docs/02-adr/`，按 `NNNN-主题.md` 编号；实现记录与逐轮增补进 `docs/02-adr/附录/`；
+- **文档结构进 `pnpm gate`**（`pnpm docs:check`：链接 / 锚点 / 台账格式 / 存档覆盖 / 体量上限 / 策略不变量）；
 - `packages/*`（engine / xlsx-protocol / render-core / pptx-renderer）各自独立 semver、MIT 协议；`apps/web` 为私有应用包。
 
 ## License

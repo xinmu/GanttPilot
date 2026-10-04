@@ -1,0 +1,238 @@
+{
+  "$comment": "文档索引与体量上限：唯一真相源。由 scripts/check-docs.mjs 判定（pnpm docs:check）。角色定义与规则见 docs/DOC-SPEC.md。改动本文件等于改变门禁口径。",
+  "caps": {
+    "registerEntry": 40,
+    "registerArchive": 60,
+    "contract": 60,
+    "plan": 60,
+    "record": 80,
+    "baseline": 80,
+    "evidence": 80,
+    "spec": 60,
+    "root": 80
+  },
+  "archivePrefix": "裁决R",
+  "register": "docs/00-baseline/裁决记录.md",
+  "docs": [
+    {
+      "path": "docs/DOC-SPEC.md",
+      "role": "baseline",
+      "cap": "root",
+      "note": "文档分层与检查规范（本文件不是契约）"
+    },
+    {
+      "path": "docs/README.md",
+      "role": "baseline",
+      "cap": "root",
+      "note": "文档导航入口"
+    },
+    {
+      "path": "docs/00-baseline/裁决记录.md",
+      "role": "register",
+      "cap": "registerEntry",
+      "note": "唯一权威登记处：条目表 + 轮次导读表"
+    },
+    {
+      "path": "docs/00-baseline/裁决R01-02.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R03-06.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R07-12.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R13-15.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R16-18.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R19-21.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R22-23.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R24-26.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R27.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/需求基线.md",
+      "role": "baseline",
+      "cap": "baseline",
+      "note": "原文提取 + 状态标注；不是当前生效值"
+    },
+    {
+      "path": "docs/00-baseline/评估报告.md",
+      "role": "baseline",
+      "cap": "baseline",
+      "note": "带日期的历史评估记录"
+    },
+    {
+      "path": "docs/00-baseline/证伪实验计划.md",
+      "role": "baseline",
+      "cap": "baseline",
+      "note": "spike 协议与门禁"
+    },
+    {
+      "path": "docs/01-roadmap/首版能力顺序.md",
+      "role": "plan",
+      "cap": "plan",
+      "note": "能力边界、出口条件与延后规则"
+    },
+    {
+      "path": "docs/01-roadmap/首版-待定清单.md",
+      "role": "plan",
+      "cap": "plan",
+      "note": "全仓唯一未决项清单"
+    },
+    {
+      "path": "docs/01-roadmap/首版-文档索引.md",
+      "role": "plan",
+      "cap": "plan",
+      "generated": "node scripts/make-doc-index.mjs"
+    },
+    {
+      "path": "docs/01-roadmap/首版-记录-归档-G0-G3.md",
+      "role": "record",
+      "cap": "record"
+    },
+    {
+      "path": "docs/01-roadmap/首版-记录-归档-G4-G5.md",
+      "role": "record",
+      "cap": "record"
+    },
+    {
+      "path": "docs/01-roadmap/首版-记录-G5.md",
+      "role": "record",
+      "cap": "record",
+      "note": "G5 的落地动作与批次 A/D 四轮返工史"
+    },
+    {
+      "path": "docs/01-roadmap/首版-记录-G6-G8.md",
+      "role": "record",
+      "cap": "record"
+    },
+    {
+      "path": "docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md",
+      "role": "contract",
+      "cap": "contract"
+    },
+    {
+      "path": "docs/02-adr/0002-文档模型与序列化契约.md",
+      "role": "contract",
+      "cap": "contract"
+    },
+    {
+      "path": "docs/02-adr/0003-命令层与事务契约.md",
+      "role": "contract",
+      "cap": "contract"
+    },
+    {
+      "path": "docs/02-adr/0004-排程契约.md",
+      "role": "contract",
+      "cap": "contract"
+    },
+    {
+      "path": "docs/02-adr/0005-排程内核落地补齐与结果形状.md",
+      "role": "contract",
+      "cap": "contract"
+    },
+    {
+      "path": "docs/02-adr/0006-xlsx-协议契约.md",
+      "role": "contract",
+      "cap": "contract"
+    },
+    {
+      "path": "docs/02-adr/0007-渲染几何与裁剪契约.md",
+      "role": "contract",
+      "cap": "contract"
+    },
+    {
+      "path": "docs/02-adr/0008-列身份所有权与拖拽交互契约.md",
+      "role": "contract",
+      "cap": "contract"
+    },
+    {
+      "path": "docs/02-adr/附录/0007-增补.md",
+      "role": "record",
+      "cap": "record",
+      "note": "P-23/P-24/P-25 的增补节与落地段"
+    },
+    {
+      "path": "docs/02-adr/附录/0008-增补.md",
+      "role": "record",
+      "cap": "record",
+      "note": "P-22/P-24/P-25 的增补节与落地段"
+    },
+    {
+      "path": "packages/engine/SCHEMA.md",
+      "role": "spec",
+      "cap": "spec"
+    },
+    {
+      "path": "packages/engine/COMMAND.md",
+      "role": "spec",
+      "cap": "spec"
+    },
+    {
+      "path": "packages/engine/SCHEDULE.md",
+      "role": "spec",
+      "cap": "spec"
+    },
+    {
+      "path": "packages/render-core/SPEC.md",
+      "role": "spec",
+      "cap": "spec"
+    },
+    {
+      "path": "packages/xlsx-protocol/PROTOCOL.md",
+      "role": "spec",
+      "cap": "spec"
+    },
+    {
+      "path": "README.md",
+      "role": "baseline",
+      "cap": "root"
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "role": "baseline",
+      "cap": "root"
+    }
+  ],
+  "linkCheckAllowlist": [
+    {
+      "pathRegex": "^(docs/00-baseline/证伪实验计划\\.md|docs/00-baseline/裁决R.*\\.md|packages/render-core/src/(clipping\\.spec|manifest)\\.ts)$",
+      "targetRegex": "^(\\.\\./\\.\\./)?spikes/g0-s4-svg-clipping/",
+      "reason": "G4-S 探针目录已随 G4 落地删除（裁决 P-18）；这一族引用分布在证伪实验计划、按轮次存档与 render-core 的注释里，属存量失效，正文不改写"
+    },
+    {
+      "pathRegex": "^docs/00-baseline/裁决R.*\\.md$",
+      "targetRegex": "apps/web/src/(shared|edit)\\.ts$",
+      "reason": "这两个文件已由 P-20 的迁落点删除（逻辑迁入 packages/render-core）；存档里的历史引用保留原样"
+    }
+  ],
+  "pendingList": "docs/01-roadmap/首版-待定清单.md"
+}
