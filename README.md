@@ -88,6 +88,14 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
   见 [G0-S-S2 结论](spikes/g0-s2-xlsx-roundtrip/结论.md)）；**Microsoft Excel 与 Google Sheets 未经验证**，
   因此**不承诺**其往返行为；
 - **PPTX**：图形为原生形状（永不为位图）；若 connector 异常，降级为折线形状。
+- **持久化只保证"恢复到不早于最近检查点"**（G6）：浏览器杀进程不触发 `beforeunload`，
+  因此活下来的是**最后一次已完成的写入**（自动保存的去抖上限是 5 s，丢失窗口 ≈ 一个写入周期）——
+  不是"崩溃前最后一步"；检查点是"那份最新状态被写坏时的可恢复点"，不是额外的实时保障；
+- **会话锚点、滚动位置与档位不跨会话恢复**（G6，[ADR 0009 §6](docs/02-adr/0009-持久化契约.md)）：
+  锚点是拖动期的临时意图，持久化它会让"所见"与"文档事实"分叉，滚动位置与档位属视图状态；
+- **多标签页只做互斥停写 + 提示**（G6）：另一个标签页在编辑同一份文档时，本标签页会停止自动保存并提示，
+  **不做合并**（多标签合并属非目标 NG-01）；
+- **存储后端是 IndexedDB**（G6）：不可用时降级为"本次会话不自动保存"并提示，编辑与撤销重做不受影响。
 
 ## 文档
 
@@ -113,6 +121,11 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [架构决策记录](docs/02-adr/0006-xlsx-协议契约.md) | ADR 0006（G3 的开工前置，**冻结面**）：9 列契约、单元格容差闭集、公式只读缓存值、双解析优先级、协议层诊断码表、成环边丢弃顺序、导出物白名单与确定性判据、依赖与动态导入、验证门禁 |
 | [架构决策记录](docs/02-adr/0007-渲染几何与裁剪契约.md) | ADR 0007（G4 的开工前置，**冻结面**）：几何真相源与包边界（`packages/render-core`）、时间轴与 x 坐标（自然日连续 + 右边界规则）、行模型与折叠渲染、路由折点参数、裁剪四条与元素预算、验证矩阵与门禁分层、明确不做；**§11 数值已由 G4-S 回填**（+ 三条口径澄清） |
 | [架构决策记录](docs/02-adr/0008-列身份所有权与拖拽交互契约.md) | ADR 0008（G5）：**列身份所有权的反转**（`engine ← render-core ← xlsx-protocol`，依据 P-19 §5 ② 的候选 A）+ **拖拽与撤销的交互契约**（三语义判定区与命令映射、吸附会话锚点与生命周期、`吸附`/`允许` 两模式与冲突判据、建线与检环、成环高亮、诊断清单的受控收口、撤销单元、`c₄` 与门禁/记录制分层） |
+| [架构决策记录](docs/02-adr/0009-持久化契约.md) | ADR 0009（G6 的开工前置，**冻结面**）：落盘的是"基线快照 + 其后的增量"（`rev` 与 `undoDepth` 双口径）、`SnapshotStore` 接口与失败码闭集、恢复优先级与三道守卫、多标签互斥停写、以及"杀进程能恢复到哪一刻"的诚实口径 |
+| [持久化规范](packages/engine/PERSISTENCE.md) | `@ganttpilot/engine` 的持久化落地说明：数值常量（5 min / 200 步 / 保留 3 份 / 配额降级 1 份）、公共 API、**实现不变量**与验证矩阵 |
+| [持久化拖拽证据](apps/web/evidence/persist-drag-timing-chrome154.md) | **开/关自动保存两组同尺**的拖拽帧预算（记录制）：由 `node scripts/measure-render.mjs --persist-drag` 采集——帧间隔 p95、拖动期写入次数（期望 0）、松手 → 落盘 |
+| [存储占用证据](apps/web/evidence/persist-storage-2000-chrome154.md) | **2,000 任务**的存储占用与写入耗时（记录制）：由 `node scripts/measure-render.mjs --storage-metrics` 采集——整份文档体积/序列化耗时、增量记录体积、单条 `put` p50/p95、`estimate()` 用量 |
+| [`scroll` 敏感量盘点](apps/web/evidence/scroll-consumers-audit.md) | G6 开工前置的**只读**盘点（P-25/P-32）：13 处"消费者自己换算坐标"的位置逐条给出基准，结论"加法点恰好 1 个"，不变量落 [render-core 规范](packages/render-core/SPEC.md) §九 |
 | [拖动计时证据](apps/web/evidence/drag-timing-chrome152.md) | **打包产物**的拖动实测（记录制，不进 `pnpm gate`）：由 `node scripts/measure-render.mjs --drag` 采集——帧间隔 p50/p95、主线程同步工作量、松手 → 重算 + 冲突标记、下游跟随的 DOM 证据，以及**位移判据**（松手后 `startDate` = 按下时的开始序号 + 天数） |
 | [导入记录制证据](apps/web/evidence/import-cyclic-sample-chrome152.md) | **成环样本**的导入实测（记录制）：由 `node scripts/make-sample.mjs` + `node scripts/measure-render.mjs --import=<xlsx>` 采集——6 任务 / 5 依赖 / 恰 1 条 `XLSX_CYCLE_EDGE_DROPPED`（带成环路径）/ 无"不可排程" |
 | G4-S 准入定标实验 | `S4-a`…`S4-d` 判定、ADR §11 回填值、浏览器首屏与滚动实测、P-8 遗留 1/2 的 WPS 实测。**探针目录已随 G4 落地删除**（[裁决 P-18](docs/00-baseline/裁决记录.md)），复现入口见 [render-core 规范](packages/render-core/SPEC.md) 与 [`scripts/measure-render.mjs`](scripts/measure-render.mjs) |
@@ -145,7 +158,7 @@ tools/xlsx-reference     xlsx 协议的独立 Python 参照实现（openpyxl，�
 
 ```bash
 pnpm install        # 顺带通过 prepare 钩子设置 core.hooksPath=.husky
-pnpm gate           # lint → typecheck → test → build → license:check（实测约 12 秒，含差分）
+pnpm gate           # lint → typecheck → test → build → smoke:build → license:check → docs:check
 ```
 
 - `pnpm install` 后 `.husky/pre-push` 生效：**门禁任一步失败即阻断推送**；
@@ -163,6 +176,24 @@ pnpm gate           # lint → typecheck → test → build → license:check（
   与 [`tools/xlsx-reference/`](tools/xlsx-reference/README.md) 的独立 **openpyxl** 参照实现互读
   （openpyxl 写 → JS 读、JS 写 → openpyxl 读）。该步**需要 Python 3 与 `openpyxl==3.1.5`，
   缺失时失败而不是跳过**（[ADR 0006](docs/02-adr/0006-xlsx-协议契约.md) §12）。
+- **门禁含打包产物冒烟**（G6 落地）：`pnpm smoke:build` 用 HTTP 伺服 `apps/web/dist/`、
+  以无头 Chrome 打开，并断言**没有应用级错误、界面真的渲染了**（标题 / 工具栏 / 图表窗格 / SVG /
+  状态栏的持久化那一栏）。它补的是一个真实缺口：**此前没有任何门禁碰过 `dist/`**，于是
+  "产物能不能起来"全靠人记得看一眼（维护者的报文「打开 `dist/index.html` 空白」暴露了它）。
+  该步**需要本机 Chrome，缺失时失败而不是跳过**；用 `GANTTPILOT_CHROME=<path>` 指定。
+
+## 预览与人工复验（**打包产物口径**）
+
+人工复验一律取**打包产物**口径（`pnpm dev` 只用于开发，它的数字不进证据）：
+
+```bash
+pnpm build      # 产出 apps/web/dist/
+pnpm preview    # 起一个本地静态服务器（Vite preview），按它打印的 URL 打开
+```
+
+> **不要直接打开 `apps/web/dist/index.html`**：那会走 `file://` 协议，而浏览器
+> **拒绝在 `file://` 下加载 ES module**（CORS）⇒ 页面会**空白**。产物没坏，是打开方式不对。
+> 这条口径有门禁兜底：`pnpm smoke:build` 就是"用 HTTP 打开产物并断言它真的起来了"。
 
 三条铁律中"三包零框架/零 DOM 依赖"已可执行化：`pnpm lint` 会拦下三包内的框架 import 与 DOM 全局，
 `pnpm test` 里的护栏自检会证明这些规则确实生效（见 `packages/engine/src/boundary.spec.ts`）。

@@ -56,6 +56,7 @@
 | Node | **24 LTS**（`engines: >=24.0.0`；仓库根的 `.nvmrc` 写的也是 24）。更新的版本（如 26）实测可用，但 CI 与发布以 24 为准 |
 | 包管理器 | pnpm（`packageManager: pnpm@10.34.6`，经 corepack 或全局安装均可） |
 | 系统 | Windows / macOS / Linux 均可；门禁脚本刻意避开平台特定的可执行包装 |
+| Chrome | **本机 Chrome（G6 起必需）**：`pnpm gate` 里的 `smoke:build` 要用它打开**打包产物**并断言界面真的渲染了（此前没有任何门禁碰过 `dist/`）。缺失即失败、不跳过；用 `GANTTPILOT_CHROME=<path>` 指定 |
 | Python | **3.x（G2 起必需）**：只有**差分测试**用得到——G2 与 `tools/cpm-reference/` 的独立参照实现比对；**G3 起**另与 `tools/xlsx-reference/` 比对，需 **`openpyxl==3.1.5`**（`pip install openpyxl==3.1.5`）。门禁中**缺失即失败，不静默跳过**（[裁决 P-12](docs/00-baseline/裁决记录.md) / [ADR 0004](docs/02-adr/0004-排程契约.md) §9 / [ADR 0006](docs/02-adr/0006-xlsx-协议契约.md) §12） |
 
 首次准备：
@@ -69,7 +70,7 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 
 | 命令 | 作用 |
 |---|---|
-| `pnpm gate` | **本地合并门禁**：lint → typecheck → test → build → license:check，任一步失败即阻断 |
+| `pnpm gate` | **本地合并门禁**：lint → typecheck → test → build → smoke:build → license:check → docs:check，任一步失败即阻断 |
 | `pnpm lint` | ESLint（含三包零框架/零 DOM 铁律） |
 | `pnpm typecheck` | `tsc --noEmit`（包）与 `vue-tsc --noEmit`（应用） |
 | `pnpm test` | Vitest（纯函数测试）；缩小范围用 `pnpm vitest run packages/engine`（从仓库根执行） |
@@ -86,7 +87,11 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 | `pnpm license:check` | 运行时依赖许可门禁（`--prod` 口径） |
 | `pnpm license:check:all` | 全域口径（含开发依赖，检查是否出现未登记许可） |
 | `pnpm notices:write` | 刷新 `THIRD_PARTY_NOTICES.md`（生成物，需一并提交） |
-| `pnpm dev` | 启动 `apps/web` 开发服务器 |
+| `pnpm dev` | 启动 `apps/web` 开发服务器（**开发用；数字不进证据**） |
+| `pnpm build` + `pnpm preview` | **预览打包产物**（人工复验口径）：先构建，再用 HTTP 服务器打开。**不要直接打开 `dist/index.html`**——`file://` 下浏览器拒绝加载 ES module（CORS）⇒ 页面空白 |
+| `pnpm smoke:build` | **打包产物冒烟**（**进 `pnpm gate`**）：HTTP 伺服 `dist/` + 无头 Chrome 断言"无应用级错误 + 标题/工具栏/图表窗格/SVG/状态栏那几处都渲染了" |
+| `node scripts/measure-render.mjs --persist-drag` | **G6 持久化拖拽测量**（记录制）：开/关自动保存**两组同尺**，写帧间隔 p95、拖动期写入次数（期望 0）、松手 → 落盘，写 `apps/web/evidence/persist-drag-timing-chrome<大版本>.md` |
+| `node scripts/measure-render.mjs --storage-metrics` | **G6 存储测量**（记录制，**2,000 任务**）：整份文档体积/序列化耗时、增量记录体积、单条 `put` p50/p95、`estimate()` 用量，写 `apps/web/evidence/persist-storage-2000-chrome<大版本>.md` |
 
 ## 铁律（以可执行检查保证，不是口头约定）
 
