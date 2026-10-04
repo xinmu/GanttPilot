@@ -78,8 +78,10 @@ export default [
         File: 'readonly',
         Blob: 'readonly',
         Event: 'readonly',
-        // G5 的手势接线需要事件类型（`MouseEvent` / `KeyboardEvent`）。
+        // G5 的手势接线需要事件类型（`MouseEvent` / `KeyboardEvent` / `PointerEvent`）。
         MouseEvent: 'readonly',
+        // 拖动建线的**指针捕获**（`setPointerCapture`）需要它：`Apps/web` 是 DOM 的唯一合法落点。
+        PointerEvent: 'readonly',
         KeyboardEvent: 'readonly',
         HTMLElement: 'readonly',
         HTMLInputElement: 'readonly',

@@ -374,9 +374,34 @@ function onMouseMoveHint(event: MouseEvent): void {
   pane.style.cursor = hint;
 }
 
+/**
+ * **指针捕获**（第四次人工复验的修法之二）：在 `pointerdown` 时把指针捕获到窗格上。
+ *
+ * 捕获之后，浏览器把**后续所有** `pointermove`/`pointerup` 都派发给该元素，
+ * 与"指针下面现在是哪个元素""那些元素有没有被重建"完全无关——
+ * 这正是拖动建线需要的行为（拖动期行元素会因为连接点显形/消失被 Vue 重建）。
+ * 用 `try` 包住：合成事件（记录制脚本）没有真实指针，`setPointerCapture` 会抛。
+ */
+function onPanePointerDown(event: PointerEvent): void {
+  const pane = paneRef.value;
+  if (pane === null || event.button !== 0) return;
+  try {
+    pane.setPointerCapture(event.pointerId);
+  } catch {
+    // 合成事件没有可捕获的指针：忽略（拖动仍由 window 级 mousemove 兜住）。
+  }
+}
+
 function onChartPointerDown(event: MouseEvent): void {
   if (event.button !== 0) return;
-  const pointer = pointerFrom(event);
+  /**
+   * **必须阻止原生行为**（第四次人工复验的修法）。
+   *
+   * 不阻止时 `mousedown` 会启动浏览器的**文本选择**（实测事件顺序 `mousedown → selectstart → mousemove …`），
+   * 随后 `mousemove` 不再按窗格路径派发：实测"按下之后只收到 1 次移动"，
+   * 表现即"能从连接点起手势、但拖不出线"（`mouseup` 同样收不到，连接预览停住不动）。
+   */
+  event.preventDefault();  const pointer = pointerFrom(event);
   if (pointer === null) return;
   const entry = linkEntryOf(pointer);
   gesture.onPointerDown(entry === null ? { pointer } : { pointer, entryPoint: entry });
@@ -422,6 +447,17 @@ function clearHover(): void {
 /** 窗格 `mousemove` 的**唯一入口**（模板上只能有一个 `@mousemove`，否则 Vue 报重复属性）。 */
 function onChartMouseMove(event: MouseEvent): void {
   if (gesture.state.value.kind === 'idle') onMouseMoveHint(event);
+  onChartPointerMove(event);
+}
+
+/**
+ * 手势期的 `mousemove` 同时挂在 `window` 上（与 `mouseup` 同一手法，第二道保险）。
+ *
+ * 拖动期行的 `<g>` 会因为"指针所在行"改变（连接点按需显形）被 Vue 重建，
+ * 绑在窗格路径上的派发可能随之中断；挂 `window` 不依赖任何行元素的生命周期。
+ */
+function onWindowPointerMove(event: MouseEvent): void {
+  if (gesture.state.value.kind === 'idle') return;
   onChartPointerMove(event);
 }
 
@@ -661,10 +697,12 @@ onMounted(() => {
 onMounted(() => {
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('mouseup', onWindowPointerUp);
+  window.addEventListener('mousemove', onWindowPointerMove);
 });
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown);
   window.removeEventListener('mouseup', onWindowPointerUp);
+  window.removeEventListener('mousemove', onWindowPointerMove);
 });
 </script>
 
@@ -732,6 +770,7 @@ onUnmounted(() => {
             @scroll="chart.handleScroll()"
             @mousemove="onChartMouseMove"
             @mouseleave="clearHover"
+            @pointerdown="onPanePointerDown"
             @mousedown="onChartPointerDown"
           >
             <div
