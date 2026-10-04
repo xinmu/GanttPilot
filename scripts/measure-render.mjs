@@ -481,7 +481,7 @@ function renderDragEvidence({ env, result, options }) {
     lines.push(`| 模型手柄条数 | ${String(handleSample.modelHandles)} | 与 \`rowHandlesFor\` 同源 | — |`);
     lines.push(`| DOM 连接点条数（指针所在行） | ${String(handleSample.domConnectPoints)} | = 2（**按需显形**） | ${handleSample.domConnectPoints === 2 ? '✅' : '❌'} |`);
     lines.push(`| 模型连接点条数（全部渲染行） | ${String(handleSample.modelConnectPoints)} | 与 \`rowHandlesFor\` 同源 | — |`);
-    lines.push(`| 采样到的连接点左缘 | ${handleSample.connectLeftEdge === null ? '—' : String(handleSample.connectLeftEdge)} | 在条端**外侧**（复验第 3.1 条的订正） | ${handleSample.connectLeftEdge === null ? '❌' : '✅'} |`);
+    lines.push(`| 采样到的连接点左缘 | ${handleSample.connectLeftEdge === null ? '—' : String(handleSample.connectLeftEdge)} | = 条右缘 − CONNECT_INSET_PX（**跨在条端上**） | ${handleSample.connectLeftEdge === null ? '❌' : '✅'} |`);
     lines.push(`| 条体中部光标 | \`${String(handleSample.cursorOnBar)}\` | = \`move\` | ${handleSample.cursorOnBar === 'move' ? '✅' : '❌'} |`);
     lines.push(`| 端点手柄处光标 | \`${String(handleSample.cursorOnEdge)}\` | = \`col-resize\` | ${handleSample.cursorOnEdge === 'col-resize' ? '✅' : '❌'} |`);
     lines.push(`| 连接点处光标 | \`${String(handleSample.cursorOnConnect)}\` | = \`crosshair\` | ${handleSample.cursorOnConnect === 'crosshair' ? '✅' : '❌'} |`);
@@ -489,8 +489,8 @@ function renderDragEvidence({ env, result, options }) {
   }
   lines.push('');
   lines.push('> 采样点的 x **从 DOM 属性读**（不在这里重算公式）：端点手柄画在**判定区边界**上，');
-  lines.push('> 与条形的端相差 `edgePx`（宽条 6 px）；连接点则**贴住条端向外伸**（`[xRight, xRight + CONNECT_SIZE_PX]`）');
-  lines.push('> ——"看得见的方块一定点得中"（P-32 人工复验第 3.1/3.3 条的订正）。');
+  lines.push('> 与条形的端相差 `edgePx`（宽条 6 px）；连接点则**跨在条端上**（`[xRight − CONNECT_INSET_PX, xRight − CONNECT_INSET_PX + CONNECT_SIZE_PX]`）');
+  lines.push('> ——"看得见的方块一定点得中"（P-32 第三次复验把命中区扩到"方块本身 + 外侧 `CONNECT_HIT_PAD_PX`"，实测可用宽度 14 → 20 px）。');
   lines.push('> 这三条是**入口层**性质（手柄是否在、光标是否分三类、连接点是否真的起建线），');
   lines.push('> 纯函数判据在 `interaction.spec.ts`（进 `pnpm gate`），这里只采打包产物上的真实 DOM。');
   lines.push('');

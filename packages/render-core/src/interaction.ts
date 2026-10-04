@@ -39,6 +39,8 @@ import {
   type PointerInput,
 } from './gesture.js';
 import {
+  CONNECT_HIT_PAD_PX,
+  CONNECT_INSET_PX,
   CONNECT_REVEAL_FACTOR,
   CONNECT_SIZE_PX,
   HANDLE_HEIGHT_PX,
@@ -192,7 +194,7 @@ export interface PointerGeometryArgs {
  * **"看得见的方块一定点得中"**：命中区 = 方块本身 ± 外缘的 `HIT_TOLERANCE_PX`（见 {@link connectSideAt}）。
  */
 export function connectLeftEdgeFor(bounds: { readonly xLeft: number; readonly xRight: number }, side: 'left' | 'right'): number {
-  return side === 'right' ? bounds.xRight : bounds.xLeft - CONNECT_SIZE_PX;
+  return side === 'right' ? bounds.xRight - CONNECT_INSET_PX : bounds.xLeft + CONNECT_INSET_PX - CONNECT_SIZE_PX;
 }
 
 /**
@@ -211,10 +213,12 @@ export function connectLeftEdgeFor(bounds: { readonly xLeft: number; readonly xR
  * （P-32 的人工复验第 3.3 条）。
  */
 export function connectSideAt(bounds: TaskBounds, x: number): 'left' | 'right' | null {
-  if (x >= bounds.xRight - HIT_TOLERANCE_PX && x <= bounds.xRight + CONNECT_SIZE_PX + HIT_TOLERANCE_PX) {
+  // 右点：可见方块 `[xRight − INSET, xRight − INSET + SIZE]`，命中区再向外补 `PAD`。
+  if (x >= bounds.xRight - CONNECT_INSET_PX && x <= bounds.xRight - CONNECT_INSET_PX + CONNECT_SIZE_PX + CONNECT_HIT_PAD_PX) {
     return 'right';
   }
-  if (x >= bounds.xLeft - CONNECT_SIZE_PX - HIT_TOLERANCE_PX && x <= bounds.xLeft + HIT_TOLERANCE_PX) {
+  // 左点镜像。
+  if (x >= bounds.xLeft + CONNECT_INSET_PX - CONNECT_SIZE_PX - CONNECT_HIT_PAD_PX && x <= bounds.xLeft + CONNECT_INSET_PX) {
     return 'left';
   }
   return null;
@@ -232,8 +236,10 @@ export function connectSideAt(bounds: TaskBounds, x: number): 'left' | 'right' |
 export function connectRevealFor(bounds: TaskBounds, x: number): boolean {
   const reach = HIT_TOLERANCE_PX * CONNECT_REVEAL_FACTOR;
   return (
-    (x >= bounds.xRight - reach && x <= bounds.xRight + CONNECT_SIZE_PX + reach) ||
-    (x >= bounds.xLeft - CONNECT_SIZE_PX - reach && x <= bounds.xLeft + reach)
+    (x >= bounds.xRight - CONNECT_INSET_PX - reach &&
+      x <= bounds.xRight - CONNECT_INSET_PX + CONNECT_SIZE_PX + CONNECT_HIT_PAD_PX + reach) ||
+    (x >= bounds.xLeft + CONNECT_INSET_PX - CONNECT_SIZE_PX - CONNECT_HIT_PAD_PX - reach &&
+      x <= bounds.xLeft + CONNECT_INSET_PX + reach)
   );
 }
 

@@ -233,18 +233,33 @@ export const HANDLE_WIDTH_PX = 2;
 export const HANDLE_HEIGHT_PX = 4;
 
 /**
- * 连接点的边长（px）——ADR 0008 §16.2/§16.3（裁决 P-32）。
+ * 连接点的边长（px）——ADR 0008 §16.2/§16.3（裁决 P-32，**尺寸由第三次人工复验回填**）。
  *
- * **位置规则（修订 §16.2 的 "gap" 写法）**：连接点的**内缘与条端对齐**，整体向**外**伸——
- * 右点 = `[xRight, xRight + CONNECT_SIZE_PX]`（x 属性 = `xRight`）、
- * 左点 = `[xLeft − CONNECT_SIZE_PX, xLeft]`（x 属性 = `xLeft − CONNECT_SIZE_PX`）。
+ * **位置规则**：连接点**跨在条端上**——右点 = `[xRight − CONNECT_INSET_PX, xRight + CONNECT_SIZE_PX − CONNECT_INSET_PX]`
+ * （x 属性 = `xRight − CONNECT_INSET_PX`），左点镜像。这样它既"长在条端上"（视觉上相连、居中），
+ * 又**命中区 ⊇ 可见方块**（判据 §16.7 第三次复验）。
  *
- * 为什么改掉"间隙"：P-32 的人工复验报"两个白色方框不可点击或拖拽，没有任何作用"——
- * 视觉方块与**命中区**（`[xRight − HIT_TOLERANCE_PX, xRight + CONNECT_SIZE_PX + HIT_TOLERANCE_PX]`）
- * 本来就不重合，用户按"看到的位置"点下去必然落空。贴住条端之后，
- * **看得见的方块一定点得中**（容差只在方块的**外缘**再补 2 px）。
+ * 为什么是 12 而不是 8：8 px + 只向外补 2 px 的容差 ⇒ 命中区只有 14 px 宽，
+ * 而"从连接点按下并拖出线"需要**按住**再拖——手抖 3–4 px 就落空（第三次复验："仍不可通过拖动连接点来拉线"，
+ * 实测条端右侧 `dx = -1..+2` 全部落空）。12 px 的方块 + 外侧 4 px 容差把可用宽度提到 20 px。
  */
-export const CONNECT_SIZE_PX = 8;
+export const CONNECT_SIZE_PX = 12;
+
+/**
+ * 连接点**跨进条形内部**的像素数（px）：方块从 `xRight − CONNECT_INSET_PX` 起画。
+ *
+ * 取 2 px 的理由：① 视觉上"挂在条端"而不是浮在条外；② 与端点判定区（`DRAG_EDGE_PX = 6`）的
+ * 重叠只有 2 px ⇒ "改工期"的拖动手感不受影响。
+ */
+export const CONNECT_INSET_PX = 2;
+
+/**
+ * 连接点命中区在**方块之外**额外补的容差（px）。
+ *
+ * 与 `HIT_TOLERANCE_PX`（补手抖、判"是否落在条体上"）分工不同：本值是"按住连接点"的宽容度，
+ * 只在方块的**外侧**计算（内侧留给 `CONNECT_INSET_PX`，不再多占端点判定区）。
+ */
+export const CONNECT_HIT_PAD_PX = 4;
 
 /**
  * 连接点的**显示时机**：指针与条端的距离在 `HIT_TOLERANCE_PX × N` 内才显示

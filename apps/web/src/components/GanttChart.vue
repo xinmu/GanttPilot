@@ -258,7 +258,9 @@ const drawnRows = computed(() =>
         // 连接点**只在指针靠近该行条端时**发射（P-32 复验第 3.2 条：常显会画面杂乱）。
         // 手柄恒显（它是"可拖动区域"的暗示，且只占 2×4 px 的短竖线）。
         // 只有"指针就在这一行"时才继续判断"是否靠近条端"（`hoverX` 在两行之间漂移不会误显）。
+        // **拖动/建线期间一律不显示**：那时行画的是"结果几何"（§14），连接点会变成幽灵方块。
         connectVisible:
+          props.dragPreview === null &&
           props.hoverTaskId === row.id &&
           props.hoverX !== null &&
           rowConnectVisibleAt(row, props.hoverX, true),
@@ -329,6 +331,40 @@ const drawnRows = computed(() =>
           :key="`row-${item.row.id}`"
           :data-task-id="item.row.id"
         >
+          <!--
+            **交互图元画在条/菱形之前**（否则方块跨进条内的那 2 px 会被条盖住）——
+            第三次人工复验把连接点改成"跨在条端上"，因此顺序有了语义。
+            端点手柄（ADR 0008 §16.2／P-32 的 R3）：x = **判定区边界**（`zones.edgeL.x2` / `zones.edgeR.x1`），
+            因此它同时是"可拖动区域的视觉暗示"与"判定区本身"。全部 `pointer-events: none`：
+            命中判定走几何（`barHitFor` / `zonesFor`），不靠 DOM。
+            **把"第一个 rect"当条形是错的**——本行有 `.bar` / `.bar-progress` / `.connect-point` 多个 rect；
+            记录制与诊断一律用 `rect.bar`（P-32 落地时当场修过两处）。
+          -->
+          <line
+            v-for="handle in item.drawn.fromPreview ? [] : item.handles.handles"
+            :key="`handle-${String(item.row.id)}-${handle.side}`"
+            class="handle"
+            :x1="handle.x"
+            :x2="handle.x"
+            :y1="handle.y1"
+            :y2="handle.y2"
+          />
+
+          <!--
+            连接点（§16.3 的建线起手位置）：**跨在条端上**——从条端内 2 px 起画、向外一个边长
+            （`CONNECT_INSET_PX` / `CONNECT_SIZE_PX`），命中区 ⊇ 可见方块 + 外侧 `CONNECT_HIT_PAD_PX`。
+            只在指针靠近该行条端时发射（§16.7 第二次复验的第 3.2 条）。
+          -->
+          <rect
+            v-for="point in item.connectVisible ? item.handles.connectPoints : []"
+            :key="`connect-${String(item.row.id)}-${point.side}`"
+            class="connect-point"
+            :x="point.x"
+            :y="point.y - point.size / 2"
+            :width="point.size"
+            :height="point.size"
+            rx="2"
+          />
           <polygon
             v-if="item.drawn.isMilestone"
             class="milestone"
@@ -358,34 +394,7 @@ const drawnRows = computed(() =>
             />
           </template>
 
-          <!--
-            端点手柄（ADR 0008 §16.2／裁决 P-32 的 R3）：x = **判定区边界**（`zones.edgeL.x2` /
-            `zones.edgeR.x1`），因此它同时是"可拖动区域的视觉暗示"与"判定区本身"。
-            全部 `pointer-events: none`：命中判定走几何（`barHitFor` / `zonesFor`），不靠 DOM。
-            **表头带/其它选择器不要用"第一个 rect"取条形**——本行现在有多个 rect（`.bar` / `.bar-progress`
-            / `.connect-point`）；记录制与诊断一律用 `rect.bar`（P-32 落地时当场修过两处）。
-          -->
-          <line
-            v-for="handle in item.handles.handles"
-            :key="`handle-${String(item.row.id)}-${handle.side}`"
-            class="handle"
-            :x1="handle.x"
-            :x2="handle.x"
-            :y1="handle.y1"
-            :y2="handle.y2"
-          />
 
-          <!-- 连接点（§16.3 的建线起手位置）：条两端**外侧**，与端点手柄隔开 10 px，不抢命中 -->
-          <rect
-            v-for="point in item.connectVisible ? item.handles.connectPoints : []"
-            :key="`connect-${String(item.row.id)}-${point.side}`"
-            class="connect-point"
-            :x="point.x"
-            :y="point.y - point.size / 2"
-            :width="point.size"
-            :height="point.size"
-            rx="1.5"
-          />
         </g>
       </g>
 

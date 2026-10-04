@@ -27,6 +27,8 @@ import type { TaskBounds } from './domain.js';
 import { buildView, type ViewModel, type Viewport } from './viewModel.js';
 import { buildFixture, DATASETS } from './fixtures.js';
 import {
+  CONNECT_HIT_PAD_PX,
+  CONNECT_INSET_PX,
   CONNECT_SIZE_PX,
   DRAG_EDGE_PX,
   HANDLE_HEIGHT_PX,
@@ -250,12 +252,13 @@ describe('端点手柄与连接点（ADR 0008 §16.2／裁决 P-32 的 R3）', (
     const right = handles.connectPoints.find((item) => item.side === 'right');
     const left = handles.connectPoints.find((item) => item.side === 'left');
     if (right === undefined || left === undefined) throw new Error('连接点缺失');
-    // **内缘贴条端、整体向外伸**（P-32 人工复验第 3.1 条的订正）：方块一定在条的外侧，
+    // **跨在条端上**（第三次复验的订正）：方块从条端**内** 2 px 起画、向外伸一个边长，
     // 且竖向与条**同中心**（不是"靠上"）。
     expect(right.x).toBe(connectLeftEdgeFor(wideBar, 'right'));
-    expect(right.x).toBe(wideBar.xRight);
+    expect(right.x).toBe(wideBar.xRight - CONNECT_INSET_PX);
+    expect(right.x + CONNECT_SIZE_PX).toBe(wideBar.xRight - CONNECT_INSET_PX + CONNECT_SIZE_PX);
     expect(left.x).toBe(connectLeftEdgeFor(wideBar, 'left'));
-    expect(left.x).toBe(wideBar.xLeft - CONNECT_SIZE_PX);
+    expect(left.x + CONNECT_SIZE_PX).toBe(wideBar.xLeft + CONNECT_INSET_PX);
     expect(right.x).toBeGreaterThan(handles.handles[1]?.x ?? 0);
     expect(left.x + CONNECT_SIZE_PX).toBeLessThan(handles.handles[0]?.x ?? 0);
     // 竖向中心 = 条形中心（`bounds.y`），不是行顶——这正是复验第 3.1 条"显示靠上"的修法。
@@ -263,24 +266,27 @@ describe('端点手柄与连接点（ADR 0008 §16.2／裁决 P-32 的 R3）', (
     expect(left.y).toBe(wideBar.y);
   });
 
-  it('`connectSideAt`：**看得见的方块一定点得中**（内缘只留容差、外侧覆盖方块）', () => {
-    const rightX = wideBar.xRight;
-    const leftX = wideBar.xLeft - CONNECT_SIZE_PX;
+  it('`connectSideAt`：**可见方块的每一处都点得中**，且只向外多补 `CONNECT_HIT_PAD_PX`', () => {
+    const size = CONNECT_SIZE_PX;
+    const inset = CONNECT_INSET_PX;
+    const pad = CONNECT_HIT_PAD_PX;
+    const rightOuter = wideBar.xRight - inset + size;
+    const leftOuter = wideBar.xLeft + inset - size;
     // 方块本身的每一处（内缘、中点、外缘）都必须命中。
-    expect(connectSideAt(wideBar, rightX)).toBe('right');
-    expect(connectSideAt(wideBar, rightX + CONNECT_SIZE_PX / 2)).toBe('right');
-    expect(connectSideAt(wideBar, rightX + CONNECT_SIZE_PX)).toBe('right');
-    // 外侧再补 `HIT_TOLERANCE_PX`；再远就不是它了。
-    expect(connectSideAt(wideBar, rightX + CONNECT_SIZE_PX + HIT_TOLERANCE_PX)).toBe('right');
-    expect(connectSideAt(wideBar, rightX + CONNECT_SIZE_PX + HIT_TOLERANCE_PX + 0.5)).toBeNull();
-    expect(connectSideAt(wideBar, leftX)).toBe('left');
-    expect(connectSideAt(wideBar, leftX - HIT_TOLERANCE_PX)).toBe('left');
-    expect(connectSideAt(wideBar, leftX - HIT_TOLERANCE_PX - 0.5)).toBeNull();
-    // **内侧只留 `HIT_TOLERANCE_PX`**：再往里就是端点判定区（拖动），不是建线。
-    expect(connectSideAt(wideBar, wideBar.xRight - HIT_TOLERANCE_PX)).toBe('right');
-    expect(connectSideAt(wideBar, wideBar.xRight - HIT_TOLERANCE_PX - 0.5)).toBeNull();
-    // 端点手柄的位置**不是**连接点。
-    expect(connectSideAt(wideBar, zonesFor(wideBar).edgeR?.x1 ?? 0)).toBeNull();
+    expect(connectSideAt(wideBar, wideBar.xRight - inset)).toBe('right');
+    expect(connectSideAt(wideBar, wideBar.xRight - inset + size / 2)).toBe('right');
+    expect(connectSideAt(wideBar, rightOuter)).toBe('right');
+    // 外侧再补 `pad`；再远就不是它了。
+    expect(connectSideAt(wideBar, rightOuter + pad)).toBe('right');
+    expect(connectSideAt(wideBar, rightOuter + pad + 0.5)).toBeNull();
+    expect(connectSideAt(wideBar, wideBar.xLeft + inset)).toBe('left');
+    expect(connectSideAt(wideBar, leftOuter)).toBe('left');
+    expect(connectSideAt(wideBar, leftOuter - pad)).toBe('left');
+    expect(connectSideAt(wideBar, leftOuter - pad - 0.5)).toBeNull();
+    // **内侧只到 `CONNECT_INSET_PX`**：再往里就是端点判定区（拖动），不是建线。
+    expect(connectSideAt(wideBar, wideBar.xRight - inset - 0.5)).toBeNull();
+    // 第三次复验的回归：`dx = −1..+2`（原先落空的那一段）现在必须命中。
+    for (const dx of [-1, 0, 1, 2]) expect(connectSideAt(wideBar, wideBar.xRight + dx)).toBe('right');
   });
 
   it('**竖向中心同源**（第二次人工复验的根因）：`bounds.y`（条心）与 `row.y`（行顶）是两种语义', () => {
@@ -326,10 +332,12 @@ describe('端点手柄与连接点（ADR 0008 §16.2／裁决 P-32 的 R3）', (
     expect(connectRevealFor(wideBar, wideBar.xRight)).toBe(true);
     expect(rowConnectVisibleAt(wideBar, wideBar.xRight, true)).toBe(true);
     expect(rowConnectVisibleAt(wideBar, wideBar.xRight, false)).toBe(false);
-    // 远离条端：不显形（显示区的**外缘** = 方块外缘 + `reveal`）。
+    // 远离条端：不显形（显示区的**外缘** = 方块外缘 + `pad` + `reveal`）。
     const reach = HIT_TOLERANCE_PX * 2;
-    expect(connectRevealFor(wideBar, wideBar.xRight + CONNECT_SIZE_PX + reach + 0.5)).toBe(false);
-    expect(connectRevealFor(wideBar, wideBar.xLeft - CONNECT_SIZE_PX - reach - 0.5)).toBe(false);
+    const rightOuter = wideBar.xRight - CONNECT_INSET_PX + CONNECT_SIZE_PX;
+    const leftOuter = wideBar.xLeft + CONNECT_INSET_PX - CONNECT_SIZE_PX;
+    expect(connectRevealFor(wideBar, rightOuter + CONNECT_HIT_PAD_PX + reach + 0.5)).toBe(false);
+    expect(connectRevealFor(wideBar, leftOuter - CONNECT_HIT_PAD_PX - reach - 0.5)).toBe(false);
   });
 });
 
@@ -355,10 +363,10 @@ describe('光标提示（ADR 0008 §16.2 的 R3 后半）', () => {
     expect(at(zones.edgeL?.x2 ?? 0)).toBe('col-resize');
     expect(at(zones.edgeR?.x1 ?? 0)).toBe('col-resize');
     expect(at((zones.move?.x1 ?? 0) + 1)).toBe('move');
-    expect(at(bounds.xRight + CONNECT_SIZE_PX / 2)).toBe('crosshair');
-    expect(at(bounds.xLeft - CONNECT_SIZE_PX / 2)).toBe('crosshair');
+    expect(at(bounds.xRight - CONNECT_INSET_PX + CONNECT_SIZE_PX / 2)).toBe('crosshair');
+    expect(at(bounds.xLeft + CONNECT_INSET_PX - CONNECT_SIZE_PX / 2)).toBe('crosshair');
     // 条外（远超连接点）：默认光标。
-    expect(at(bounds.xRight + CONNECT_SIZE_PX + HIT_TOLERANCE_PX + 40)).toBe('default');
+    expect(at(bounds.xRight + CONNECT_SIZE_PX + CONNECT_HIT_PAD_PX + 40)).toBe('default');
     // 行外：默认光标。
     expect(cursorForPointer({ ...args, point: { x: 100, y: -50, buttons: 1 } })).toBe('default');
   });
