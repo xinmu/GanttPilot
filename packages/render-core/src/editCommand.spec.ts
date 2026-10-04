@@ -14,11 +14,21 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { applyCommand, compute, DEFAULT_PROJECT_BASE_DAY_ISO, isoDateToDayNumber, MAX_DURATION_DAYS, type ProjectDocument } from '@ganttpilot/engine';
+import { applyCommand, applyToSession, compute, createSession, DEFAULT_PROJECT_BASE_DAY_ISO, isoDateToDayNumber, MAX_DURATION_DAYS, undoSession, type DocumentCommand, type ProjectDocument } from '@ganttpilot/engine';
 
 import { createScheduleCalendar } from './index.js';
 import { buildTextFixture, unanchoredCalendar } from './textFixtures.spec.js';
-import { collapseToCommand, derivedEndIso, editToCommand, isoOfOrdinalSafe, parseIsoInput } from './viewText.js';
+import type { ColumnKey } from './columns.js';
+import {
+  collapseToCommand,
+  derivedEndIso,
+  editToCommand,
+  isEditStale,
+  isoOfOrdinalSafe,
+  noticeAfterDispatch,
+  parseIsoInput,
+  rawCellText,
+} from './viewText.js';
 
 const fixture = buildTextFixture();
 
@@ -234,5 +244,202 @@ describe('本包不再持有任何无锚定的应用级日历（P-19 的根治�
       if (/DEFAULT_PROJECT_BASE_DAY_ISO/.test(code)) offenders.push(`${entry}:DEFAULT_PROJECT_BASE_DAY_ISO`);
     }
     expect(offenders).toStrictEqual([]);
+  });
+});
+
+/**
+ * P-21 批次 C（R5）：**编辑态"该任务该列的值真的变了才取消"**——进 `pnpm gate`。
+ *
+ * 缺陷本体（P-21 §2 的 R5）：`TaskTable` 原先 `watch(revision) → cancelEdit()`，
+ * 于是**任何**版本变化都会把用户正在输入的草稿丢掉，"编辑态优先"（ADR 0008 §10）事实上不成立；
+ * 而这条判定**此前没有任何判据**（`apps/web` 不在 `vitest.config.ts` 的收集范围内）。
+ *
+ * 因此可判定的部分落进本包：`rawCellText`（该任务该列的**原始字段**文本，替代左表私有的 `rawOf`）
+ * 与 `isEditStale`（两个版本间"真的变了"才为真）。DOM 层（输入框是否真的还在）仍只能人工验。
+ */
+describe('P-21 批次 C（R5）：编辑态"该任务该列的值真的变了才取消"', () => {
+  const { document, calendar, schedule } = fixture;
+  const target = firstEditableLeaf(document);
+  const targetTask = document.tasks[target.docIndex];
+  if (targetTask === undefined) throw new Error('目标行缺失');
+  const other = document.tasks.find((task) => task.id !== target.id);
+  if (other === undefined) throw new Error('夹具里没有第二个任务');
+
+  /** 应用一条命令并断言它真的改了文档（否则"没变"与"改了"无法区分，用例会变成恒真式）。 */
+  function applyChecked(base: ProjectDocument, command: DocumentCommand): ProjectDocument {
+    const result = applyCommand(base, command);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.message);
+    expect(result.changed).toBe(true);
+    return result.document;
+  }
+
+  const staleOf = (before: ProjectDocument, after: ProjectDocument, column: ColumnKey): boolean =>
+    isEditStale({ before, after, taskId: target.id, column });
+
+  it('`rawCellText` 逐列取**原始字段**（与左表原先的 `rawOf` 同值，`null` ⇒ 空串）', () => {
+    const pick = (column: ColumnKey): string | undefined =>
+      rawCellText({ document, taskId: target.id, column });
+    expect(pick('name')).toBe(targetTask.name);
+    expect(pick('start')).toBe(targetTask.startDate ?? '');
+    expect(pick('end')).toBe(targetTask.endDate ?? '');
+    expect(pick('duration')).toBe(targetTask.durationDays === null ? '' : String(targetTask.durationDays));
+    expect(pick('progress')).toBe(targetTask.progress === null ? '' : String(targetTask.progress));
+    expect(pick('milestone')).toBe(targetTask.milestone ? '是' : '否');
+    expect(pick('notes')).toBe(targetTask.notes ?? '');
+    // 字段缺失是 `''`（不是 `undefined`）——两类"没有值"必须分得开，见下一条。
+    expect(pick('notes')).toBe(targetTask.notes ?? '');
+  });
+
+  it('任务不存在 ⇒ `undefined`；派生列没有原始字段 ⇒ 空串（两者必须分得开）', () => {
+    const missing = rawCellText({ document, taskId: '不存在', column: 'name' });
+    expect(missing).toBeUndefined();
+    expect(rawCellText({ document, taskId: target.id, column: 'wbs' })).toBe('');
+    expect(rawCellText({ document, taskId: target.id, column: 'predecessors' })).toBe('');
+  });
+
+  it('**别的任务**变了 ⇒ 不陈旧（R5 的正面判据：这就是原先会丢草稿的场景）', () => {
+    const after = applyChecked(document, { kind: 'task.update', id: other.id, patch: { notes: '外部改动' } });
+    expect(staleOf(document, after, 'notes')).toBe(false);
+  });
+
+  it('同一任务**别的列**变了 ⇒ 不陈旧（判据只认"该任务该列"）', () => {
+    const after = applyChecked(document, { kind: 'task.update', id: target.id, patch: { notes: '外部改动' } });
+    expect(staleOf(document, after, 'duration')).toBe(false);
+  });
+
+  it('该任务**该列**真的变了 ⇒ 陈旧（文本列与日期列各一条）', () => {
+    const renamed = applyChecked(document, { kind: 'task.update', id: target.id, patch: { name: '改名了' } });
+    expect(staleOf(document, renamed, 'name')).toBe(true);
+
+    const moved = isoOfOrdinalSafe(calendar, (schedule.es[target.docIndex] ?? 0) + 3);
+    expect(moved).toBeDefined();
+    if (moved === undefined) return;
+    expect(moved).not.toBe(targetTask.startDate);
+    const shifted = applyChecked(document, { kind: 'task.update', id: target.id, patch: { startDate: moved } });
+    expect(staleOf(document, shifted, 'start')).toBe(true);
+  });
+
+  it('任务消失（`task.remove`）⇒ 陈旧（`undefined` ≠ 旧值）', () => {
+    const removed = applyChecked(document, { kind: 'task.remove', id: target.id });
+    expect(rawCellText({ document: removed, taskId: target.id, column: 'name' })).toBeUndefined();
+    expect(staleOf(document, removed, 'name')).toBe(true);
+  });
+
+  it('改回原值 ⇒ 不陈旧（比的是两个版本的值，不是版本号）', () => {
+    const bumped = applyChecked(document, {
+      kind: 'task.update',
+      id: target.id,
+      patch: { durationDays: 9, endDate: null },
+    });
+    expect(staleOf(document, bumped, 'duration')).toBe(true);
+    const restored = applyChecked(bumped, {
+      kind: 'task.update',
+      id: target.id,
+      patch: { durationDays: targetTask.durationDays, endDate: targetTask.endDate },
+    });
+    expect(staleOf(document, restored, 'duration')).toBe(false);
+  });
+
+  it('前提自证：恒等 patch 的 `applyCommand` 必须 `changed === false`（否则"无关变化"没有载体）', () => {
+    const identity = applyCommand(document, {
+      kind: 'task.update',
+      id: target.id,
+      patch: { durationDays: targetTask.durationDays },
+    });
+    expect(identity.ok).toBe(true);
+    if (!identity.ok) return;
+    expect(identity.changed).toBe(false);
+  });
+
+  /**
+   * 负向对照：把**同一批场景**交给两个"变造实现"，断言它们与正确实现**必然分叉**
+   * （手法同 `dateTextNegative.spec.ts`：判据必须自带牙齿，否则可能只是恒真式）。
+   */
+  it('NC1：忽略 `column`（只比"这个任务"）的变造实现必须被检出', () => {
+    const staleByWholeTask = (before: ProjectDocument, after: ProjectDocument): boolean => {
+      const pick = (document: ProjectDocument): string =>
+        JSON.stringify(document.tasks.find((task) => task.id === target.id) ?? null);
+      return pick(before) !== pick(after);
+    };
+    const after = applyChecked(document, { kind: 'task.update', id: target.id, patch: { notes: '外部改动' } });
+    expect(staleOf(document, after, 'duration')).toBe(false); // 正确实现：编辑 duration，notes 变了不算
+    expect(staleByWholeTask(document, after)).toBe(true); // 变造实现：整个任务变了 ⇒ 误判为陈旧
+  });
+
+  it('NC2：旧规则「任何版本不同即陈旧」必须被检出', () => {
+    const staleByAnyRevision = (before: ProjectDocument, after: ProjectDocument): boolean => before !== after;
+    const after = applyChecked(document, { kind: 'task.update', id: other.id, patch: { notes: '外部改动' } });
+    expect(staleOf(document, after, 'notes')).toBe(false); // 正确实现：别的任务变了不算
+    expect(staleByAnyRevision(document, after)).toBe(true); // 旧规则：任何版本变化都关闭编辑态
+  });
+});
+
+/**
+ * P-30（收口 P-29）：**提示条的迁移**——进 `pnpm gate`。
+ *
+ * 维护者的人工复验报文（2026-10-04）：「提示出现 → 修改 → 提示不消失」；期望「提示出现 → 修改 → 提示消失」，
+ * 即**回退栈不为空时提示不应出现**，**退回到栈底时也不应出现**，**只有在栈底尝试回退时**才给提示。
+ * 这就是"提示不得比它描述的事实活得更久"——原先的窄口径（只认成功的 `undo()`/`redo()` 清提示）不满足它。
+ */
+describe('P-30：提示条的迁移（成功清失败、失败才产生、无操作照旧）', () => {
+  const { document } = fixture;
+  const target = firstEditableLeaf(document);
+  const info = { level: 'info' as const, text: '正在导入 x.zip…' };
+
+  it('失败 ⇒ 产生失败提示（提示唯一的产生时机），文案带 code 与 message', () => {
+    const notice = noticeAfterDispatch(null, { ok: false, changed: false, code: 'SESSION_NOTHING_TO_UNDO', message: '没有可撤销的步骤' });
+    expect(notice?.level).toBe('error');
+    expect(notice?.text).toBe('命令被拒绝：SESSION_NOTHING_TO_UNDO —— 没有可撤销的步骤');
+    expect(noticeAfterDispatch(null, { ok: false, changed: false })?.text).toContain('未知');
+  });
+
+  it('成功且**真的改了** ⇒ 清掉失败提示（维护者报文的那一条）', () => {
+    const failure = { level: 'error' as const, text: '命令被拒绝：SESSION_NOTHING_TO_UNDO —— 没有可撤销的步骤' };
+    expect(noticeAfterDispatch(failure, { ok: true, changed: true })).toBeNull();
+  });
+
+  it('成功且真的改了，但当前是 `info` ⇒ 不动（呈报不该被无关操作抹掉）', () => {
+    expect(noticeAfterDispatch(info, { ok: true, changed: true })).toBe(info);
+  });
+
+  it('成功但**没改**（恒等 patch）⇒ 原样保留：状态没有前进，提示的事实可能仍成立', () => {
+    const failure = { level: 'error' as const, text: '命令被拒绝：SESSION_NOTHING_TO_UNDO —— 没有可撤销的步骤' };
+    expect(noticeAfterDispatch(failure, { ok: true, changed: false })).toBe(failure);
+    expect(noticeAfterDispatch(null, { ok: true, changed: false })).toBeNull();
+  });
+
+  it('用**真实会话栈**跑维护者的三步序列：栈底回退失败 → 修改 → 提示消失；再回退到栈底也不出现', () => {
+    let session = createSession(document);
+    const asResult = (outcome: { ok: boolean; changed?: boolean; code?: string; message?: string }) => ({
+      ok: outcome.ok,
+      changed: outcome.changed ?? false,
+      ...(outcome.code === undefined ? {} : { code: outcome.code }),
+      ...(outcome.message === undefined ? {} : { message: outcome.message }),
+    });
+
+    // ① 空栈时回退 ⇒ 失败提示
+    let notice = noticeAfterDispatch(null, asResult(undoSession(session)));
+    expect(notice?.text).toContain('SESSION_NOTHING_TO_UNDO');
+
+    // ② 修改（成功）⇒ **提示消失**（报文里"未解决"的那一步）
+    const applied = applyToSession(session, { kind: 'task.update', id: target.id, patch: { notes: '改一下' } });
+    expect(applied.ok).toBe(true);
+    if (!applied.ok) return;
+    session = applied.session;
+    notice = noticeAfterDispatch(notice, asResult(applied));
+    expect(notice).toBeNull();
+
+    // ③ 回退到栈底 ⇒ 成功、不出提示
+    const undone = undoSession(session);
+    expect(undone.ok).toBe(true);
+    if (!undone.ok) return;
+    session = undone.session;
+    notice = noticeAfterDispatch(notice, asResult(undone));
+    expect(notice).toBeNull();
+
+    // ④ 再在栈底尝试回退 ⇒ 才重新给提示
+    notice = noticeAfterDispatch(notice, asResult(undoSession(session)));
+    expect(notice?.text).toContain('SESSION_NOTHING_TO_UNDO');
   });
 });

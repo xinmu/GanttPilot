@@ -208,7 +208,7 @@ export {
   type TableColumn,
 } from './columns.js';
 
-// ---------------------------------------------------------------- 日期文本与编辑映射（P-19 迁落点）
+// ---------------------------------------------------------------- 日期文本与编辑映射（P-19 迁落点 + P-21 批次 C）
 export {
   cellText,
   collapseToCommand,
@@ -216,15 +216,20 @@ export {
   derivedEndIso,
   editToCommand,
   formatProgress,
+  isEditStale,
   isoOfDaySafe,
   isoOfOrdinalSafe,
+  noticeAfterDispatch,
   parseIntInput,
   parseIsoInput,
   parseProgressInput,
+  rawCellText,
+  rejectionNotice,
   type CellTextArgs,
   type EditCommand,
   type EditOutcome,
   type EditToCommandArgs,
+  type StatusNotice,
 } from './viewText.js';
 
 // ---------------------------------------------------------------- 确定性夹具（演示 / 测量 / 测试同源）

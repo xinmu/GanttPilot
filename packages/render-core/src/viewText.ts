@@ -1,5 +1,6 @@
 /**
- * 单元格文本、日期算术的**应用口径**与行内编辑的值→命令映射（P-19 的迁落点）。
+ * 单元格文本、日期算术的**应用口径**与行内编辑的值→命令映射（P-19 的迁落点）；
+ * 行内编辑的**基线文本与陈旧判定**（`rawCellText` / `isEditStale`，P-21 批次 C 的 R5）。
  *
  * ## 为什么这些函数必须在本包（P-19 §4.1/§5 的落地）
  *
@@ -246,6 +247,110 @@ export function cellText(args: CellTextArgs): { readonly text: string; readonly 
     default:
       return { text: '', derived: false };
   }
+}
+
+/**
+ * 该任务该列的**原始字段文本**（编辑态基线；与左表原先私有的 `rawOf` 逐值一致）。
+ *
+ * 与 {@link cellText} 的分工：`cellText` 是**显示值**（`end` 为空时给 `≈…` 的派生值、`wbs` 给
+ * `outlineNumber`），本函数只读**文档字段本身**——行内编辑的草稿种子与它要改的字段都是"原始值"，
+ * 因此"值是否真的变了"必须按原始值判（见 {@link isEditStale}）。
+ *
+ * - **任务不存在** ⇒ `undefined`（必须与"字段缺失"的 `''` 分开：前者要求结束编辑态）；
+ * - **字段缺失**（`null`，ADR 0002）⇒ `''`；
+ * - `wbs` / `predecessors` 没有原始字段（前者是派生值、后者归建线手势，ADR 0007 §8）⇒ `''`，
+ *   它们本就不是编辑态的候选（入口由 `TABLE_COLUMNS.editable` 挡住）。
+ */
+export function rawCellText(args: {
+  readonly document: ProjectDocument;
+  readonly taskId: string;
+  readonly column: ColumnKey;
+}): string | undefined {
+  const task = args.document.tasks.find((item) => item.id === args.taskId);
+  if (task === undefined) return undefined;
+  switch (args.column) {
+    case 'name':
+      return task.name;
+    case 'start':
+      return task.startDate ?? '';
+    case 'end':
+      return task.endDate ?? '';
+    case 'duration':
+      return task.durationDays === null ? '' : String(task.durationDays);
+    case 'progress':
+      return task.progress === null ? '' : String(task.progress);
+    case 'milestone':
+      return task.milestone ? '是' : '否';
+    case 'notes':
+      return task.notes ?? '';
+    default:
+      return '';
+  }
+}
+
+/**
+ * 编辑态是否**已陈旧**（`true` ⇒ 必须结束编辑态）：该任务该列的原始值在两个文档版本间真的变了。
+ *
+ * 本函数取代原先"**任何** `revision` 变化都关闭编辑态"（[P-21](../../../docs/00-baseline/裁决记录.md)
+ * 的 R5）：后者让"编辑态优先"（ADR 0008 §10）事实上不成立——别的任务被拖动、别的列被改，
+ * 都会把用户正在输入的草稿丢掉。判据只认"**该任务该列**"（不是"该任务"，也不是"整份文档"）。
+ *
+ * 任务消失（`task.remove` / 整份替换）同样算陈旧：`rawCellText` 返回 `undefined`。
+ * 行被折叠隐藏或**滚出渲染窗口不算陈旧**（值没变）——草稿因此保留，行回来后输入框复活。
+ */
+export function isEditStale(args: {
+  readonly before: ProjectDocument;
+  readonly after: ProjectDocument;
+  readonly taskId: string;
+  readonly column: ColumnKey;
+}): boolean {
+  const pick = (document: ProjectDocument): string | undefined =>
+    rawCellText({ document, taskId: args.taskId, column: args.column });
+  return pick(args.before) !== pick(args.after);
+}
+
+/** 状态栏提示条（`apps/web` 的 `notice`）：`info` 是呈报、`error` 是失败。 */
+export interface StatusNotice {
+  readonly level: 'info' | 'error';
+  readonly text: string;
+}
+
+/** 命令被拒绝时的提示文案（**唯一实现处**）。 */
+export function rejectionNotice(result: {
+  readonly code?: string;
+  readonly message?: string;
+}): StatusNotice {
+  return { level: 'error', text: `命令被拒绝：${result.code ?? '未知'} —— ${result.message ?? ''}` };
+}
+
+/**
+ * 命令派发后的提示条状态（P-21 批次 C 的 R5 + 裁决 P-30 的**唯一实现处**，进 `pnpm gate`）。
+ *
+ * 之所以要有这条纯规则：提示条是"**过去时**"的陈述，它**不得比它描述的事实活得更久**。
+ * 三档逐条可判：
+ *
+ * - **失败** ⇒ 换成失败提示。这是提示**唯一**的产生时机——只有"尝试了但没成功"才报
+ *   （因此"没有可撤销的步骤"只可能出现在"在栈底再回退"的那一次尝试之后）；
+ * - **成功且真的改了**（`changed: true`，即状态前进了一步）⇒ **清掉失败提示**：那一步已经把它推翻
+ *   （回退栈非空、文档已变）。`info` 是呈报，与成功无关，**不动**（由下一条 `show()` 替换）；
+ * - **成功但没改**（`changed: false`，恒等 patch / 同位置调级）⇒ **原样保留**：状态没有前进，
+ *   提示描述的事实可能仍然成立（空栈时改了个一样的值，栈里依然没有东西）。
+ *
+ * 由此得到维护者要求的不变量：**回退栈非空时不会挂着「没有可撤销的步骤」**；
+ * **退回到栈底时也不会出现它**（那一步是成功的）；**只有"在栈底再回退"这一次尝试**才会产生它。
+ */
+export function noticeAfterDispatch(
+  current: StatusNotice | null,
+  result: {
+    readonly ok: boolean;
+    readonly changed: boolean;
+    readonly code?: string;
+    readonly message?: string;
+  },
+): StatusNotice | null {
+  if (!result.ok) return rejectionNotice(result);
+  if (!result.changed) return current;
+  return current !== null && current.level === 'error' ? null : current;
 }
 
 /** 行内编辑的结果：要么一条命令，要么一个拒绝原因（不抛错，界面据此提示）。 */
