@@ -1,6 +1,6 @@
 {
   "env": {
-    "采集时刻": "2026-10-04T14:00:16.640Z",
+    "采集时刻": "2026-10-04T14:38:21.807Z",
     "机器": "FAIRY",
     "系统": "win32 x64",
     "Node": "v26.7.0",
@@ -27,39 +27,39 @@
           "dayDelta": 3,
           "frames": 12,
           "mainThreadMs": [
-            2.9,
             2.7,
+            3.5,
             2.1,
-            2.8,
-            2.2,
-            2.4,
             2.7,
-            1.9,
+            2.3,
             2.3,
             2,
-            1.9,
-            1.8
+            2,
+            2.1,
+            2.3,
+            1.8,
+            1.7
           ],
-          "mainThreadP50Ms": 2.2,
-          "mainThreadP95Ms": 2.9,
+          "mainThreadP50Ms": 2.1,
+          "mainThreadP95Ms": 3.5,
           "frameGapsMs": [
-            12.4,
-            16.9,
-            16.5,
-            16.6,
+            12.2,
+            16.7,
             16.8,
+            16.6,
+            16.7,
             16.6,
             16.8,
             16.7,
             16.5,
-            16.7,
-            16.9,
-            16.5
+            16.8,
+            16.6,
+            16.7
           ],
-          "frameGapP50Ms": 16.6,
-          "frameGapP95Ms": 16.9,
+          "frameGapP50Ms": 16.7,
+          "frameGapP95Ms": 16.8,
           "longTasks": 0,
-          "releaseMs": 9.7,
+          "releaseMs": 9.6,
           "observedGeometryChanges": 4,
           "anchorsAfterRelease": 0,
           "documentStartAfter": "2026-10-08",
@@ -77,7 +77,7 @@
             "cursorOnEdge": "col-resize",
             "cursorOnConnect": "crosshair",
             "connectDownEntersLinking": true,
-            "connectLeftEdge": 256
+            "connectLeftEdge": 254
           }
         }
       },
@@ -92,39 +92,39 @@
           "dayDelta": 3,
           "frames": 12,
           "mainThreadMs": [
-            2,
+            2.1,
             2.5,
-            2.8,
+            2.2,
             2.3,
-            2.5,
-            3.6,
-            2.1,
+            2.6,
             2.3,
+            2.2,
+            2.2,
             2.1,
-            2.1,
-            2.1,
-            2.4
+            2.2,
+            2.2,
+            2.3
           ],
-          "mainThreadP50Ms": 2.3,
-          "mainThreadP95Ms": 3.6,
+          "mainThreadP50Ms": 2.2,
+          "mainThreadP95Ms": 2.6,
           "frameGapsMs": [
-            13.7,
+            13.3,
             16.6,
+            16.8,
             16.6,
-            16.9,
-            16.6,
+            16.7,
             16.6,
             16.8,
             16.7,
-            16.5,
-            16.8,
+            16.6,
             16.7,
-            16.6
+            16.7,
+            16.8
           ],
-          "frameGapP50Ms": 16.6,
-          "frameGapP95Ms": 16.9,
+          "frameGapP50Ms": 16.7,
+          "frameGapP95Ms": 16.8,
           "longTasks": 0,
-          "releaseMs": 7.8,
+          "releaseMs": 7,
           "observedGeometryChanges": 4,
           "anchorsAfterRelease": 0,
           "documentStartAfter": "2026-10-08",
@@ -142,7 +142,7 @@
             "cursorOnEdge": "col-resize",
             "cursorOnConnect": "crosshair",
             "connectDownEntersLinking": true,
-            "connectLeftEdge": 256
+            "connectLeftEdge": 254
           }
         }
       }
@@ -151,11 +151,11 @@
     "taskId": "t1",
     "dayDelta": 3,
     "frames": 12,
-    "mainThreadP50Ms": 2.2,
-    "mainThreadP95Ms": 3.6,
-    "frameGapP50Ms": 16.6,
-    "frameGapP95Ms": 16.9,
-    "releaseMs": 9.7,
+    "mainThreadP50Ms": 2.1,
+    "mainThreadP95Ms": 3.5,
+    "frameGapP50Ms": 16.7,
+    "frameGapP95Ms": 16.8,
+    "releaseMs": 9.6,
     "longTasks": 0,
     "observedGeometryChanges": 4,
     "anchorsAfterRelease": 0,
@@ -172,7 +172,7 @@
       "cursorOnEdge": "col-resize",
       "cursorOnConnect": "crosshair",
       "connectDownEntersLinking": true,
-      "connectLeftEdge": 256
+      "connectLeftEdge": 254
     }
   }
 }

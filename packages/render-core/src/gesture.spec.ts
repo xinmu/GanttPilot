@@ -698,6 +698,68 @@ describe('批次 B 的入口判据（P-32：连接点建线 / 手柄位置 / 连
     expect(onBar.state.kind).toBe('dragging');
   });
 
+  it('**指针还在源任务那一行时不作废手势**（第五次人工复验的根因）：回到"无目标"的 linking，而不是 idle', () => {
+    const target = tallView;
+    const pick = pickLeaf(({ bounds: b, constraint: c }) => !b.isMilestone && !Number.isFinite(c));
+    const bounds = pick.bounds;
+    const y = rowCenterY(pick.row);
+    const started = beginGesture({
+      ...dragArgsFor(target),
+      pointer: { x: connectPointXFor(bounds, 'right'), y, buttons: 1 },
+      anchorMode: 'snap',
+      entryPoint: { taskId: pick.task.id, exitSide: 'right' },
+    });
+    expect(started.state.kind).toBe('linking');
+    if (started.state.kind !== 'linking') return;
+
+    // 指针**仍在同一行**（`fromTaskId === toTaskId` ⇒ 候选不可解析）。
+    // 旧写法在这里 `return idleGesture()`：手势被终止，后续 mousemove 全被忽略、松手不提交
+    // ⇒ "从连接点拖不出线"（实测 `link-target=t3 → candidate NULL → idle`）。
+    const sameRow = reduceGesture({
+      ...dragArgsFor(target),
+      pointer: { x: bounds.xRight + 1, y, buttons: 1 },
+      anchorMode: 'snap',
+      state: started.state,
+    });
+    expect(sameRow.state.kind).toBe('linking');
+    expect(sameRow.gestureToken).toBe(`link:${pick.task.id}`);
+    expect(sameRow.preview).toBeNull();
+    expect(sameRow.link).toBeNull();
+    if (sameRow.state.kind !== 'linking') return;
+    expect(sameRow.state.toTaskId).toBeNull();
+
+    // 关键：**之后仍能继续**——移到另一行仍然会产出候选边与预览（手势没有作废）。
+    let otherRow: number | null = null;
+    for (let row = 0; row < target.order.length; row += 1) {
+      if (row === pick.row) continue;
+      const docIndex = target.order[row];
+      const task = docIndex === undefined ? undefined : fixture.document.tasks[docIndex];
+      if (task === undefined) continue;
+      if (boundsIn(target, row).kind === 'summary') continue;
+      if (
+        wouldCreateCycle(fixture.document.links, { id: 'probe-link', from: pick.task.id, to: task.id, type: 'FF', lagDays: 0 })
+          .cyclic
+      ) {
+        continue;
+      }
+      otherRow = row;
+      break;
+    }
+    expect(otherRow).not.toBeNull();
+    if (otherRow === null) return;
+    const other = boundsIn(target, otherRow);
+    const otherTaskId = fixture.document.tasks[target.order[otherRow] ?? 0]?.id ?? '';
+    const moved = reduceGesture({
+      ...dragArgsFor(target),
+      pointer: { x: (other.xLeft + other.xRight) / 2, y: rowCenterY(otherRow), buttons: 1 },
+      anchorMode: 'snap',
+      state: sameRow.state,
+    });
+    expect(moved.state.kind).toBe('linking');
+    expect(moved.preview).not.toBeNull();
+    expect(moved.preview?.toTaskId).toBe(otherTaskId);
+  });
+
   it('连接点的**命中区**：内缘只留 `HIT_TOLERANCE_PX`（不抢端点判定区）、外侧覆盖整个方块', () => {
     const target = tallView;
     const pick = pickLeaf(({ bounds: b, constraint: c }) => !b.isMilestone && !Number.isFinite(c));

@@ -236,7 +236,10 @@ pnpm gate           # lint → typecheck → test → build → license:check（
   第四次复验定位到**事件投递层**：`mousedown` 会启动浏览器文本选择（实测顺序 `mousedown → selectstart → mousemove`），
   随后 `mousemove` 不再按窗格路径派发 ⇒ 只收到一次移动、拖不出线。已加 `preventDefault()`、
   手势期 `mousemove` 挂 `window`、以及 `pointerdown` 的 `setPointerCapture`。详见
-  [ADR 0008 §16.7](docs/02-adr/0008-列身份所有权与拖拽交互契约.md)。
+  第五次复验的报文（"没有虚线出现"）定位到**真正的根因**：指针只要还在**源任务那一行**，
+  候选边就不可解析，而旧实现此时 `return idleGesture()` —— **整条手势被终止**（后续移动全被忽略、松手不提交）。
+  已改为"这一帧没有目标"（保留手势），并加判据（旧实现下必然变红）。
+  详见 [ADR 0008 §16.7](docs/02-adr/0008-列身份所有权与拖拽交互契约.md)。
   **已知限制不变**：拖动指针移出图表窗格时不做边缘自动滚动；拖动期的会话锚点不落盘。
 
 ## 文档约定

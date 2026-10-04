@@ -1070,7 +1070,32 @@ function updateForLink(
     toTaskId: state.toTaskId,
     exitSide: state.exitSide,
   });
-  if (candidate === null) return idleGesture();
+  /**
+   * **不能解析出候选边时保持手势存活**（第五次人工复验的**真正根因**）。
+   *
+   * 旧写法是 `return idleGesture()` —— 那一刻手势被**终止**：锚点清空、后续 `mousemove` 因为
+   * `state.kind === 'idle'` 被全部忽略、松手也不提交。而"指针还在源任务那一行"（拖动开始时几乎必然
+   * 出现：手指先按在方块的左内缘、再往右拖；或拖到同一行的另一处）就会让
+   * `fromTaskId === toTaskId` ⇒ 候选为 `null` ⇒ **整条手势作废**。
+   * 实测（CDP 真实指针 + 页内探针）：`link-target=t3`（= 源任务）→ `candidate NULL` → 状态 `idle`，
+   * 之后 5 次移动全部被忽略、松手不落库。
+   *
+   * 正确语义：**这一帧没有目标**，而不是"取消整条手势"。因此回到 `toTaskId: null` 的
+   * `linking` 状态（与"刚按下、还没移到任何目标行"同态），把预览清空、把锚点与手势一起保留。
+   */
+  if (candidate === null) {
+    return {
+      state: { ...state, toTaskId: null, toRow: null },
+      gestureToken: `link:${state.fromTaskId}`,
+      anchors: [],
+      commands: [],
+      link: null,
+      rows: [...rows].sort((left, right) => left - right),
+      edges: [...edges].sort((left, right) => left - right),
+      cyclePath: [],
+      preview: null,
+    };
+  }
 
   const cycle = wouldCreateCycle(args.document.links, candidate.link);
   const preview: LinkPreview = {
