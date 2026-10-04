@@ -16,6 +16,7 @@
     "build": "pnpm -r --if-present build",
     "gate": "node scripts/gate.mjs",
     "docs:check": "node scripts/check-docs.mjs",
+    "smoke:build": "node scripts/smoke-build.mjs",
     "docs:index": "node scripts/make-doc-index.mjs",
     "sample:cyclic": "node scripts/make-sample.mjs",
     "license:check": "node scripts/check-licenses.mjs --prod",
@@ -23,7 +24,8 @@
     "notices:write": "node scripts/check-licenses.mjs --all --write",
     "hooks:install": "git config core.hooksPath .husky",
     "prepare": "node scripts/install-hooks.mjs",
-    "dev": "pnpm --filter @ganttpilot/web dev"
+    "dev": "pnpm --filter @ganttpilot/web dev",
+    "preview": "pnpm --filter @ganttpilot/web preview"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.0",

@@ -1,0 +1,158 @@
+{
+  "env": {
+    "采集时刻": "2026-10-04T19:56:24.496Z",
+    "机器": "FAIRY",
+    "系统": "win32 x64",
+    "Node": "v26.7.0",
+    "Chrome": "Chrome/154.0.8037.95",
+    "Chrome 模式": "--headless=new",
+    "DPR": 1,
+    "口径": "打包产物（apps/web/dist）",
+    "数据集": "dense",
+    "拖动天数": 3,
+    "测试帧数": 12
+  },
+  "runs": [
+    {
+      "label": "开",
+      "enabled": true,
+      "url": "http://127.0.0.1:11075/?measure=1&table=1&persist=1&dataset=dense",
+      "result": {
+        "status": "ok",
+        "errors": [],
+        "dataset": "dense",
+        "enabled": true,
+        "frameGapsMs": [
+          9.8,
+          17,
+          16.6,
+          16.7,
+          16.5,
+          16.7,
+          17.2,
+          16.2,
+          16.7,
+          16.6,
+          16.9,
+          16.5
+        ],
+        "frameGapP50Ms": 16.6,
+        "frameGapP95Ms": 17.2,
+        "mainThreadMs": [
+          3.3,
+          2.9,
+          2.4,
+          2.5,
+          2.3,
+          2.5,
+          2.9,
+          2,
+          2.8,
+          2.1,
+          1.9,
+          2
+        ],
+        "mainThreadP50Ms": 2.4,
+        "mainThreadP95Ms": 3.3,
+        "longTasks": 0,
+        "writesDuringGesture": 0,
+        "writesBefore": 2,
+        "writesAfter": 7,
+        "flushAfterReleaseMs": 5.5,
+        "storage": {
+          "tasks": 1000,
+          "links": 1500,
+          "documentBytes": 316038,
+          "serializeMs": 0.4,
+          "recordBytes": 837,
+          "recordBreakdown": {
+            "baseBytes": 4,
+            "postBytes": 685,
+            "redoBytes": 2,
+            "postSteps": 1
+          },
+          "probeLastPostSteps": 1,
+          "putMs": [
+            0.5,
+            1.2,
+            0.6
+          ],
+          "putP50Ms": 0.6,
+          "putP95Ms": 1.2,
+          "estimate": {
+            "usage": 509827,
+            "quota": 10737928067
+          }
+        },
+        "crash": {
+          "writtenRev": 0,
+          "restoredRev": 0
+        }
+      }
+    },
+    {
+      "label": "关",
+      "enabled": false,
+      "url": "http://127.0.0.1:11075/?measure=1&table=1&persist=0&dataset=dense",
+      "result": {
+        "status": "ok",
+        "errors": [],
+        "dataset": "dense",
+        "enabled": false,
+        "frameGapsMs": [
+          5.2,
+          7.3,
+          16.5,
+          16.6,
+          16.7,
+          16.8,
+          16.6,
+          16.5,
+          16.8,
+          16.7,
+          16.8,
+          16.5
+        ],
+        "frameGapP50Ms": 16.6,
+        "frameGapP95Ms": 16.8,
+        "mainThreadMs": [
+          2.1,
+          1.8,
+          2.3,
+          3,
+          2,
+          2.6,
+          2.1,
+          2,
+          2.3,
+          2.2,
+          2.2,
+          2.4
+        ],
+        "mainThreadP50Ms": 2.2,
+        "mainThreadP95Ms": 3,
+        "longTasks": 0,
+        "writesDuringGesture": 0,
+        "writesBefore": 0,
+        "writesAfter": 0,
+        "flushAfterReleaseMs": null,
+        "storage": {
+          "tasks": 1000,
+          "links": 1500,
+          "documentBytes": 316038,
+          "serializeMs": 0.3,
+          "recordBytes": 0,
+          "recordBreakdown": null,
+          "probeLastPostSteps": 0,
+          "putMs": [],
+          "putP50Ms": 0,
+          "putP95Ms": 0,
+          "estimate": {
+            "usage": 564181,
+            "quota": 10737982421
+          }
+        }
+      }
+    }
+  ]
+}

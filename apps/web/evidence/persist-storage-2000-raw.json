@@ -1,0 +1,60 @@
+{
+  "env": {
+    "采集时刻": "2026-10-04T19:54:55.313Z",
+    "机器": "FAIRY",
+    "系统": "win32 x64",
+    "Node": "v26.7.0",
+    "Chrome": "Chrome/154.0.8037.95",
+    "Chrome 模式": "--headless=new",
+    "DPR": 1,
+    "口径": "打包产物（apps/web/dist）",
+    "数据集": "dense-2000",
+    "拖动天数": 3,
+    "测试帧数": 12
+  },
+  "run": {
+    "dataset": "dense-2000",
+    "result": {
+      "status": "ok",
+      "errors": [],
+      "dataset": "dense-2000",
+      "enabled": true,
+      "frameGapsMs": [],
+      "frameGapP50Ms": 0,
+      "frameGapP95Ms": 0,
+      "mainThreadMs": [],
+      "mainThreadP50Ms": 0,
+      "mainThreadP95Ms": 0,
+      "longTasks": 0,
+      "writesDuringGesture": 0,
+      "writesBefore": 0,
+      "writesAfter": 4,
+      "flushAfterReleaseMs": null,
+      "storage": {
+        "tasks": 2000,
+        "links": 3000,
+        "documentBytes": 638334,
+        "serializeMs": 2,
+        "recordBytes": 154,
+        "recordBreakdown": {
+          "baseBytes": 4,
+          "postBytes": 2,
+          "redoBytes": 2,
+          "postSteps": 0
+        },
+        "probeLastPostSteps": 0,
+        "putMs": [
+          1.6,
+          0.3,
+          0.3
+        ],
+        "putP50Ms": 0.3,
+        "putP95Ms": 1.6,
+        "estimate": {
+          "usage": 502355,
+          "quota": 10737920595
+        }
+      }
+    }
+  }
+}

@@ -5,6 +5,10 @@
  * 这是 G0 定义的本地合并门禁（见 `docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md`）：
  * `pre-push` 钩子调用它，任何一步失败即阻断推送。
  *
+ * 自 G6 起，`build` 之后多一步 **`smoke:build`**：用无头 Chrome 打开**打包产物**并断言它真的能起来
+ * （此前没有任何门禁碰过 `dist/` —— 维护者的报文「打开 dist/index.html 空白」暴露了这个缺口；
+ * 那个空白的直接原因是 ES module 在 `file://` 下被浏览器拒绝，见 README「预览打包产物」）。
+ *
  * 之所以用 Node 脚本而不是 npm-run-all 之类的工具：
  * - 不引入额外依赖（依赖面本身就是本项目要守的东西）；
  * - 能给出"哪一步失败、如何单独复现"的明确输出；
@@ -29,6 +33,9 @@ const STEPS = [
   { name: 'typecheck', args: ['typecheck'] },
   { name: 'test', args: ['test'] },
   { name: 'build', args: ['build'] },
+  // 打包产物冒烟：用 HTTP 伺服 dist/ 并用无头 Chrome 断言"没有应用级错误、界面真的渲染了"。
+  // 放在 build 之后（它测的就是产物）；缺 Chrome 时**失败而不是跳过**（P-12 口径）。
+  { name: 'smoke:build', args: ['smoke:build'] },
   { name: 'license:check', args: ['license:check'] },
   // 文档结构检查放最后：它最便宜，但只有在工作区内容确定之后判定才有意义
   // （检查的是磁盘上的链接、锚点、台账与体量，规范见 docs/DOC-SPEC.md）。
@@ -59,4 +66,6 @@ for (const [index, step] of STEPS.entries()) {
   }
 }
 
-console.log('\n[gate] 全部通过：lint / typecheck / test / build / license:check / docs:check。');
+console.log(
+    '\n[gate] 全部通过：lint / typecheck / test / build / smoke:build / license:check / docs:check。',
+  );

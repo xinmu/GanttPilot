@@ -25,6 +25,8 @@
  *   node scripts/measure-render.mjs --zoom=week      # 只测某档位
  *   node scripts/measure-render.mjs --align          # G5 批次 D：两栏行对齐（左表在场；记录制）
  *   node scripts/measure-render.mjs --align=<label>  # 同上，证据文件名加后缀（诊断/复测各留一份）
+ *   node scripts/measure-render.mjs --persist-drag   # G6：开/关自动保存两组同尺的拖拽帧预算
+ *   node scripts/measure-render.mjs --storage-metrics # G6：2,000 任务的存储占用与写入耗时
  *   GANTTPILOT_CHROME=<path> node scripts/measure-render.mjs
  */
 
@@ -66,6 +68,10 @@ function parseArgs(argv) {
     align: false,
     /** `--align=<label>`：证据文件名后缀（诊断与复测互不覆盖）。 */
     alignLabel: '',
+    /** G6：**开/关持久化两组同尺**的拖拽测量（出口条件①）。两组必须分别导航。 */
+    persistDrag: false,
+    /** G6：2,000 任务的存储占用与写入耗时（出口条件④）。 */
+    storageMetrics: false,
   };
   for (const arg of argv) {
     if (arg.startsWith('--zoom=')) {
@@ -85,6 +91,10 @@ function parseArgs(argv) {
       options.dragFrames = Number(arg.slice('--drag-frames='.length)) || options.dragFrames;
     } else if (arg.startsWith('--import=')) {
       options.importPath = arg.slice('--import='.length);
+    } else if (arg === '--persist-drag') {
+      options.persistDrag = true;
+    } else if (arg === '--storage-metrics') {
+      options.storageMetrics = true;
     } else if (arg === '--align' || arg.startsWith('--align=')) {
       // G5 批次 D：诊断与复测各留一份证据 ⇒ `--align=<label>` 只影响输出文件名。
       options.align = true;
@@ -880,6 +890,265 @@ function renderAlignEvidence({ env, result, options }) {
   lines.push('');
   return lines.join('\n');
 }
+
+// ---------------------------------------------------------------- G6：持久化（记录制，ADR 0009 §5）
+
+/**
+ * G6 的**打包产物测量**（记录制，**不进 `pnpm gate`**）。
+ *
+ * 两个模式：
+ * - `--persist-drag`：**开/关自动保存两组同尺**的拖拽帧预算（出口条件①）。两组必须分别导航
+ *   （`?persist=0` 是应用层的测量旁路，决定"这个标签页接不接自动保存"）；
+ * - `--storage-metrics`：**2,000 任务**的存储占用与写入耗时（出口条件④）。
+ *
+ * 判据本体（去抖 / 最大间隔 / 手势期不落盘 / 检查点阈值 / 保留份数 / 记录形状）在
+ * `packages/engine/src/persistence.spec.ts`（假时钟，**进 `pnpm gate`**）；这里只测打包产物。
+ */
+const PERSIST_DATASET = 'dense';
+const STORAGE_DATASET = 'dense-2000';
+
+/** 导航到应用并等持久化钩子就绪（应用级错误抓手与其它模式同口径）。 */
+async function persistNavigate(cdp, url) {
+  // 注意：URL 必须带 `dataset`——夹具是在**页面里**按 `?dataset=` 建的，钩子参数不能替代它。
+  await cdp.navigate(url);
+  const deadline = Date.now() + 30_000;
+  let ready = false;
+  while (Date.now() < deadline) {
+    ready = await cdp.evaluate(
+      'typeof window.__GANTTPILOT_MEASURE_PERSIST__ === "function" && Boolean(window.__GANTTPILOT_READY__)',
+    );
+    if (ready === true) break;
+    await new Promise((settle) => setTimeout(settle, 100));
+  }
+  if (ready !== true) {
+    const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
+    throw new Error(`持久化测量钩子未就绪：${String(captured)}`);
+  }
+}
+
+/** 读回页面上的当前 `revision` 镜像（`null` = 还没暴露）。 */
+async function persistRevision(cdp) {
+  const value = await cdp.evaluate(
+    'typeof window.__GANTTPILOT_REVISION__ === "number" ? window.__GANTTPILOT_REVISION__ : null',
+  );
+  return typeof value === 'number' ? value : null;
+}
+
+/**
+ * 调一次 `__GANTTPILOT_MEASURE_PERSIST__`（参数是字面量，不含外部输入）。
+ *
+ * **先清库再导航**：否则上一轮的检查点会被启动恢复接进来，量到的"最近一次写入记录"里
+ * 带着旧文档的基线（跨轮污染）。
+ */
+/** 在**页面已经打开的连接**上清空两个 store（比 `deleteDatabase` 安全：不会被 blocked）。 */
+async function persistClear(cdp) {
+  return cdp.evaluate(
+    'new Promise((resolve) => {' +
+      'const request = indexedDB.open("GanttPilotPersistence");' +
+      'request.onsuccess = () => {' +
+      '  const db = request.result;' +
+      '  const names = [...db.objectStoreNames];' +
+      '  if (names.length === 0) { db.close(); resolve(true); return; }' +
+      '  const tx = db.transaction(names, "readwrite");' +
+      '  for (const name of names) { const store = tx.objectStore(name); const cursor = store.openCursor();' +
+      '    cursor.onsuccess = () => { const c = cursor.result; if (c) { c.delete(); c.continue(); } };' +
+      '  }' +
+      '  tx.oncomplete = () => { db.close(); resolve(true); };' +
+      '  tx.onerror = () => { db.close(); resolve(true); };' +
+    '  };' +
+    '  request.onerror = () => resolve(true);' +
+    '})',
+  );
+}
+
+/**
+ * 调一次 `__GANTTPILOT_MEASURE_PERSIST__`（参数是字面量，不含外部输入）。
+ *
+ * `fresh = true` 时**先清库**：否则上一轮的检查点会被启动恢复接进来，量到的"最近一次写入记录"里
+ * 带着旧文档的基线（跨轮污染）。清理用**页面自己的连接**（`persistClear`）——
+ * `deleteDatabase` 会被页面持有的连接 blocked，随后新页面的 open 也跟着卡住（实测于 Chrome 154）。
+ */
+async function persistProbe(cdp, args, url) {
+  await persistNavigate(cdp, url);
+  return cdp.evaluate(`window.__GANTTPILOT_MEASURE_PERSIST__(${JSON.stringify(args)})`);
+}
+
+/** 一轮"开/关持久化"的拖拽测量（关的那一轮走 `?persist=0`）。 */
+async function persistDragRound(cdp, origin, { enabled, dayDelta, frames }) {
+  const url = `${origin}/?measure=1&table=1&persist=${enabled ? '1' : '0'}&dataset=${PERSIST_DATASET}`;
+  // **整轮只清一次库**（干净起点）：清库会作废页面上已有的基线，
+  // 因此绝不能在"编辑之后"再清（否则"编辑 → 写盘 → 重开"这条对照会被抹掉）。
+  await persistNavigate(cdp, url);
+  await persistClear(cdp);
+  const result = await persistProbe(cdp, { dataset: PERSIST_DATASET, dayDelta, frames }, url);
+  if (!enabled) return { label: '关', enabled, url, result };
+
+  /**
+   * 出口条件③的**记录制形态：重启恢复**。
+   *
+   * 干净重载再读回版本——它证明"写下去的东西能被重开读到"（L3 的耐久性）。
+   * 与"强制杀进程 / 关页"同属"重开"路径，但**不伪造"未收到收口事件"这一半**：
+   * 因果是"杀进程不触 `beforeunload` ⇒ 活下来的只是最后一次已完成的写入"，
+   * 因此**强制杀进程**按 ADR 0009 §8 的口径归**人工复验**（证据文件里写明）。
+   */
+  // 写一次并等它完成（skipDrag 模式只做 rebase + 落一次），再导航。
+  await persistProbe(cdp, { dataset: PERSIST_DATASET, skipDrag: true, samples: 0 }, url);
+  // **编辑一次 → 强制收口写盘 → 重开 → 比对**。
+  //
+  // 三条纪律（都是实测踩出来的）：
+  //  ① 不要在编辑之后清库（会抹掉刚写下去的东西）；
+  //  ② 不要在编辑与写盘之间**导航**（导航就是重开，会把编辑丢掉）；
+  //  ③ 比对前必须确认 `writtenRev > 0`（否则退化成 0 == 0，那不是判据）。
+  await cdp.evaluate('window.__GANTTPILOT_MEASURE_PERSIST_FLUSH__()');
+  const writtenRev = await persistRevision(cdp);
+  await persistNavigate(cdp, url);
+  const restoredRev = await persistRevision(cdp);
+  if (!(Number(writtenRev) > 0)) {
+    console.error('[persist-drag] 重启恢复对照无效：写盘前 revision = ' + String(writtenRev) + '（期望 > 0）');
+  }
+  return {
+    label: '开',
+    enabled,
+    url,
+    result: { ...result, crash: { writtenRev, restoredRev } },
+  };
+}
+
+/** G6 拖拽帧预算证据：开/关两组同尺对照。 */
+function renderPersistDragEvidence({ env, runs }) {
+  const lines = [];
+  lines.push('# G6 自动保存与拖拽帧预算（记录制，不进 `pnpm gate`）');
+  lines.push('');
+  lines.push('> 由 `node scripts/measure-render.mjs --persist-drag` 采集（**打包产物**口径）；**这是测量快照，不是门禁**');
+  lines.push('> （[ADR 0009 §3](../../../docs/02-adr/0009-持久化契约.md)、[G6 出口条件①](../../../docs/01-roadmap/首版能力顺序.md)）。');
+  lines.push('> 判据本体（去抖 / 最大间隔 / 手势期不落盘 / 检查点阈值 / 保留份数 / 记录形状）在');
+  lines.push('> `packages/engine/src/persistence.spec.ts`（假时钟，**进 `pnpm gate`**）；这里只测"打包产物上的帧预算"。');
+  lines.push('');
+  lines.push('## 环境（与数字一起登记）');
+  lines.push('');
+  lines.push('| 项 | 值 |');
+  lines.push('|---|---|');
+  for (const [key, value] of Object.entries(env)) lines.push(`| ${key} | ${String(value)} |`);
+  lines.push('');
+  lines.push('## 口径');
+  lines.push('');
+  lines.push('- 驱动方式 = **真实指针事件**（`mousedown → mousemove×N → mouseup`）走 `useGesture` 的同一条入口；');
+  lines.push('- **开关两组**分别导航：`?persist=0` 关掉自动保存（应用层测量旁路，默认开启）；');
+  lines.push('- 拖动**之前**先 `flush` 一次（把之前积压的变更清干净）⇒ "拖动期写入次数"只反映拖动期；');
+  lines.push(`- 拖动跨度 = **${String(env.拖动天数)} 个工作日**，拆成 **${String(env.测试帧数)}** 个测试帧；`);
+  lines.push('- **帧间隔** = 连续 rAF 的间隔（记录用；**不能用双 rAF 测帧时长**）；');
+  lines.push('- **主线程工作量** = 派发事件 + `await nextTick()`（不含帧等待）——与 G4 的滚动口径同源；');
+  lines.push('- **松手 → 落盘** = 松手后调一次 `flush()` 的墙钟（≤5s 那条出口条件的时效数字）；');
+  lines.push('');
+  lines.push('## 两组同尺对照');
+  lines.push('');
+  lines.push('| 持久化 | 帧间隔 p50 | 帧间隔 p95 | 主线程 p50 | 主线程 p95 | longtask | 拖动期写入 | 松手→落盘 | 判定 |');
+  lines.push('|---|---|---|---|---|---|---|---|---|');
+  for (const run of runs) {
+    const item = run.result ?? {};
+    const gapP95 = Number(item.frameGapP95Ms ?? 0);
+    const fpsOk = gapP95 > 0 && gapP95 <= 1000 / 30;
+    const noWrite = Number(item.writesDuringGesture ?? -1) === 0;
+    const flushText =
+      item.flushAfterReleaseMs === null || item.flushAfterReleaseMs === undefined
+        ? '—'
+        : `${Number(item.flushAfterReleaseMs).toFixed(1)} ms`;
+    lines.push(
+      `| ${run.label} | ${Number(item.frameGapP50Ms ?? 0).toFixed(1)} ms | ${gapP95.toFixed(1)} ms | ` +
+        `${Number(item.mainThreadP50Ms ?? 0).toFixed(2)} ms | ${Number(item.mainThreadP95Ms ?? 0).toFixed(2)} ms | ` +
+        `${String(item.longTasks ?? 0)} | ${String(item.writesDuringGesture ?? '-')} | ${flushText} | ` +
+        `${fpsOk && noWrite ? '通过' : '不通过'} |`,
+    );
+  }
+  lines.push('');
+  lines.push('## 出口条件③：杀进程后重开（人工复验项）');
+  lines.push('');
+  lines.push('| 组 | 写盘前的 revision | 重开后的 revision | 备注 |');
+  lines.push('|---|---|---|---|');
+  for (const run of runs) {
+    const restart = run.result?.crash ?? null;
+    if (restart === null) continue;
+    lines.push(
+      `| ${run.label} | ${String(restart.writtenRev ?? '—')} | ${String(restart.restoredRev ?? '—')} | 供参考，**不作判定** |`,
+    );
+  }
+  lines.push('');
+  lines.push('> **这一栏不作判定**：`--persist-drag` 的场景是「页面被换成测量夹具」，而重开时页面会');
+  lines.push('> `project.reset` 成演示文档（测量钩子只加载夹具、不加载「用户文档」）⇒ 重开后的 revision');
+  lines.push('> 必然回到 0 —— 这条对照在该场景里**没有判别力**（实测确认，如实登记以免被读成「已通过」）。');
+  lines.push('>');
+  lines.push('> **出口条件③的判据在引擎侧**：恢复优先级与「坏候选只跳过」、以及「写者被杀后仍能恢复到');
+  lines.push('> 最后一次成功写入（`rev` ≥ 最近检查点）」的 killsim —— 都在 `persistence.spec.ts`，**进 `pnpm gate`**。');
+  lines.push('> **真机形态（强制杀进程 / 关页后重开）按 ADR 0009 §8 归人工复验**：浏览器杀进程不触');
+  lines.push('> `beforeunload`，活下来的只是「最后一次已完成的写入」，口径是「恢复到**不早于**最近检查点」，');
+  lines.push('> 而不是「崩溃前最后一步」。');
+  lines.push('## 判定口径');
+  lines.push('');
+  lines.push('- **拖拽期间不产生可见掉帧**：帧间隔 p95 ≤ 33.3 ms（≥30 fps），**两组都要成立**；');
+  lines.push('- **回退栈相对全量快照的收益**：拖动期自动保存写入次数 = **0**（写盘不落在拖动帧里）；');
+  lines.push('- **自动保存 ≤5s**：松手 → 落盘完成的墙钟必须远小于 5,000 ms；');
+  lines.push('- 开了持久化的那一组**不得比关掉的那组更差**（帧间隔 p95 差 ≤ 1 帧）；');
+  lines.push('');
+  for (const run of runs) {
+    const errors = run.result?.errors ?? [];
+    if (errors.length > 0) lines.push(`- **${run.label}组 errors**：${errors.join('；')}`);
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+/** G6 存储占用与写入耗时证据（2,000 任务）：出口条件④。 */
+function renderStorageMetricsEvidence({ env, run }) {
+  const lines = [];
+  const storage = run?.result?.storage ?? null;
+  lines.push('# G6 存储占用与写入耗时（记录制，不进 `pnpm gate`）');
+  lines.push('');
+  lines.push('> 由 `node scripts/measure-render.mjs --storage-metrics` 采集（**打包产物**口径，**2,000 任务**）；');
+  lines.push('> **这是测量快照，不是门禁**（[ADR 0009](../../../docs/02-adr/0009-持久化契约.md)、[G6 出口条件④](../../../docs/01-roadmap/首版能力顺序.md)）。');
+  lines.push('');
+  lines.push('## 环境（与数字一起登记）');
+  lines.push('');
+  lines.push('| 项 | 值 |');
+  lines.push('|---|---|');
+  for (const [key, value] of Object.entries(env)) lines.push(`| ${key} | ${String(value)} |`);
+  lines.push('');
+  lines.push('## 数字');
+  lines.push('');
+  lines.push('| 项 | 值 | 说明 |');
+  lines.push('|---|---|---|');
+  if (storage === null) {
+    lines.push('| — | — | 未采到（见下方 errors） |');
+  } else {
+    lines.push(`| 任务数 | ${String(storage.tasks)} | 夹具规模（依赖密度与主口径同比） |`);
+    lines.push(`| 依赖数 | ${String(storage.links)} | 同上 |`);
+    lines.push(
+      `| 整份文档规范文本 | ${(Number(storage.documentBytes) / 1024).toFixed(1)} KB | **一份检查点的体积下界**；序列化 ${Number(storage.serializeMs).toFixed(1)} ms |`,
+    );
+    lines.push(
+      `| 单条最新状态记录 | ${(Number(storage.recordBytes) / 1024).toFixed(2)} KB | 增量口径：**与文档规模脱钩** |`,
+    );
+    lines.push(
+      `| 写入墙钟 p50 / p95 | ${Number(storage.putP50Ms).toFixed(1)} / ${Number(storage.putP95Ms).toFixed(1)} ms | ${String((storage.putMs ?? []).length)} 次采样 |`,
+    );
+    const estimate =
+      storage.estimate === null || storage.estimate === undefined
+        ? '—'
+        : `${(Number(storage.estimate.usage) / 1024).toFixed(1)} KB / ${(Number(storage.estimate.quota) / 1024 / 1024).toFixed(0)} MB`;
+    lines.push(`| 存储用量 / 配额 | ${estimate} | \`navigator.storage.estimate()\` |`);
+  }
+  lines.push('');
+  lines.push('## 判定口径');
+  lines.push('');
+  lines.push('- **写入量只与变更量同阶**：单条最新状态记录应远小于整份文档（R-2 的 0.1–2 KB 对 300–600 KB）；');
+  lines.push('- **写入延迟**：p95 应远小于"每 ≤5s 一次"的预算；');
+  lines.push('- 本模式**不判**渲染性能（那是 `--persist-drag` 与 `--drag` 的事）。');
+  lines.push('');
+  const errors = run?.result?.errors ?? [];
+  if (errors.length > 0) lines.push(`- **errors**：${errors.join('；')}`);
+  lines.push('');
+  return lines.join('\n');
+}
+
 async function main() {  const options = parseArgs(process.argv.slice(2));
   if (!existsSync(join(distRoot, 'index.html'))) {
     console.error('[measure] 缺少打包产物：先跑 `pnpm --filter @ganttpilot/web build`');
@@ -1027,6 +1296,104 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
     const plans = [];
     for (const zoom of options.zooms) plans.push({ dataset: PRIMARY_DATASET, zoom });
     if (options.includeReference) plans.push({ dataset: REFERENCE_DATASET, zoom: 'day' });
+
+    // ---------------------------------------------------------------- G6：持久化（记录制）
+    if (options.persistDrag || options.storageMetrics) {
+      const envBase = {
+        采集时刻: new Date().toISOString(),
+        机器: process.env.COMPUTERNAME ?? 'local',
+        系统: `${process.platform} ${process.arch}`,
+        Node: process.version,
+        Chrome: chromeVersion,
+        'Chrome 模式': '--headless=new',
+        DPR: 1,
+        口径: '打包产物（apps/web/dist）',
+        数据集: options.storageMetrics ? STORAGE_DATASET : PERSIST_DATASET,
+        拖动天数: options.dayDelta,
+        测试帧数: options.dragFrames,
+      };
+      const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
+
+      if (options.storageMetrics) {
+        const storageUrl = `${origin}/?measure=1&persist=1&dataset=${STORAGE_DATASET}`;
+        await persistNavigate(cdp, storageUrl);
+        await persistClear(cdp);
+        const run = {
+          dataset: STORAGE_DATASET,
+          result: await persistProbe(
+            cdp,
+            {
+              dataset: STORAGE_DATASET,
+              samples: 3,
+              skipDrag: true,
+              frames: options.dragFrames,
+              dayDelta: options.dayDelta,
+            },
+            storageUrl,
+          ),
+        };
+        const storage = run.result?.storage ?? null;
+        // 量完就清库：estimate() 报的是**整个源**的用量，不清的话下一轮会报累计值
+        // （实测：0.15 KB 的单条记录却配着 490 KB 的「用量」）。
+        await persistClear(cdp);
+        const evidencePath = join(evidenceDir, `persist-storage-2000-chrome${major}.md`);
+        writeFileSync(evidencePath, renderStorageMetricsEvidence({ env: envBase, run }), 'utf8');
+        writeFileSync(
+          join(evidenceDir, 'persist-storage-2000-raw.json'),
+          `${JSON.stringify({ env: envBase, run }, null, 2)}\n`,
+          'utf8',
+        );
+        if (storage !== null) {
+          console.log(
+            `[storage] 任务 ${String(storage.tasks)} / 依赖 ${String(storage.links)}：整份文档 ${(Number(storage.documentBytes) / 1024).toFixed(1)} KB ` +
+              `（序列化 ${Number(storage.serializeMs).toFixed(1)} ms）、单条记录 ${(Number(storage.recordBytes) / 1024).toFixed(2)} KB、` +
+              `写入 p50/p95 ${Number(storage.putP50Ms).toFixed(1)}/${Number(storage.putP95Ms).toFixed(1)} ms`,
+          );
+        }
+        if (run.result?.status === 'error') {
+          console.error(`[storage] errors: ${(run.result.errors ?? []).join('；')}`);
+          process.exitCode = 1;
+        }
+        console.log(`[measure] 存储证据已写入 ${evidencePath}`);
+        return;
+      }
+
+      const runs = [];
+      for (const enabled of [true, false]) {
+        runs.push(
+          await persistDragRound(cdp, origin, {
+            enabled,
+            dayDelta: options.dayDelta,
+            frames: options.dragFrames,
+          }),
+        );
+      }
+      const evidencePath = join(evidenceDir, `persist-drag-timing-chrome${major}.md`);
+      writeFileSync(evidencePath, renderPersistDragEvidence({ env: envBase, runs }), 'utf8');
+      writeFileSync(
+        join(evidenceDir, 'persist-drag-timing-raw.json'),
+        `${JSON.stringify({ env: envBase, runs }, null, 2)}\n`,
+        'utf8',
+      );
+      for (const run of runs) {
+        const item = run.result ?? {};
+        const flushText =
+          item.flushAfterReleaseMs === null || item.flushAfterReleaseMs === undefined
+            ? '-'
+            : `${Number(item.flushAfterReleaseMs).toFixed(1)} ms`;
+        console.log(
+          `[persist-drag] 持久化 ${run.label}：帧间隔 p50/p95 ${Number(item.frameGapP50Ms ?? 0).toFixed(1)}/${Number(item.frameGapP95Ms ?? 0).toFixed(1)} ms、` +
+            `主线程 p95 ${Number(item.mainThreadP95Ms ?? 0).toFixed(2)} ms、拖动期写入 ${String(item.writesDuringGesture ?? '-')}、` +
+            `松手→落盘 ${flushText}`,
+        );
+      }
+      if (runs.some((run) => run.result?.status === 'error')) {
+        console.error(`[persist-drag] errors: ${runs.flatMap((run) => run.result?.errors ?? []).join('；')}`);
+        process.exitCode = 1;
+      }
+      console.log(`[measure] 持久化拖拽证据已写入 ${evidencePath}`);
+      return;
+    }
 
     // ---------------------------------------------------------------- G5：拖动测量（记录制）
     if (options.drag) {
