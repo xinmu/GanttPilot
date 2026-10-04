@@ -35,7 +35,7 @@
 | `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges` |
 | `count.ts` | 元素计数（两路互证）与预算判定；G5 的覆盖层计数 `countOverlays`（`c₄`，**每帧固定开销**，不随规模增长） |
 | `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出） |
-| `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19） |
+| `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19）；**行内编辑的基线文本与陈旧判定** `rawCellText` / `isEditStale`（P-21 批次 C 的 R5）；**提示条的迁移** `noticeAfterDispatch` / `rejectionNotice` / `StatusNotice`（P-30，唯一实现处） |
 | `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13**）：屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、位移与候选 `deltaFor` / `candidateOrdinalFor`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture`、结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor` |
 | `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
 | `affected.ts` | `affectedRenderSet`：受影响行 + 受影响边（编辑重绘的判据） |
@@ -185,6 +185,11 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
   边取"任一端点受影响"的全部边（边的几何只由两端点决定）；
 - **折叠/展开会改变可见行集合**，因此窗口必须重算——这不是"整表重建"
   （出口条件禁止的是**行内编辑**触发整表重建）；`v-for` 的 `key` 仍是任务 id，DOM 复用不受影响；
+- **编辑态只在"该任务该列的原始值真的变了"时结束**（P-21 批次 C 的 R5）：判据是纯函数
+  `isEditStale({ before, after, taskId, column })`（`viewText.ts`，**进 `pnpm gate`**），
+  比较的是 `rawCellText` 的**原始字段文本**（任务消失 ⇒ `undefined` ≠ 旧值 ⇒ 陈旧）。
+  观察点是**文档身份**而不是 `revision` 数字；行被折叠隐藏或滚出渲染窗口**不算**变化（草稿保留）。
+  原先"任何版本变化都取消编辑态"使"编辑态优先"（ADR 0008 §10）事实上不成立；
 - 撤销/重做 UI 在 `apps/web`（G5 已落地），命令回退栈的持久化归 G6。
 
 ## 八之二、拖拽手势与交互态（G5，ADR 0008 §4–§11 + **§13** + **§14**）
@@ -252,6 +257,9 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | G5 ⑧ 滚动状态下的反算与命中（P-25） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** | [ADR 0007 §16](../../docs/02-adr/附录/0007-增补.md) / [ADR 0008 §15](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑧ 滚动状态下的拖动（记录制） | `scripts/measure-render.mjs --drag` | **两个滚动状态各一次**（`(0,0)` 与 `(480,600)`）：各自的"松手后 `startDate` = 按下时的开始序号 + 天数"都必须成立；目标行必须**无有效入边约束**（否则 `snap` 夹住候选 = 假红） | **不进**（记录制，需本机 Chrome） | [P-25](../../docs/01-roadmap/首版-记录-G5.md) |
 | G4/G5 ② 内容横向范围（P-24） | `viewModel.spec.ts`（16 → 19 例） | `contentWidth` 覆盖**全部任务最右缘** + 引出段 + 回绕走廊；随项目末端单调；空文档回落窗格宽；**负向对照**：旧式"按窗格宽推导"必须不满足 | **进** | [ADR 0007 §15](../../docs/02-adr/附录/0007-增补.md) |
+| G5 ⑨ 编辑态"值真的变了才取消"（P-21 批次 C） | `editCommand.spec.ts`（**+10 例**） | `rawCellText` 逐列**原始字段**（`null` ⇒ 空串、任务不存在 ⇒ `undefined`、派生列 ⇒ 空串）；"别的任务变了 / 同任务别的列变了 ⇒ **不**陈旧"、"该任务该列真的变了（文本列 + 日期列）⇒ 陈旧"、"任务消失 ⇒ 陈旧"、"改回原值 ⇒ 不陈旧"；恒等 patch 必须 `changed === false`（前提自证）；**NC1**（忽略 `column`，只比整个任务）与 **NC2**（旧规则"任何版本不同即陈旧"）必须被检出 | **进** | [P-28 批次 C](../../docs/01-roadmap/首版-记录-G5.md) |
+| G5 ⑨ 提示清空（P-21 批次 C） | 人工复核 + 临时 CDP 预验（**打包产物**口径，M1–M7） | 空栈 `Ctrl+Z` 出现的 `SESSION_NOTHING_TO_UNDO` 在**下一次成功且真的改了文档的命令**后消失——**含拖动/建线的松手提交**（P-31）；`apps/web` 至今没有判据入口 ⇒ DOM 层只能人工验（P-9 口径） | **不进**（人工） | [P-28 批次 C](../../docs/01-roadmap/首版-记录-G5.md) / [P-31](../../docs/00-baseline/裁决R30.md) |
+| G5 ⑩ 提示条的迁移（P-30，收口 P-29） | `editCommand.spec.ts`（**+5 例**）；**落点在 `useProject.commit()`**（`apps/web`，不进 gate） | 三档逐条：**失败**才产生提示（文案含 `code`/`message`，缺失用「未知」）；**成功且 `changed`** ⇒ 清掉失败提示、`info` 不动；**成功但 `changed === false`** ⇒ 原样保留。含一条**用真实会话栈**跑维护者报文序列：空栈回退 ⇒ 有提示；修改 ⇒ 提示消失；回退到栈底 ⇒ 不出现；栈底再回退 ⇒ 才重新给提示。**落点在命令通道**（P-31）：`dispatch`/`undo`/`redo`/`ingestDocument` 都经 `commit()`，任何调用点都绕不过 | **进**（规则本体） | [P-30](../../docs/00-baseline/裁决R29.md) / [P-31](../../docs/00-baseline/裁决R30.md) |
 
 **元素预算的常数与实测**（[`apps/web/evidence/render-timing-chrome152.md`](../../apps/web/evidence/render-timing-chrome152.md)）：
 

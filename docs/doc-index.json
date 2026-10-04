@@ -78,6 +78,21 @@
       "cap": "registerArchive"
     },
     {
+      "path": "docs/00-baseline/裁决R28.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R29.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
+      "path": "docs/00-baseline/裁决R30.md",
+      "role": "register-archive",
+      "cap": "registerArchive"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",

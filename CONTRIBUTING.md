@@ -16,7 +16,11 @@
 > **至此「Excel 导入 → 出图 → 拖动 → 撤销」这条主链路在浏览器里已跑通**（拖拽帧率已定标：
 > 帧间隔 p50/p95 = 16.6/16.9 ms、松手 → 重算 + 冲突标记 8.2 ms、**位移判据**：松手后 `startDate`
 > = 按下时的开始序号 + 天数）。
-> **下一步是 G6**（持久化：自动保存 + 命令回退栈）。
+> **下一步按 `C → B → G6`**（[裁决 P-28](docs/00-baseline/裁决记录.md)）：**批次 C 已落地并复验通过**（编辑态
+> "值真的变了才取消" + 撤销提示随命令通道迁移；口径与落点见 [P-30](docs/00-baseline/裁决R29.md) /
+> [P-31](docs/00-baseline/裁决R30.md)），随后是**批次 B**（可拖动区域暗示 +
+> 建线入口 + `c₄`，需一次 [ADR 0008](docs/02-adr/0008-列身份所有权与拖拽交互契约.md) 修订），
+> 最后是 **G6**（持久化：自动保存 + 命令回退栈）。
 > **G5 的落地记录见 [《首版能力顺序》§三 G5](docs/01-roadmap/首版能力顺序.md) 与
 > [裁决 P-20](docs/00-baseline/裁决记录.md)**：列身份所有权与拖拽交互契约在
 > [ADR 0008](docs/02-adr/0008-列身份所有权与拖拽交互契约.md) 冻结（**§13 为 P-22 批次 A 的口径修订**：
@@ -24,8 +28,11 @@
 > 规范见 [`packages/render-core/SPEC.md`](packages/render-core/SPEC.md)，
 > 记录制实测见 [`apps/web/evidence/drag-timing-chrome152.md`](apps/web/evidence/drag-timing-chrome152.md)
 > 与 [`apps/web/evidence/import-cyclic-sample-chrome152.md`](apps/web/evidence/import-cyclic-sample-chrome152.md)。
-> **G5 的人工复核（[裁决 P-21](docs/00-baseline/裁决记录.md)）的批次 A 已落地、批次 D/C/B 未执行**，
-> **第 13 条（导入与成环清单）已由 [P-22](docs/00-baseline/裁决记录.md) 闭合**。
+> **G5 的人工复核（[裁决 P-21](docs/00-baseline/裁决记录.md)）的批次 A/C/D 已落地并复验通过、仅批次 B 未执行**，
+> **第 13 条（导入与成环清单）已由 [P-22](docs/00-baseline/裁决记录.md) 闭合**；批次 C 的复验报文回了两轮，
+> 提示口径与**落点**已分别按报文由 [P-30](docs/00-baseline/裁决R29.md)（失败才产生、成功且真的改了即清失败提示）
+> 与 [P-31](docs/00-baseline/裁决R30.md)（规则落在 `useProject.commit()`，拖动提交也绕不过）修正，
+> 并**由维护者按 M7 复验通过（2026-10-04）**（见[落地记录](docs/01-roadmap/首版-记录-G5.md) 的「批次 C 的返工」）。
 > **G4 的落地记录见 [《首版能力顺序》§三 G4](docs/01-roadmap/首版能力顺序.md) 与
 > [裁决 P-18](docs/00-baseline/裁决记录.md)**：几何真相源与包边界、时间轴与 x 坐标、
 > 裁剪契约在 [ADR 0007](docs/02-adr/0007-渲染几何与裁剪契约.md) 冻结，
