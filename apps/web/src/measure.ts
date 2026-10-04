@@ -28,11 +28,13 @@ import { nextTick } from 'vue';
 import { compute } from '@ganttpilot/engine';
 import {
   buildView,
+  CONNECT_SIZE_PX,
   countElements,
   createScheduleCalendar,
   DATASETS,
   diagnoseRowAlignment,
   entryConstraintFor,
+  handleOffsetsFor,
   PRIMARY_DATASET_KEY,
   REFERENCE_DATASET,
   ROW_BUFFER,
@@ -509,6 +511,24 @@ export interface DragMeasurementHost {
   };
   /** 拖动是否仍在进行（用于断言"松手后锚点已清空"）。 */
   readonly gestureKind: () => string;
+  /**
+   * 建线入口的判定（ADR 0008 §16.3／裁决 P-32）：走**与用户操作同一条路**的 `linkEntryFor`。
+   *
+   * 记录制用它核对"连接点真的能起建线、端点手柄真的不能"——这两条都是**入口层**的性质，
+   * 而入口层此前没有判据（P-19/P-21 的同一教训）。纯函数的判据在 `interaction.spec.ts`（进门禁）。
+   */
+  readonly entryPointOf?: (clientX: number, clientY: number) => { readonly taskId: string; readonly exitSide: 'left' | 'right' } | null;
+  /** 光标提示的分类（记录制核对"端点/中部/连接点"给出三种不同光标）。 */
+  readonly cursorAt?: (clientX: number, clientY: number) => string;
+  /**
+   * 把"指针在某屏幕点"这件事交给应用（= 触发连接点的显形判定）。
+   *
+   * 连接点**只在指针靠近该行条端时**发射（P-32 复验第 3.2 条），因此记录制必须先
+   * "把指针放到那里"，再读 DOM 上的条数——否则量到的是 0（**假红**）。
+   */
+  readonly hoverAt?: (clientX: number, clientY: number) => void;
+  /** 指针离开（收尾复位）。 */
+  readonly clearHover?: () => void;
   readonly anchors: () => number;
   /** 松手后落到文档里的 `startDate`（断言"命令真的落库了"）。 */
   readonly startDateOf: (taskId: string) => string | null;
@@ -544,6 +564,34 @@ export interface DragMeasureResult {
   readonly scrollLeft: number;
   /** 期望的松手后 `startDate`（= `isoOfOrdinal(anchorOrdinal + dayDelta)`）。 */
   readonly expectedStartAfter: string | null;
+  /** 批次 B 的记录制采样：手柄可见性、连接点起手、光标分类（ADR 0008 §16.2/§16.3）。 */
+  readonly handles: {
+    /** 渲染行组数（`data-task-id` 的 `<g>`）。 */
+    readonly rowGroups: number;
+    /** DOM 上手柄的条数（`line.handle`）。 */
+    readonly domHandles: number;
+    /**
+     * DOM 上连接点的条数（`rect.connect-point`）。
+     *
+     * **只对"指针所在的那一行"计数**（连接点按需显形，P-32 复验第 3.2 条），
+     * 因此判据是 `= 2`（该行的左右两点）而不是"等于全部渲染行的 2×n"。
+     */
+    readonly domConnectPoints: number;
+    /** 模型侧应当发射的手柄条数（`handleOffsetsFor` 的合计）。 */
+    readonly modelHandles: number;
+    /** 模型侧应当发射的连接点条数（**全部渲染行** × 2；与 DOM 的口径差在"按需显形"）。 */
+    readonly modelConnectPoints: number;
+    /** 按下"条体中部"时的光标（期望 `move`）。 */
+    readonly cursorOnBar: string;
+    /** 按下"端点手柄"处的光标（期望 `col-resize`）。 */
+    readonly cursorOnEdge: string;
+    /** 按下"连接点"处的光标（期望 `crosshair`）。 */
+    readonly cursorOnConnect: string;
+    /** 从连接点按下是否真的进入 `linking`（**R4 的可判定形式**）。 */
+    readonly connectDownEntersLinking: boolean;
+    /** 采样到的连接点**左缘**（内容坐标；`null` = 该行没发射连接点）。 */
+    readonly connectLeftEdge: number | null;
+  } | null;
 }
 /**
  * 把任务换算成屏幕坐标（内容坐标 + 窗格偏移）。
@@ -697,6 +745,33 @@ function dragScreenPoint(
     }
   }
 
+  // -------- 批次 B 的记录制采样（ADR 0008 §16.2/§16.3／裁决 P-32）
+  // 这几条都属**入口层**性质（手柄是否在、光标是否分三类、连接点是否真的起建线）：
+  // 纯函数判据在 `interaction.spec.ts`（进门禁），这里只采"打包产物上的真实 DOM"。
+  const handles = await collectHandleSample(args.host, target.taskId);
+  if (handles !== null) {
+    if (handles.domHandles !== handles.modelHandles) {
+      errors.push(`手柄条数与模型不符：DOM ${String(handles.domHandles)} vs 模型 ${String(handles.modelHandles)}`);
+    }
+    // 连接点按需显形：指针在目标行的条端上时，DOM 上应当只有**那一个行组**的两点。
+    if (handles.domConnectPoints !== 2) {
+      errors.push(
+        `连接点未按需显形：指针在条端时该行应有 2 个（左右各一），实际 ${String(handles.domConnectPoints)}`,
+      );
+    }
+    if (handles.cursorOnBar !== 'move') {
+      errors.push(`条体中部按下点的光标应为 move，实际 ${handles.cursorOnBar}`);
+    }
+    if (handles.cursorOnEdge !== 'col-resize') {
+      errors.push(`端点手柄处按下点的光标应为 col-resize，实际 ${handles.cursorOnEdge}`);
+    }
+    if (handles.cursorOnConnect !== 'crosshair') {
+      errors.push(`连接点处按下点的光标应为 crosshair，实际 ${handles.cursorOnConnect}`);
+    }
+    if (!handles.connectDownEntersLinking) {
+      errors.push('从连接点按下未进入建线手势（linking）——R4 的修法未生效');
+    }
+  }
   return {
     status: errors.length === 0 ? 'ok' : 'error',
     errors,
@@ -719,6 +794,7 @@ function dragScreenPoint(
     expectedStartAfter,
     scrollTop: pane.scrollTop,
     scrollLeft: pane.scrollLeft,
+    handles,
   };}
 
 /**
@@ -750,6 +826,107 @@ function pickDragTarget(host: DragMeasurementHost): { readonly taskId: string } 
 }
 
 /**
+ * 批次 B 的记录制采样：**手柄可见性 + 光标分类 + 连接点起建线**（ADR 0008 §16.2/§16.3／裁决 P-32）。
+ *
+ * 三条纪律：
+ * 1. **只读**：只读 DOM 与调 `cursorAt` / `entryPointOf`（后者走与用户同一条纯函数路径，
+ *    不派发事件、不进手势状态机）；
+ * 2. **选择器必须用 `line.handle` / `rect.connect-point`**：行组里现在有多个 `rect`
+ *    （`.bar` / `.bar-progress` / `.connect-point`），用"第一个 rect"会量到手柄
+ *    （P-32 落地时当场修过 `--align` 的同一处）；
+ * 3. **模型侧用 `handleOffsetsFor`**（与渲染同源），因此"模型 vs DOM"这条是**互证**而不是自证。
+ */
+async function collectHandleSample(
+  host: DragMeasurementHost,
+  taskId: string,
+): Promise<NonNullable<DragMeasureResult['handles']> | null> {
+  const view = host.view();
+  const document = host.document();
+  const schedule = host.schedule();
+  const pane = window.document.getElementById('chart-pane');
+  if (view === null || schedule === null || pane === null) return null;
+  const row = view.rows.find((item) => item.id === taskId);
+  if (row === undefined) return null;
+
+  const described = handleOffsetsFor({
+    view,
+    document,
+    schedule,
+    calendar: host.calendar() as unknown as Parameters<typeof handleOffsetsFor>[0]['calendar'],
+  });
+  let modelHandles = 0;
+  let modelConnectPoints = 0;
+  for (const item of described) {
+    modelHandles += item.handleCount;
+    modelConnectPoints += item.connectCount;
+  }
+
+  const svg = window.document.querySelector('.chart-pane-wrap .gantt-svg, #chart-pane .gantt-svg');
+  const domHandles = svg?.querySelectorAll('.rows line.handle').length ?? 0;
+  const rowGroups = svg?.querySelectorAll('.rows > g').length ?? 0;
+
+  // 采样点（屏幕坐标）：条体中部 / 端点手柄 / 连接点——都用**模型几何**换算，与用户路径同源。
+  const rect = pane.getBoundingClientRect();
+  const toClient = (contentX: number, contentY: number): { readonly clientX: number; readonly clientY: number } => ({
+    clientX: rect.left + contentX - view.scrollLeft,
+    clientY: rect.top + contentY - view.scrollTop,
+  });
+  /**
+   * 采样点的 x **从 DOM 属性读**，不在这里重算公式。
+   *
+   * 理由（P-32 落地时当场踩到）：`row.xRight` 是条形的**端**，而端点手柄画在**判定区边界**
+   * （§16.2：`zones.edgeR.x1`，比端更靠内 6 px）。若在这里用 `row.xRight` 当"手柄处"，
+   * 采样点会落到**连接点**上（`xRight + 2` 与 `xRight` 相距 2 px），于是判据报
+   * "端点手柄处光标应为 col-resize，实际 crosshair"——那是**采错了点**，不是实现错了。
+   * 从 DOM 读同时还有第二个好处：它顺带断言了"手柄真的发射了"。
+   */
+  const rowGroup = [...(svg?.querySelectorAll('.rows > g[data-task-id]') ?? [])].find((node) => node.getAttribute('data-task-id') === taskId) ?? null;
+  const handleNodes = rowGroup === null ? [] : [...rowGroup.querySelectorAll('line.handle')];
+  const attrX = (node: Element): number => Number(node.getAttribute('x') ?? node.getAttribute('x1') ?? Number.NaN);
+  const handleContentX = handleNodes.map((node) => attrX(node)).filter((value) => Number.isFinite(value)).sort((a, b) => b - a)[0];
+  const y = row.row * view.rowHeight + view.rowHeight / 2;
+  const mid = toClient((row.xLeft + row.xRight) / 2, y);
+  const edge = toClient(handleContentX ?? row.xRight, y);
+
+  /**
+   * 连接点：**先把指针放到"条端外侧的方块"上，再读 DOM**。
+   *
+   * 它按需显形（P-32 复验第 3.2 条），所以顺序不能反：先 hover ⇒ 应用把该行的连接点发射出来 ⇒
+   * 才能量到条数。`CONNECT_SIZE_PX / 2` = 方块的中心线（在条端的**外侧** 4 px）。
+   */
+  const connect = toClient(row.xRight + CONNECT_SIZE_PX / 2, y);
+  host.hoverAt?.(connect.clientX, connect.clientY);
+  // **必须等 Vue 把连接点渲染出来**再读 DOM：`hoverAt` 只改了响应式状态，
+  // 同一个 microtask 里读 DOM 会恒得 0（这条在落地记录制时当场踩到）。
+  await nextTick();
+  // **只数"指针所在那一行"的连接点**：连接点按需显形（复验第 3.2 条），
+  // `domConnectPoints` 若沿用 hover 之前的全图计数，这条判据会恒红。
+  const domConnectPointsAfterHover =
+    rowGroup === null ? 0 : rowGroup.querySelectorAll('rect.connect-point').length;
+  const connectNodesAfterHover =
+    rowGroup === null ? [] : [...rowGroup.querySelectorAll('rect.connect-point')];
+  const connectContentX = connectNodesAfterHover
+    .map((node) => attrX(node))
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right)[0];
+  host.clearHover?.();
+
+  const entry = host.entryPointOf?.(connect.clientX, connect.clientY) ?? null;
+  return {
+    rowGroups,
+    domHandles,
+    domConnectPoints: domConnectPointsAfterHover,
+    modelHandles,
+    modelConnectPoints,
+    cursorOnBar: host.cursorAt?.(mid.clientX, mid.clientY) ?? '',
+    cursorOnEdge: host.cursorAt?.(edge.clientX, edge.clientY) ?? '',
+    cursorOnConnect: host.cursorAt?.(connect.clientX, connect.clientY) ?? '',
+    connectDownEntersLinking: entry !== null && entry.taskId === taskId,
+    // 采样用的方块左缘（`null` 说明该行没发射连接点 —— 上面那条会报出来）。
+    connectLeftEdge: connectContentX ?? null,
+  };
+}
+/**
  * 当前 DOM 上**全部条形的几何串**（用于判断"渲染侧真的更新了"= 下游跟随的间接证据）。
  *
  * 两处口径（P-23 落地时当场抓到第一处）：
@@ -761,7 +938,11 @@ function pickDragTarget(host: DragMeasurementHost): { readonly taskId: string } 
  */
 function collectBarGeometry(): string {
   const nodes = document.querySelectorAll(
-    '.chart-pane-wrap .rows rect, .chart-pane-wrap .rows polygon, #chart-pane .rows rect, #chart-pane .rows polygon',
+    // **只串条形与菱形**（`.bar` / `.milestone`）：行组里现在还有 `.bar-progress` 与
+    // `.connect-point`（批次 B 的端点手柄是 `<line>`，不在本选择器内）。不排除它们会让
+    // "手柄/连接点变了"被算成"条形变了" ⇒ `--drag` 的"DOM 变化 N/12 帧"变成**假绿**
+    // （P-23 修过一次同族假阴性）。
+    '.chart-pane-wrap .rows rect.bar, .chart-pane-wrap .rows polygon.milestone, #chart-pane .rows rect.bar, #chart-pane .rows polygon.milestone',
   );
   const parts: string[] = [];
   nodes.forEach((node) => {
@@ -810,6 +991,7 @@ function emptyDragResult(
     expectedStartAfter: null,
     scrollTop: args.scrollTop ?? 0,
     scrollLeft: args.scrollLeft ?? 0,
+    handles: null,
   };}
 
 // ---------------------------------------------------------------- G5 批次 D：两栏行对齐（记录制，ADR 0007 §14 / 裁决 P-23）
@@ -957,19 +1139,32 @@ export async function runAlignMeasurement(args: {
 
     const chartById = new Map<
       string,
-      { readonly centerY: number; readonly barLeft: number | null; readonly barRight: number | null }
+      { readonly centerY: number | null; readonly barLeft: number | null; readonly barRight: number | null }
     >();
     for (const group of rowGroups) {
       const id = group.getAttribute('data-task-id');
-      const box = boxOf(group);
-      if (id === null || box === null) continue;
-      // **行中心**：`<g>` 没有自己的盒子，它的矩形是子元素（条 / 菱形）的并集，
-      // 而条在行内垂直居中（`ViewModel.barY`）⇒ 条中心 = 行中心，两栏才可比。
-      const bar = boxOf(group.querySelector('rect'));
+      if (id === null) continue;
+      /**
+       * **行中心必须从"垂直居中的那一个图元"取**，不能用 `<g>` 的矩形。
+       *
+       * 理由（批次 B／P-32 落地时当场踩到）：`<g>` 没有自己的盒子，它返回的是**子元素并集**。
+       * 批次 B 给每行加了端点手柄（8 px `<line>`）与连接点（8 px `<rect>`），
+       * 于是并集不再等于"条/菱形"的盒子——实测把行中心整体抬高了 **4.4 px**，
+       * 判据报 `row-offset` / `hit-test-mismatch`（**是采错了量，不是对齐坏了**：条形 x 偏差仍是 0.000）。
+       *
+       * 正确取法：条（`rect.bar` 或菱形 `polygon.milestone`）在行内**垂直居中**（`ViewModel.barY`），
+       * 因此"该图元的中心 = 行中心"。取不到任何几何图元时记 `null`（该行不参与判读）。
+       *
+       * **选择器必须点名 class**：行组里还有 `.bar-progress` 与 `.connect-point`（两者也是 `<rect>`），
+       * 取"第一个 rect"会量到手柄/连接点。
+       */
+      const barNode = group.querySelector('rect.bar, polygon.milestone');
+      const bar = boxOf(barNode);
+      const isDiamond = barNode !== null && barNode.tagName === 'polygon';
       chartById.set(id, {
-        centerY: box.top + box.height / 2,
-        barLeft: bar === null ? null : bar.left,
-        barRight: bar === null ? null : bar.left + bar.width,
+        centerY: bar === null ? null : bar.top + bar.height / 2,
+        barLeft: bar === null || isDiamond ? null : bar.left,
+        barRight: bar === null || isDiamond ? null : bar.left + bar.width,
       });
     }
 
@@ -981,7 +1176,7 @@ export async function runAlignMeasurement(args: {
       const chart = chartById.get(id);
       const table = boxOf(tableRow);
       const geometry = geometryOf.get(id);
-      if (chart === undefined || table === null || geometry === undefined) continue;
+      if (chart === undefined || chart.centerY === null || table === null || geometry === undefined) continue;
       const expectedBarLeft = geometry.isMilestone ? null : paneBox.left + geometry.xLeft - view.scrollLeft;
       samples.push({
         id,

@@ -23,14 +23,18 @@ import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } fr
   collapseToCommand,
   countElements,
   countOverlays,
+  cursorForPointer,
   dragPreviewFor,
   editToCommand,
   formatProgress,
   HEADER_HEIGHT_PX,
+  linkEntryFor,
   pointerFromClient,
+  resolvePointerTarget,
   RENDER_CORE_VERSION,
   ROW_HEIGHT,
   type ColumnKey,
+  type CursorHint,
   type DocumentLink,
   type PointerInput,
   type ZoomKey,
@@ -113,7 +117,28 @@ const {
  */
 const tableVisible = ref(true);
 
+/**
+ * 窗格上的 `mousemove`：**一条事件、两件事**（顺序不可换）。
+ *
+ * 1. **光标提示**（R3 后半）：只有 `idle` 时才更新——拖动/建线期间光标必须保持"正在操作"的语义，
+ *    否则拖到端点区会被 `col-resize` 打断；
+ * 2. **手势推进**（拖动中的候选）：`useGesture` 只在非 `idle` 时才会真正重算。
+ *
+ * 光标提示（ADR 0008 §16.2 的 R3 后半）**不走 Vue 响应式**：它是逐 `mousemove` 变化的 DOM 表现，
+ * 由 `onMouseMoveHint` 直接写 `pane.style.cursor`（放进响应式会让拖拽帧预算为此付费，
+ * ADR 0008 §11 的判据）。因此模板上**不**绑 `:style`——两处都写会互相打架。
+ */
+
 /** 诊断清单是否展开（G-8 的**受控收口**：计数 + 可展开列表；完整向导形态归后续）。 */
+/**
+ * 指针所在的渲染行与内容坐标（**只驱动连接点的显形**，不参与命中判定）。
+ *
+ * 为什么放两个 ref 而不是一个对象：赋值时可以做**相等短路**（同一行 + 同一个 x 就不触发更新），
+ * 否则每次 `mousemove` 都会让 `GanttChart` 的那一行重算，拖拽帧预算要为"没变化"付费
+ * （ADR 0008 §11 的判据）。
+ */
+const hoverTaskId = ref<string | null>(null);
+const hoverX = ref<number | null>(null);
 const diagnosticsOpen = ref(false);
 
 /**
@@ -244,7 +269,7 @@ function pointerFromClientPoint(
   clientX: number,
   clientY: number,
   buttons: number,
-  modifiers: { readonly altKey?: boolean; readonly shiftKey?: boolean } = {},
+  modifiers: { readonly shiftKey?: boolean } = {},
 ): PointerInput | null {
   const pane = paneRef.value;
   const current = view.value;
@@ -258,7 +283,6 @@ function pointerFromClientPoint(
     scrollLeft: current.scrollLeft,
     scrollTop: current.scrollTop,
     buttons,
-    ...(modifiers.altKey === true ? { altKey: true } : {}),
     ...(modifiers.shiftKey === true ? { shiftKey: true } : {}),
   });
 }
@@ -268,8 +292,9 @@ function pointerFromClientPoint(
  * 拖出窗格时坐标仍然自洽。
  */
 function pointerFrom(event: MouseEvent): PointerInput | null {
+  // `Alt` **不是**手势修饰键（P-32 的复验已把它删除）：它被 Windows 的"移动窗口"占用，
+  // 事件到不了页面 ⇒ 只保留 `shiftKey`（将来"约束拖动"之类会用到）。
   return pointerFromClientPoint(event.clientX, event.clientY, event.buttons, {
-    ...(event.altKey ? { altKey: true } : {}),
     ...(event.shiftKey ? { shiftKey: true } : {}),
   });
 }
@@ -291,11 +316,70 @@ const dragPreview = computed(() =>
       }),
 );
 
+/**
+ * **建线的起手位置**（ADR 0008 §16.3／裁决 P-32）：指针落在某行的**连接点**上时非空。
+ *
+ * 纯函数在 `render-core` 的 `linkEntryFor`（进门禁），这里只负责调用——与 `pointerFromClient`
+ * 同一条纪律："入口层算出来的输入"必须落在可断言的地方（P-19/P-21 两次的教训）。
+ */
+function linkEntryOf(pointer: PointerInput): { readonly taskId: string; readonly exitSide: 'left' | 'right' } | null {
+  const current = view.value;
+  const currentSchedule = schedule.value;
+  if (current === null || currentSchedule === null) return null;
+  const entry = linkEntryFor({
+    point: pointer,
+    view: current,
+    document: document.value,
+    schedule: currentSchedule,
+    calendar: calendar.value,
+  });
+  return entry === null ? null : { taskId: entry.taskId, exitSide: entry.exitSide };
+}
+
+/**
+ * 光标提示（ADR 0008 §16.2 的 R3 后半）：**纯函数给枚举，本层只做赋值**。
+ *
+ * 为什么不留响应式状态：它是逐 `mousemove` 变化的 DOM 表现，放进 Vue 响应式会让拖拽帧预算
+ * 为此付费（ADR 0008 §11 的判据）。因此这里写的是原始 DOM 元素（`HTMLElement` 之外的用法不收）。
+ */
+function onMouseMoveHint(event: MouseEvent): void {
+  const pane = paneRef.value;
+  if (pane === null) return;
+  const current = view.value;
+  const currentSchedule = schedule.value;
+  if (current === null || currentSchedule === null) {
+    pane.style.cursor = 'default';
+    return;
+  }
+  const pointer = pointerFromClientPoint(event.clientX, event.clientY, event.buttons);
+  if (pointer === null) return;
+  updateHover(pointer);
+  // 顺序与 `cursorForPointer` 一致：**连接点（建线）优先**于条体上的判定区。
+  const hint: CursorHint =
+    linkEntryFor({
+      point: pointer,
+      view: current,
+      document: document.value,
+      schedule: currentSchedule,
+      calendar: calendar.value,
+    }) !== null
+      ? 'crosshair'
+      : cursorForPointer({
+          point: pointer,
+          view: current,
+          document: document.value,
+          schedule: currentSchedule,
+          calendar: calendar.value,
+        });
+  pane.style.cursor = hint;
+}
+
 function onChartPointerDown(event: MouseEvent): void {
   if (event.button !== 0) return;
   const pointer = pointerFrom(event);
   if (pointer === null) return;
-  gesture.onPointerDown(pointer);
+  const entry = linkEntryOf(pointer);
+  gesture.onPointerDown(entry === null ? { pointer } : { pointer, entryPoint: entry });
 }
 
 function onChartPointerMove(event: MouseEvent): void {
@@ -303,6 +387,42 @@ function onChartPointerMove(event: MouseEvent): void {
   const pointer = pointerFrom(event);
   if (pointer === null) return;
   gesture.onPointerMove(pointer);
+}
+
+/**
+ * 记录"指针在哪一行、x 是多少"（**只驱动连接点的显形**）。
+ *
+ * 行号走 `resolvePointerTarget`（渲染窗口内的可见行；缓冲行与折叠行不可交互），
+ * 因此"连接点显形"与"能不能点中"用的是**同一个行集合**。
+ * 相等短路是必需的：`mousemove` 的频率远高于"行或 x 真的变了"的频率。
+ */
+function updateHover(pointer: PointerInput): void {
+  const current = view.value;
+  const currentSchedule = schedule.value;
+  if (current === null || currentSchedule === null) return;
+  const target = resolvePointerTarget({
+    view: current,
+    document: document.value,
+    schedule: currentSchedule,
+    calendar: calendar.value,
+    x: pointer.x,
+    y: pointer.y,
+  });
+  const nextId = target === null ? null : target.taskId;
+  const nextX = target === null ? null : Math.round(pointer.x);
+  if (hoverTaskId.value !== nextId) hoverTaskId.value = nextId;
+  if (hoverX.value !== nextX) hoverX.value = nextX;
+}
+
+/** 指针离开窗格：连接点立刻消失（不留"悬空的方块"）。 */
+function clearHover(): void {
+  hoverTaskId.value = null;
+  hoverX.value = null;
+}
+/** 窗格 `mousemove` 的**唯一入口**（模板上只能有一个 `@mousemove`，否则 Vue 报重复属性）。 */
+function onChartMouseMove(event: MouseEvent): void {
+  if (gesture.state.value.kind === 'idle') onMouseMoveHint(event);
+  onChartPointerMove(event);
 }
 
 function onWindowPointerUp(event: MouseEvent): void {
@@ -465,7 +585,9 @@ onMounted(() => {
           pointer: {
             down: (event) => {
               const pointer = pointerFrom(event);
-              if (pointer !== null) gesture.onPointerDown(pointer);
+              if (pointer === null) return;
+              const entry = linkEntryOf(pointer);
+              gesture.onPointerDown(entry === null ? { pointer } : { pointer, entryPoint: entry });
             },
             move: (event) => {
               const pointer = pointerFrom(event);
@@ -476,6 +598,44 @@ onMounted(() => {
               if (pointer !== null) gesture.onPointerUp({ ...pointer, buttons: 0 });
             },
           },          gestureKind: () => gesture.state.value.kind,
+          /** 建线入口的判定（**与用户操作同一条路**：linkEntryFor 的纯函数）。 */
+          entryPointOf: (clientX: number, clientY: number) => {
+            const pointer = pointerFromClientPoint(clientX, clientY, 1);
+            return pointer === null ? null : linkEntryOf(pointer);
+          },
+          /** 把"指针在某屏幕点"交给应用（触发连接点的显形判定；记录制先 hover 再读 DOM）。 */
+          hoverAt: (clientX: number, clientY: number) => {
+            const pointer = pointerFromClientPoint(clientX, clientY, 1);
+            if (pointer !== null) updateHover(pointer);
+          },
+          clearHover: () => {
+            clearHover();
+          },
+          /** 光标提示的分类（记录制用它核对"手柄/连接点/判定区"的光标真的不同）。 */
+          cursorAt: (clientX: number, clientY: number) => {
+            const pointer = pointerFromClientPoint(clientX, clientY, 1);
+            const current = view.value;
+            const currentSchedule = schedule.value;
+            if (pointer === null || current === null || currentSchedule === null) return 'default';
+            if (
+              linkEntryFor({
+                point: pointer,
+                view: current,
+                document: document.value,
+                schedule: currentSchedule,
+                calendar: calendar.value,
+              }) !== null
+            ) {
+              return 'crosshair';
+            }
+            return cursorForPointer({
+              point: pointer,
+              view: current,
+              document: document.value,
+              schedule: currentSchedule,
+              calendar: calendar.value,
+            });
+          },
           anchors: () => anchors.value.length,
           startDateOf: (taskId: string) =>
             document.value.tasks.find((task) => task.id === taskId)?.startDate ?? null,
@@ -570,8 +730,9 @@ onUnmounted(() => {
             ref="paneRef"
             class="chart-pane"
             @scroll="chart.handleScroll()"
+            @mousemove="onChartMouseMove"
+            @mouseleave="clearHover"
             @mousedown="onChartPointerDown"
-            @mousemove="onChartPointerMove"
           >
             <div
               class="chart-spacer"
@@ -587,6 +748,8 @@ onUnmounted(() => {
             :preview="preview"
             :conflict-task-ids="conflictTaskIds"
             :drag-preview="dragPreview"
+            :hover-task-id="hoverTaskId"
+            :hover-x="hoverX"
           />
         </div>
       </div>

@@ -33,10 +33,12 @@
 | `domain.ts` | 行序（树序经折叠过滤）、`barXRange`、`milestoneCenterX`、`taskBounds` |
 | `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点 |
 | `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges` |
-| `count.ts` | 元素计数（两路互证）与预算判定；G5 的覆盖层计数 `countOverlays`（`c₄`，**每帧固定开销**，不随规模增长） |
+| `count.ts` | 元素计数（两路互证）与预算判定；G5 的 **`c₄ = perRenderedRow·rows + overlay`**（ADR 0008 §16.4：每渲染行 6 + 每帧固定 12；`countOverlays` 只承担"每帧固定"那一半，不随文档总规模增长） |
 | `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出） |
 | `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19）；**行内编辑的基线文本与陈旧判定** `rawCellText` / `isEditStale`（P-21 批次 C 的 R5）；**提示条的迁移** `noticeAfterDispatch` / `rejectionNotice` / `StatusNotice`（P-30，唯一实现处） |
 | `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13**）：屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、位移与候选 `deltaFor` / `candidateOrdinalFor`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture`、结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor` |
+| `zones.ts` | **判定区的唯一公式**（ADR 0008 §16.1／[P-32](../../docs/00-baseline/裁决记录.md)）：`zonesFor`（随条宽收缩）、`zoneAt` / `zoneContains` / `dragModeOfZones`、`cursorForZone`、`translateZone` / `translateZones`，以及建线四格表 `linkTypeFor` / `linkEnterSideFor` / `exitXFor` / `enterXFor`。**单独一层**：公式的消费者在环上（`gesture` 要语义、`interaction` 要手柄与光标） |
+| `interaction.ts` | **交互几何**（ADR 0008 §16.2/§16.3，**落点与可见性按 §16.7 的人工复验返工**）：`rowHandlesFor`（端点手柄 2×4 px + 两侧连接点，内缘贴条端、竖向居中）、`handleXFor`、`barHeightOf`、`connectSideAt`（**显示区 ⊇ 命中区**）、`connectRevealFor` / `rowConnectVisibleAt`（按需显形）、`cursorForPointer`（光标枚举）、`linkEntryFor`（建线起手位置）、`handleOffsetsFor`（记录制核对） |
 | `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
 | `affected.ts` | `affectedRenderSet`：受影响行 + 受影响边（编辑重绘的判据） |
 | `align.ts` | **两栏行对齐的判读内核**（ADR 0007 §14/§15 / [P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)）：`diagnoseRowAlignment`（一次探测）+ `summarizeAlignment`（多位置汇总）；判据含**轴的四边覆盖**与**滚动范围**（`content-range-mismatch`）。输入全是**视口坐标的数字**（DOM 采数在 `apps/web/src/measure.ts` 的记录制钩子里）。机制标签见 ADR §14.4 |
@@ -260,11 +262,18 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | G5 ⑨ 编辑态"值真的变了才取消"（P-21 批次 C） | `editCommand.spec.ts`（**+10 例**） | `rawCellText` 逐列**原始字段**（`null` ⇒ 空串、任务不存在 ⇒ `undefined`、派生列 ⇒ 空串）；"别的任务变了 / 同任务别的列变了 ⇒ **不**陈旧"、"该任务该列真的变了（文本列 + 日期列）⇒ 陈旧"、"任务消失 ⇒ 陈旧"、"改回原值 ⇒ 不陈旧"；恒等 patch 必须 `changed === false`（前提自证）；**NC1**（忽略 `column`，只比整个任务）与 **NC2**（旧规则"任何版本不同即陈旧"）必须被检出 | **进** | [P-28 批次 C](../../docs/01-roadmap/首版-记录-G5.md) |
 | G5 ⑨ 提示清空（P-21 批次 C） | 人工复核 + 临时 CDP 预验（**打包产物**口径，M1–M7） | 空栈 `Ctrl+Z` 出现的 `SESSION_NOTHING_TO_UNDO` 在**下一次成功且真的改了文档的命令**后消失——**含拖动/建线的松手提交**（P-31）；`apps/web` 至今没有判据入口 ⇒ DOM 层只能人工验（P-9 口径） | **不进**（人工） | [P-28 批次 C](../../docs/01-roadmap/首版-记录-G5.md) / [P-31](../../docs/00-baseline/裁决R30.md) |
 | G5 ⑩ 提示条的迁移（P-30，收口 P-29） | `editCommand.spec.ts`（**+5 例**）；**落点在 `useProject.commit()`**（`apps/web`，不进 gate） | 三档逐条：**失败**才产生提示（文案含 `code`/`message`，缺失用「未知」）；**成功且 `changed`** ⇒ 清掉失败提示、`info` 不动；**成功但 `changed === false`** ⇒ 原样保留。含一条**用真实会话栈**跑维护者报文序列：空栈回退 ⇒ 有提示；修改 ⇒ 提示消失；回退到栈底 ⇒ 不出现；栈底再回退 ⇒ 才重新给提示。**落点在命令通道**（P-31）：`dispatch`/`undo`/`redo`/`ingestDocument` 都经 `commit()`，任何调用点都绕不过 | **进**（规则本体） | [P-30](../../docs/00-baseline/裁决R29.md) / [P-31](../../docs/00-baseline/裁决R30.md) |
-
+| G5 ⑪ 判定区随条宽收缩、端点手柄与连接点（P-32＝P-21 批次 B） | `zones.ts` + `interaction.ts` + `interaction.spec.ts`（**新增 21 例**）+ `gesture.spec.ts`（**+6 例**） | `zonesFor` 的边界公式：宽条（≥18 px）与旧式 `DRAG_EDGE_PX = 6` **逐值一致**（前提自证）、9 px 条给出 6 px 的 `move` 区、3 px 条（月档 1 个工作日）的 `move` 区**非空**（**NC1**：固定 6 px ⇒ 空集）；手柄 x **= 判定区边界**（与判定区同源）、连接点**内缘贴条端、整体向外伸**（竖向中心 = 条形中心；**显示区 ⊇ 命中区**：方块的每一处都点得中）、`connectRevealFor` 只在指针靠近该行条端时显形、手柄高 4 < 条高 14.4（不越过条体上沿）；光标四分类（端点 `col-resize` / 中部 `move` / 连接点 `crosshair` / 其余 `default`，且**取非 0 滚动位置**）；`linkEntryFor` 的 `exitSide` = 所抓那一侧、`linkTypeFor` 四格与端点 x（**NC2**：连接点 x 换成手柄 x ⇒ 从"建线"退化成"改工期"）；`handleOffsetsFor` 与 `rowHandlesFor` 同源 | **进** | [ADR 0008 §16](../../docs/02-adr/附录/0008-增补.md) / [P-32](../../docs/00-baseline/裁决R31.md) |
+| G5 ⑪ 手柄/光标/连接点（记录制） | `scripts/measure-render.mjs --drag` | 打包产物上：DOM 手柄条数 **= 模型**（`handleOffsetsFor`）、**指针所在那一行的连接点 = 2**（按需显形）、条体中部/端点/连接点三处的光标分类正确、**从连接点按下认得出该侧入口**（R4 的可判定形式） | **不进**（记录制，需本机 Chrome） | [P-32](../../docs/01-roadmap/首版-记录-G5.md) |
 **元素预算的常数与实测**（[`apps/web/evidence/render-timing-chrome152.md`](../../apps/web/evidence/render-timing-chrome152.md)）：
 
 - `c₁ = 3`（每渲染行：`<g>` + 条 + 进度；里程碑行 2；**汇总条不加端帽**）、
   `c₂ = 3`（每条渲染边：折线 + 箭头 + **透明热区**）；
+- **`c₄ = perRenderedRow·rows + overlay = 6·rows + 12`**（ADR 0008 §16.4／[P-32](../../docs/00-baseline/裁决R31.md)）：
+  每渲染行 6（条/菱形 1 + 进度 1 + 端点手柄 2 + 连接点 2 的**上界**，最"胖"的是有进度的叶子）+
+  每帧固定 12（拖动轮廓 3 / 建线预览 2 / 冲突描边 1 / 成环与选中高亮 ≤ 6）。
+  **"与文档总规模无关"不变**：`rows ≤ 视口行数 + ROW_BUFFER`，10× 规模下 `rows` 恒为 32
+  （实测锚值随之平移：`scaleInvariance.spec.ts` 由 `350 / 317 / 329 / 335` → `472 / 439 / 451 / 457`，
+  逐项差值恒为 **122**；`clipping.spec.ts` 的 NC2 比值由 10.71× → **≈10.8×**）；
 - `c₃` 逐档位 = **114 / 69 / 88**（日/周/月，图表全宽 1265 px），与 ADR §11 回填的
   **116 / 70 / 89**（图表独占 1280 px）差 1–2——就是那点宽度差；
 - 分屏时图表窗格被左表占去一部分宽度，同一页面下 `c₃` 只有 35 / 21 / 26：

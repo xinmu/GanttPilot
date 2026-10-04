@@ -44,6 +44,8 @@ import {
 } from './gesture.js';
 import { highlightForCyclePath } from './highlight.js';
 import { taskBounds, type TaskBounds } from './domain.js';
+import { CONNECT_SIZE_PX } from './interaction.js';
+import { zonesFor } from './zones.js';
 
 const fixture = buildFixture(DATASETS[2]); // dense：1,000 任务 / 1,500 依赖
 const viewport: Viewport = {
@@ -408,10 +410,14 @@ describe('按下 → 拖动 → 松手（ADR 0008 §5/§6）', () => {
       anchorMode: 'snap',
     });
     expect(dragged.state.kind).toBe('idle');
+    // 建线入口是**连接点**（ADR 0008 §16.3；`Alt` 已在 P-32 的复验里删除）。
+    const bounds = boundsOfRow(summaryRow);
+    const summaryTaskId = fixture.document.tasks[view.order[summaryRow] ?? 0]?.id ?? '';
     const linking = beginGesture({
       ...dragArgs(),
-      pointer: { x: 300, y: rowCenterY(summaryRow), buttons: 1, altKey: true },
+      pointer: { x: bounds.xRight, y: rowCenterY(summaryRow), buttons: 1 },
       anchorMode: 'snap',
+      entryPoint: { taskId: summaryTaskId, exitSide: 'right' },
     });
     expect(linking.state.kind).toBe('linking');
   });
@@ -524,7 +530,7 @@ describe('`snap` vs `allow`（IX-05 / ADR 0008 §6）——判据有判别力的
 });
 
 describe('建线与检环（ADR 0008 §7）', () => {
-  it('`altKey` 按下 → 悬停另一行 → 松手产出一条 `link.insert`，且 `lagDays = 0`', () => {
+  it('从**连接点**按下 → 悬停另一行 → 松手产出一条 `link.insert`，且 `lagDays = 0`', () => {
     const from = firstFreeLeafRow();
     let toRow: number | null = null;
     for (let row = from.row + 1; row <= Math.min(view.renderLast, from.row + 6); row += 1) {
@@ -540,21 +546,24 @@ describe('建线与检环（ADR 0008 §7）', () => {
 
     const fromBounds = boundsOfRow(from.row);
     const toBounds = boundsOfRow(toRow);
+    // 起手位置 = **右连接点的命中区**（内缘贴条端、向外一个方块宽；ADR 0008 §16.2 的订正）。
     const started = beginGesture({
       ...dragArgs(),
-      pointer: { x: fromBounds.xRight, y: rowCenterY(from.row), buttons: 1, altKey: true },
+      pointer: { x: connectPointXFor(fromBounds, 'right'), y: rowCenterY(from.row), buttons: 1 },
       anchorMode: 'snap',
+      entryPoint: { taskId: from.taskId, exitSide: 'right' },
     });
     expect(started.state.kind).toBe('linking');
 
     const hovered = reduceGesture({
       ...dragArgs(),
-      pointer: { x: (toBounds.xLeft + toBounds.xRight) / 2, y: rowCenterY(toRow), buttons: 1, altKey: true },
+      pointer: { x: (toBounds.xLeft + toBounds.xRight) / 2, y: rowCenterY(toRow), buttons: 1 },
       anchorMode: 'snap',
       state: started.state,
     });
     expect(hovered.preview).not.toBeNull();
-    expect(hovered.preview?.type).toBe(toBounds.xLeft >= fromBounds.xLeft ? 'FS' : 'SS');
+    // 右出 + 目标在右 ⇒ `FS`；目标在左 ⇒ `FF`（`linkTypeFor` 的四格表，不再只有 FS/SS）。
+    expect(hovered.preview?.type).toBe(toBounds.xLeft >= fromBounds.xLeft ? 'FS' : 'FF');
     expect(hovered.preview?.cyclic).toBe(false);
     expect(hovered.preview?.exitPoint[1]).toBe(fromBounds.y);
     expect(hovered.preview?.enterPoint[1]).toBe(toBounds.y);
@@ -619,6 +628,215 @@ describe('命中反算（ADR 0007 §3 的分工 + ADR 0008 §5）', () => {
       expect(target?.row).toBe(zoomedView.renderFirst);
       expect(zoomedView.pxPerDay).toBe(ZOOM_PX_PER_DAY[zoom]);
     }
+  });
+});
+
+/** 某侧**连接点的命中点 x**（取方块的竖向中心线上的一点；与 `connectSideAt` 同源）。 */
+function connectPointXFor(bounds: TaskBounds, side: 'left' | 'right'): number {
+  return side === 'right' ? bounds.xRight + CONNECT_SIZE_PX / 2 : bounds.xLeft - CONNECT_SIZE_PX / 2;
+}
+/** 取某可见行的任务 id（建线判据挑样本用）。 */
+function taskIdOfRow(target: ViewModel, row: number): string {
+  const docIndex = target.order[row];
+  return docIndex === undefined ? '' : (fixture.document.tasks[docIndex]?.id ?? '');
+}
+
+describe('批次 B 的入口判据（P-32：连接点建线 / 手柄位置 / 连接点几何）', () => {
+  /**
+   * 这一组守的是 P-21 的 **R4**：`Alt+拖动` 在 Windows 上被系统"移动窗口"手势吃掉，事件到不了页面，
+   * 于是建线在**当前平台不可用**。新入口是**连接点**（ADR 0008 §16.3）——
+   * "出端侧由所抓的连接点决定"这条必须可断言，否则它会退化成"看起来能连线、实际在改日期"。
+   */
+  it('从**连接点**按下 ⇒ `linking`，且 `exitSide` = 所抓的那一侧（不需要 `Alt`）', () => {
+    const target = tallView;
+    const pick = pickLeaf(({ bounds: b, constraint: c }) => !b.isMilestone && !Number.isFinite(c));
+    const bounds = pick.bounds;
+    const y = rowCenterY(pick.row);
+
+    const right = beginGesture({
+      ...dragArgsFor(target),
+      pointer: { x: bounds.xRight + CONNECT_SIZE_PX / 2, y, buttons: 1 },
+      anchorMode: 'snap',
+      entryPoint: { taskId: pick.task.id, exitSide: 'right' },
+    });
+    expect(right.state.kind).toBe('linking');
+    if (right.state.kind !== 'linking') return;
+    expect(right.state.exitSide).toBe('right');
+    expect(right.state.fromTaskId).toBe(pick.task.id);
+
+    const left = beginGesture({
+      ...dragArgsFor(target),
+      pointer: { x: bounds.xLeft - CONNECT_SIZE_PX / 2, y, buttons: 1 },
+      anchorMode: 'snap',
+      entryPoint: { taskId: pick.task.id, exitSide: 'left' },
+    });
+    expect(left.state.kind).toBe('linking');
+    if (left.state.kind !== 'linking') return;
+    expect(left.state.exitSide).toBe('left');
+
+    // NC：同一个连接点位置若**不**给 `entryPoint`（＝旧口径），它既不在条体上、也不产生建线手势。
+    const withoutEntry = beginGesture({
+      ...dragArgsFor(target),
+      pointer: { x: bounds.xRight + CONNECT_SIZE_PX / 2, y, buttons: 1 },
+      anchorMode: 'snap',
+    });
+    expect(withoutEntry.state.kind).toBe('idle');
+  });
+
+  it('**`Alt` 入口已删除**：只按住 `Alt` 拖动 ⇒ 仍是拖动语义（不再偷偷建线）', () => {
+    const target = tallView;
+    const pick = pickLeaf(({ bounds: b, constraint: c }) => !b.isMilestone && !Number.isFinite(c));
+    const bounds = pick.bounds;
+    const y = rowCenterY(pick.row);
+    // `PointerInput` 里已经没有 `altKey` 这个字段（P-32 的复验第 ⑤ 条），
+    // 因此"按 Alt 会怎样"只能由"不给连接点 entryPoint"来表达——结论必须是**拖动**。
+    const onBar = beginGesture({
+      ...dragArgsFor(target),
+      pointer: { x: (bounds.xLeft + bounds.xRight) / 2, y, buttons: 1 },
+      anchorMode: 'snap',
+    });
+    expect(onBar.state.kind).toBe('dragging');
+  });
+
+  it('连接点的**命中区**：内缘只留 `HIT_TOLERANCE_PX`（不抢端点判定区）、外侧覆盖整个方块', () => {
+    const target = tallView;
+    const pick = pickLeaf(({ bounds: b, constraint: c }) => !b.isMilestone && !Number.isFinite(c));
+    const bounds = pick.bounds;
+    const y = rowCenterY(pick.row);
+    const down = (x: number) =>
+      beginGesture({
+        ...dragArgsFor(target),
+        pointer: { x, y, buttons: 1 },
+        anchorMode: 'snap',
+        entryPoint: { taskId: pick.task.id, exitSide: 'right' },
+      });
+
+    // 外侧（方块的右半 + 容差）也命中 ⇒ "看到的位置点得中"（复验第 3.3 条的成因）。
+    expect(down(bounds.xRight + CONNECT_SIZE_PX).state.kind).toBe('linking');
+    expect(down(bounds.xRight).state.kind).toBe('linking');
+    // 条端内侧只留 `HIT_TOLERANCE_PX`：再往里就是端点判定区（拖动），不是建线。
+    const inside = beginGesture({
+      ...dragArgsFor(target),
+      pointer: { x: bounds.xRight - HIT_TOLERANCE_PX - 1, y, buttons: 1 },
+      anchorMode: 'snap',
+    });
+    expect(inside.state.kind).toBe('dragging');
+  });
+
+  it('**端点手柄的位置**按下仍是拖动（不是建线）：手柄属于判定区，不属于连接点', () => {
+    const target = tallView;
+    const pick = pickLeaf(({ bounds: b, constraint: c }) => !b.isMilestone && !Number.isFinite(c));
+    const bounds = pick.bounds;
+    const zones = zonesFor(bounds);
+    const y = rowCenterY(pick.row);
+    const onHandle = beginGesture({
+      ...dragArgsFor(target),
+      pointer: { x: zones.edgeR?.x1 ?? bounds.xRight, y, buttons: 1 },
+      anchorMode: 'snap',
+    });
+    expect(onHandle.state.kind).toBe('dragging');
+    if (onHandle.state.kind !== 'dragging') return;
+    expect(onHandle.state.mode).toBe('resize-duration');
+  });
+
+  it('汇总行**不能**拖，但可以从它的连接点建线（§5/§13 的既有口径不变）', () => {
+    let summaryRow: number | null = null;
+    for (let row = tallView.renderFirst; row <= tallView.renderLast; row += 1) {
+      const docIndex = tallView.order[row];
+      if (docIndex === undefined) continue;
+      if ((fixture.schedule.es[docIndex] ?? -1) === -1) {
+        summaryRow = row;
+        break;
+      }
+    }
+    expect(summaryRow).not.toBeNull();
+    if (summaryRow === null) return;
+    const bounds = boundsIn(tallView, summaryRow);
+    const docIndex = tallView.order[summaryRow] ?? 0;
+    const taskId = fixture.document.tasks[docIndex]?.id ?? '';
+    const y = rowCenterY(summaryRow);
+    const dragged = beginGesture({
+      ...dragArgsFor(tallView),
+      pointer: { x: (bounds.xLeft + bounds.xRight) / 2, y, buttons: 1 },
+      anchorMode: 'snap',
+    });
+    expect(dragged.state.kind).toBe('idle');
+    const linking = beginGesture({
+      ...dragArgsFor(tallView),
+      pointer: { x: bounds.xRight + CONNECT_SIZE_PX / 2, y, buttons: 1 },
+      anchorMode: 'snap',
+      entryPoint: { taskId, exitSide: 'right' },
+    });
+    expect(linking.state.kind).toBe('linking');
+  });
+
+  it('从连接点建线：**四类关系都可达**（出端侧 = 所抓的连接点；旧式只有 `FS`/`SS`）', () => {
+    const target = tallView;
+    // 挑一对**目标在左**的可见行（不假设行内叶子必然向右延伸：`pickLeaf` 取的是**第一个**无约束叶子，
+    // 而它可能正好是这一带最靠左的那条）。遍历全部可见行取第一对满足 `to.xLeft < from.xLeft` 的。
+    let pair: { readonly from: number; readonly to: number } | null = null;
+    outer: for (let from = 0; from < target.order.length; from += 1) {
+      const fromBounds = boundsIn(target, from);
+      if (fromBounds.kind === 'summary' || fromBounds.isMilestone) continue;
+      const docIndex = target.order[from];
+      const task = docIndex === undefined ? undefined : fixture.document.tasks[docIndex];
+      if (task === undefined || (task.durationDays ?? 0) < 1) continue;
+      for (let to = 0; to < target.order.length; to += 1) {
+        if (to === from) continue;
+        const toBounds = boundsIn(target, to);
+        if (toBounds.kind === 'summary') continue;
+        if (toBounds.xLeft >= fromBounds.xLeft) continue;
+        // 成环的候选会被**预检拒绝**（§7），那样"四类关系都可达"这一条测不到落库路径；
+        // 因此这里先筛掉会成环的目标（`wouldCreateCycle` 较贵，放在 x 条件之后）。
+        const wouldCycle = wouldCreateCycle(fixture.document.links, {
+          id: 'probe-forward',
+          from: taskIdOfRow(target, from),
+          to: taskIdOfRow(target, to),
+          type: 'FF',
+          lagDays: 0,
+        }).cyclic;
+        if (!wouldCycle) {
+          pair = { from, to };
+          break outer;
+        }
+      }
+    }
+    expect(pair).not.toBeNull();
+    if (pair === null) return;
+    const fromBounds = boundsIn(target, pair.from);
+    const toBounds = boundsIn(target, pair.to);
+    const fromTaskId = fixture.document.tasks[target.order[pair.from] ?? 0]?.id ?? '';
+    const toTaskId = fixture.document.tasks[target.order[pair.to] ?? 0]?.id ?? '';
+
+    const started = beginGesture({
+      ...dragArgsFor(target),
+      pointer: { x: connectPointXFor(fromBounds, 'right'), y: rowCenterY(pair.from), buttons: 1 },
+      anchorMode: 'snap',
+      entryPoint: { taskId: fromTaskId, exitSide: 'right' },
+    });
+    expect(started.state.kind).toBe('linking');
+    const hovered = reduceGesture({
+      ...dragArgsFor(target),
+      pointer: { x: (toBounds.xLeft + toBounds.xRight) / 2, y: rowCenterY(pair.to), buttons: 1 },
+      anchorMode: 'snap',
+      state: started.state,
+    });
+    // 右出 + 目标在左 ⇒ `FF`（旧式只按 `to.xLeft >= from.xLeft` 两分支 ⇒ 永远给不出 `FF`）。
+    expect(hovered.preview?.type).toBe('FF');
+    // 右出 ⇒ 出端 = 条右缘；目标在左 ⇒ 入端 = 目标右缘（§16.3 的四格表）。
+    expect(hovered.preview?.exitPoint[0]).toBe(fromBounds.xRight);
+    expect(hovered.preview?.enterPoint[0]).toBe(toBounds.xRight);
+    expect(hovered.preview?.fromTaskId).toBe(fromTaskId);
+    expect(hovered.preview?.toTaskId).toBe(toTaskId);
+
+    const dropped = reduceGesture({
+      ...dragArgsFor(target),
+      pointer: { x: 0, y: 0, buttons: 0 },
+      anchorMode: 'snap',
+      state: hovered.state,
+    });
+    expect(dropped.link?.type).toBe('FF');
+    expect(dropped.link?.lagDays).toBe(0);
   });
 });
 

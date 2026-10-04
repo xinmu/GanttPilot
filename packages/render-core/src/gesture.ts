@@ -68,8 +68,10 @@ import {
 } from '@ganttpilot/engine';
 
 import { barXRange, milestoneCenterX, taskBounds, type TaskBounds } from './domain.js';
-import { DRAG_EDGE_PX, HIT_TOLERANCE_PX, SPACING, type ZoomKey } from './manifest.js';
+import { HIT_TOLERANCE_PX, SPACING, type ZoomKey } from './manifest.js';
+import { routeSides } from './route.js';
 import { dayAtX, type RowBox, type ViewModel } from './viewModel.js';
+import { dragModeOfZones, enterXFor, exitXFor, linkEnterSideFor, linkTypeFor, zonesFor } from './zones.js';
 
 /** 拖拽语义（ADR 0008 §5）：判定区决定 `mode`。 */
 export type DragMode = 'move' | 'resize-start' | 'resize-duration';
@@ -89,7 +91,6 @@ export interface PointerInput {
   readonly x: number;
   readonly y: number;
   readonly buttons: number;
-  readonly altKey?: boolean;
   readonly shiftKey?: boolean;
   /** `Esc` 被按下（取消手势）。 */
   readonly escPressed?: boolean;
@@ -105,7 +106,6 @@ export interface ClientPointerArgs {
   readonly scrollLeft: number;
   readonly scrollTop: number;
   readonly buttons: number;
-  readonly altKey?: boolean;
   readonly shiftKey?: boolean;
   readonly escPressed?: boolean;
 }
@@ -128,7 +128,6 @@ export function pointerFromClient(args: ClientPointerArgs): PointerInput {
     x: args.clientX - args.paneLeft + args.scrollLeft,
     y: args.clientY - args.paneTop + args.scrollTop,
     buttons: args.buttons,
-    ...(args.altKey === true ? { altKey: true } : {}),
     ...(args.shiftKey === true ? { shiftKey: true } : {}),
     ...(args.escPressed === true ? { escPressed: true } : {}),
   };
@@ -183,6 +182,12 @@ export type GestureState =
       readonly sourceRow: number;
       readonly toTaskId: string | null;
       readonly toRow: number | null;
+      /**
+       * 出端侧：**由所抓的连接点决定**（ADR 0008 §16.3／裁决 P-32）。
+       *
+       * `Alt` 兼容路径（§7 的旧入口）按"指针在条的水平位置"给侧：左半 ⇒ 左出，右半 ⇒ 右出。
+       */
+      readonly exitSide: 'left' | 'right';
     }
   | {
       /** 松手但尚未提交（调用方读 `update.apply` 后即回到 `idle`）。 */
@@ -470,6 +475,16 @@ export interface BeginGestureArgs {
   readonly calendar: Calendar;
   readonly pointer: PointerInput;
   readonly anchorMode: AnchorMode;
+  /**
+   * **建线的起手位置**（ADR 0008 §16.3／裁决 P-32）：由 `interaction.ts` 的 `linkEntryFor`
+   * 从内容坐标算出——指针落在某行的**连接点**上时非空。
+   *
+   * 为什么由调用方给而不是本文件自己算：本包内不得出现 `gesture → interaction → gesture` 的环，
+   * 而 `interaction.ts` 需要 `gesture.ts` 的 `resolvePointerTarget`/`barHitFor`。
+   * 归一化的入口因此收在 `apps/web`（它本来就要调 `pointerFromClient`），
+   * **换算本身仍是纯函数、仍在门禁内**。
+   */
+  readonly entryPoint?: { readonly taskId: string; readonly exitSide: 'left' | 'right' } | undefined;
 }
 
 /** `reduceGesture` 的入参。 */
@@ -477,25 +492,32 @@ export interface ReduceGestureArgs extends BeginGestureArgs {
   readonly state: GestureState;
 }
 
-/** 判定三语义（ADR 0008 §5 的表）。 */
+/**
+ * 判定三语义（ADR 0008 §5 的表，**边界宽度由 §16.1 修订**／裁决 P-32）。
+ *
+ * 公式本身在 `zones.ts` 的 `zonesFor`（**唯一实现处**）——同一条公式还决定端点手柄的位置，
+ * 因此"看起来能抓的那一点"与"真的按判定区分类的那一点"必然是同一个数。
+ *
+ * 里程碑不走判定区：它按**菱形中心**分半（左半 `move`、右半 `resize-duration`），
+ * 因为 `DRAG_EDGE_PX` 相对 12 px 宽的菱形太大（菱形中心距边只有 6 px）。
+ */
 export function dragModeFor(bounds: TaskBounds, x: number): DragMode {
-  if (bounds.isMilestone) {
-    // 里程碑只有"整体移动"，但拖右半边是"把它变成有长度的任务"（改工期）。
-    // `DRAG_EDGE_PX` 相对 12 px 宽的菱形太大（菱形中心距边只有 6 px），因此这里按**中心**分半。
-    const cx = bounds.milestone?.cx ?? (bounds.xLeft + bounds.xRight) / 2;
-    return x >= cx ? 'resize-duration' : 'move';
-  }
-  if (x <= bounds.xLeft + DRAG_EDGE_PX) return 'resize-start';
-  if (x >= bounds.xRight - DRAG_EDGE_PX) return 'resize-duration';
-  return 'move';
+  return dragModeOfZones(bounds, zonesFor(bounds), x);
 }
 
 /**
  * 按下左键：开始拖动或建线。
  *
- * 三条前置（顺序即语义）：① 必须落在**渲染窗口内的可见行**（`resolvePointerTarget`）；
- * ② **必须命中条体**（`barHitFor`，ADR 0008 §13——P-21 的 R2）；③ 汇总行不可拖、只可建线。
- * 建线用 `altKey` 区分，避免与拖动抢同一个手势（Windows 上 `Alt` 被系统占用的缺口见 P-21 批次 B）。
+ * 四条前置（顺序即语义）：
+ * ① 必须落在**渲染窗口内的可见行**（`resolvePointerTarget`）；
+ * ② **连接点优先** ⇒ 建线（ADR 0008 §16.3／P-32；`entryPoint` 由 `interaction.ts` 的纯函数给出）；
+ * ③ **必须命中条体**（`barHitFor`，ADR 0008 §13——P-21 的 R2）；
+ * ④ 汇总行不可拖、只可建线。
+ *
+ * **`Alt` 入口已删除**（[P-32](../../../docs/00-baseline/裁决记录.md) 的人工复验第 ⑤ 条：
+ * "Alt 仍然无效，这个入口可以直接取消"）。它在 Windows 上被窗口管理器的"移动窗口"手势吃掉
+ * （事件到不了页面），**没有可用平台**——保留一个"在某个平台上永远不生效"的别名只会制造
+ * "为什么我这里不能用"的支持成本，因此**只留连接点**这一条入口（`entryPoint`）。
  */
 export function beginGesture(args: BeginGestureArgs): GestureUpdate {
   const target = resolvePointerTarget({
@@ -507,12 +529,13 @@ export function beginGesture(args: BeginGestureArgs): GestureUpdate {
     y: args.pointer.y,
   });
   if (target === null) return idleGesture();
-  if (target.isSummary) {
-    // 汇总条不可拖（汇总日期是聚合结果，改它要改子树）；但**可以**作为建线端点。
-    return args.pointer.altKey === true ? beginLinking(args, target) : idleGesture();
+  // ② 连接点：出端侧由**用户抓的那一侧**决定（§16.3），不由几何反推。
+  if (args.entryPoint !== undefined && args.entryPoint.taskId === target.taskId) {
+    return beginLinking(args, target, args.entryPoint.exitSide);
   }
-  if (args.pointer.altKey === true) return beginLinking(args, target);
-  // 条体命中：同一行的空白处按下不得产生手势（否则"左侧空白改开始、右侧空白工期翻倍"）。
+  // 汇总条不可拖（汇总日期是聚合结果，改它要改子树）；但**可以**作为建线端点（连接点）。
+  if (target.isSummary) return idleGesture();
+  // ③ 条体命中：同一行的空白处按下不得产生手势（否则"左侧空白改开始、右侧空白工期翻倍"）。
   if (!barHitFor({ bounds: target.bounds, x: args.pointer.x })) return idleGesture();
 
   const mode = dragModeFor(target.bounds, args.pointer.x);
@@ -570,13 +593,14 @@ function maxOrdinalOf(calendar: Calendar): number {
   return Math.max(0, calendar.workdayCount - 1);
 }
 
-function beginLinking(args: BeginGestureArgs, target: HitTarget): GestureUpdate {
+function beginLinking(args: BeginGestureArgs, target: HitTarget, exitSide: 'left' | 'right'): GestureUpdate {
   const state: GestureState = {
     kind: 'linking',
     fromTaskId: target.taskId,
     sourceRow: target.row,
     toTaskId: null,
     toRow: null,
+    exitSide,
   };
   return updateForLink(state, args);
 }
@@ -1044,6 +1068,7 @@ function updateForLink(
     calendar: args.calendar,
     fromTaskId: state.fromTaskId,
     toTaskId: state.toTaskId,
+    exitSide: state.exitSide,
   });
   if (candidate === null) return idleGesture();
 
@@ -1102,8 +1127,12 @@ function updateForLink(
 }
 
 /**
- * 建线的四件事：**类型**由相对位置决定、**id** 由调用方给（命令层不生成 id）、
- * **端点**落在两条边的连接点、`lagDays = 0`（ADR 0008 §7）。
+ * 建线的四件事：**出端侧**由连接点（或 `Alt` 兼容路径）给、**入端侧**由目标相对位置给、
+ * **类型**由两者经 {@link linkTypeFor} 判定、**id** 由调用方给（命令层不生成 id）、`lagDays = 0`。
+ *
+ * ADR 0008 §16.3（裁决 P-32）取代 §7 的"起点 = 条的上/下沿中点、类型由相对位置两分支"：
+ * 旧式只能产出 `FS`/`SS`，因为出端侧被"目标在右就在右"绑死了；现在出端侧是**用户的显式选择**，
+ * 四类关系都可达（右出+左入 = `FS`、右出+右入 = `FF`、左出+左入 = `SS`、左出+右入 = `SF`）。
  */
 function buildCandidateLink(args: {
   readonly document: ProjectDocument;
@@ -1112,6 +1141,7 @@ function buildCandidateLink(args: {
   readonly calendar: Calendar;
   readonly fromTaskId: string;
   readonly toTaskId: string;
+  readonly exitSide: 'left' | 'right';
 }): {
   readonly link: DocumentLink;
   readonly exitPoint: readonly [number, number];
@@ -1121,8 +1151,21 @@ function buildCandidateLink(args: {
   const from = boundsOf(args, args.fromTaskId);
   const to = boundsOf(args, args.toTaskId);
   if (from === null || to === null) return null;
-  // 类型由相对位置决定（与 P-8 第 1 条同式的反推）：目标在右 ⇒ FS（右出→左入），否则 SS（左出→左入）。
-  const type: DocumentLink['type'] = to.xLeft >= from.xLeft ? 'FS' : 'SS';
+  /**
+   * **入端侧由关系类型给，不由相对位置给**（P-32 落地时的一次订正）。
+   *
+   * 相对位置的作用是**判定类型**（`linkEnterSideFor`）；一旦类型定了，出入边就由
+   * **P-8 第 1 条**背书的 `routeSides(type)` 决定（`FS`/`SS` 左入、`FF`/`SF` 右入）。
+   * 若这里再按"目标在左就在右"取一次端点，就会出现**边自身声明 FS、端点却落在目标右缘**
+   * 这种自相矛盾（`routeEdge` 按类型把折点引到左缘）——预览与提交的几何因此会分叉。
+   */
+  const decideEnterSide = linkEnterSideFor({
+    exitSide: args.exitSide,
+    fromXLeft: from.xLeft,
+    toXLeft: to.xLeft,
+  });
+  const type = linkTypeFor(args.exitSide, decideEnterSide);
+  const enterSide = routeSides(type).enter;
   const link: DocumentLink = {
     id: suggestLinkIdFor(args.document, args.fromTaskId, args.toTaskId, type),
     from: args.fromTaskId,
@@ -1132,8 +1175,8 @@ function buildCandidateLink(args: {
   };
   return {
     link,
-    exitPoint: [type === 'FS' ? from.xRight : from.xLeft, from.y],
-    enterPoint: [to.xLeft, to.y],
+    exitPoint: [exitXFor(from, args.exitSide), from.y],
+    enterPoint: [enterXFor(to, enterSide), to.y],
   };
 }
 

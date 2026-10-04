@@ -80,8 +80,14 @@ export interface UseGesture {
   /** 拖动/建线期需要重绘的行与边（渲染侧最小重建，ADR 0008 §11）。 */
   readonly affectedRows: ComputedRef<{ readonly rows: readonly number[]; readonly edges: readonly number[] }>;
   setAnchorMode: (mode: AnchorMode) => void;
-  /** 指针按下（**内容坐标** + 原始 `buttons`）。 */
-  onPointerDown: (pointer: PointerInput) => void;
+  /**
+   * 指针按下（**内容坐标** + 原始 `buttons`）。
+   *
+   * `entryPoint` 非空 = 指针落在某行的**连接点**上（`interaction.ts` 的 `linkEntryFor`，
+   * ADR 0008 §16.3／裁决 P-32）⇒ 建线手势的起手位置，**不需要任何修饰键**
+   * （`Alt` 在 Windows 上被窗口管理器吃掉，已在 P-32 的复验里**删除**，见 P-21 的 R4）。
+   */
+  onPointerDown: (args: { readonly pointer: PointerInput; readonly entryPoint?: { readonly taskId: string; readonly exitSide: 'left' | 'right' } }) => void;
   onPointerMove: (pointer: PointerInput) => void;
   onPointerUp: (pointer: PointerInput) => void;
   /** 显式取消（`Esc`）。 */
@@ -177,10 +183,20 @@ export function useGesture(args: UseGestureArgs): UseGesture {
     }
   }
 
-  function onPointerDown(pointer: PointerInput): void {
+  function onPointerDown(args2: {
+    readonly pointer: PointerInput;
+    readonly entryPoint?: { readonly taskId: string; readonly exitSide: 'left' | 'right' };
+  }): void {
     const base = baseArgs();
-    if (base === null || (pointer.buttons & 1) === 0) return;
-    apply(beginGesture({ ...base, pointer, anchorMode: anchorMode.value }));
+    if (base === null || (args2.pointer.buttons & 1) === 0) return;
+    apply(
+      beginGesture({
+        ...base,
+        pointer: args2.pointer,
+        anchorMode: anchorMode.value,
+        ...(args2.entryPoint === undefined ? {} : { entryPoint: args2.entryPoint }),
+      }),
+    );
   }
 
   function onPointerMove(pointer: PointerInput): void {

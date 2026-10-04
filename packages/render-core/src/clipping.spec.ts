@@ -9,7 +9,8 @@
  * 数字转入本 spec 作为回归锚）：
  * - 12/12 组在预算内；`c₃ = 116 / 70 / 89`（日/周/月）；
  * - 4 个滚动位置误裁 **33 / 97 / 96 / 88 = 314** 条（其中跨屏长边 268）；
- * - 关掉窗口裁剪的元素数 **1,348 / 3,524 / 7,170 / 14,439**（比值 10.71×）。
+ * - 关掉窗口裁剪的元素数 **1,348 / 3,524 / 7,170 / 14,439**（比值 10.71×；
+ *   批次 B 之后锚值为 ≈10.8×，见 NC2 的注释）。
  */
 
 import { describe, expect, it } from 'vitest';
@@ -185,7 +186,7 @@ describe('NC1 负向对照：端点可见性裁剪必须丢边（ADR 0007 §6.8�
 });
 
 describe('NC2 负向对照：关掉窗口裁剪必须随规模增长（ADR 0007 §6.8，S4-a）', () => {
-  it('元素数随规模单调增长，10× 规模跨度的比值 10.71× > 5×', () => {
+  it('元素数随规模单调增长，10× 规模跨度的比值 ≈10.8× > 5×', () => {
     const totals: number[] = [];
     const renderedRows: number[] = [];
     for (const { fixture } of scaleGradient(DATASETS[2])) {
@@ -210,7 +211,11 @@ describe('NC2 负向对照：关掉窗口裁剪必须随规模增长（ADR 0007 
       expect(totals[index] ?? 0).toBeGreaterThan(totals[index - 1] ?? 0);
     }
     const ratio = Math.max(...totals) / Math.min(...totals);
-    expect(ratio).toBeCloseTo(10.71, 1);
+    // G4-S 的原始锚是 **10.71×**（1,348 / 3,524 / 7,170 / 14,439）。批次 B（ADR 0008 §16.4／裁决 P-32）
+    // 给每渲染行加了端点手柄与连接点：**分子与分母同时平移**（关掉裁剪时渲染行数随规模增长，
+    // 因此平移量也随规模增长），比值随之从 10.71 微升到 ≈10.80。
+    // **判据的本体不变**（"关掉裁剪必须随规模增长、且与窗口路径差一个数量级"），只更新锚值。
+    expect(ratio).toBeCloseTo(10.8, 1);
     expect(ratio).toBeGreaterThan(THRESHOLDS.nc2GrowthRatio);
     // 判别力：与窗口路径（≈1.1×）差一个数量级。
     expect(ratio).toBeGreaterThan(5 * THRESHOLDS.windowedGrowthRatio);

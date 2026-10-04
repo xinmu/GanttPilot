@@ -93,6 +93,12 @@
       "cap": "registerArchive"
     },
     {
+      "path": "docs/00-baseline/裁决R31.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-32：G5 批次 B 的契约先行与落地（ADR 0008 §16）"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",

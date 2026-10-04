@@ -29,6 +29,8 @@ export {
   ARROW_FILL,
   ARROW_RASTER,
   AXIS_LEFT_GUTTER_DAYS,
+  CONNECT_REVEAL_FACTOR,
+  CONNECT_SIZE_PX,
   CONTENT_RIGHT_PAD_PX,
   EDGE_STUB_CANDIDATES,
   EDGE_STUB_PX,
@@ -36,8 +38,11 @@ export {
   EDGE_WRAP_PX,
   ELEMENT_MODEL,
   evaluateScaleCriteria,
+  HANDLE_HEIGHT_PX,
+  HANDLE_WIDTH_PX,
   HEADER_HEIGHT_PX,
   HIT_TOLERANCE_PX,
+  MIN_MOVE_ZONE_PX,
   LABEL_CHAR_PX,
   LABEL_PADDING_PX,
   MIN_VISIBLE_ROWS,
@@ -179,6 +184,44 @@ export {
 
 // ---------------------------------------------------------------- 受影响子图（ADR 0007 §8）
 export { affectedRenderSet, type AffectedRenderSet } from './affected.js';
+
+// ---------------------------------------------------------------- 判定区与建线类型（ADR 0008 §16／裁决 P-32）
+export {
+  cursorForZone,
+  dragModeOfZones,
+  enterXFor,
+  exitXFor,
+  linkEnterSideFor,
+  linkTypeFor,
+  translateZone,
+  translateZones,
+  zoneAt,
+  zoneContains,
+  zonesFor,
+  type CursorHint,
+  type DragZone,
+  type DragZoneKind,
+  type DragZones,
+} from './zones.js';
+
+// ---------------------------------------------------------------- 交互几何：手柄与连接点（ADR 0008 §16.2）
+export {
+  barHeightOf,
+  connectLeftEdgeFor,
+  connectRevealFor,
+  connectSideAt,
+  cursorForPointer,
+  handleOffsetsFor,
+  handleXFor,
+  linkEntryFor,
+  rowConnectVisibleAt,
+  rowHandlesFor,
+  type ConnectPoint,
+  type Handle,
+  type LinkEntry,
+  type PointerGeometryArgs,
+  type RowHandles,
+} from './interaction.js';
 
 // ---------------------------------------------------------------- 两栏行对齐（ADR 0007 §14 / 裁决 P-23）
 export {

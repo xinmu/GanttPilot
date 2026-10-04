@@ -18,7 +18,7 @@
  * - **首屏**：`文档与 Schedule 就绪 → 含依赖线的首帧完成`，对 1,000 任务 ≤ 1,000 ms；
  * - **10× 滚动**：总墙钟、主线程 p50/p95、连续 rAF 帧间隔、longtask、空白行
  *   ——与《评估报告》§5.4 的"2,200 边 / 约 2.0 s"**同尺**对照；
- * - **元素预算**：渲染行/边与元素总数、`c₃`、是否在 `c₁·rows + c₂·edges + c₃` 之内。
+ * - **元素预算**：渲染行/边与元素总数、`c₃`、是否在 `c₁·rows + c₂·edges + c₃ + c₄` 之内（`c₄ = 6·rows + 12`，ADR 0008 §16.4）。
  *
  * 用法：
  *   node scripts/measure-render.mjs                  # 主口径（dense·日档）+ 2,200 边对照
@@ -392,7 +392,7 @@ function renderEvidence({ env, runs, options }) {
   const blankOk = runs.every((run) => (run.result?.scroll?.blankRowGaps ?? 1) === 0);
   const frameOk = runs.every((run) => (run.result?.scroll?.p95WorkMs ?? Number.POSITIVE_INFINITY) <= 16.7);
   lines.push(`- **1,000 任务首屏 ≤ 1 s**：最差 ${ms(firstScreenWorst)} ⇒ ${budgetOk ? '**通过**' : '**不通过（按 ADR 0007 §9 分层定位后再决定降级）**'}；`);
-  lines.push(`- **元素预算**：${budgetInAll ? '**全部在 `c₁·rows + c₂·edges + c₃` 之内**' : '**有超预算项**'}；`);
+  lines.push(`- **元素预算**：${budgetInAll ? '**全部在 `c₁·rows + c₂·edges + c₃ + c₄` 之内**（`c₄ = 6·rows + 12`，ADR 0008 §16.4）' : '**有超预算项**'}；`);
   lines.push(`- **零空白行**：${blankOk ? '**成立**' : '**出现空白行**'}；`);
   lines.push(`- **主线程 p95 ≤ 16.7 ms**（记录制候选）：${frameOk ? '**成立**' : '**超出**'}。`);
   const collectErrors = runs.flatMap((run) =>
@@ -468,6 +468,31 @@ function renderDragEvidence({ env, result, options }) {
   lines.push('> **滚动状态是 P-25 新增的判据**：R13（命中反算多加一次 `scrollTop`）会让"按下后根本没进拖动"；');
   lines.push('> R14（`dayAtX` 多加一次 `scrollLeft`）会让候选整体偏 `scrollLeft / pxPerDay` 天（600 px ⇒ 偏 25 个自然日）。');
   lines.push('> `(0,0)` 那一行在两处缺陷下**都是绿的**——只跑首屏的判据证明不了这一半。');
+  lines.push('');
+  lines.push('## 手柄、光标与连接点（批次 B／裁决 P-32 的记录制采样）');
+  lines.push('');
+  lines.push('| 量 | 值 | 判据 | 判定 |');
+  lines.push('|---|---|---|---|');
+  const handleSample = result?.handles ?? null;
+  if (handleSample === null) {
+    lines.push('| 采样 | — | 页面未提供 `handles` 宿主 | ⚠️ |');
+  } else {
+    lines.push(`| DOM 手柄条数 | ${String(handleSample.domHandles)} | = 模型（恒显） | ${handleSample.domHandles === handleSample.modelHandles ? '✅' : '❌'} |`);
+    lines.push(`| 模型手柄条数 | ${String(handleSample.modelHandles)} | 与 \`rowHandlesFor\` 同源 | — |`);
+    lines.push(`| DOM 连接点条数（指针所在行） | ${String(handleSample.domConnectPoints)} | = 2（**按需显形**） | ${handleSample.domConnectPoints === 2 ? '✅' : '❌'} |`);
+    lines.push(`| 模型连接点条数（全部渲染行） | ${String(handleSample.modelConnectPoints)} | 与 \`rowHandlesFor\` 同源 | — |`);
+    lines.push(`| 采样到的连接点左缘 | ${handleSample.connectLeftEdge === null ? '—' : String(handleSample.connectLeftEdge)} | 在条端**外侧**（复验第 3.1 条的订正） | ${handleSample.connectLeftEdge === null ? '❌' : '✅'} |`);
+    lines.push(`| 条体中部光标 | \`${String(handleSample.cursorOnBar)}\` | = \`move\` | ${handleSample.cursorOnBar === 'move' ? '✅' : '❌'} |`);
+    lines.push(`| 端点手柄处光标 | \`${String(handleSample.cursorOnEdge)}\` | = \`col-resize\` | ${handleSample.cursorOnEdge === 'col-resize' ? '✅' : '❌'} |`);
+    lines.push(`| 连接点处光标 | \`${String(handleSample.cursorOnConnect)}\` | = \`crosshair\` | ${handleSample.cursorOnConnect === 'crosshair' ? '✅' : '❌'} |`);
+    lines.push(`| 从连接点按下进入建线 | ${handleSample.connectDownEntersLinking ? '是' : '否'} | 必须为"是"（R4 的修法） | ${handleSample.connectDownEntersLinking ? '✅' : '❌'} |`);
+  }
+  lines.push('');
+  lines.push('> 采样点的 x **从 DOM 属性读**（不在这里重算公式）：端点手柄画在**判定区边界**上，');
+  lines.push('> 与条形的端相差 `edgePx`（宽条 6 px）；连接点则**贴住条端向外伸**（`[xRight, xRight + CONNECT_SIZE_PX]`）');
+  lines.push('> ——"看得见的方块一定点得中"（P-32 人工复验第 3.1/3.3 条的订正）。');
+  lines.push('> 这三条是**入口层**性质（手柄是否在、光标是否分三类、连接点是否真的起建线），');
+  lines.push('> 纯函数判据在 `interaction.spec.ts`（进 `pnpm gate`），这里只采打包产物上的真实 DOM。');
   lines.push('');
   lines.push('## 结果（两次运行取最差 / 并集）');
   lines.push('');
@@ -1050,6 +1075,8 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         documentStartAfter: first.documentStartAfter ?? null,
         anchorOrdinal: first.anchorOrdinal ?? null,
         expectedStartAfter: first.expectedStartAfter ?? null,
+        // 批次 B 的记录制采样（ADR 0008 §16.2/§16.3／裁决 P-32）：手柄可见性、光标分类、连接点起手。
+        handles: first.handles ?? null,
       };
       const env = {
         采集时刻: new Date().toISOString(),

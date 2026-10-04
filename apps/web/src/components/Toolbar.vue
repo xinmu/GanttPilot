@@ -169,7 +169,7 @@ void props;
     </span>
 
     <span class="note">
-      {{ dragActive ? '拖动中：下游实时跟随（Alt+拖动 = 建线；Esc 取消）' : '拖动条体改开始/工期/整体移动；Alt+拖动建线；导出（SVG/PNG/PPTX）归 G7' }}
+      {{ dragActive ? '拖动中：下游实时跟随（Esc 取消）' : '拖动条体改开始/工期/整体移动；从条端外侧的连接点拖出建线；导出（SVG/PNG/PPTX）归 G7' }}
     </span>
   </header>
 </template>

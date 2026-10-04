@@ -1,6 +1,6 @@
 {
   "env": {
-    "采集时刻": "2026-10-04T09:54:37.281Z",
+    "采集时刻": "2026-10-04T13:35:55.697Z",
     "机器": "FAIRY",
     "系统": "win32 x64",
     "Node": "v26.7.0",
@@ -33,57 +33,57 @@
         "firstScreenBudgetMs": 1000,
         "scrollReferenceMs": 2000,
         "frameBudgetP95Ms": 16.7,
-        "prepareMs": 0.7,
+        "prepareMs": 0.6,
         "firstScreen": {
-          "primaryMs": 3.2,
+          "primaryMs": 5.6,
           "runs": [
-            3.2,
-            33.2,
+            5.6,
+            33.1,
+            33.3,
             33.4,
-            33.4,
-            33.2
+            33.3
           ],
-          "p50Ms": 33.2,
+          "p50Ms": 33.3,
           "p95Ms": 33.4,
           "layers": [
             {
               "geometryMs": 0.3,
-              "renderMs": 0.1,
-              "fromReadyMs": 3.2
+              "renderMs": 0,
+              "fromReadyMs": 5.6
             },
             {
               "geometryMs": 0.3,
-              "renderMs": 0.1,
-              "fromReadyMs": 33.2
+              "renderMs": 0,
+              "fromReadyMs": 33.1
             },
             {
-              "geometryMs": 0.4,
+              "geometryMs": 0.2,
+              "renderMs": 0.1,
+              "fromReadyMs": 33.3
+            },
+            {
+              "geometryMs": 0.9,
               "renderMs": 0,
               "fromReadyMs": 33.4
             },
             {
-              "geometryMs": 0.9,
-              "renderMs": 0.1,
-              "fromReadyMs": 33.4
-            },
-            {
-              "geometryMs": 0.4,
-              "renderMs": 0.1,
-              "fromReadyMs": 33.2
+              "geometryMs": 0.7,
+              "renderMs": 0,
+              "fromReadyMs": 33.3
             }
           ],
           "counts": {
             "renderedRows": 32,
             "renderedEdges": 41,
-            "elements": 327,
-            "bound": 345,
+            "elements": 449,
+            "bound": 537,
             "c3": 114,
             "withinBudget": true
           },
           "domCounts": {
             "renderedRows": 32,
             "renderedEdges": 41,
-            "svgElements": 374
+            "svgElements": 432
           }
         },
         "scroll": {
@@ -91,80 +91,80 @@
             {
               "step": 1,
               "scrollTop": 648,
-              "workMs": 0.4,
-              "elements": 435,
+              "workMs": 0.5,
+              "elements": 577,
               "blankRows": 0
             },
             {
               "step": 2,
               "scrollTop": 1296,
-              "workMs": 0.3,
-              "elements": 457,
+              "workMs": 0.6,
+              "elements": 597,
               "blankRows": 0
             },
             {
               "step": 3,
               "scrollTop": 1944,
-              "workMs": 0.4,
-              "elements": 518,
+              "workMs": 0.7,
+              "elements": 658,
               "blankRows": 0
             },
             {
               "step": 4,
               "scrollTop": 2592,
-              "workMs": 0.4,
-              "elements": 538,
+              "workMs": 0.6,
+              "elements": 682,
               "blankRows": 0
             },
             {
               "step": 5,
               "scrollTop": 3240,
-              "workMs": 0.2,
-              "elements": 526,
+              "workMs": 0.5,
+              "elements": 666,
               "blankRows": 0
             },
             {
               "step": 6,
               "scrollTop": 3888,
-              "workMs": 0.1,
-              "elements": 539,
+              "workMs": 0.5,
+              "elements": 679,
               "blankRows": 0
             },
             {
               "step": 7,
               "scrollTop": 4536,
-              "workMs": 0.3,
-              "elements": 520,
+              "workMs": 0.7,
+              "elements": 662,
               "blankRows": 0
             },
             {
               "step": 8,
               "scrollTop": 5184,
               "workMs": 0.3,
-              "elements": 517,
+              "elements": 657,
               "blankRows": 0
             },
             {
               "step": 9,
               "scrollTop": 5832,
-              "workMs": 0.2,
-              "elements": 541,
+              "workMs": 0.5,
+              "elements": 681,
               "blankRows": 0
             },
             {
               "step": 10,
               "scrollTop": 6480,
-              "workMs": 0.2,
-              "elements": 539,
+              "workMs": 0.3,
+              "elements": 679,
               "blankRows": 0
             }
           ],
           "totalWallMs": 499.7,
-          "totalWorkMs": 2.8,
-          "p50WorkMs": 0.3,
-          "p95WorkMs": 0.4,
+          "totalWorkMs": 5.2,
+          "p50WorkMs": 0.5,
+          "p95WorkMs": 0.7,
           "rafP50Ms": 16.7,
-          "rafP95Ms": 18.5,
+          "rafP95Ms": 18.7,
           "longTaskCount": 0,
           "blankRowGaps": 0
         }
@@ -189,57 +189,57 @@
         "firstScreenBudgetMs": 1000,
         "scrollReferenceMs": 2000,
         "frameBudgetP95Ms": 16.7,
-        "prepareMs": 0.6,
+        "prepareMs": 0.8,
         "firstScreen": {
-          "primaryMs": 3,
+          "primaryMs": 16.5,
           "runs": [
-            3,
+            16.5,
             33.1,
             33.2,
-            33.4,
+            33.3,
             33.3
           ],
           "p50Ms": 33.2,
-          "p95Ms": 33.4,
+          "p95Ms": 33.3,
           "layers": [
             {
-              "geometryMs": 0.4,
+              "geometryMs": 0.5,
               "renderMs": 0,
-              "fromReadyMs": 3
+              "fromReadyMs": 16.5
             },
             {
               "geometryMs": 0.2,
-              "renderMs": 0,
+              "renderMs": 0.1,
               "fromReadyMs": 33.1
             },
             {
-              "geometryMs": 0.3,
+              "geometryMs": 0.2,
               "renderMs": 0,
               "fromReadyMs": 33.2
             },
             {
               "geometryMs": 0.2,
-              "renderMs": 0,
-              "fromReadyMs": 33.4
+              "renderMs": 0.1,
+              "fromReadyMs": 33.3
             },
             {
-              "geometryMs": 0.2,
-              "renderMs": 0,
+              "geometryMs": 0.3,
+              "renderMs": 0.1,
               "fromReadyMs": 33.3
             }
           ],
           "counts": {
             "renderedRows": 32,
             "renderedEdges": 41,
-            "elements": 282,
-            "bound": 300,
+            "elements": 404,
+            "bound": 492,
             "c3": 69,
             "withinBudget": true
           },
           "domCounts": {
             "renderedRows": 32,
             "renderedEdges": 41,
-            "svgElements": 374
+            "svgElements": 432
           }
         },
         "scroll": {
@@ -248,79 +248,79 @@
               "step": 1,
               "scrollTop": 648,
               "workMs": 0.3,
-              "elements": 390,
+              "elements": 532,
               "blankRows": 0
             },
             {
               "step": 2,
               "scrollTop": 1296,
               "workMs": 0.4,
-              "elements": 412,
+              "elements": 552,
               "blankRows": 0
             },
             {
               "step": 3,
               "scrollTop": 1944,
-              "workMs": 0.4,
-              "elements": 473,
+              "workMs": 0.5,
+              "elements": 613,
               "blankRows": 0
             },
             {
               "step": 4,
               "scrollTop": 2592,
               "workMs": 0.2,
-              "elements": 493,
+              "elements": 637,
               "blankRows": 0
             },
             {
               "step": 5,
               "scrollTop": 3240,
-              "workMs": 0.3,
-              "elements": 481,
+              "workMs": 0.4,
+              "elements": 621,
               "blankRows": 0
             },
             {
               "step": 6,
               "scrollTop": 3888,
-              "workMs": 0.2,
-              "elements": 494,
+              "workMs": 0.5,
+              "elements": 634,
               "blankRows": 0
             },
             {
               "step": 7,
               "scrollTop": 4536,
-              "workMs": 0.2,
-              "elements": 475,
+              "workMs": 0.5,
+              "elements": 617,
               "blankRows": 0
             },
             {
               "step": 8,
               "scrollTop": 5184,
-              "workMs": 0.4,
-              "elements": 472,
+              "workMs": 0.5,
+              "elements": 612,
               "blankRows": 0
             },
             {
               "step": 9,
               "scrollTop": 5832,
-              "workMs": 0.5,
-              "elements": 496,
+              "workMs": 0.4,
+              "elements": 636,
               "blankRows": 0
             },
             {
               "step": 10,
               "scrollTop": 6480,
-              "workMs": 0.4,
-              "elements": 494,
+              "workMs": 0.3,
+              "elements": 634,
               "blankRows": 0
             }
           ],
           "totalWallMs": 499.8,
-          "totalWorkMs": 3.3,
-          "p50WorkMs": 0.3,
+          "totalWorkMs": 4,
+          "p50WorkMs": 0.4,
           "p95WorkMs": 0.5,
           "rafP50Ms": 16.7,
-          "rafP95Ms": 18.4,
+          "rafP95Ms": 19,
           "longTaskCount": 0,
           "blankRowGaps": 0
         }
@@ -347,31 +347,31 @@
         "frameBudgetP95Ms": 16.7,
         "prepareMs": 0.7,
         "firstScreen": {
-          "primaryMs": 15.7,
+          "primaryMs": 2.1,
           "runs": [
-            15.7,
-            33,
-            33.4,
+            2.1,
             33.3,
-            33.3
+            33.2,
+            33.3,
+            33.5
           ],
           "p50Ms": 33.3,
-          "p95Ms": 33.4,
+          "p95Ms": 33.5,
           "layers": [
             {
-              "geometryMs": 0.6,
+              "geometryMs": 0.5,
+              "renderMs": 0.1,
+              "fromReadyMs": 2.1
+            },
+            {
+              "geometryMs": 0.5,
               "renderMs": 0,
-              "fromReadyMs": 15.7
+              "fromReadyMs": 33.3
             },
             {
               "geometryMs": 0.8,
               "renderMs": 0,
-              "fromReadyMs": 33
-            },
-            {
-              "geometryMs": 0.9,
-              "renderMs": 0.1,
-              "fromReadyMs": 33.4
+              "fromReadyMs": 33.2
             },
             {
               "geometryMs": 0.5,
@@ -379,23 +379,23 @@
               "fromReadyMs": 33.3
             },
             {
-              "geometryMs": 0.6,
+              "geometryMs": 0.5,
               "renderMs": 0,
-              "fromReadyMs": 33.3
+              "fromReadyMs": 33.5
             }
           ],
           "counts": {
             "renderedRows": 32,
             "renderedEdges": 41,
-            "elements": 301,
-            "bound": 319,
+            "elements": 423,
+            "bound": 511,
             "c3": 88,
             "withinBudget": true
           },
           "domCounts": {
             "renderedRows": 32,
             "renderedEdges": 41,
-            "svgElements": 374
+            "svgElements": 432
           }
         },
         "scroll": {
@@ -404,79 +404,79 @@
               "step": 1,
               "scrollTop": 648,
               "workMs": 0.7,
-              "elements": 409,
+              "elements": 551,
               "blankRows": 0
             },
             {
               "step": 2,
               "scrollTop": 1296,
-              "workMs": 0.6,
-              "elements": 431,
+              "workMs": 0.4,
+              "elements": 571,
               "blankRows": 0
             },
             {
               "step": 3,
               "scrollTop": 1944,
-              "workMs": 0.8,
-              "elements": 492,
+              "workMs": 1,
+              "elements": 632,
               "blankRows": 0
             },
             {
               "step": 4,
               "scrollTop": 2592,
               "workMs": 0.9,
-              "elements": 512,
+              "elements": 656,
               "blankRows": 0
             },
             {
               "step": 5,
               "scrollTop": 3240,
-              "workMs": 0.5,
-              "elements": 500,
+              "workMs": 0.8,
+              "elements": 640,
               "blankRows": 0
             },
             {
               "step": 6,
               "scrollTop": 3888,
-              "workMs": 0.7,
-              "elements": 513,
+              "workMs": 0.4,
+              "elements": 653,
               "blankRows": 0
             },
             {
               "step": 7,
               "scrollTop": 4536,
               "workMs": 0.5,
-              "elements": 494,
+              "elements": 636,
               "blankRows": 0
             },
             {
               "step": 8,
               "scrollTop": 5184,
-              "workMs": 0.4,
-              "elements": 491,
+              "workMs": 0.6,
+              "elements": 631,
               "blankRows": 0
             },
             {
               "step": 9,
               "scrollTop": 5832,
               "workMs": 0.6,
-              "elements": 515,
+              "elements": 655,
               "blankRows": 0
             },
             {
               "step": 10,
               "scrollTop": 6480,
-              "workMs": 0.7,
-              "elements": 513,
+              "workMs": 0.6,
+              "elements": 653,
               "blankRows": 0
             }
           ],
-          "totalWallMs": 499.2,
-          "totalWorkMs": 6.4,
+          "totalWallMs": 499.4,
+          "totalWorkMs": 6.5,
           "p50WorkMs": 0.6,
-          "p95WorkMs": 0.9,
+          "p95WorkMs": 1,
           "rafP50Ms": 16.7,
-          "rafP95Ms": 18.5,
+          "rafP95Ms": 18.7,
           "longTaskCount": 0,
           "blankRowGaps": 0
         }
@@ -501,57 +501,57 @@
         "firstScreenBudgetMs": 1000,
         "scrollReferenceMs": 2000,
         "frameBudgetP95Ms": 16.7,
-        "prepareMs": 0.9,
+        "prepareMs": 1.1,
         "firstScreen": {
-          "primaryMs": 9.9,
+          "primaryMs": 12.8,
           "runs": [
-            9.9,
-            33.1,
-            33.5,
+            12.8,
+            33.2,
             33.3,
-            33.3
+            33.3,
+            33.5
           ],
           "p50Ms": 33.3,
           "p95Ms": 33.5,
           "layers": [
             {
-              "geometryMs": 0.3,
-              "renderMs": 0,
-              "fromReadyMs": 9.9
+              "geometryMs": 0.4,
+              "renderMs": 0.1,
+              "fromReadyMs": 12.8
             },
             {
               "geometryMs": 0.5,
               "renderMs": 0,
-              "fromReadyMs": 33.1
+              "fromReadyMs": 33.2
             },
             {
-              "geometryMs": 0.5,
+              "geometryMs": 0.6,
               "renderMs": 0,
+              "fromReadyMs": 33.3
+            },
+            {
+              "geometryMs": 1.1,
+              "renderMs": 0.1,
+              "fromReadyMs": 33.3
+            },
+            {
+              "geometryMs": 0.7,
+              "renderMs": 0.1,
               "fromReadyMs": 33.5
-            },
-            {
-              "geometryMs": 0.8,
-              "renderMs": 0,
-              "fromReadyMs": 33.3
-            },
-            {
-              "geometryMs": 0.5,
-              "renderMs": 0,
-              "fromReadyMs": 33.3
             }
           ],
           "counts": {
             "renderedRows": 32,
             "renderedEdges": 56,
-            "elements": 371,
-            "bound": 390,
+            "elements": 493,
+            "bound": 582,
             "c3": 114,
             "withinBudget": true
           },
           "domCounts": {
             "renderedRows": 32,
             "renderedEdges": 56,
-            "svgElements": 433
+            "svgElements": 491
           }
         },
         "scroll": {
@@ -559,80 +559,80 @@
             {
               "step": 1,
               "scrollTop": 648,
-              "workMs": 0.5,
-              "elements": 516,
+              "workMs": 0.3,
+              "elements": 658,
               "blankRows": 0
             },
             {
               "step": 2,
               "scrollTop": 1296,
-              "workMs": 0.8,
-              "elements": 567,
+              "workMs": 0.6,
+              "elements": 707,
               "blankRows": 0
             },
             {
               "step": 3,
               "scrollTop": 1944,
-              "workMs": 0.7,
-              "elements": 671,
+              "workMs": 0.8,
+              "elements": 811,
               "blankRows": 0
             },
             {
               "step": 4,
               "scrollTop": 2592,
-              "workMs": 0.4,
-              "elements": 658,
+              "workMs": 0.8,
+              "elements": 802,
               "blankRows": 0
             },
             {
               "step": 5,
               "scrollTop": 3240,
-              "workMs": 0.4,
-              "elements": 610,
+              "workMs": 0.7,
+              "elements": 750,
               "blankRows": 0
             },
             {
               "step": 6,
               "scrollTop": 3888,
               "workMs": 0.4,
-              "elements": 642,
+              "elements": 782,
               "blankRows": 0
             },
             {
               "step": 7,
               "scrollTop": 4536,
-              "workMs": 0.3,
-              "elements": 656,
+              "workMs": 0.1,
+              "elements": 798,
               "blankRows": 0
             },
             {
               "step": 8,
               "scrollTop": 5184,
-              "workMs": 0.3,
-              "elements": 654,
+              "workMs": 0.5,
+              "elements": 794,
               "blankRows": 0
             },
             {
               "step": 9,
               "scrollTop": 5832,
-              "workMs": 0.2,
-              "elements": 667,
+              "workMs": 0.7,
+              "elements": 807,
               "blankRows": 0
             },
             {
               "step": 10,
               "scrollTop": 6480,
-              "workMs": 0.5,
-              "elements": 675,
+              "workMs": 1.1,
+              "elements": 815,
               "blankRows": 0
             }
           ],
-          "totalWallMs": 499.5,
-          "totalWorkMs": 4.5,
-          "p50WorkMs": 0.4,
-          "p95WorkMs": 0.8,
+          "totalWallMs": 499.6,
+          "totalWorkMs": 6,
+          "p50WorkMs": 0.6,
+          "p95WorkMs": 1.1,
           "rafP50Ms": 16.7,
-          "rafP95Ms": 19.2,
+          "rafP95Ms": 19.4,
           "longTaskCount": 0,
           "blankRowGaps": 0
         }

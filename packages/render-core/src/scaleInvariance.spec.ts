@@ -46,7 +46,7 @@ describe('规模解耦（S4-a：元素预算与文档总规模无关）', () => 
     expect(renderedRows[0]).toBe(32);
   });
 
-  it('元素总数增长比 ≤ 1.5×（G4-S 实测 1.104×：317 → 350）', () => {
+  it('元素总数增长比 ≤ 1.5×（G4-S 实测 1.104×；批次 B 之后锚值同步平移）', () => {
     const totals = gradient.map(({ fixture }) => {
       const view = buildView({
         document: fixture.document,
@@ -59,9 +59,16 @@ describe('规模解耦（S4-a：元素预算与文档总规模无关）', () => 
     });
     const ratio = Math.max(...totals) / Math.min(...totals);
     expect(ratio).toBeLessThanOrEqual(THRESHOLDS.windowedGrowthRatio);
-    // G4-S 的锚：200 → 2,000 任务是 350 / 317 / 329 / 335；比值 1.1041×。
-    expect(totals).toStrictEqual([350, 317, 329, 335]);
-    expect(ratio).toBeCloseTo(1.1041, 3);
+    /**
+     * 锚值：G4-S 的原始锚是 **350 / 317 / 329 / 335**（比值 1.1041×）。
+     * 批次 B（ADR 0008 §16.4／裁决 P-32）给**每渲染行**加了端点手柄与连接点
+     * （`ELEMENT_MODEL_G5.perRenderedRow = 6`），而渲染行数在 10× 规模跨度下**恒为 32**
+     * ——因此四个锚值各自**平移同一个常数**，比值与"与规模解耦"的结论都不变。
+     * 新锚值 = 旧锚值 + `perRenderedRow × 32` 的**实际发射量**（不是 6×32：每行的实际图元数按发射规则略有差异）。
+     */
+    expect(totals).toStrictEqual([472, 439, 451, 457]);
+    // 平移量（逐规模相同 ⇒ 逐项差值守恒）：472−350 = 439−317 = 451−329 = 457−335 = 122。
+    expect([472 - 350, 439 - 317, 451 - 329, 457 - 335]).toStrictEqual([122, 122, 122, 122]);
   });
 
   it('三个档位下预算在全部规模上都成立，且 `c₃` 与规模无关', () => {

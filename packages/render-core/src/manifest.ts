@@ -202,23 +202,90 @@ export const DRAG_EDGE_PX = 6;
 export const HIT_TOLERANCE_PX = 2;
 
 /**
- * G5 每帧新增元素的常数 **`c₄`**（ADR 0008 §11）。
+ * `move` 判定区的**最小宽度**（px）——ADR 0008 §16.1（裁决 P-32）。
  *
- * 与 `c₁`/`c₂`/`c₃` 一样，它必须与渲染层**真的发射了哪些元素**一一对应；
- * 与它们不同的是：`c₄` 是**每帧的固定开销**，不随行数、边数或文档规模增长——
- * 拖动覆盖层（轮廓 + 起止标记）、建线预览线 + 箭头、冲突标红描边、成环路径高亮描边。
+ * 为什么需要它：`DRAG_EDGE_PX = 6` 是**上界**而不是定值。条宽 < 12 px 时若两端各占 6 px，
+ * `move` 区就是**空集**（`P-22` 遗留 3：月档 `pxPerDay = 3`，1 个工作日的条只有 3 px）。
+ * "整体移动"是三条语义里最常用的，让它永远存在优先于让端点区永远够宽。
  *
- * | 项 | 元素 | 何时发射 |
- * |---|---|---|
- * | 拖动轮廓 | `<rect>` | 拖动中（1 个） |
- * | 拖动起止标记 | 2 × `<line>` | 拖动中（改开始/改工期各 1 条，整体移动 2 条） |
- * | 建线预览 | `<path>` + 箭头 `<polygon>` | 建线中（2 个） |
- * | 冲突/成环描边 | `<path>` 或 `<rect>` | 有冲突或高亮时（≤ 2 个） |
- *
- * **维护纪律**：改 `GanttChart.vue` 的覆盖层模板必须同步这里的 `c4` 与 `countElements` 的分类计数；
- * `countElements` 与 `countElementsByEnumeration` 必须继续逐项相等。
+ * 公式（唯一实现处 = `interaction.ts` 的 `zonesFor`）：
+ * ```
+ * halfGap = max(0, (条宽 − MIN_MOVE_ZONE_PX) / 2)
+ * edgePx  = min(DRAG_EDGE_PX, halfGap)
+ * ```
+ * 条宽 ≥ 18 px 时 `edgePx = DRAG_EDGE_PX = 6` ⇒ **宽条行为与 P-32 之前逐值相同**。
  */
-export const ELEMENT_MODEL_G5 = { overlay: 12 } as const;
+export const MIN_MOVE_ZONE_PX = 6;
+
+/**
+ * 端点手柄的**视觉**尺寸（px）——ADR 0008 §16.2（裁决 P-32）。
+ *
+ * 手柄画在**判定区边界**上（`zones.edgeL.end` / `zones.edgeR.start`），不是条的两端：
+ * 这样"看起来能抓的那一点"与"真的按判定区分类的那一点"是同一个数，
+ * 于是窄条上两端退化成同一处也**如实可见**（ADR 0008 §16.2 的理由）。
+ *
+ * **高必须小于条高**（`ROW_HEIGHT × SPACING.barHeightRatio = 24 × 0.6 = 14.4`）：
+ * 它是**条上**的一段短竖线，不是"从条里长出来的尖角"——P-32 的人工复验（2026-10-04）
+ * 报的第一条视觉问题是"条体两端各有一向上的突出"（初值 8 与里程碑菱形同高、
+ * 视觉上越过了条体的上沿），因此取值改为 **4**（并对"汇总条 8.4 px 高"也仍然成立）。
+ */
+export const HANDLE_WIDTH_PX = 2;
+export const HANDLE_HEIGHT_PX = 4;
+
+/**
+ * 连接点的边长（px）——ADR 0008 §16.2/§16.3（裁决 P-32）。
+ *
+ * **位置规则（修订 §16.2 的 "gap" 写法）**：连接点的**内缘与条端对齐**，整体向**外**伸——
+ * 右点 = `[xRight, xRight + CONNECT_SIZE_PX]`（x 属性 = `xRight`）、
+ * 左点 = `[xLeft − CONNECT_SIZE_PX, xLeft]`（x 属性 = `xLeft − CONNECT_SIZE_PX`）。
+ *
+ * 为什么改掉"间隙"：P-32 的人工复验报"两个白色方框不可点击或拖拽，没有任何作用"——
+ * 视觉方块与**命中区**（`[xRight − HIT_TOLERANCE_PX, xRight + CONNECT_SIZE_PX + HIT_TOLERANCE_PX]`）
+ * 本来就不重合，用户按"看到的位置"点下去必然落空。贴住条端之后，
+ * **看得见的方块一定点得中**（容差只在方块的**外缘**再补 2 px）。
+ */
+export const CONNECT_SIZE_PX = 8;
+
+/**
+ * 连接点的**显示时机**：指针与条端的距离在 `HIT_TOLERANCE_PX × N` 内才显示
+ * （ADR 0008 §16.2 的可见性，由 P-32 的人工复验修订）。
+ *
+ * 为什么：初版**常显**，1,000 任务下 32 个渲染行 = 64 个白框，画面杂乱
+ * （复验第 3.2 条）。改为一行的连接点在**指针靠近该行的条端**时出现、移开即消失。
+ * 只改"何时发射"，**命中区与起手语义一字不变**（`connectSideAt` 仍然按条端 ± 容差判定）。
+ */
+export const CONNECT_REVEAL_FACTOR = 2;
+
+/**
+ * G5 每帧/每渲染行新增元素的常数（ADR 0008 §11，**由 §16.4 修订**／裁决 P-32）。
+ *
+ * `c₄` 现在是**两部分**（§11 原文的"每帧固定开销"这句由 §16.4 取代）：
+ *
+ * | 项 | 值 | 何时发射 |
+ * |---|---|---|
+ * | `perRenderedRow` | **6** | **每渲染行**：条/菱形 1 + 进度 1 + 端点手柄 2（仅非汇总、非里程碑）+ 连接点 2 |
+ * | `overlay` | **12** | **每帧固定**：拖动轮廓（1）+ 起止标记（2）+ 建线预览（2）+ 冲突描边（1）+ 成环/选中高亮（≤ 6） |
+ *
+ * 于是预算写成（与 `count.ts` 同式）：
+ *
+ * ```
+ * #elements ≤ (c₁ + perRenderedRow)·rows + c₂·edges + c₃ + overlay
+ * c₄(rows)  = perRenderedRow · rows + overlay = 6 · rows + 12
+ * ```
+ *
+ * **`perRenderedRow = 6` 的来历**（不是估的，是逐类点位相加的上界）：最"胖"的行是**有进度的叶子**——
+ * 条 `<rect>` 1 + 进度 `<rect>` 1 + 端点手柄 `<line>` 2 + 连接点 `<rect>` 2 = **6**；
+ * 汇总行 1 + 2 = 3、里程碑行 1 + 2 = 3、无进度叶子 1 + 2 + 2 = 5，都在这条上界之下。
+ *
+ * **"与文档总规模无关"这条性质不变**：`rows ≤ 视口行数 + ROW_BUFFER`（ADR 0007 §6.1），
+ * 10× 规模跨度下 `rows` 不变 ⇒ 元素总数仍与规模解耦（`S4-a` 的判据口径不变）。
+ *
+ * **维护纪律**：改 `GanttChart.vue` 的覆盖层/手柄模板必须同步这里的常数，
+ * 并让 `countElements` 与 `countElementsByEnumeration` 继续逐项相等；
+ * **负向对照**：把 `perRenderedRow` 改回 `0` 时，`apps/web` 的 DOM 互证必须报
+ * 「实际 DOM 与元素模型不一致」（这正是"计数不是恒真式"的证据）。
+ */
+export const ELEMENT_MODEL_G5 = { perRenderedRow: 6, overlay: 12 } as const;
 
 /** 视口默认值（测量口径的一部分：换视口必须重新登记数字）。 */
 export const VIEWPORT_DEFAULT = {
