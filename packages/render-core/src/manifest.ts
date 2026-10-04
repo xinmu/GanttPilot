@@ -164,6 +164,18 @@ export const ELEMENT_MODEL = { perRenderedRow: 3, perRenderedEdge: 3 } as const;
 export const DRAG_EDGE_PX = 6;
 
 /**
+ * 命中条体的容差（px）：指针必须落在条体包围盒 ± 本值内，否则**不产生手势**（ADR 0008 §13）。
+ *
+ * 为什么需要它：判定区（`DRAG_EDGE_PX`）的前提是"指针落在条体上"，
+ * 而 P-21 的人工复核证实实现里**没有这一道**——同一行的空白处按下会按 `dragModeFor` 落到
+ * `resize-start`/`resize-duration`，于是"条体左侧空白点击改开始、右侧空白点击工期翻倍"。
+ *
+ * 取值：与 `DRAG_EDGE_PX` 同阶但**更小**。它只用来补 1–2 px 的手抖，
+ * **不改变判定区本身**（判定区仍在条体内部按 `DRAG_EDGE_PX` 分三档）。
+ */
+export const HIT_TOLERANCE_PX = 2;
+
+/**
  * G5 每帧新增元素的常数 **`c₄`**（ADR 0008 §11）。
  *
  * 与 `c₁`/`c₂`/`c₃` 一样，它必须与渲染层**真的发射了哪些元素**一一对应；

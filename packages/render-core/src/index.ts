@@ -35,6 +35,7 @@ export {
   EDGE_WRAP_PX,
   ELEMENT_MODEL,
   evaluateScaleCriteria,
+  HIT_TOLERANCE_PX,
   LABEL_CHAR_PX,
   LABEL_PADDING_PX,
   MIN_VISIBLE_ROWS,
@@ -128,20 +129,29 @@ export {
   type OverlayCounts,
 } from './count.js';
 
-// ---------------------------------------------------------------- 拖拽手势内核（ADR 0008 §4–§8）
+// ---------------------------------------------------------------- 拖拽手势内核（ADR 0008 §4–§8 + §13）
 export {
+  barHitFor,
   beginGesture,
+  candidateOrdinalFor,
   dayDeltaFor,
+  deltaFor,
   dragModeFor,
+  dragPreviewFor,
   entryConstraintFor,
   idleGesture,
   ordinalAtClamped,
+  pointerFromClient,
   reduceGesture,
+  resolveDragOutcome,
   resolvePointerTarget,
   snapCandidate,
   type AnchorMode,
   type BeginGestureArgs,
+  type ClientPointerArgs,
   type DragMode,
+  type DragOutcome,
+  type DragPreview,
   type GestureState,
   type GestureUpdate,
   type HitTarget,

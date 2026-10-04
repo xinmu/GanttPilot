@@ -34,6 +34,28 @@
  *
  * 两种模式下"任务最终落在哪"是同一个答案（引擎说了算），差别在**用户是否被告知"你拖过头了"**——
  * 这正是 IX-05 要的那个切换：默认帮用户夹住，或如实放行并标红。
+ *
+ * ## 第三处订正：候选序号是**抓取点相对**的，且按模式分别定义（裁决 P-22，ADR 0008 §13）
+ *
+ * P-21 的人工复核把"按下即跳位 / 右侧空白点击工期翻倍"归给 R1（指针坐标参照物取错）。
+ * 落地批次 A 时发现**归因不完整**：`pointerStartX` 存了却从未被使用，而候选一直是
+ * `ordinalAtX(pointer.x)` 的**绝对**语义——于是修好 R1 之后，"条体左端跳到鼠标位置"仍然成立；
+ * 而 `resize-duration` 的 patch 写作 `候选 − 原开始 + 工期`，在右端**按下不移动**就会把工期
+ * 翻成约 `2D − 1`。这正是复核第 7 项"向右拉条体跟手、**松手回原位**但日期仍变"的字面成因。
+ *
+ * 现在的口径（三条一起读）：
+ *
+ * | 模式 | 候选的语义 | 松手 patch |
+ * |---|---|---|
+ * | `move` | 新**开始**序号 = `originOrdinal + delta` | `{startDate, endDate}`（工期不变） |
+ * | `resize-start` | 新**开始**序号 = `originOrdinal + delta` | `{startDate, durationDays}`（**不含** `endDate` ⇒ 完成日不变） |
+ * | `resize-duration` | 新**完成**序号 = `originOrdinal + max(1, D) − 1 + delta` | `{durationDays, endDate}`（**不含** `startDate`） |
+ *
+ * `delta` 一律是"当前指针的序号 − **抓取点**的序号"（{@link deltaFor}），因此**按下不动 = 零位移**：
+ * 手势不产出任何命令，文档一字不改（这是"按下即重绘"的负向对照）。
+ * `resize-duration` 拖动期条体**本体不动**（会话锚点只有 `startOrdinal`，ADR 0004 §2 的形状不扩），
+ * 用户看到的是 {@link dragPreviewFor} 给出的**预览轮廓**——预览与松手提交共用
+ * {@link resolveDragOutcome}，所以"看到的"与"松手得到的"不可能分叉。
  */
 
 import {
@@ -45,8 +67,8 @@ import {
   type SessionAnchor,
 } from '@ganttpilot/engine';
 
-import { taskBounds, type TaskBounds } from './domain.js';
-import { DRAG_EDGE_PX, type ZoomKey } from './manifest.js';
+import { barXRange, milestoneCenterX, taskBounds, type TaskBounds } from './domain.js';
+import { DRAG_EDGE_PX, HIT_TOLERANCE_PX, SPACING, type ZoomKey } from './manifest.js';
 import type { ViewModel } from './viewModel.js';
 
 /** 拖拽语义（ADR 0008 §5）：判定区决定 `mode`。 */
@@ -67,6 +89,63 @@ export interface PointerInput {
   readonly escPressed?: boolean;
 }
 
+/** {@link pointerFromClient} 的入参：**只有数字**（本包零 DOM，不收 `MouseEvent`/`DOMRect`）。 */
+export interface ClientPointerArgs {
+  readonly clientX: number;
+  readonly clientY: number;
+  /** 图表窗格（内容视口）左上角的**屏幕**坐标——即 `pane.getBoundingClientRect()` 的 `left`/`top`。 */
+  readonly paneLeft: number;
+  readonly paneTop: number;
+  readonly scrollLeft: number;
+  readonly scrollTop: number;
+  readonly buttons: number;
+  readonly altKey?: boolean;
+  readonly shiftKey?: boolean;
+  readonly escPressed?: boolean;
+}
+
+/**
+ * **屏幕坐标 → 内容坐标**的唯一换算（ADR 0008 §13；P-22 批次 A 的 R1）。
+ *
+ * ```
+ * x = clientX − paneLeft + scrollLeft
+ * y = clientY − paneTop  + scrollTop
+ * ```
+ *
+ * 为什么不能再用 `MouseEvent.offsetX` / `offsetY`：它们**相对事件目标元素**——
+ * `mousedown` 落在条体 `<rect>` 上时目标就是那个条，于是 `offsetX ≈ 0` 被当成内容坐标，
+ * 候选序号随即变成"鼠标所在的屏幕位置"（P-21 §2 的 R1）。
+ * 归一化放在本包而不是组件里，是因为"入口层算出来的输入"正是 P-19/P-21 两次都漏掉的判据面。
+ */
+export function pointerFromClient(args: ClientPointerArgs): PointerInput {
+  return {
+    x: args.clientX - args.paneLeft + args.scrollLeft,
+    y: args.clientY - args.paneTop + args.scrollTop,
+    buttons: args.buttons,
+    ...(args.altKey === true ? { altKey: true } : {}),
+    ...(args.shiftKey === true ? { shiftKey: true } : {}),
+    ...(args.escPressed === true ? { escPressed: true } : {}),
+  };
+}
+
+/**
+ * 指针是否**命中条体**（ADR 0008 §13；P-22 批次 A 的 R2）。
+ *
+ * 判据只有横向一条：`x ∈ [xLeft − 容差, xRight + 容差]`。
+ * - 里程碑的 `xLeft`/`xRight` 已经是**菱形包围盒**的左右界（`domain.ts` 的菱形分支），
+ *   因此"含里程碑包围盒"不需要第二条规则；
+ * - **竖向不设限**：行（固定行高，ADR 0007 §4）就是竖向单位——再加一条"必须落在条高内"
+ *   只会新增"点在行内条的上下 3 px 就拖不动"的失败面，而它并不是复核指出的缺陷。
+ */
+export function barHitFor(args: {
+  readonly bounds: TaskBounds;
+  readonly x: number;
+  readonly tolerancePx?: number;
+}): boolean {
+  const tolerance = args.tolerancePx ?? HIT_TOLERANCE_PX;
+  return args.x >= args.bounds.xLeft - tolerance && args.x <= args.bounds.xRight + tolerance;
+}
+
 /** 手势状态机（不可变值）。 */
 export type GestureState =
   | { readonly kind: 'idle' }
@@ -77,8 +156,19 @@ export type GestureState =
       readonly mode: DragMode;
       /** 按下时的序号（改工期的基准）。 */
       readonly originOrdinal: number;
-      readonly pointerStartX: number;
-      /** 候选序号（已按 `anchorMode` 处理）。 */
+      /**
+       * **抓取点**所在的工作日序号（按下那一刻由 `ordinalAtClamped` 得到）。
+       *
+       * 位移一律相对它计算（{@link deltaFor}）——这是"按下不动 = 零位移"的唯一依据，
+       * 也是 P-22 批次 A 订正 R7 的落点（初稿存的是 `pointerStartX` 像素值，但**从未被使用**）。
+       */
+      readonly grabOrdinal: number;
+      /**
+       * 候选序号（已按 `anchorMode` 处理）。
+       *
+       * **语义按模式而定**（ADR 0008 §13）：`move`/`resize-start` 是**新开始**，
+       * `resize-duration` 是**新完成**（可能为负——结果解析处才夹取到项目起点之上）。
+       */
       readonly candidate: number;
     }
   | {
@@ -222,6 +312,45 @@ export function dayDeltaFor(view: ViewModel, deltaX: number): number {
   return deltaX / view.pxPerDay;
 }
 
+/**
+ * 当前指针相对**抓取点**的工作日位移（ADR 0008 §13 的唯一换算处）。
+ *
+ * 两个序号都由 {@link ordinalAtClamped} 产出（越界夹回边界，不抛错），因此
+ * "指针拖出地平线"不会让位移变成 `NaN`，而是停在一个有界值上。
+ */
+export function deltaFor(args: {
+  readonly view: ViewModel;
+  readonly calendar: Calendar;
+  readonly pointerX: number;
+  readonly grabOrdinal: number;
+}): number {
+  return ordinalAtClamped(args.view, args.pointerX, args.calendar) - args.grabOrdinal;
+}
+
+/**
+ * 候选序号：**按模式**给基线再加位移（ADR 0008 §13 的语义表）。
+ *
+ * - `move` / `resize-start`：基线 = 原**开始**序号（`originOrdinal`）；
+ * - `resize-duration`：基线 = 原**完成**序号，即 `originOrdinal + max(1, D) − 1`。
+ *   零时长任务（里程碑）的基线因此是 `originOrdinal` 本身（它"占着"一个工作日格），
+ *   于是"把它往右拖到第 n 天"得到 n 个工作日的工期（`dragModeFor` 对里程碑右半区的注释正是这个意思）；
+ *   而**按下不动**由 {@link resolveDragOutcome} 的"零位移"分支兜住，不会把里程碑变成 1 天。
+ *
+ * **不在这里夹取**：夹取按模式分工在 {@link dragCandidate}（`snap` 的上界）与
+ * {@link resolveDragOutcome}（结果的 0 下界）里做，以免把"位移"与"结果"混在一起算。
+ */
+export function candidateOrdinalFor(args: {
+  readonly mode: DragMode;
+  readonly originOrdinal: number;
+  readonly durationDays: number;
+  readonly delta: number;
+}): number {
+  if (args.mode === 'resize-duration') {
+    return args.originOrdinal + Math.max(1, args.durationDays) - 1 + args.delta;
+  }
+  return args.originOrdinal + args.delta;
+}
+
 // ---------------------------------------------------------------- 入边约束（§6）
 
 /**
@@ -347,7 +476,13 @@ export function dragModeFor(bounds: TaskBounds, x: number): DragMode {
   return 'move';
 }
 
-/** 按下左键：开始拖动或建线（建线需要 `altKey`——避免与拖动抢同一个手势）。 */
+/**
+ * 按下左键：开始拖动或建线。
+ *
+ * 三条前置（顺序即语义）：① 必须落在**渲染窗口内的可见行**（`resolvePointerTarget`）；
+ * ② **必须命中条体**（`barHitFor`，ADR 0008 §13——P-21 的 R2）；③ 汇总行不可拖、只可建线。
+ * 建线用 `altKey` 区分，避免与拖动抢同一个手势（Windows 上 `Alt` 被系统占用的缺口见 P-21 批次 B）。
+ */
 export function beginGesture(args: BeginGestureArgs): GestureUpdate {
   const target = resolvePointerTarget({
     view: args.view,
@@ -363,17 +498,24 @@ export function beginGesture(args: BeginGestureArgs): GestureUpdate {
     return args.pointer.altKey === true ? beginLinking(args, target) : idleGesture();
   }
   if (args.pointer.altKey === true) return beginLinking(args, target);
+  // 条体命中：同一行的空白处按下不得产生手势（否则"左侧空白改开始、右侧空白工期翻倍"）。
+  if (!barHitFor({ bounds: target.bounds, x: args.pointer.x })) return idleGesture();
 
   const mode = dragModeFor(target.bounds, args.pointer.x);
-  const candidate = snapForMode({
+  const grabOrdinal = ordinalAtClamped(args.view, args.pointer.x, args.calendar);
+  const candidate = dragCandidate({
     mode,
-    pointer: args.pointer,
-    target,
+    pointerX: args.pointer.x,
+    // 按下这一刻，`bounds.es` **就是**原开始序号（此后视图才会带着锚点走）。
+    originOrdinal: target.bounds.es,
+    durationDays: taskDurationOf(args.document, target.taskId),
+    taskId: target.taskId,
     view: args.view,
     document: args.document,
     schedule: args.schedule,
     calendar: args.calendar,
     anchorMode: args.anchorMode,
+    grabOrdinal,
   });
   const state: GestureState = {
     kind: 'dragging',
@@ -381,10 +523,37 @@ export function beginGesture(args: BeginGestureArgs): GestureUpdate {
     sourceRow: target.row,
     mode,
     originOrdinal: target.bounds.es,
-    pointerStartX: args.pointer.x,
+    grabOrdinal,
     candidate,
   };
   return updateForDrag(state, args);
+}
+
+/** 任务工期（`null` 视为 0；找不到任务也返回 0）。 */
+function taskDurationOf(document: ProjectDocument, taskId: string): number {
+  return document.tasks.find((task) => task.id === taskId)?.durationDays ?? 0;
+}
+
+/**
+ * 序号 → ISO：**越界返回 `undefined` 而不抛错**（地平线之外 = 无法表示）。
+ *
+ * 为什么必须有这一层：`Calendar.isoOfOrdinal` 在 `序号 > workdayCount` 时**抛错**
+ * （`date.ts` 的 `dayOfOrdinal`），而拖动可以把结果推到地平线之外。旧实现直接调它，
+ * 于是"拖到最右侧"会从事件处理器里抛出异常；批次 A 又把同一批换算用进了**渲染期的预览**，
+ * 抛错会升级成渲染错误——因此这里统一收口为"不可表示"。
+ */
+function isoOfOrdinalSafe(calendar: Calendar, ordinal: number): string | undefined {
+  if (!Number.isInteger(ordinal) || ordinal < 0) return undefined;
+  try {
+    return calendar.isoOfOrdinal(ordinal);
+  } catch {
+    return undefined;
+  }
+}
+
+/** 日历上最后一个可表示的**工作日**序号（上界一律夹回，与 `ordinalAtClamped` 同精神）。 */
+function maxOrdinalOf(calendar: Calendar): number {
+  return Math.max(0, calendar.workdayCount - 1);
 }
 
 function beginLinking(args: BeginGestureArgs, target: HitTarget): GestureUpdate {
@@ -422,7 +591,7 @@ export function reduceGesture(args: ReduceGestureArgs): GestureUpdate {
     }
     // 拖动行本身变了（跨行拖动）：v0.1 不支持"拖到别的行"（改层级归 v0.5 的 move 命令），
     // 因此跨行时按"仍在原行"处理，只在提示里体现。
-    const next: GestureState = { ...state, candidate: candidateFor({ ...args, target }) };
+    const next: GestureState = { ...state, candidate: nextCandidateFor({ ...args, target }) };
     return updateForDrag(next, { ...args, pointer });
   }
 
@@ -435,41 +604,89 @@ export function reduceGesture(args: ReduceGestureArgs): GestureUpdate {
   return updateForLink(next, { ...args, pointer });
 }
 
-function candidateFor(args: ReduceGestureArgs & { readonly target: HitTarget }): number {
-  return snapForMode({
-    mode: args.state.kind === 'dragging' ? args.state.mode : 'move',
-    pointer: args.pointer,
-    target: args.target,
+function nextCandidateFor(args: ReduceGestureArgs & { readonly target: HitTarget }): number {
+  const state = args.state;
+  if (state.kind !== 'dragging') return 0;
+  const task = args.document.tasks.find((item) => item.id === state.taskId);
+  if (task === undefined) return 0;
+  const delta = deltaFor({
+    view: args.view,
+    calendar: args.calendar,
+    pointerX: args.pointer.x,
+    grabOrdinal: state.grabOrdinal,
+  });
+  return dragCandidate({
+    mode: state.mode,
+    pointerX: args.pointer.x,
+    // **基准必须是按下时捕获的序号**：拖动期视图带着会话锚点重算，
+    // `target.bounds.es`（指针当前所在行）已经跟着候选走了 —— 用它当基准会让
+    // 每帧"再前进一段"累积成加速拖动（P-22 由记录制 `--drag` 当场抓出）。
+    originOrdinal: state.originOrdinal,
+    durationDays: task.durationDays ?? 0,
+    taskId: state.taskId,
     view: args.view,
     document: args.document,
     schedule: args.schedule,
     calendar: args.calendar,
     anchorMode: args.anchorMode,
+    grabOrdinal: state.grabOrdinal,
+    delta,
   });
 }
 
-function snapForMode(args: {
+/**
+ * 候选序号（**含按模式的夹取**，ADR 0008 §13）。
+ *
+ * 分工必须写清，否则两处夹取会打架：
+ * - `snap`：把**开始**语义的候选夹到 `[0, 入边约束]`（`snapCandidate`）。约束是"开始"的上界，
+ *   而 `es ≥ 约束` 恒成立（`ES = max(约束, 锚点)`），因此**按下第一帧不会跳位**；
+ * - `allow`：原样放行（早于约束时由 `compute` 报 `anchorConflict`，UI 标红）；
+ * - `resize-duration`：**不夹取**——它的候选是"新完成序号"，约束与 0 下界都在
+ *   {@link resolveDragOutcome} 里按结果处理（完成序号允许先落到低于开始的位置，再由最小工期兜住）。
+ *
+ * **入参一律来自"被拖的那个任务"**（`taskId` + `durationDays` + `originOrdinal`），
+ * 不取"指针当前所在行"：跨行拖动时也不该换一个基准（v0.1 不支持改层级）。
+ */
+function dragCandidate(args: {
   readonly mode: DragMode;
-  readonly pointer: PointerInput;
-  readonly target: HitTarget;
+  readonly pointerX: number;
+  /** 位移的**绝对基准** = 按下时该任务的开始序号。 */
+  readonly originOrdinal: number;
+  readonly durationDays: number;
+  readonly taskId: string;
   readonly view: ViewModel;
   readonly document: ProjectDocument;
   readonly schedule: Schedule;
   readonly calendar: Calendar;
   readonly anchorMode: AnchorMode;
+  readonly grabOrdinal: number;
+  /** 可省略（省略时按指针重算）。 */
+  readonly delta?: number;
 }): number {
-  const raw = ordinalAtClamped(args.view, args.pointer.x, args.calendar);
-  if (args.anchorMode === 'allow') return raw;
-  const task = args.document.tasks[args.target.docIndex];
-  const durationDays = task?.durationDays ?? 0;
+  const delta =
+    args.delta ??
+    deltaFor({
+      view: args.view,
+      calendar: args.calendar,
+      pointerX: args.pointerX,
+      grabOrdinal: args.grabOrdinal,
+    });
+  const raw = candidateOrdinalFor({
+    mode: args.mode,
+    originOrdinal: args.originOrdinal,
+    durationDays: args.durationDays,
+    delta,
+  });
+  // 上界夹回日历地平线（`isoOfOrdinal` 越界会抛错；下界交给各模式的结果解析，`allow` 刻意放行负数）。
+  const bounded = Math.min(raw, maxOrdinalOf(args.calendar));
+  if (args.mode === 'resize-duration' || args.anchorMode === 'allow') return bounded;
   const constraint = entryConstraintFor({
     document: args.document,
     schedule: args.schedule,
-    taskId: args.target.taskId,
-    durationDays,
+    taskId: args.taskId,
+    durationDays: args.durationDays,
   });
-  const out = snapCandidate({ candidate: raw, constraint, minOrdinal: 0 });
-  return out;
+  return snapCandidate({ candidate: bounded, constraint, minOrdinal: 0 });
 }
 
 function releaseGesture(args: ReduceGestureArgs): GestureUpdate {
@@ -481,6 +698,108 @@ function releaseGesture(args: ReduceGestureArgs): GestureUpdate {
 
 // ---------------------------------------------------------------- 产出构造
 
+/** {@link resolveDragOutcome} 的产出：拖动**结果**的完整描述（锚点、预览区间、松手命令）。 */
+export interface DragOutcome {
+  /** 相对抓取点的**工作日位移**（0 = 按下不动）。 */
+  readonly delta: number;
+  /** 会话锚点的开始序号（`resize-duration` 用原开始 ⇒ 条体本体不动）。 */
+  readonly anchorOrdinal: number;
+  /** 结果的开始序号（条形分支的 `es`）。 */
+  readonly es: number;
+  /** 结果的**排他**结束序号（条形分支的 `ef`；`resultDuration ≤ 0` 时等于 `es`）。 */
+  readonly ef: number;
+  /** 结果的工期（正数 = 条形；`≤ 0` = 仍是里程碑/零时长）。 */
+  readonly resultDuration: number;
+  /** 松手要提交的 patch；**`null` = 本次手势无操作**（按下不动）。 */
+  readonly patch: Record<string, unknown> | null;
+}
+
+/**
+ * 拖动结果解析：**锚点、预览几何与松手命令的唯一来源**（ADR 0008 §13）。
+ *
+ * 三件事都在这里定，因此"看到的预览"与"松手得到的文档"不可能分叉：
+ * 1. **候选 → 结果序号**按模式分工（`move`/`resize-start` 的候选是新开始；
+ *    `resize-duration` 的候选是新完成，并夹到不早于原开始）；
+ * 2. **零位移不产出命令**：`resize-duration` 按 `delta === 0` 判定
+ *    （按住里程碑右半区不动**不得**把它变成 1 天任务），其余两模式按"结果开始 == 原开始"判定
+ *    （指针拖到项目起点左侧被夹回时也算无操作）；
+ * 3. **零时长的完成日 = 开始日**：与 `derivedEndIso` / `cellText` 同口径
+ *    （P-20 在显示层修过同一个式子，拖拽 patch 此前漏了）。
+ */
+export function resolveDragOutcome(args: {
+  readonly state: Extract<GestureState, { kind: 'dragging' }>;
+  readonly document: ProjectDocument;
+  readonly calendar: Calendar;
+}): DragOutcome | null {
+  const { state } = args;
+  const task = args.document.tasks.find((item) => item.id === state.taskId);
+  if (task === undefined) return null;
+  const duration = task.durationDays ?? 0;
+  const origin = state.originOrdinal;
+  const base = candidateOrdinalFor({
+    mode: state.mode,
+    originOrdinal: origin,
+    durationDays: duration,
+    delta: 0,
+  });
+  const delta = state.candidate - base;
+
+  if (state.mode === 'resize-duration') {
+    const endOrdinal = Math.max(origin, state.candidate);
+    const resultDuration = Math.max(1, endOrdinal - origin + 1);
+    // 完成日超出地平线 ⇒ `null`（**派生显示值**的既有口径：与 `editToCommand` 的工期分支同形，
+    // 左表会回落到"开始 + 工期"的显示值，而不是一个错的日期，也不抛错）。
+    const endIso = isoOfOrdinalSafe(args.calendar, origin + resultDuration - 1);
+    return {
+      delta,
+      anchorOrdinal: origin,
+      es: origin,
+      ef: origin + resultDuration,
+      resultDuration,
+      // 按住不动 ⇒ 无操作（否则里程碑会被"按一下"变成 1 天任务）。
+      patch: delta === 0 ? null : { durationDays: resultDuration, endDate: endIso ?? null },
+    };
+  }
+
+  const es = Math.max(0, state.candidate);
+  const startIso = isoOfOrdinalSafe(args.calendar, es);
+
+  if (state.mode === 'resize-start') {
+    // 改开始：完成日**不动** ⇒ 工期随之变化（不小于 1）。patch 不含 `endDate`。
+    const resultDuration = Math.max(1, duration - (es - origin));
+    return {
+      delta,
+      anchorOrdinal: es,
+      es,
+      ef: es + resultDuration,
+      resultDuration,
+      patch:
+        es === origin || startIso === undefined
+          ? // 开始序号不可表示（地平线之外）⇒ 整条手势无从落地，按"无操作"处理。
+            null
+          : {
+              startDate: startIso,
+              durationDays: resultDuration,
+            },
+    };
+  }
+
+  // `move`：工期不变（含零时长——里程碑始终是里程碑），两端一起走。
+  const endOrdinal = duration <= 0 ? es : es + duration - 1;
+  const endIso = isoOfOrdinalSafe(args.calendar, endOrdinal);
+  return {
+    delta,
+    anchorOrdinal: es,
+    es,
+    ef: duration <= 0 ? es : es + duration,
+    resultDuration: duration,
+    patch:
+      es === origin || startIso === undefined
+        ? null
+        : { startDate: startIso, endDate: endIso ?? null },
+  };
+}
+
 function updateForDrag(
   state: Extract<GestureState, { kind: 'dragging' }>,
   args: BeginGestureArgs,
@@ -489,8 +808,9 @@ function updateForDrag(
   const docIndex = args.document.tasks.findIndex((task) => task.id === state.taskId);
   const task = docIndex >= 0 ? args.document.tasks[docIndex] : undefined;
   if (task === undefined) return idleGesture();
-  const duration = task.durationDays ?? 0;
-  const anchor: SessionAnchor = { taskId: state.taskId, startOrdinal: state.candidate };
+  const outcome = resolveDragOutcome({ state, document: args.document, calendar: args.calendar });
+  if (outcome === null) return idleGesture();
+  const anchor: SessionAnchor = { taskId: state.taskId, startOrdinal: outcome.anchorOrdinal };
   const rows = [docIndex];
   const edges = linkIndexesTouching(args.document, state.taskId);
   const token = `drag:${state.taskId}`;
@@ -509,28 +829,114 @@ function updateForDrag(
     };
   }
 
-  // 松手：把候选换算成文档字段（ADR 0008 §5 的命令映射）。
-  const startIso = args.calendar.isoOfOrdinal(Math.max(0, state.candidate));
-  const endIso = args.calendar.isoOfOrdinal(Math.max(0, state.candidate + duration - 1));
-  const patch: Record<string, unknown> =
-    state.mode === 'resize-start'
-      ? // 改开始：完成日不动 ⇒ 工期随之变化（不小于 1）。
-        { startDate: startIso, durationDays: Math.max(1, state.originOrdinal + duration - state.candidate) }
-      : state.mode === 'resize-duration'
-        ? { durationDays: Math.max(1, state.candidate - state.originOrdinal + duration), endDate: endIso }
-        : { startDate: startIso, endDate: endIso };
-
   return {
     state: { kind: 'released', taskId: state.taskId },
     gestureToken: null,
     anchors: [],
-    commands: [{ kind: 'task.update', id: state.taskId, patch }],
+    // 零位移 ⇒ 不产出命令（文档一字不改，也不压撤销栈，IX-03 的"无操作不压栈"由此提前到手势层）。
+    commands: outcome.patch === null ? [] : [{ kind: 'task.update', id: state.taskId, patch: outcome.patch }],
     link: null,
     rows,
     edges,
     cyclePath: [],
     preview: null,
   };
+}
+
+/** {@link dragPreviewFor} 的产出：拖动覆盖层要画的那一段几何（内容坐标）。 */
+export interface DragPreview {
+  readonly taskId: string;
+  /** 可见行序号（`-1` 不可能出现——行不可见时本函数返回 `null`）。 */
+  readonly row: number;
+  readonly xLeft: number;
+  readonly xRight: number;
+  /** 条/菱形的竖向中心。 */
+  readonly y: number;
+  readonly barY: number;
+  readonly barHeight: number;
+  readonly isMilestone: boolean;
+  readonly milestone: { readonly cx: number; readonly cy: number; readonly size: number } | null;
+}
+
+/**
+ * 拖动预览几何：**与松手提交同源**（ADR 0008 §13）。
+ *
+ * 为什么需要它：会话锚点只有 `startOrdinal`（ADR 0004 §2 的形状不扩），因此
+ * `resize-duration` 拖动期**条体本体不会动**、`resize-start` 拖动期的右端也会先"跟着走再回弹"。
+ * 覆盖层改画**结果轮廓**（`move`/`resize-start` 用 `[候选, 候选 + 工期 − 1]`；
+ * `resize-duration` 用 `[原开始, 候选]`），于是三种语义在拖动期都有诚实的可见反馈，
+ * 而"看到的"与"松手得到的"共用 {@link resolveDragOutcome}，不会分叉。
+ *
+ * 里程碑：结果仍是零时长时按**菱形**出几何（`barXRange` 在 `ef − 1 = −1` 时按 `domain.ts`
+ * 的口径会抛错，因此必须走菱形分支——与 `taskBounds` 的同一处判断同源）。
+ */
+export function dragPreviewFor(args: {
+  readonly view: ViewModel;
+  readonly document: ProjectDocument;
+  readonly calendar: Calendar;
+  readonly state: GestureState;
+}): DragPreview | null {
+  const { view, state } = args;
+  if (state.kind !== 'dragging') return null;
+  const outcome = resolveDragOutcome({ state, document: args.document, calendar: args.calendar });
+  if (outcome === null) return null;
+  const docIndex = args.document.tasks.findIndex((task) => task.id === state.taskId);
+  if (docIndex < 0) return null;
+  const row = view.rowOfDocIndex[docIndex] ?? -1;
+  if (row < 0) return null; // 折叠隐藏 ⇒ 没有可画的条（与 `taskBounds` 同口径）
+
+  const rowHeight = view.rowHeight;
+  const y = row * rowHeight + rowHeight / 2;
+
+  /**
+   * 几何一律**不许抛错**：本函数在渲染期被调用，而 `barXRange` / `milestoneCenterX` 在
+   * 序号越出日历经线时会 `RangeError`/`fail`。拖到地平线之外时**没有可画的预览**（返回 `null`），
+   * 由调用方保持上一帧的呈现——这与 `ordinalAtClamped`"越界夹回、不抛错"是同一条精神。
+   */
+  try {
+    if (outcome.resultDuration <= 0) {
+      const cx = milestoneCenterX({
+        calendar: args.calendar,
+        es: outcome.es,
+        axisOriginDay: view.axisOriginDay,
+        pxPerDay: view.pxPerDay,
+      });
+      const size = rowHeight * SPACING.milestoneSizeRatio;
+      return {
+        taskId: state.taskId,
+        row,
+        xLeft: cx - size / 2,
+        xRight: cx + size / 2,
+        y,
+        barY: y - size / 2,
+        barHeight: size,
+        isMilestone: true,
+        milestone: { cx, cy: y, size },
+      };
+    }
+
+    const range = barXRange({
+      calendar: args.calendar,
+      es: outcome.es,
+      ef: outcome.ef,
+      axisOriginDay: view.axisOriginDay,
+      pxPerDay: view.pxPerDay,
+    });
+    const barHeight = rowHeight * SPACING.barHeightRatio;
+    return {
+      taskId: state.taskId,
+      row,
+      xLeft: range.xLeft,
+      xRight: range.xRight,
+      y,
+      barY: y - barHeight / 2,
+      barHeight,
+      isMilestone: false,
+      milestone: null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function updateForLink(
