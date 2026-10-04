@@ -24,6 +24,9 @@ import {
 import { rowIndexOfOrder, taskBounds, visibleRowOrder } from './domain.js';
 import {
   AXIS_LEFT_GUTTER_DAYS,
+  CONTENT_RIGHT_PAD_PX,
+  EDGE_STUB_PX,
+  EDGE_WRAP_PX,
   ROW_BUFFER,
   ROW_HEIGHT,
   SPACING,
@@ -109,6 +112,13 @@ export interface ViewModel {
   readonly scrollLeft: number;
   readonly width: number;
   readonly height: number;
+  /**
+   * **内容坐标系**下的横向范围（px）——滚动容器 spacer 的宽度，即"向右能滚到哪里"。
+   *
+   * 它由**文档的日期范围**（`Schedule.projectFinish`）推出，而不是由窗格宽推出
+   * （ADR 0007 §15 / 裁决 P-24）：否则大项目只能滚到开头几十天。
+   */
+  readonly contentWidth: number;
   /** 可见行数（折叠过滤后）。 */
   readonly rowCount: number;
   readonly firstVisible: number;
@@ -139,6 +149,33 @@ export const DEFAULT_VIEWPORT: Viewport = {
   scrollTop: 0,
   scrollLeft: 0,
 };
+
+/**
+ * 内容的横向范围（px）——滚动范围（spacer 宽）的**唯一真相源**（ADR 0007 §15）。
+ *
+ * ```
+ * contentWidth = max(窗格宽, 最末任务右缘 + EDGE_STUB_PX + EDGE_WRAP_PX + CONTENT_RIGHT_PAD_PX)
+ * 最末任务右缘   = (dayOfOrdinal(projectFinish − 1) + 1 − axisOriginDay) × pxPerDay
+ * ```
+ *
+ * - 用 `Schedule.projectFinish`（**叶子**的最大排他完成序号）而不是扫行：O(1)，
+ *   且与 §3 的右边界公式（`dayOfOrdinal(ef − 1) + 1`）同源；
+ * - `projectFinish ≤ 0`（空文档/退化）时回落到窗格宽 ⇒ 不可滚，也不给负范围；
+ * - `-1` 哨兵绝不可喂给 `dayOfOrdinal`（§3 的硬约束）。
+ */
+export function contentWidthFor(args: {
+  readonly calendar: { dayOfOrdinal(ordinal: number): number };
+  readonly projectFinish: number;
+  readonly axisOriginDay: number;
+  readonly pxPerDay: number;
+  readonly viewportWidth: number;
+}): number {
+  const { calendar, projectFinish, axisOriginDay, pxPerDay, viewportWidth } = args;
+  if (!Number.isFinite(projectFinish) || projectFinish <= 0) return viewportWidth;
+  const lastDay = calendar.dayOfOrdinal(projectFinish - 1) + 1;
+  const right = (lastDay - axisOriginDay) * pxPerDay + EDGE_STUB_PX + EDGE_WRAP_PX + CONTENT_RIGHT_PAD_PX;
+  return Math.max(viewportWidth, Math.ceil(right));
+}
 
 /** {@link buildView} 的入参（形状照 ADR 0007 §2；`zoom` 决定 `pxPerDay` 与表头分组）。 */
 export interface BuildViewArgs {
@@ -318,6 +355,13 @@ export function buildView(args: BuildViewArgs): ViewModel {
     scrollLeft: viewport.scrollLeft,
     width: viewport.width,
     height: viewport.height,
+    contentWidth: contentWidthFor({
+      calendar,
+      projectFinish: schedule.projectFinish,
+      axisOriginDay,
+      pxPerDay,
+      viewportWidth: viewport.width,
+    }),
     rowCount: order.length,
     firstVisible: win.firstVisible,
     visibleLast: win.visibleLast,
@@ -344,9 +388,22 @@ export function visibleEdges(view: ViewModel): readonly number[] {
   return view.edges.map((edge) => edge.linkIndex);
 }
 
-/** x 像素 → **自然日**序号（`DayNumber`，可为小数）。 */
+/**
+ * x 像素 → **自然日**序号（`DayNumber`，可为小数）。
+ *
+ * **`x` 是内容坐标**（与 `row.xLeft/xRight`、`points`、`bounds` 同一坐标系），因此这里
+ * **不得**再加 `view.scrollLeft`：屏幕坐标先经 `pointerFromClient` 归一化成内容坐标
+ * （ADR 0008 §13.1 的唯一入口：`x = clientX − paneLeft + scrollLeft`）。
+ *
+ * **历史坑（P-25 的 R14）**：本函数原来写的是 `(x + view.scrollLeft) / pxPerDay`——
+ * 那是"指针来自 SVG 内 `offsetX`（窗口坐标）"时代的写法。自批次 A 把指针改成内容坐标后，
+ * 这一项就变成了**重复计数**：`scrollLeft = 0` 处完全不可见（所有判据都取 0），
+ * 而一旦向右滚动，反算结果就整体偏 `scrollLeft / pxPerDay` 天（实测 600 px ⇒ 偏 25 天），
+ * 拖动候选随之"跳位"。判据：`geometryExpectations.spec` 的**滚动视图**往返、
+ * `gesture.spec` 的滚动状态用例。
+ */
 export function dayAtX(view: ViewModel, x: number): number {
-  return view.axisOriginDay + (x + view.scrollLeft) / view.pxPerDay;
+  return view.axisOriginDay + x / view.pxPerDay;
 }
 
 /**

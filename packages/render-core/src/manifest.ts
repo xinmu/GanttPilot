@@ -67,6 +67,22 @@ export const ROW_BUFFER = 5;
 export const WHEEL_NOTCH_PX = 100;
 
 /**
+ * 两栏**表头带**的外高（px）。ADR 0007 §14（裁决 P-23）。
+ *
+ * 它不是"由判据推出的数值"——它的**判据是"两栏表头外高实测相等"**（左表表头与图表表头带同高），
+ * 由 {@link diagnoseRowAlignment} 的 `headerAligned` 与
+ * `node scripts/measure-render.mjs --align` 的记录制证据守住。
+ *
+ * 用途（**唯一来源**）：`TaskTable.vue` 的表头与表体高、`App.vue` 的图表表头带、`useChart` 的
+ * `columnHeight`。两栏因此共享同一条行屏幕几何
+ * `列顶 + HEADER_HEIGHT_PX + row × ROW_HEIGHT − scrollTop`（ADR 0007 §14）。
+ *
+ * **不进元素预算**：它是 HTML 布局的一部分，不产生任何 SVG 元素（`c₁`/`c₂`/`c₃`/`c₄` 都不动）。
+ * 两栏都必须 `box-sizing: border-box`——否则"28 + 1 px 边框"与"−28"会差 1 px。
+ */
+export const HEADER_HEIGHT_PX = 28;
+
+/**
  * 轴线左侧留白（**天数**，不是像素）——SS/SF"左出回绕"走线的空间（ADR 0007 §3）。
  *
  * 由回绕走廊反推：`ceil((EDGE_STUB_PX + EDGE_WRAP_PX + 4) / min(pxPerDay))` = `ceil(24 / 3)` = **8 天**。
@@ -74,6 +90,16 @@ export const WHEEL_NOTCH_PX = 100;
  * 这是"gutter 以天数表达"这一 §3 口径的固有代价；改成本档位推导属**语义变更**（须另立 ADR）。
  */
 export const AXIS_LEFT_GUTTER_DAYS = 8;
+
+/**
+ * 内容坐标系右侧的**固定留白**（px）。ADR 0007 §15（裁决 P-24）。
+ *
+ * 为什么需要它：内容的横向范围由 `ViewModel.contentWidth` 给出（= 最末任务右缘 + 引出段 + 回绕走廊 + 本值），
+ * 它是**滚动范围**（spacer 宽）的真相源——范围给少了，用户就滚不到项目末端
+ * （P-24 实测：旧式"按窗格宽推导"的公式在 1,000 任务夹具上只给到约 61 天）。
+ * 留白保证最末任务之后还有可滚的余地，并容下依赖线的引出段与回绕走廊。
+ */
+export const CONTENT_RIGHT_PAD_PX = 32;
 
 /** 行高候选（判据复推用）。 */
 export const ROW_HEIGHT_CANDIDATES = [20, 24, 28] as const;
@@ -245,6 +271,14 @@ export const THRESHOLDS = {
   /** 走线最小可辨引出段（px）。 */
   minStubPx: 4,
   maxStubPx: 16,
+  /**
+   * 两栏行对齐的容差（px，ADR 0007 §14 / 裁决 P-23）。
+   *
+   * 记录制判据（`--align`）用**真实 `getBoundingClientRect()`** 逐行比对手眼能分辨的最小量；
+   * 取 0.5 px 而不是 0：`clientHeight` 是整数、`rect` 可含亚像素，1 px 的取整噪声不构成错位。
+   * 三条机制（双重偏移 / 缺表头带 / 测量时机）造成的偏差都在 1 px 以上，故判别力不受影响。
+   */
+  rowAlignTolerancePx: 0.5,
 } as const;
 
 // ---------------------------------------------------------------- 判据复推

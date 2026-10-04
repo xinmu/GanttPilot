@@ -69,7 +69,7 @@ import {
 
 import { barXRange, milestoneCenterX, taskBounds, type TaskBounds } from './domain.js';
 import { DRAG_EDGE_PX, HIT_TOLERANCE_PX, SPACING, type ZoomKey } from './manifest.js';
-import type { ViewModel } from './viewModel.js';
+import { dayAtX, type RowBox, type ViewModel } from './viewModel.js';
 
 /** 拖拽语义（ADR 0008 §5）：判定区决定 `mode`。 */
 export type DragMode = 'move' | 'resize-start' | 'resize-duration';
@@ -79,7 +79,13 @@ export type AnchorMode = 'snap' | 'allow';
 
 /** 归一化指针输入：**绝不是** DOM 事件对象。 */
 export interface PointerInput {
-  /** SVG 内容坐标系的 x（已含滚动偏移，见 `dayAtX` 的口径）。 */
+  /**
+   * **内容坐标系**的 `x` / `y`：屏幕坐标必须先经 `pointerFromClient` 归一化
+   * （`x = clientX − paneLeft + scrollLeft`、`y = clientY − paneTop + scrollTop`，ADR 0008 §13.1）。
+   * 本包内**所有**几何消费方（`resolvePointerTarget`、`dayAtX`/`ordinalAtX`、`barHitFor`、
+   * `dragModeFor`）都按内容坐标取值，**任何一处再叠加一次 `scroll*` 都是重复计数**
+   * （P-25 的 R13/R14 就是这两处）。
+   */
   readonly x: number;
   readonly y: number;
   readonly buttons: number;
@@ -280,7 +286,10 @@ export interface ResolvePointerArgs {
  */
 export function resolvePointerTarget(args: ResolvePointerArgs): HitTarget | null {
   const { view, document, schedule, calendar } = args;
-  const row = Math.floor((args.y + view.scrollTop) / view.rowHeight);
+  // **`args.y` 已是内容坐标**（`pointerFromClient` 归一化时已加 `scrollTop`）⇒ 这里不得再加一次。
+  // 历史坑（P-25 的 R13）：原来是 `(y + view.scrollTop) / rowHeight`，于是**一向下滚动就再也命不中**
+  // （行号凭空多出 `scrollTop / rowHeight` 行、落到渲染窗口之外），而 `scrollTop = 0` 处完全正常。
+  const row = Math.floor(args.y / view.rowHeight);
   if (!Number.isInteger(row) || row < view.renderFirst || row > view.renderLast) return null;
   const docIndex = view.order[row];
   if (docIndex === undefined) return null;
@@ -440,10 +449,15 @@ export function ordinalAtClamped(view: ViewModel, x: number, calendar: Calendar)
   }
 }
 
-/** `render-core` 的反算（这里再包一层只是为了让 catch 有明确的落点）。 */
+/**
+ * `render-core` 的反算（这里再包一层只是为了让 catch 有明确的落点）。
+ *
+ * **必须委托给 `dayAtX`**：这里原来把同一个公式**抄了第二份**（且同样多加了 `view.scrollLeft`），
+ * 于是"修了 `dayAtX` 却漏了这一处"是必然的（P-25 实测：向右滚 600 px 时候选偏约 19 个工作日）。
+ * 反算公式**只有一处**（`viewModel.ts` 的 `dayAtX`）。
+ */
 function ordinalAtXSafe(view: ViewModel, x: number, calendar: Calendar): number {
-  const day = view.axisOriginDay + (x + view.scrollLeft) / view.pxPerDay;
-  return calendar.ordinalOfDay(Math.floor(day));
+  return calendar.ordinalOfDay(Math.floor(dayAtX(view, x)));
 }
 
 // ---------------------------------------------------------------- 手势推进
@@ -937,6 +951,58 @@ export function dragPreviewFor(args: {
   } catch {
     return null;
   }
+}
+
+/**
+ * 一行**要画出来的条**（ADR 0008 §14 / 裁决 P-24）：拖动中的那一行画**结果几何**。
+ *
+ * 为什么需要它：会话锚点只有 `startOrdinal`（ADR 0004 §2 的形状不扩），因此拖动期
+ * `compute` 给这一行的 `ef` 仍是"新开始 + **文档里的旧工期**"——
+ * `resize-start` 于是表现成"整条平移、右端不固定"，`resize-duration` 则"条体本体不动"。
+ * 而 {@link dragPreviewFor} 已经给出**与松手提交同源**的结果几何，本函数把它接到渲染侧：
+ *
+ * - 被拖行（`preview.taskId === row.id`）⇒ 用预览几何（`fromPreview: true`）；
+ * - 其余行 ⇒ 原样用 `row` 自己的几何（不受影响）。
+ *
+ * **进度按比例跟随**：拖动期不重算进度，进度填充按 `结果宽度 × row.progressRatio` 画，
+ * 这样 `resize-*` 期间它不会与轮廓脱节。
+ */
+export interface DrawnBar {
+  readonly xLeft: number;
+  readonly xRight: number;
+  readonly y: number;
+  readonly barY: number;
+  readonly barHeight: number;
+  readonly isMilestone: boolean;
+  readonly milestone: { readonly cx: number; readonly cy: number; readonly size: number } | null;
+  /** `true` = 该行正在被拖动，几何来自预览（见 {@link dragPreviewFor}）。 */
+  readonly fromPreview: boolean;
+}
+
+/** 该行要画的条：被拖行用**预览结果几何**，其余行用自身几何（ADR 0008 §14）。 */
+export function drawnBarForRow(row: RowBox, preview: DragPreview | null): DrawnBar {
+  if (preview !== null && preview.taskId === row.id) {
+    return {
+      xLeft: preview.xLeft,
+      xRight: preview.xRight,
+      y: preview.y,
+      barY: preview.barY,
+      barHeight: preview.barHeight,
+      isMilestone: preview.isMilestone,
+      milestone: preview.milestone,
+      fromPreview: true,
+    };
+  }
+  return {
+    xLeft: row.xLeft,
+    xRight: row.xRight,
+    y: row.y,
+    barY: row.barY,
+    barHeight: row.barHeight,
+    isMilestone: row.isMilestone,
+    milestone: row.milestone,
+    fromPreview: false,
+  };
 }
 
 function updateForLink(

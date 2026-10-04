@@ -29,12 +29,14 @@ export {
   ARROW_FILL,
   ARROW_RASTER,
   AXIS_LEFT_GUTTER_DAYS,
+  CONTENT_RIGHT_PAD_PX,
   EDGE_STUB_CANDIDATES,
   EDGE_STUB_PX,
   EDGE_WRAP_CANDIDATES,
   EDGE_WRAP_PX,
   ELEMENT_MODEL,
   evaluateScaleCriteria,
+  HEADER_HEIGHT_PX,
   HIT_TOLERANCE_PX,
   LABEL_CHAR_PX,
   LABEL_PADDING_PX,
@@ -105,6 +107,7 @@ export {
 // ---------------------------------------------------------------- 视图模型（ADR 0007 §2）
 export {
   buildView,
+  contentWidthFor,
   dayAtX,
   DEFAULT_VIEWPORT,
   isRowRendered,
@@ -138,6 +141,7 @@ export {
   deltaFor,
   dragModeFor,
   dragPreviewFor,
+  drawnBarForRow,
   entryConstraintFor,
   idleGesture,
   ordinalAtClamped,
@@ -152,6 +156,7 @@ export {
   type DragMode,
   type DragOutcome,
   type DragPreview,
+  type DrawnBar,
   type GestureState,
   type GestureUpdate,
   type HitTarget,
@@ -174,6 +179,17 @@ export {
 
 // ---------------------------------------------------------------- 受影响子图（ADR 0007 §8）
 export { affectedRenderSet, type AffectedRenderSet } from './affected.js';
+
+// ---------------------------------------------------------------- 两栏行对齐（ADR 0007 §14 / 裁决 P-23）
+export {
+  diagnoseRowAlignment,
+  summarizeAlignment,
+  type AlignMechanism,
+  type RowAlignDelta,
+  type RowAlignProbe,
+  type RowAlignSample,
+  type RowAlignVerdict,
+} from './align.js';
 
 // ---------------------------------------------------------------- 列身份（ADR 0008 §1–§3；唯一真相源）
 export {

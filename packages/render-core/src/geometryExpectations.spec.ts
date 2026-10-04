@@ -109,6 +109,37 @@ describe('反算不变量与端点贴合（ADR 0007 §9 ③）', () => {
     });
   }
 
+  /**
+   * **滚动视图**下的同一批检查（P-25 / R13/R14）。
+   *
+   * `scrollTop/scrollLeft` 只改窗口、不改几何，因此反算往返与端点贴合**必须与不滚动时逐值一致**。
+   * 这一条是"判据没覆盖滚动状态"这个缺口的正面收口：它抓的是
+   * `dayAtX` 又加一次 `scrollLeft`、命中反算又加一次 `scrollTop` 这类**只在滚动后才现形**的重复计数。
+   */
+  for (const spec of DATASETS) {
+    it(`${spec.name}·**滚动视图**下的反算往返、端点贴合、汇总覆盖（P-25）`, () => {
+      const fixture = buildFixture(spec);
+      const view = buildView({
+        document: fixture.document,
+        schedule: fixture.schedule,
+        calendar: fixture.calendar,
+        viewport: { ...DEFAULT_VIEWPORT, scrollTop: 480, scrollLeft: 600 },
+        zoom: 'day',
+      });
+      const checks = [
+        ...checkRoundTrip({ view, calendar: fixture.calendar }),
+        ...checkEdgeEndpointsAndSummaryCoverage({
+          view,
+          document: fixture.document,
+          schedule: fixture.schedule,
+          calendar: fixture.calendar,
+        }),
+      ];
+      const failed = checks.filter((row) => !row.pass);
+      expect(failed.map((row) => `${row.name} —— ${row.detail}`)).toStrictEqual([]);
+    });
+  }
+
   it('哨兵守卫：-1 喂进几何必须抛 RangeError（不得静默出 NaN）', () => {
     const checks = checkSentinelGuard({ calendar: primary.calendar });
     expect(checks.every((row) => row.pass)).toBe(true);

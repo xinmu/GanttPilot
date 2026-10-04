@@ -24,13 +24,14 @@ import { describe, expect, it } from 'vitest';
 import { compute, wouldCreateCycle, type ProjectDocument, type Schedule } from '@ganttpilot/engine';
 
 import { buildView, type ViewModel, type Viewport } from './viewModel.js';
-import { HIT_TOLERANCE_PX, ROW_HEIGHT, ROW_BUFFER, ZOOM_PX_PER_DAY } from './manifest.js';
+import { HIT_TOLERANCE_PX, ROW_HEIGHT, ROW_BUFFER, SPACING, ZOOM_PX_PER_DAY } from './manifest.js';
 import { buildFixture, DATASETS } from './fixtures.js';
 import {
   barHitFor,
   beginGesture,
   dragModeFor,
   dragPreviewFor,
+  drawnBarForRow,
   entryConstraintFor,
   ordinalAtClamped,
   pointerFromClient,
@@ -61,6 +62,24 @@ function viewOf(zoom: 'day' | 'week' | 'month' = 'day', height = viewport.height
     calendar: fixture.calendar,
     viewport: { ...viewport, height },
     zoom,
+  });
+}
+
+/**
+ * 带**滚动偏移**的视图：`scrollTop/scrollLeft` 只改窗口，不改任何几何
+ * （行 `y`、`bounds.xLeft/xRight`、`axisOriginDay` 与不滚动时逐值相同）。
+ *
+ * 为什么必须有它：R13/R14 都是"**只在滚动后**才现形"的坐标重复计数
+ * （命中反算又加了一次 `scrollTop`、`dayAtX` 又加了一次 `scrollLeft`），
+ * 而此前所有判据都用 `scrollTop = scrollLeft = 0` 的视图 ⇒ 结构上抓不到。
+ */
+function viewScrolled(scrollTop: number, scrollLeft: number, height = 2400): ViewModel {
+  return buildView({
+    document: fixture.document,
+    schedule: fixture.schedule,
+    calendar: fixture.calendar,
+    viewport: { ...viewport, height, scrollTop, scrollLeft },
+    zoom: 'day',
   });
 }
 
@@ -1105,5 +1124,165 @@ describe('批次 A 的入口判据（P-22：指针归一化 / 条体命中 / 按
       expect(preview?.xLeft).toBeCloseTo(committed.xLeft, 6);
       expect(preview?.xRight).toBeCloseTo(committed.xRight, 6);
     }
+  });
+
+  it('拖动期**画出来的条** = 提交结果：被拖行改用预览结果几何（ADR 0008 §14，裁决 P-24）', () => {
+    const target = tallView;
+    const cases: readonly { readonly mode: 'move' | 'resize-start' | 'resize-duration'; readonly length: number }[] = [
+      { mode: 'move', length: 3 },
+      { mode: 'resize-start', length: 3 },
+      { mode: 'resize-duration', length: 3 },
+    ];
+
+    for (const item of cases) {
+      const pick = pickLeaf(
+        ({ bounds: b, constraint: c, task }) =>
+          !b.isMilestone &&
+          !Number.isFinite(c) &&
+          (item.mode !== 'resize-start' || (task.durationDays ?? 0) >= 4),
+      );
+      const origin = pick.bounds.es;
+      const duration = pick.task.durationDays ?? 0;
+      const y = rowCenterY(pick.row);
+      const downX =
+        item.mode === 'move'
+          ? grabPointOf(target, pick.bounds)
+          : item.mode === 'resize-start'
+            ? pick.bounds.xLeft + 1
+            : pick.bounds.xRight - 1;
+      const targetOrdinal =
+        item.mode === 'resize-duration' ? origin + duration - 1 + item.length : origin + item.length;
+
+      const started = beginGesture({
+        ...dragArgsFor(target),
+        pointer: { x: downX, y, buttons: 1 },
+        anchorMode: 'snap',
+      });
+      if (started.state.kind !== 'dragging') throw new Error('未进入拖动');
+      const moved = reduceGesture({
+        ...dragArgsFor(target),
+        pointer: { x: xForOrdinalIn(target, targetOrdinal), y, buttons: 1 },
+        anchorMode: 'snap',
+        state: started.state,
+      });
+
+      const preview = dragPreviewFor({
+        view: target,
+        document: fixture.document,
+        calendar: fixture.calendar,
+        state: moved.state,
+      });
+      const outcome = resolveDragOutcome({
+        state: moved.state,
+        document: fixture.document,
+        calendar: fixture.calendar,
+      });
+      if (preview === null || outcome === null) throw new Error('预览 / 结果解析不该为 null');
+
+      const released = reduceGesture({
+        ...dragArgsFor(target),
+        pointer: { x: xForOrdinalIn(target, targetOrdinal), y, buttons: 0 },
+        anchorMode: 'snap',
+        state: moved.state,
+      });
+      const patch = released.commands[0]?.patch ?? {};
+      const committed = boundsAfterPatch(pick.task.id, patch);
+
+      const row = target.rows.find((item2) => item2.id === pick.task.id);
+      if (row === undefined) throw new Error('被拖行不在渲染窗口内');
+      const drawn = drawnBarForRow(row, preview);
+
+      expect(drawn.fromPreview).toBe(true);
+      expect(drawn.xLeft).toBeCloseTo(committed.xLeft, 6);
+      expect(drawn.xRight).toBeCloseTo(committed.xRight, 6);
+      expect(drawn.y).toBeCloseTo(committed.y, 6);
+      expect(drawn.isMilestone).toBe(committed.isMilestone);
+      const ratio = committed.kind === 'summary' ? SPACING.summaryBarHeightRatio : SPACING.barHeightRatio;
+      expect(drawn.barHeight).toBeCloseTo(target.rowHeight * ratio, 6);
+      expect(drawn.barY + drawn.barHeight / 2).toBeCloseTo(committed.y, 6);
+
+      // 与"锚点视图"的对照：应用每帧真的会这么算（`compute(document, calendar, anchors)`），
+      // 而 `resize-start` 的锚点视图会把**右端一起带走**——这正是"必须画结果几何"的理由。
+      const anchored = compute(fixture.document, fixture.calendar, [
+        { taskId: pick.task.id, startOrdinal: outcome.anchorOrdinal },
+      ]);
+      if (!anchored.ok) throw new Error(`带锚点的排程失败：${anchored.code}`);
+      const anchoredRow = viewWith(anchored.schedule, 2400).rows.find((item2) => item2.id === pick.task.id);
+      if (anchoredRow === undefined) throw new Error('锚点视图里找不到被拖行');
+      if (item.mode === 'resize-start') {
+        // 右端固定：画出来的是**原右端**；锚点视图的右端已经跟着走了（差 ≥ 1 天）。
+        expect(drawn.xRight).toBeCloseTo(pick.bounds.xRight, 6);
+        expect(anchoredRow.xRight).toBeGreaterThan(drawn.xRight + target.pxPerDay - 1);
+      }
+    }
+  });
+
+  it('滚动状态（P-25 的 R13/R14）：滚出的行照样命得中、起得了手势，且候选不因滚动而跳位', () => {
+    const target = viewScrolled(480, 600);
+    const row = target.rows.find((item) => !item.isMilestone && item.kind === 'leaf');
+    if (row === undefined) throw new Error('夹具前提不成立');
+    const x = (row.xLeft + row.xRight) / 2;
+    const y = rowCenterY(row.row);
+
+    // R14 的最简形式：**条左缘**在滚动视图里仍要映射到该行的 `es`。
+    expect(ordinalAtClamped(target, row.xLeft, fixture.calendar)).toBe(row.es);
+
+    // R13：`y` 已是内容坐标，命中反算不得再加一次 `scrollTop`。
+    const hit = resolvePointerTarget({ ...dragArgsFor(target), x, y });
+    if (hit === null) throw new Error('滚动后命不中该行（R13）');
+    expect(hit.row).toBe(row.row);
+    expect(hit.taskId).toBe(row.id);
+
+    // 起手势：滚动后新出现的行必须可拖。
+    const started = beginGesture({
+      ...dragArgsFor(target),
+      pointer: { x, y, buttons: 1 },
+      anchorMode: 'allow',
+    });
+    if (started.state.kind !== 'dragging') throw new Error(`滚动后起不了手势（R13）：${started.state.kind}`);
+    expect(started.state.taskId).toBe(row.id);
+    expect(started.state.originOrdinal).toBe(row.es);
+
+    // R14：候选与抓取点的**工作日差**必须等于指针移动的工作日差（滚动不参与）。
+    const targetOrdinal = row.es + 2;
+    const movedX = xForOrdinalIn(target, targetOrdinal) + target.pxPerDay / 2;
+    const moved = reduceGesture({
+      ...dragArgsFor(target),
+      pointer: { x: movedX, y, buttons: 1 },
+      anchorMode: 'allow',
+      state: started.state,
+    });
+    if (moved.state.kind !== 'dragging') throw new Error('拖动状态丢失');
+    expect(moved.state.candidate - row.es).toBe(targetOrdinal - started.state.grabOrdinal);
+  });
+
+  it('未被拖动的行 / 没有预览：原样用自身几何（不动别人的条）', () => {
+    const row = tallView.rows[0];
+    if (row === undefined) throw new Error('夹具前提不成立');
+    const other = tallView.rows.find((item) => item.id !== row.id);
+    if (other === undefined) throw new Error('夹具前提不成立');
+    const preview = {
+      taskId: other.id,
+      row: other.row,
+      xLeft: 1,
+      xRight: 2,
+      y: 3,
+      barY: 4,
+      barHeight: 5,
+      isMilestone: false,
+      milestone: null,
+    };
+
+    expect(drawnBarForRow(row, preview)).toStrictEqual({
+      xLeft: row.xLeft,
+      xRight: row.xRight,
+      y: row.y,
+      barY: row.barY,
+      barHeight: row.barHeight,
+      isMilestone: row.isMilestone,
+      milestone: row.milestone,
+      fromPreview: false,
+    });
+    expect(drawnBarForRow(row, null).fromPreview).toBe(false);
   });
 });

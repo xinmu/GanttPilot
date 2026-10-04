@@ -20,10 +20,26 @@ import {
   buildAxis,
   rowWindow,
 } from './clip.js';
-import { rowIndexOfOrder, visibleRowOrder } from './domain.js';
-import { buildFixture, DATASETS, FIXTURE_PROJECT_START_ISO } from './fixtures.js';
-import { AXIS_LEFT_GUTTER_DAYS, ROW_BUFFER, ROW_HEIGHT, ZOOM_PX_PER_DAY } from './manifest.js';
-import { buildView, DEFAULT_VIEWPORT, isRowRendered, visibleEdges, visibleRows } from './viewModel.js';
+import { rowIndexOfOrder, taskBounds, visibleRowOrder } from './domain.js';
+import { buildFixture, DATASETS, FIXTURE_PROJECT_START_ISO, REFERENCE_DATASET } from './fixtures.js';
+import {
+  AXIS_LEFT_GUTTER_DAYS,
+  CONTENT_RIGHT_PAD_PX,
+  EDGE_STUB_PX,
+  EDGE_WRAP_PX,
+  ROW_BUFFER,
+  ROW_HEIGHT,
+  ZOOM_ORDER,
+  ZOOM_PX_PER_DAY,
+} from './manifest.js';
+import {
+  buildView,
+  contentWidthFor,
+  DEFAULT_VIEWPORT,
+  isRowRendered,
+  visibleEdges,
+  visibleRows,
+} from './viewModel.js';
 
 const PROJECT: ProjectMeta = {
   name: '行模型用例',
@@ -376,5 +392,113 @@ describe('轴与刻度（ADR 0007 §3 + §11.1 ③ 水平窗口裁剪）', () =>
     // 行高是虚拟化的前提：折叠只改变行数；渲染窗口仍是"可见行 + 缓冲"。
     expect(collapsed.rows.length).toBe(Math.min(collapsed.rowCount, collapsed.visibleLast + 1 + ROW_BUFFER));
     expect(collapsed.rows.every((row) => row.kind === 'summary')).toBe(true);
+  });
+});
+
+describe('内容横向范围（ADR 0007 §15，裁决 P-24）', () => {
+  /**
+   * 旧式（应用层）公式：**按窗格宽**推导内容宽。
+   *
+   * 把它留在 spec 里当**负向对照**：若有人改回这种做法，第一条判据必须变红
+   * ——否则"能滚到项目末端"就是一句没有载体的空话。
+   */
+  const legacyContentWidth = (viewportWidth: number, pxPerDay: number): number => {
+    const days = Math.max(60, viewportWidth / pxPerDay + 32);
+    return Math.ceil(days * pxPerDay) + 32;
+  };
+
+  it('内容宽覆盖**全部任务的最右缘**（+ 引出段 + 回绕走廊），与窗格宽无关', () => {
+    const failures: string[] = [];
+    for (const spec of [...DATASETS, REFERENCE_DATASET]) {
+      const fixture = buildFixture(spec);
+      for (const zoom of ZOOM_ORDER) {
+        const view = buildView({
+          document: fixture.document,
+          schedule: fixture.schedule,
+          calendar: fixture.calendar,
+          viewport: DEFAULT_VIEWPORT,
+          zoom,
+        });
+        let rightMost = Number.NEGATIVE_INFINITY;
+        for (let docIndex = 0; docIndex < fixture.document.tasks.length; docIndex += 1) {
+          const bounds = taskBounds({
+            document: fixture.document,
+            schedule: fixture.schedule,
+            calendar: fixture.calendar,
+            rowOfDocIndex: view.rowOfDocIndex,
+            axisOriginDay: view.axisOriginDay,
+            pxPerDay: view.pxPerDay,
+            rowHeight: view.rowHeight,
+            docIndex,
+          });
+          if (bounds !== null) rightMost = Math.max(rightMost, bounds.xRight);
+        }
+        const needed = rightMost + EDGE_STUB_PX + EDGE_WRAP_PX;
+        if (!(view.contentWidth >= needed)) {
+          failures.push(`${spec.key}/${zoom}: contentWidth=${String(view.contentWidth)} < ${String(needed)}`);
+        }
+        if (view.contentWidth < DEFAULT_VIEWPORT.width) {
+          failures.push(`${spec.key}/${zoom}: contentWidth 不得小于窗格宽`);
+        }
+      }
+    }
+    expect(failures).toStrictEqual([]);
+  });
+
+  it('负向对照：旧式"按窗格宽推导"在 1,000 任务夹具上**不满足**该性质（判据有判别力）', () => {
+    const fixture = buildFixture(DATASETS[0]);
+    const view = buildView({
+      document: fixture.document,
+      schedule: fixture.schedule,
+      calendar: fixture.calendar,
+      viewport: DEFAULT_VIEWPORT,
+      zoom: 'day',
+    });
+    const legacy = legacyContentWidth(DEFAULT_VIEWPORT.width, ZOOM_PX_PER_DAY.day);
+    let rightMost = Number.NEGATIVE_INFINITY;
+    for (let docIndex = 0; docIndex < fixture.document.tasks.length; docIndex += 1) {
+      const bounds = taskBounds({
+        document: fixture.document,
+        schedule: fixture.schedule,
+        calendar: fixture.calendar,
+        rowOfDocIndex: view.rowOfDocIndex,
+        axisOriginDay: view.axisOriginDay,
+        pxPerDay: view.pxPerDay,
+        rowHeight: view.rowHeight,
+        docIndex,
+      });
+      if (bounds !== null) rightMost = Math.max(rightMost, bounds.xRight);
+    }
+    // 旧式公式只给到视口那几十天；真实内容的右缘远在它之外。
+    expect(legacy).toBeLessThan(rightMost);
+    expect(view.contentWidth).toBeGreaterThan(rightMost);
+  });
+
+  it('随项目末端单调增长；空文档回落到窗格宽（不可滚、也不给负范围）', () => {
+    const base = {
+      calendar: { dayOfOrdinal: (ordinal: number): number => 20731 + ordinal },
+      axisOriginDay: 20723,
+      pxPerDay: 24,
+      viewportWidth: 400,
+    };
+    const near = contentWidthFor({ ...base, projectFinish: 11 });
+    const far = contentWidthFor({ ...base, projectFinish: 101 });
+    expect(far).toBeGreaterThan(near);
+    expect(contentWidthFor({ ...base, projectFinish: 0 })).toBe(400);
+    expect(contentWidthFor({ ...base, projectFinish: -1 })).toBe(400);
+
+    const empty = createEmptyDocument('空项目');
+    const result = compute(empty, createScheduleCalendar(empty));
+    if (!result.ok) throw new Error('空项目应当可排程');
+    const view = buildView({
+      document: empty,
+      schedule: result.schedule,
+      calendar: createScheduleCalendar(empty),
+      viewport: DEFAULT_VIEWPORT,
+      zoom: 'day',
+    });
+    expect(view.contentWidth).toBe(DEFAULT_VIEWPORT.width);
+    // 留白常数必须真的被用上（否则"最末任务之后还有余地"只是巧合）。
+    expect(CONTENT_RIGHT_PAD_PX).toBeGreaterThan(0);
   });
 });

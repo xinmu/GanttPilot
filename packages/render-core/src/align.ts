@@ -1,0 +1,379 @@
+/**
+ * 两栏行对齐的**判读内核**（ADR 0007 §14 / 裁决 P-23）。**纯函数、零 DOM**。
+ *
+ * ## 为什么这一层在包里而不是在测量脚本里
+ *
+ * P-21 的人工复核（R6）与 P-22 的线索都指向同一类缺陷：**"图表画在哪里"与"左表画在哪里"
+ * 是两处各自算出来的**，而它们之间的差只能靠肉眼发现。把它做成可判定的检查需要两半：
+ *
+ * - **采数**（`apps/web/src/measure.ts` 的 `__GANTTPILOT_MEASURE_ALIGN__`）：只从真实 DOM 读
+ *   `getBoundingClientRect()` 与 `clientWidth/clientHeight` —— 这一半只能在浏览器里做；
+ * - **判读**（本文件）：只做减法和阈值比较 —— 这一半是纯的，因此**进 `pnpm gate`**，
+ *   并且可以用**合成的故障签名**（每条机制一条）证明它真的有判别力。
+ *
+ * 与 P-19/P-22 同一条教训：判据住在 `apps/web` 就等于不住在门禁里（`apps/web` 至今没有测试入口）。
+ *
+ * ## 三条机制与它们的签名（每条都有一个负向对照）
+ *
+ * | 机制 | 签名（本文件的判据） |
+ * |---|---|
+ * | **③ 双重偏移**：SVG 是滚动容器的 abspos 子元素 ⇒ 随内容滚动，再叠加内层 `translate(−scrollTop)` | `svgTop − paneTop ≈ −scrollTop`（`scrollTop > 0` 时） |
+ * | **② 缺表头带**：左表行从表头之下开始、图表行从列顶开始 | 行差**恒** ≈ `−headerHeightTable`（且 SVG 已钉住） |
+ * | **① 测量时机**：`paneHeight` 是过期值 ⇒ 行窗口与真实绘制区不一致 | `\|viewHeight − paneHeight\| > tol` |
+ *
+ * 另有三条同族签名在本批次一并被抓出（P-23 记录为 **R8** 及两条收尾项）：
+ *
+ * | 机制 | 签名 |
+ * |---|---|
+ * | **R8 SVG 盒 ≠ viewBox**：`inset: 0` 的盒是"padding box"（含滚动条），而 `viewBox` 取 `clientWidth/clientHeight` ⇒ 默认 `preserveAspectRatio` 给出**等比缩放 + 居中留白** | `\|svgWidth − viewWidth\| > tol` 或 `\|svgHeight − viewHeight\| > tol`（并使行差**随行号增长**）。**P-23 诊断实测：本环境不存在（盒 = viewBox），保留判据以防复发** |
+ * | **表体高 ≠ 绘制区高** | `\|tableBodyHeight − paneHeight\| > tol` |
+ * | **R9 左表行外高 ≠ 模型行高**：`.row { height: 24px; border-bottom: 1px }` 在 `content-box` 下外高 25 px ⇒ **每行多 1 px、逐行累积漂移**（P-23 实测：32 行漂 32 px） | `\|tableRowHeight − rowHeight\| > tol` |
+ * | **轴不覆盖绘制区**（水平 + 垂直）：轴住错坐标系（横向双重偏移）或随纵向滚动上移 ⇒ 新滚出的区域没有网格线/灰度带（P-23 的 14.2、P-24 的"右侧空白"） | 轴元素并集矩形不覆盖绘制区的**四边** |
+ * | **R11 内容宽（滚动范围）给少了**：按窗格宽外推而不是按文档日期范围推 ⇒ 向右滚不到项目末端 | `\|spacerWidth − viewContentWidth\| > 1 px` |
+ *
+ * **坐标系约定**：本文件收到的全部是**视口坐标**（`getBoundingClientRect()` 的原样值），
+ * 不涉及内容坐标；`expectedBarLeft` 由调用方按 `paneLeft + xLeft − scrollLeft` 预先算好。
+ */
+
+import { THRESHOLDS } from './manifest.js';
+
+/** 一行样本（两栏同一行的实测量 + 条形的期望屏幕 x）。 */
+export interface RowAlignSample {
+  readonly id: string;
+  /** 可见行序号（两栏用同一个行序）。 */
+  readonly row: number;
+  /**
+   * 图表行的**行中心** y（视口坐标）。
+   *
+   * 为什么是中心而不是行顶：图表行的 `<g>` **没有自己的盒子**，`getBoundingClientRect()`
+   * 返回的是其子元素（条 / 菱形）的并集——条上下各内缩 `(rowHeight − barHeight) / 2`。
+   * 用行顶会把"条内缩 4.8 px"当成错位（P-23 的诊断**第一版就是这么错的**，当场改掉）。
+   * 条在行内**垂直居中**（`ViewModel.barY`），因此"条中心 = 行中心"，两栏可比。
+   */
+  readonly chartCenterY: number;
+  /** 左表同一行的**行中心** = DOM 行顶 + `rowHeight / 2`（按**模型行高**，不按 DOM 外高——外高含边框）。 */
+  readonly tableCenterY: number;
+  /** 条形矩形的左右边（视口坐标）；`null` = 该行没有条形（里程碑只有菱形，槽位/进度不进样本）。 */
+  readonly barLeft: number | null;
+  readonly barRight: number | null;
+  /** 由 `ViewModel` 几何推出的**期望**屏幕 x（`paneLeft + xLeft − scrollLeft`）。 */
+  readonly expectedBarLeft: number | null;
+  readonly expectedBarRight: number | null;
+}
+
+/** 一次探测（一个滚动位置）的全部实测量。 */
+export interface RowAlignProbe {
+  /** 滚动容器的真实 `scrollTop`（**DOM 真值**，判据用它）。 */
+  readonly scrollTop: number;
+  /** 应用状态里的 `ViewModel.scrollTop`（与 `scrollTop` 必须相等）。 */
+  readonly viewScrollTop: number;
+  /** 滚动容器的真实 `scrollLeft`。 */
+  readonly scrollLeft: number;
+  /** 应用状态里的 `ViewModel.scrollLeft`（与 `scrollLeft` 必须相等）。 */
+  readonly viewScrollLeft: number;
+  readonly paneTop: number;
+  readonly paneLeft: number;
+  /** 绘制区高宽 = 滚动容器的 `clientHeight/clientWidth`（**已扣滚动条，也已扣表头带**）。 */
+  readonly paneHeight: number;
+  readonly paneWidth: number;
+  readonly headerHeightChart: number;
+  readonly headerHeightTable: number;
+  readonly tableBodyHeight: number;
+  readonly svgTop: number;
+  readonly svgLeft: number;
+  /** SVG **元素盒**的尺寸（`getBoundingClientRect()`；不是 `viewBox`）。 */
+  readonly svgWidth: number;
+  readonly svgHeight: number;
+  /** `ViewModel.width/height`（= `viewBox` 的尺寸，也 = 绘制区尺寸）。 */
+  readonly viewWidth: number;
+  readonly viewHeight: number;
+  readonly spacerHeight: number;
+  /** 滚动容器的 spacer **宽**（= 横向滚动范围；必须等于 `viewContentWidth`）。 */
+  readonly spacerWidth: number;
+  /** `ViewModel.contentWidth`（= 内容坐标系下的横向范围，ADR 0007 §15）。 */
+  readonly viewContentWidth: number;
+  readonly rowCount: number;
+  readonly rowHeight: number;
+  /**
+   * 左表一行的**DOM 外高**（`getBoundingClientRect().height`）。
+   *
+   * 它必须等于 {@link rowHeight}（ADR 0007 §4 的"固定行高"）：左表 `.row` 的 `height: 24px`
+   * 加 `border-bottom: 1px` 在 `content-box` 下外高是 **25 px** ⇒ 每行多 1 px，
+   * 32 行就漂 32 px（P-23 诊断实测的 **R9**）。
+   */
+  readonly tableRowHeight: number;
+  readonly samples: readonly RowAlignSample[];
+  /** 色带（无则退到网格线）的并集矩形；`null` = 该位置没有轴元素。**纵向**覆盖用它。 */
+  readonly axisCoverage: {
+    readonly top: number;
+    readonly bottom: number;
+    readonly left: number;
+    readonly right: number;
+  } | null;
+  /**
+   * **刻度（网格线）**的并集横向范围；`null` = 该位置没有刻度。**横向**覆盖用它。
+   *
+   * 为什么不用色带：色带是**稀疏**的（只有周末/假日），它的并集本来就不该触到绘制区左右缘，
+   * 拿它判横向覆盖会恒红（P-24 落地时当场踩到）。刻度按档位步进、铺满视口，
+   * 因此"第一个刻度离左缘不超过一个刻度间距、最后一个离右缘不超过一个刻度间距"才是可判定的形式。
+   */
+  readonly axisTicks: { readonly left: number; readonly right: number } | null;
+  /** 一个刻度的像素间距（`pxPerDay × 该档位单位天数`）：横向覆盖的容差。 */
+  readonly tickSpacingPx: number;
+  /**
+   * **日期刻度文本**的并集矩形；`null` = 该位置没有刻度文本。
+   *
+   * 判据：它必须落在**表头带**内（`[paneTop − headerHeightChart, paneTop]`）——
+   * 否则刻度会压在**第一行**的条形上（P-24 复核第 ③ 条：批次 D 的表头带曾是空带、
+   * 刻度仍画在绘制区顶部）。
+   */
+  readonly axisLabels: { readonly top: number; readonly bottom: number } | null;
+  /**
+   * **所见 = 所点**：把某一行行中心的屏幕 y 喂给应用**自己的** `pointerFromClient`，
+   * 再与"该行的内容坐标中心"比较（`rowCenterY`）。
+   */
+  readonly hitTest: {
+    readonly id: string;
+    readonly row: number;
+    readonly clientY: number;
+    readonly expectedContentY: number;
+    readonly actualContentY: number;
+  } | null;
+}
+
+/** 机制标签（判读结论，不是"诊断码"——诊断码表是闭集，这里不新开码）。 */
+export type AlignMechanism =
+  | 'no-samples'
+  | 'svg-not-pinned'
+  | 'svg-scrolls-with-content'
+  | 'svg-box-not-1to1'
+  | 'pane-measure-stale'
+  | 'table-body-height-mismatch'
+  | 'table-row-height-mismatch'
+  | 'header-height-mismatch'
+  | 'scroll-out-of-sync'
+  | 'table-header-offset-missing'
+  | 'row-offset'
+  | 'bar-x-offset'
+  | 'hit-test-mismatch'
+  | 'coverage-gap'
+  | 'axis-not-covering'
+  | 'axis-labels-not-in-header'
+  | 'content-range-mismatch';
+
+/** 一行的差值（`chartCenterY − tableCenterY`；对齐 = 0，图表比左表**高**时 < 0）。 */
+export interface RowAlignDelta {
+  readonly id: string;
+  readonly row: number;
+  readonly deltaPx: number;
+}
+
+/** 一次探测的判读。 */
+export interface RowAlignVerdict {
+  /** 全部判据通过（等价于 `mechanisms` 为空）。 */
+  readonly ok: boolean;
+  readonly maxAbsRowDeltaPx: number;
+  /** 条形左/右边相对期望屏幕 x 的最大偏差（两栏**横向**对齐；R8 会在这里现形）。 */
+  readonly maxAbsBarXDeltaPx: number;
+  readonly rowDeltas: readonly RowAlignDelta[];
+  /** SVG 钉在 scrollport 上（不随内容滚动）。 */
+  readonly pinned: boolean;
+  /** SVG **元素盒** = `viewBox`（1 用户单位 = 1 CSS px，R8）。 */
+  readonly svgBoxAligned: boolean;
+  readonly headerAligned: boolean;
+  readonly heightAligned: boolean;
+  /** 左表行外高 = 模型行高（ADR 0007 §4 的"固定行高"；否则逐行累积漂移）。 */
+  readonly rowHeightAligned: boolean;
+  /** 日期刻度落在**表头带**内（不侵入第一行）。 */
+  readonly labelsInHeader: boolean;
+  readonly scrollInSync: boolean;
+  /** spacer 宽 = `ViewModel.contentWidth`（滚动范围真的够到项目末端，R11）。 */
+  readonly contentRangeAligned: boolean;
+  /** 顶/底空白带（px）；`null` = 文档比绘制区短，不做该断言。 */
+  readonly coverage: { readonly topBandPx: number; readonly bottomBandPx: number } | null;
+  readonly mechanisms: readonly AlignMechanism[];
+}
+
+function round(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+function median(values: readonly number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? (sorted[middle] ?? 0)
+    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
+}
+
+/**
+ * 判读一次探测（ADR 0007 §14 的可执行形式）。
+ *
+ * 口径：
+ * - 全部比较用 `THRESHOLDS.rowAlignTolerancePx`；容差不逐个判据另设（避免"把阈值调到刚好变绿"）；
+ * - 行差取 `max |chartCenterY − tableCenterY|`——**不允许**用"多数行对就算对"的多数票（单行漂移也要报）；
+ * - `coverage` 只在"文档比绘制区长"时断言（否则最末行本来就在窗格内部，无所谓空白带）。
+ */
+export function diagnoseRowAlignment(probe: RowAlignProbe): RowAlignVerdict {
+  const tol = THRESHOLDS.rowAlignTolerancePx;
+  const mechanisms: AlignMechanism[] = [];
+
+  if (probe.samples.length === 0) {
+    return {
+      ok: false,
+      maxAbsRowDeltaPx: 0,
+      maxAbsBarXDeltaPx: 0,
+      rowDeltas: [],
+      pinned: false,
+      svgBoxAligned: false,
+      headerAligned: false,
+      heightAligned: false,
+      rowHeightAligned: false,
+      labelsInHeader: false,
+      scrollInSync: false,
+      contentRangeAligned: false,
+      coverage: null,
+      mechanisms: ['no-samples'],
+    };
+  }
+
+  const rowDeltas: RowAlignDelta[] = probe.samples.map((sample) => ({
+    id: sample.id,
+    row: sample.row,
+    deltaPx: round(sample.chartCenterY - sample.tableCenterY),
+  }));
+  const maxAbsRowDeltaPx = round(Math.max(...rowDeltas.map((item) => Math.abs(item.deltaPx))));
+
+  const barDeltas: number[] = [];
+  for (const sample of probe.samples) {
+    if (sample.barLeft !== null && sample.expectedBarLeft !== null) {
+      barDeltas.push(Math.abs(sample.barLeft - sample.expectedBarLeft));
+    }
+    if (sample.barRight !== null && sample.expectedBarRight !== null) {
+      barDeltas.push(Math.abs(sample.barRight - sample.expectedBarRight));
+    }
+  }
+  const maxAbsBarXDeltaPx = round(barDeltas.length === 0 ? 0 : Math.max(...barDeltas));
+
+  /**
+   * SVG 钉在 scrollport 上：横向与绘制区左缘对齐，纵向 = 绘制区顶 **减一个表头带**
+   * （ADR 0007 §15：SVG 覆盖整列，表头带 + 绘制区）。
+   */
+  const pinned =
+    Math.abs(probe.svgLeft - probe.paneLeft) <= tol &&
+    Math.abs(probe.svgTop - (probe.paneTop - probe.headerHeightChart)) <= tol;
+  /** SVG 盒 = `viewBox`：宽 = 绘制区宽，高 = 绘制区高 + 表头带（1 用户单位 = 1 CSS px）。 */
+  const svgBoxAligned =
+    Math.abs(probe.svgWidth - probe.viewWidth) <= tol &&
+    Math.abs(probe.svgHeight - (probe.viewHeight + probe.headerHeightChart)) <= tol;
+  const headerAligned = Math.abs(probe.headerHeightChart - probe.headerHeightTable) <= tol;
+  const heightAligned = Math.abs(probe.tableBodyHeight - probe.paneHeight) <= tol;
+  const rowHeightAligned = Math.abs(probe.tableRowHeight - probe.rowHeight) <= tol;
+  const scrollInSync =
+    Math.abs(probe.viewScrollTop - probe.scrollTop) <= tol &&
+    Math.abs(probe.viewScrollLeft - probe.scrollLeft) <= tol;
+  const contentRangeAligned = Math.abs(probe.spacerWidth - probe.viewContentWidth) <= 1;
+  /** 刻度文本必须整体落在表头带内：带的范围是 `[paneTop − 表头高, paneTop]`。 */
+  const labelsInHeader =
+    probe.axisLabels === null ||
+    (probe.axisLabels.top >= probe.paneTop - probe.headerHeightChart - tol &&
+      probe.axisLabels.bottom <= probe.paneTop + tol);
+  const coverage =
+    probe.rowCount * probe.rowHeight >= probe.paneHeight
+      ? {
+          topBandPx: round(
+            Math.max(
+              0,
+              Math.min(...probe.samples.map((item) => item.chartCenterY)) - probe.rowHeight / 2 - probe.paneTop,
+            ),
+          ),
+          bottomBandPx: round(
+            Math.max(
+              0,
+              probe.paneTop +
+                probe.paneHeight -
+                Math.max(...probe.samples.map((item) => item.chartCenterY + probe.rowHeight / 2)),
+            ),
+          ),
+        }
+      : null;
+
+  // -------- 机制判读（顺序 = 报告顺序；多条可同时成立）
+  if (!contentRangeAligned) mechanisms.push('content-range-mismatch');
+  if (!labelsInHeader) mechanisms.push('axis-labels-not-in-header');
+  if (!pinned) {
+    const shift = probe.svgTop - (probe.paneTop - probe.headerHeightChart);
+    mechanisms.push(
+      probe.scrollTop > tol && Math.abs(shift + probe.scrollTop) <= tol
+        ? 'svg-scrolls-with-content'
+        : 'svg-not-pinned',
+    );
+  }
+  if (!svgBoxAligned) mechanisms.push('svg-box-not-1to1');
+  if (Math.abs(probe.viewHeight - probe.paneHeight) > tol) mechanisms.push('pane-measure-stale');
+  if (!heightAligned) mechanisms.push('table-body-height-mismatch');
+  if (!rowHeightAligned) mechanisms.push('table-row-height-mismatch');
+  if (!headerAligned) mechanisms.push('header-height-mismatch');
+  if (!scrollInSync) mechanisms.push('scroll-out-of-sync');
+
+  if (maxAbsRowDeltaPx > tol) {
+    // ②的签名：SVG 已钉住、行差**恒**等于"少了一个表头带"。
+    const constantHeaderOffset =
+      pinned && Math.abs(median(rowDeltas.map((item) => item.deltaPx)) + probe.headerHeightTable) <= tol;
+    mechanisms.push(constantHeaderOffset ? 'table-header-offset-missing' : 'row-offset');
+  }
+  if (probe.hitTest !== null) {
+    if (Math.abs(probe.hitTest.actualContentY - probe.hitTest.expectedContentY) > tol) {
+      mechanisms.push('hit-test-mismatch');
+    }
+  }
+  if (maxAbsBarXDeltaPx > tol) mechanisms.push('bar-x-offset');
+  if (coverage !== null && (coverage.topBandPx > tol || coverage.bottomBandPx > tol)) mechanisms.push('coverage-gap');
+  const axisCoversVertically =
+    probe.axisCoverage !== null &&
+    Math.abs(probe.axisCoverage.top - probe.paneTop) <= tol &&
+    probe.axisCoverage.bottom >= probe.paneTop + probe.paneHeight - tol;
+  const axisCoversHorizontally =
+    probe.axisTicks !== null &&
+    probe.axisTicks.left <= probe.paneLeft + probe.tickSpacingPx + tol &&
+    probe.axisTicks.right >= probe.paneLeft + probe.paneWidth - probe.tickSpacingPx - tol;
+  if (!axisCoversVertically || !axisCoversHorizontally) mechanisms.push('axis-not-covering');
+
+  return {
+    ok: mechanisms.length === 0,
+    maxAbsRowDeltaPx,
+    maxAbsBarXDeltaPx,
+    rowDeltas,
+    pinned,
+    svgBoxAligned,
+    headerAligned,
+    heightAligned,
+    rowHeightAligned,
+    labelsInHeader,
+    scrollInSync,
+    contentRangeAligned,
+    coverage,
+    mechanisms,
+  };
+}
+
+/** 一次完整测量（多个滚动位置）的汇总判读。 */
+export function summarizeAlignment(verdicts: readonly RowAlignVerdict[]): {
+  readonly ok: boolean;
+  readonly probes: number;
+  readonly failingProbes: number;
+  readonly maxAbsRowDeltaPx: number;
+  readonly maxAbsBarXDeltaPx: number;
+  readonly mechanisms: readonly AlignMechanism[];
+} {
+  const mechanisms = [...new Set(verdicts.flatMap((verdict) => [...verdict.mechanisms]))];
+  return {
+    ok: verdicts.length > 0 && verdicts.every((verdict) => verdict.ok),
+    probes: verdicts.length,
+    failingProbes: verdicts.filter((verdict) => !verdict.ok).length,
+    maxAbsRowDeltaPx: verdicts.length === 0 ? 0 : Math.max(...verdicts.map((verdict) => verdict.maxAbsRowDeltaPx)),
+    maxAbsBarXDeltaPx: verdicts.length === 0 ? 0 : Math.max(...verdicts.map((verdict) => verdict.maxAbsBarXDeltaPx)),
+    mechanisms,
+  };
+}

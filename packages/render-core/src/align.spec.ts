@@ -1,0 +1,312 @@
+/**
+ * 两栏行对齐判读的判据（ADR 0007 §14 / 裁决 P-23）。**进 `pnpm gate`**。
+ *
+ * 这一份 spec 的作用与 `clipping.spec.ts` 的 NC1/NC2 相同：**证明判读有判别力**。
+ * 判读函数收到的全是数字，所以故障签名可以用合成输入精确构造——每条机制一条：
+ *
+ * | 例 | 变造 | 必须被报出的机制 |
+ * |---|---|---|
+ * | 正例 | 无（两栏对齐、SVG 钉住、盒 = viewBox） | **`mechanisms` 必须为空**（"未变造时零检出"） |
+ * | ① | `viewHeight ≠ paneHeight` | `pane-measure-stale` |
+ * | ② | 行差恒 = −表头高 | `table-header-offset-missing` |
+ * | ③ | `svgTop − paneTop = −scrollTop` | `svg-scrolls-with-content` |
+ * | R8 | SVG 盒 ≠ `viewBox`（等比缩放 ⇒ 条形 x 也漂） | `svg-box-not-1to1`（+ `bar-x-offset`） |
+ * | 单行 | 只有一行差一行高 | `row-offset`（**不允许**多数票放过） |
+ * | 同步 | `viewScrollTop ≠ scrollTop` | `scroll-out-of-sync` |
+ * | 所见=所点 | `pointerFromClient` 的内容 y 与行中心不符 | `hit-test-mismatch` |
+ * | 表头高 / 表体高 / 空白带 / 轴覆盖 | 各自变造 | `header-height-mismatch` / `table-body-height-mismatch` / `coverage-gap` / `axis-not-covering` |
+ */
+
+import { describe, expect, it } from 'vitest';
+
+import { diagnoseRowAlignment, summarizeAlignment, type RowAlignProbe, type RowAlignSample } from './align.js';
+import { HEADER_HEIGHT_PX, ROW_HEIGHT, THRESHOLDS } from './manifest.js';
+
+/**
+ * 基准探测：**修好之后**的样子——两栏行中心逐行相等、SVG 钉在绘制区左上、盒 = `viewBox`。
+ *
+ * 样本覆盖绘制区上下（含缓冲行）——这正是测脚本的做法，也是 `coverage` 判据有意义的前提：
+ * 只取"完全落在绘制区内"的几行会让空白带恒 > 0，判据立刻变成噪声。
+ */
+function baselineProbe(): RowAlignProbe {
+  const scrollTop = 300;
+  const paneTop = 100;
+  const paneLeft = 200;
+  const paneHeight = 600;
+  const paneWidth = 1200;
+  const rowCenter = (row: number): number => paneTop + row * ROW_HEIGHT + ROW_HEIGHT / 2 - scrollTop;
+  const rows = [7, 12, 20, 30, 41];
+  const samples: RowAlignSample[] = rows.map((row) => {
+    const center = rowCenter(row);
+    const barLeft = paneLeft + 400 - scrollTop / 4;
+    return {
+      id: `t${String(row)}`,
+      row,
+      chartCenterY: center,
+      tableCenterY: center,
+      barLeft,
+      barRight: barLeft + 240,
+      expectedBarLeft: barLeft,
+      expectedBarRight: barLeft + 240,
+    };
+  });
+  return {
+    scrollTop,
+    viewScrollTop: scrollTop,
+    // 修好之后**可以向右滚**（P-24 的 R11）：基线取一个非 0 的 scrollLeft。
+    scrollLeft: 240,
+    viewScrollLeft: 240,
+    paneTop,
+    paneLeft,
+    paneHeight,
+    paneWidth,
+    headerHeightChart: HEADER_HEIGHT_PX,
+    headerHeightTable: HEADER_HEIGHT_PX,
+    tableBodyHeight: paneHeight,
+    tableRowHeight: ROW_HEIGHT,
+    // SVG 覆盖**整列**：上缘 = 绘制区顶 − 表头带，盒高 = 绘制区高 + 表头带（ADR 0007 §15）。
+    svgTop: paneTop - HEADER_HEIGHT_PX,
+    svgLeft: paneLeft,
+    svgWidth: paneWidth,
+    svgHeight: paneHeight + HEADER_HEIGHT_PX,
+    viewWidth: paneWidth,
+    viewHeight: paneHeight,
+    spacerHeight: 12_000,
+    spacerWidth: 12_000,
+    viewContentWidth: 12_000,
+    rowCount: 500,
+    rowHeight: ROW_HEIGHT,
+    samples,
+    axisCoverage: { top: paneTop, bottom: paneTop + paneHeight, left: paneLeft, right: paneLeft + paneWidth },
+    // 刻度铺满视口：第一个刻度 ≈ 左缘、最后一个 ≈ 右缘（允许一个刻度间距的容差）。
+    axisTicks: { left: paneLeft + 2, right: paneLeft + paneWidth - 2 },
+    tickSpacingPx: ROW_HEIGHT,
+    // 刻度文本落在表头带内：带 = [paneTop − HEADER, paneTop]。
+    axisLabels: { top: paneTop - HEADER_HEIGHT_PX + 4, bottom: paneTop - 6 },
+    hitTest: {
+      id: 't20',
+      row: 20,
+      clientY: rowCenter(20),
+      expectedContentY: 20 * ROW_HEIGHT + ROW_HEIGHT / 2,
+      actualContentY: 20 * ROW_HEIGHT + ROW_HEIGHT / 2,
+    },
+  };
+}
+
+describe('两栏行对齐判读（ADR 0007 §14，P-23）', () => {
+  it('正例：修好之后的输入必须零检出（否则判据无判别力）', () => {
+    const verdict = diagnoseRowAlignment(baselineProbe());
+    expect(verdict.mechanisms).toStrictEqual([]);
+    expect(verdict.ok).toBe(true);
+    expect(verdict.maxAbsRowDeltaPx).toBe(0);
+    expect(verdict.maxAbsBarXDeltaPx).toBe(0);
+    expect(verdict.pinned).toBe(true);
+    expect(verdict.svgBoxAligned).toBe(true);
+    expect(verdict.headerAligned).toBe(true);
+    expect(verdict.heightAligned).toBe(true);
+    expect(verdict.rowHeightAligned).toBe(true);
+    expect(verdict.scrollInSync).toBe(true);
+    expect(verdict.contentRangeAligned).toBe(true);
+    expect(verdict.labelsInHeader).toBe(true);
+    expect(verdict.coverage).toStrictEqual({ topBandPx: 0, bottomBandPx: 0 });
+  });
+
+  it('① 窗格测量过期：`viewHeight ≠ paneHeight` ⇒ `pane-measure-stale`', () => {
+    const verdict = diagnoseRowAlignment({ ...baselineProbe(), viewHeight: 560, svgHeight: 560 + HEADER_HEIGHT_PX });
+    expect(verdict.mechanisms).toStrictEqual(['pane-measure-stale']);
+    expect(verdict.ok).toBe(false);
+  });
+
+  it('② 缺表头带：行差恒 = −表头高 ⇒ `table-header-offset-missing`（不是笼统的 row-offset）', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      samples: probe.samples.map((sample) => ({
+        ...sample,
+        tableCenterY: sample.chartCenterY + HEADER_HEIGHT_PX,
+      })),
+    });
+    expect(verdict.mechanisms).toContain('table-header-offset-missing');
+    expect(verdict.maxAbsRowDeltaPx).toBe(HEADER_HEIGHT_PX);
+  });
+
+  it('③ 双重偏移：`svgTop − paneTop = −scrollTop` ⇒ `svg-scrolls-with-content`（且行差随滚动变）', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      svgTop: probe.paneTop - HEADER_HEIGHT_PX - probe.scrollTop,
+    });
+    expect(verdict.mechanisms).toContain('svg-scrolls-with-content');
+    expect(verdict.pinned).toBe(false);
+  });
+
+  it('③ 的静默版（滚动位置为 0 时不可见）：`scrollTop = 0` 且 SVG 未偏移 ⇒ 只报钉住失败', () => {
+    const probe = { ...baselineProbe(), scrollTop: 0, viewScrollTop: 0 };
+    const verdict = diagnoseRowAlignment({ ...probe, svgTop: probe.paneTop - HEADER_HEIGHT_PX - 20 });
+    expect(verdict.mechanisms).toContain('svg-not-pinned');
+    expect(verdict.mechanisms).not.toContain('svg-scrolls-with-content');
+  });
+
+  it('R8 SVG 盒 ≠ viewBox：等比缩放 ⇒ `svg-box-not-1to1` 与 `bar-x-offset` 同时成立', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      svgWidth: probe.viewWidth + 15,
+      svgHeight: probe.viewHeight + HEADER_HEIGHT_PX + 15,
+      samples: probe.samples.map((sample) => ({
+        ...sample,
+        barLeft: (sample.barLeft ?? 0) + 9,
+        barRight: (sample.barRight ?? 0) + 9,
+      })),
+    });
+    expect(verdict.mechanisms).toContain('svg-box-not-1to1');
+    expect(verdict.mechanisms).toContain('bar-x-offset');
+    expect(verdict.svgBoxAligned).toBe(false);
+    expect(verdict.maxAbsBarXDeltaPx).toBe(9);
+  });
+
+  it('单行漂移一行高：必须报 `row-offset`（多数行对齐不能把它掩盖掉）', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      samples: probe.samples.map((sample) =>
+        sample.row === 20 ? { ...sample, chartCenterY: sample.chartCenterY + ROW_HEIGHT } : sample,
+      ),
+    });
+    expect(verdict.mechanisms).toContain('row-offset');
+    expect(verdict.maxAbsRowDeltaPx).toBe(ROW_HEIGHT);
+  });
+
+  it('滚动状态不同步 ⇒ `scroll-out-of-sync`', () => {
+    const verdict = diagnoseRowAlignment({ ...baselineProbe(), viewScrollTop: 280 });
+    expect(verdict.mechanisms).toContain('scroll-out-of-sync');
+    expect(verdict.scrollInSync).toBe(false);
+  });
+
+  it('所见 ≠ 所点：`pointerFromClient` 的内容 y 与行中心不符 ⇒ `hit-test-mismatch`', () => {
+    const probe = baselineProbe();
+    const hitTest = probe.hitTest;
+    expect(hitTest).not.toBeNull();
+    if (hitTest === null) return;
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      hitTest: { ...hitTest, actualContentY: hitTest.expectedContentY + THRESHOLDS.rowAlignTolerancePx * 3 },
+    });
+    expect(verdict.mechanisms).toContain('hit-test-mismatch');
+  });
+
+  it('两栏表头高不等 ⇒ `header-height-mismatch`', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({ ...probe, headerHeightChart: HEADER_HEIGHT_PX + 12 });
+    expect(verdict.mechanisms).toContain('header-height-mismatch');
+    expect(verdict.headerAligned).toBe(false);
+  });
+
+  it('R9 左表行外高 ≠ 模型行高（25 vs 24 ⇒ 逐行累积漂移）⇒ `table-row-height-mismatch`', () => {
+    const probe = baselineProbe();
+    const drift = 1;
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      tableRowHeight: ROW_HEIGHT + drift,
+      samples: probe.samples.map((sample) => ({
+        ...sample,
+        tableCenterY: sample.tableCenterY + (sample.row - probe.samples[0].row) * drift,
+      })),
+    });
+    expect(verdict.mechanisms).toContain('table-row-height-mismatch');
+    expect(verdict.rowHeightAligned).toBe(false);
+  });
+
+  it('表体高 ≠ 绘制区高 ⇒ `table-body-height-mismatch`', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({ ...probe, tableBodyHeight: probe.paneHeight - 15 });
+    expect(verdict.mechanisms).toContain('table-body-height-mismatch');
+    expect(verdict.heightAligned).toBe(false);
+  });
+
+  it('底部空白带（最末行没滚进绘制区）⇒ `coverage-gap`', () => {
+    const probe = baselineProbe();
+    const last = probe.samples[probe.samples.length - 1];
+    expect(last).toBeDefined();
+    if (last === undefined) return;
+    // 最末行整体（两栏一起）落在绘制区底之上 100 px：不是"行错位"，而是"内容没铺满"。
+    const shortCenter = probe.paneTop + probe.paneHeight - ROW_HEIGHT / 2 - 100;
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      samples: [
+        ...probe.samples.slice(0, -1),
+        { ...last, chartCenterY: shortCenter, tableCenterY: shortCenter },
+      ],
+    });
+    expect(verdict.coverage?.bottomBandPx).toBe(100);
+    expect(verdict.mechanisms).toContain('coverage-gap');
+  });
+
+  it('R11 滚动范围不够（spacer 宽 ≠ `ViewModel.contentWidth`）⇒ `content-range-mismatch`', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({ ...probe, spacerWidth: probe.viewContentWidth - 20_000 });
+    expect(verdict.mechanisms).toContain('content-range-mismatch');
+    expect(verdict.contentRangeAligned).toBe(false);
+  });
+
+  it('标尺位置（P-24 第 ③ 条）：刻度文本侵入**第一行**图形区 ⇒ `axis-labels-not-in-header`', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      // 刻度被画在绘制区顶部（批次 D 的表头带曾是空带时的样子）：下缘越过绘制区顶。
+      axisLabels: { top: probe.paneTop - 16, bottom: probe.paneTop + 10 },
+    });
+    expect(verdict.mechanisms).toContain('axis-labels-not-in-header');
+    expect(verdict.labelsInHeader).toBe(false);
+  });
+
+  it('轴只在**横向**不覆盖（P-24 的"右侧新区域空白"）⇒ 同样必须报 `axis-not-covering`', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      // 轴的横向窗口整体左移 300 px（横向双重偏移的典型形态）；纵向仍然完好。
+      axisTicks: { left: probe.axisTicks === null ? 0 : probe.axisTicks.left - 300, right: 0 },
+    });
+    expect(verdict.mechanisms).toContain('axis-not-covering');
+  });
+
+  it('轴不覆盖绘制区（14.2：新滚出的区域没有网格线/灰度带）⇒ `axis-not-covering`', () => {
+    expect(diagnoseRowAlignment({ ...baselineProbe(), axisCoverage: null }).mechanisms).toContain('axis-not-covering');
+    expect(
+      diagnoseRowAlignment({
+        ...baselineProbe(),
+        axisCoverage: { top: 120, bottom: 700, left: 200, right: 1400 },
+      }).mechanisms,
+    ).toContain('axis-not-covering');
+  });
+
+  it('空样本 ⇒ `no-samples`（不假装通过）', () => {
+    const verdict = diagnoseRowAlignment({ ...baselineProbe(), samples: [] });
+    expect(verdict.ok).toBe(false);
+    expect(verdict.mechanisms).toStrictEqual(['no-samples']);
+  });
+
+  it('文档比绘制区短时**不做**空白带断言（否则判据会误报）', () => {
+    const probe = baselineProbe();
+    const verdict = diagnoseRowAlignment({
+      ...probe,
+      rowCount: 5,
+      samples: probe.samples
+        .slice(0, 2)
+        .map((sample) => ({ ...sample, chartCenterY: probe.paneTop + 52, tableCenterY: probe.paneTop + 52 })),
+    });
+    expect(verdict.coverage).toBeNull();
+    expect(verdict.mechanisms).toStrictEqual([]);
+  });
+
+  it('`summarizeAlignment`：多位置取并集，任一位置失败即整体失败', () => {
+    const good = diagnoseRowAlignment(baselineProbe());
+    const bad = diagnoseRowAlignment({ ...baselineProbe(), viewHeight: 560, svgHeight: 560 + HEADER_HEIGHT_PX });
+    const summary = summarizeAlignment([good, bad]);
+    expect(summary.ok).toBe(false);
+    expect(summary.probes).toBe(2);
+    expect(summary.failingProbes).toBe(1);
+    expect(summary.mechanisms).toStrictEqual(['pane-measure-stale']);
+    expect(summarizeAlignment([]).ok).toBe(false);
+  });
+});
