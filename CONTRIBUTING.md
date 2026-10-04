@@ -1,23 +1,30 @@
 # 贡献指南
 
 > 本项目当前处于 v0.1 的 **G1.1（日历与日期算术）、G1.2（文档 schema、版本迁移与 WBS 层级）、
-> G1.3（命令层与事务）、G2（最小正向传播内核）、G3（xlsx 导入/导出，仅可见列）与
-> G4（纯 SVG 甘特渲染，含裁剪）均已完成**阶段：
+> G1.3（命令层与事务）、G2（最小正向传播内核）、G3（xlsx 导入/导出，仅可见列）、
+> G4（纯 SVG 甘特渲染，含裁剪）与 G5（编辑体验：拖拽三语义 + 撤销重做）均已完成**阶段：
 > `packages/engine` 已落地工作日序号化日历与 O(1) 日期翻译、**冻结的文档模型**（规范化序列化/解析、
 > 结构化诊断校验、`v1→v2→v3` 迁移、WBS 调级）、**命令层**（唯一变更通道、before 镜像、事务与撤销/重做栈）、
 > **排程内核**（全量正向传播 + 锚点四情形 + 汇总聚合 + 结构性检环 + 受影响闭包）；
 > `packages/xlsx-protocol` 交**协议层**（9 列契约双解析、容差闭集、公式只读缓存值、
 > 确定性成环丢弃、三层拼接诊断、规范化导出与部件指纹确定性）；
-> **`packages/render-core`（G4 新增）交渲染几何与裁剪内核**（视图模型、时间轴与 x 坐标、
-> 正交路由、行/边/水平三窗口裁剪、元素预算、受影响子集），`apps/web` 交 Vue 视图层
-> （左表右图分屏、虚拟滚动、折叠、行内编辑、xlsx 导入接线）。
-> **至此「Excel 导入 → 出图」这条主链路在浏览器里已跑通**。
-> **下一步是 G5**（拖拽三语义 + 撤销/重做 UI）。
+> **`packages/render-core`** 交**渲染几何与裁剪内核**（视图模型、时间轴与 x 坐标、
+> 正交路由、行/边/水平三窗口裁剪、元素预算、受影响子集）**与 G5 的列身份 + 拖拽手势内核**
+> （列契约的所有权、单元格文本与编辑派生值、指针 → 状态机 → 会话锚点/命令、成环高亮），
+> `apps/web` 交 Vue 视图层（左表右图分屏、虚拟滚动、折叠、行内编辑、xlsx 导入接线、
+> **拖拽三语义 / 建线 / 撤销重做 / 冲突与成环标记 / 诊断清单**）。
+> **至此「Excel 导入 → 出图 → 拖动 → 撤销」这条主链路在浏览器里已跑通**（拖拽帧率已定标：
+> 帧间隔 p50/p95 = 16.6/16.8 ms、松手 → 重算 + 冲突标记 8.2 ms）。
+> **下一步是 G6**（持久化：自动保存 + 命令回退栈）。
+> **G5 的落地记录见 [《首版能力顺序》§三 G5](docs/01-roadmap/首版能力顺序.md) 与
+> [裁决 P-20](docs/00-baseline/裁决记录.md)**：列身份所有权与拖拽交互契约在
+> [ADR 0008](docs/02-adr/0008-列身份所有权与拖拽交互契约.md) 冻结，
+> 规范见 [`packages/render-core/SPEC.md`](packages/render-core/SPEC.md)，
+> 记录制实测见 [`apps/web/evidence/drag-timing-chrome152.md`](apps/web/evidence/drag-timing-chrome152.md)。
 > **G4 的落地记录见 [《首版能力顺序》§三 G4](docs/01-roadmap/首版能力顺序.md) 与
 > [裁决 P-18](docs/00-baseline/裁决记录.md)**：几何真相源与包边界、时间轴与 x 坐标、
 > 裁剪契约在 [ADR 0007](docs/02-adr/0007-渲染几何与裁剪契约.md) 冻结，
-> 数值由 [G4-S](docs/00-baseline/证伪实验计划.md) 回填（`S4-a`…`S4-d`），
-> 权威规范见 [`packages/render-core/SPEC.md`](packages/render-core/SPEC.md)。
+> 数值由 [G4-S](docs/00-baseline/证伪实验计划.md) 回填（`S4-a`…`S4-d`）。
 > **G3 的开工前置已闭**：列契约、单元格容差、公式口径、成环丢弃顺序、导出物白名单与协议层诊断码表已在
 > [ADR 0006](docs/02-adr/0006-xlsx-协议契约.md) 冻结（裁决 P-14），落地期的四条口径补齐见
 > [裁决 P-15](docs/00-baseline/裁决记录.md)。
@@ -59,6 +66,7 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 | `pnpm vitest run packages/xlsx-protocol/src/xlsx.differential.spec.ts` | **只跑 xlsx 差分**（openpyxl 写 → JS 读、JS 写 → openpyxl 读；缺 Python 3 或 `openpyxl` 即失败） |
 | `pnpm vitest run packages/render-core` | **只跑渲染几何与裁剪**（几何期望值表、裁剪与元素预算、规模解耦、箭头可区分性、受影响子集） |
 | `node scripts/measure-render.mjs` | **打包产物测量**（记录制、**不进 `pnpm gate`**）：先 `pnpm --filter @ganttpilot/web build`，再驱本机 Chrome 测首屏与 10× 滚动并写 `apps/web/evidence/render-timing-chrome<大版本>.md`。缺 Chrome 即失败，可用 `GANTTPILOT_CHROME` 指定；`--zoom=day|week|month` / `--rounds=` / `--steps=` / `--no-reference` 可选 |
+| `node scripts/measure-render.mjs --drag` | **G5 拖动测量**（记录制）：同样先构建，再用**真实指针事件**拖 3 个工作日，测帧间隔、主线程同步工作量、松手 → 重算 + 冲突标记的墙钟与"下游跟随"的 DOM 证据，写 `apps/web/evidence/drag-timing-chrome<大版本>.md`；`--day-delta=` / `--drag-frames=` 可选 |
 | `pnpm build` | 四包 `tsc -b`（产出 `dist/*.js` + `*.d.ts`）+ 应用 `vite build` |
 | `pnpm --filter @ganttpilot/engine build` | 只构建/类型检查某个包（`build`/`typecheck` 支持 `--filter`） |
 | `pnpm license:check` | 运行时依赖许可门禁（`--prod` 口径） |
@@ -255,11 +263,71 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 以及**负向对照**（端点可见性裁剪必须丢边；关掉窗口裁剪元素数必须增长；故意错的几何必须被检出）——
 没有负向对照，"元素数与总规模无关"可能是恒真式。
 
-**一处已知的依赖关系**：`apps/web` 的 `shared.ts` **静态** import 了
-`@ganttpilot/xlsx-protocol` 的 `COLUMN_SPECS`（九列契约是左表列集合的唯一来源，ADR 0007 §8），
-因此 Vite 会报一条 `INEFFECTIVE_DYNAMIC_IMPORT`：`exceljs` 仍在独立 chunk（929.61 kB）里、
-由用户动作触发才加载，首屏主 chunk 不含它。**不要**为了消掉这条警告把列契约搬进 `render-core`
-（那会造出第二个列真相源）。
+**列身份的所有权（G5 起，[ADR 0008](docs/02-adr/0008-列身份所有权与拖拽交互契约.md) §1–§3）**：
+九列契约 `COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` 的**唯一真相源在
+[`packages/render-core/src/columns.ts`](packages/render-core/src/columns.ts)**；
+`packages/xlsx-protocol/src/columns.ts` 只是**转型再导出**（公共 API 面一个符号不减）。
+依赖方向因此是 `engine ← render-core ← xlsx-protocol`——
+**不要再把列定义搬回 `xlsx-protocol`**（那会让 `render-core` 经它牵出 925 KB 的 `exceljs`，
+与"计算层零框架/零 DOM、可独立测试"冲突；这条由 `render-core` 的 `boundary.spec.ts` 断言守住）。
+历史背景：G4 落地期 **`apps/web` 的 `shared.ts` 静态 import 了 `xlsx-protocol` 的列契约**，
+Vite 因此报一条 `INEFFECTIVE_DYNAMIC_IMPORT`；该静态边已随所有权反转**一并消除**
+（`exceljs` 仍在独立 chunk（929.61 kB）里、由用户动作触发才加载，首屏主 chunk 不含它）。
+
+## 列文本与日期口径（P-19 之后必须遵守）
+
+**可测的纯函数不许留在 `apps/web`**（[裁决 P-19](docs/00-baseline/裁决记录.md) 第十九轮 +
+[ADR 0008](docs/02-adr/0008-列身份所有权与拖拽交互契约.md)）：左表单元格文本 `cellText`、
+派生完成日 `derivedEndIso`、值→命令映射 `editToCommand`/`collapseToCommand` 与日期文本工具
+全部落 [`packages/render-core/src/viewText.ts`](packages/render-core/src/viewText.ts)，并随 `pnpm test` 进门禁。最容易踩的四条：
+
+1. **凡"只有日历能算"的量，一律显式收 `Calendar`**（`cellText({..., calendar})` /
+   `derivedEndIso({..., calendar})` / `editToCommand({..., calendar})`，与 `ordinalAtX(view, x, calendar)` 同手法）；
+   日历必须来自 **`createScheduleCalendar(document)`** —— 与 `buildView` 用的是**同一个**。
+   **不存在"应用级日历"这种东西**：`APP_CALENDAR` 已删除，`viewText.ts` 里出现
+   `APP_CALENDAR` / `new Calendar(` / `DEFAULT_PROJECT_BASE_DAY_ISO` 会被 spec 判失败；
+2. **`-1` 是哨兵，绝不可喂给 `dayOfOrdinal`**：汇总行取 `summaryEs`/`summaryEf`，
+   派生完成用 `summaryEf − 1`（`ef`/`summaryEf` 是**排他**结束序号）；
+3. **派生「完成」必须与"显示的「开始」"同源**：开始列显示文档 `startDate` 时从它推进，
+   否则从排程序号推进；**`工期 = 0`（里程碑）时完成 = 开始**，不是"前一个工作日"
+   （通用式 `start + 工期 − 1` 在零时长会退化成前一天——实测 49 行反向）；
+4. **编辑派生值必须与图表同源**：`editToCommand` 改 `start`/`duration` 时写回的 `endDate`
+   必须等于应用后 `compute` 的"最后一个工作日"ISO；改口径前先看
+   `dateText.spec.ts` / `dateTextNegative.spec.ts` / `editCommand.spec.ts` 为什么那样写
+   （判据 ① ② ③ + NC1/NC2；没有负向对照，这些断言可能只是恒真式）。
+
+## 拖拽与手势契约（G5 之后必须遵守）
+
+契约草案见 [ADR 0008](docs/02-adr/0008-列身份所有权与拖拽交互契约.md) §4–§11，
+判据见 `packages/render-core/src/gesture.spec.ts`（**进 `pnpm gate`**），
+记录制实测见 [`apps/web/evidence/drag-timing-chrome152.md`](apps/web/evidence/drag-timing-chrome152.md)。
+改手势前请先读这几份，其中最容易踩的六条：
+
+1. **手势逻辑是纯函数，住 `render-core/src/gesture.ts`**：入参是**归一化指针**
+   （`{x, y, buttons, altKey, escPressed}`，**内容坐标**，绝不出现 `MouseEvent`），
+   出参是 `{anchors, commands, link, rows, edges, cyclePath, preview}`。
+   `apps/web/src/composables/useGesture.ts` 是**唯一**碰 DOM 的手势代码——
+   把判定逻辑写进组件就等于把它移出门禁（P-19 的教训）；
+2. **拖动期文档一字不改**：位置经**会话锚点**（`compute(document, calendar, anchors)`）；
+   松手才提交**一条** `task.update` / `link.insert` 并清锚点（一次手势 = 一层撤销，IX-03）；
+   `Esc` 取消 ⇒ 清锚点、不提交；
+3. **冲突判据只有 `compute` 的 `anchorConflict` 一处**：**"晚于入边约束"不是冲突**
+   （`ES = max(约束, 锚点)`，任务往后排正是用户要的）；**"早于"约束才是**
+   （[SCHEDULE.md](packages/engine/SCHEDULE.md) §四.3 情形④）。UI 不自己判"算不算冲突"，
+   只做样式映射——不新开诊断码；
+4. **`snapCandidate` 夹的是上界**：`min(max(candidate, 0), 约束)`。
+   "约束之前的位置必须**留在**约束之前"这条**上界**断言是唯一能抓出方向错误的判据
+   （落地期实测：把约束当下界会用 `max` 写出一个**违反**约束的锚点，而"不得违反约束"的断言反而抓不到）；
+5. **高亮不进 `ViewModel`**：`ViewModel` 只由「文档 + `Schedule` + `Calendar` + 视口」决定，
+   交互态进去会让几何期望值表与裁剪判据跟着手势漂移。高亮走 `highlight.ts` 的独立覆盖层；
+6. **元素预算另立 `c₄`**：改 `GanttChart.vue` 的覆盖层模板必须同步 `ELEMENT_MODEL_G5.overlay`
+   与 `countOverlays` / `countElementsByEnumeration` 的覆盖层分支（两路必须逐项相等）；
+   覆盖层**一律 `pointer-events: none`**，不得抢走条体/边的交互热区（ADR 0007 §5）。
+
+**记录制实测**：`node scripts/measure-render.mjs --drag`
+（先 `pnpm --filter @ganttpilot/web build`；缺 Chrome 即失败，`GANTTPILOT_CHROME` 可指定）。
+它驱动**真实指针事件**（`mousedown → mousemove×N → mouseup`），测帧间隔、主线程同步工作量、
+松手 → 重算 + 冲突标记的墙钟，以及"拖动期 DOM 确实变化"这条下游跟随证据。
 
 ## 提交约定
 
