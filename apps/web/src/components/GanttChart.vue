@@ -247,7 +247,14 @@ const drawnRows = computed(() =>
     : props.view.rows.map((row) => ({
         row,
         drawn: drawnBarForRow(row, props.dragPreview),
-        handles: rowHandlesFor({ taskId: row.id, bounds: row, rowHeight: props.view?.rowHeight ?? 0 }),
+        // `barY + barHeight / 2` = **条形/菱形的竖向中心**（`RowBox.y` 是**行顶**，不是条心——
+        // 这正是第二次人工复验"突起仍在、连接点仍偏上"的根因）。
+        handles: rowHandlesFor({
+          taskId: row.id,
+          bounds: row,
+          rowHeight: props.view?.rowHeight ?? 0,
+          barCenterY: row.barY + row.barHeight / 2,
+        }),
         // 连接点**只在指针靠近该行条端时**发射（P-32 复验第 3.2 条：常显会画面杂乱）。
         // 手柄恒显（它是"可拖动区域"的暗示，且只占 2×4 px 的短竖线）。
         // 只有"指针就在这一行"时才继续判断"是否靠近条端"（`hoverX` 在两行之间漂移不会误显）。

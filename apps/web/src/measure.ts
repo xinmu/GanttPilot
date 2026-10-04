@@ -884,7 +884,8 @@ async function collectHandleSample(
   const handleNodes = rowGroup === null ? [] : [...rowGroup.querySelectorAll('line.handle')];
   const attrX = (node: Element): number => Number(node.getAttribute('x') ?? node.getAttribute('x1') ?? Number.NaN);
   const handleContentX = handleNodes.map((node) => attrX(node)).filter((value) => Number.isFinite(value)).sort((a, b) => b - a)[0];
-  const y = row.row * view.rowHeight + view.rowHeight / 2;
+  // **条心**（不是 `row.row * rowHeight + rowHeight / 2` 的近似：`row.y` 是行顶，两者必须同源）。
+  const y = row.barY + row.barHeight / 2;
   const mid = toClient((row.xLeft + row.xRight) / 2, y);
   const edge = toClient(handleContentX ?? row.xRight, y);
 

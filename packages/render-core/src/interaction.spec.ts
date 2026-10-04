@@ -283,6 +283,40 @@ describe('端点手柄与连接点（ADR 0008 §16.2／裁决 P-32 的 R3）', (
     expect(connectSideAt(wideBar, zonesFor(wideBar).edgeR?.x1 ?? 0)).toBeNull();
   });
 
+  it('**竖向中心同源**（第二次人工复验的根因）：`bounds.y`（条心）与 `row.y`（行顶）是两种语义', () => {
+    const target = viewOf('day');
+    let checked = 0;
+    for (const row of target.rows) {
+      // `RowBox` 的两种语义：`y` = **行顶**、`barY` = **图形的顶**（`viewModel.ts` 的原话）。
+      // **最可靠的"竖心"是 `row.y + rowHeight / 2`**：它对条、汇总条、里程碑菱形**都成立**
+      // （`barY = y + (rowHeight − 高度) / 2` ⇒ `barY + 高度 / 2` 恒等于它）。
+      // 注意 `row.barHeight` 是"条高"，**里程碑行也报条高**（`viewModel.ts` 的口径），
+      // 而菱形实际边长是 `rowHeight × milestoneSizeRatio` ⇒ 菱形行不要用 `row.barHeight` 推条心。
+      const centerFromRow = row.y + ROW_HEIGHT / 2;
+      const centerFromBar = row.barY + row.barHeight / 2;
+      if (!row.isMilestone) expect(centerFromBar).toBeCloseTo(centerFromRow, 9);
+      else expect(Math.abs(centerFromBar - centerFromRow)).toBeLessThanOrEqual(2);
+      // 行顶 ≠ 条心（差 12 px = `rowHeight / 2`）——这正是渲染层把 `row.y` 当条心时
+      // "突起仍在、连接点整体上移"的量（第二次人工复验的两条报文）。
+      expect(row.y + ROW_HEIGHT / 2).toBeCloseTo(centerFromRow, 9);
+      expect(row.y).not.toBeCloseTo(centerFromRow, 3);
+
+      const bounds = boundsOf(target, row.row);
+      const handles = rowHandlesFor({ taskId: row.id, bounds, rowHeight: ROW_HEIGHT, barCenterY: centerFromRow });
+      for (const handle of handles.handles) {
+        // 手柄在**条内**（含端点）：不越过上/下沿，且关于条心对称。
+        expect(handle.y1).toBeGreaterThanOrEqual(centerFromRow - ROW_HEIGHT / 2);
+        expect(handle.y2).toBeLessThanOrEqual(centerFromRow + ROW_HEIGHT / 2);
+        expect(handle.y1 + handle.y2).toBeCloseTo(2 * centerFromRow, 9);
+      }
+      for (const point of handles.connectPoints) {
+        // 连接点**竖向中心 = 条心**（第二次复验第 3 条"仍偏上"的修法）。
+        expect(point.y).toBeCloseTo(centerFromRow, 9);
+      }
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
   it('连接点的**显示时机**（复验第 3.2 条）：只在指针靠近该行条端时显形，移开即消失', () => {
     const mid = (wideBar.xLeft + wideBar.xRight) / 2;
     // 条体中部：不显形（常显 = 64 个白框的画面杂乱）。

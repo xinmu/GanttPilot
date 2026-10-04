@@ -126,10 +126,23 @@ export function rowHandlesFor(args: {
   readonly taskId: string;
   readonly bounds: TaskBounds;
   readonly rowHeight: number;
+  /**
+   * **条形/菱形的竖向中心**（内容坐标）。
+   *
+   * **必须由调用方给**（`row.barY + row.barHeight / 2`），不能用 `bounds.y`：
+   * 两个类型的 `y` 语义**不同**——`TaskBounds.y` 是"条/菱形竖向中心"，而 `RowBox.y` 是**行顶**
+   * （`viewModel.ts` 的注释如此，`barY` 才是条的顶）。
+   *
+   * 这正是 P-32 第二次人工复验（2026-10-04）的两条报文的根因：
+   * "两端仍有向上的突起"与"连接点仍偏上"——渲染层把**行顶**当成了条心，
+   * 于是手柄画在 `行顶 ± 2`（浮在条体上方 4.8 px、与条体不相连）、连接点也整体上移了 12 px。
+   * 省略时回落到 `bounds.y`（`TaskBounds` 的语义本来就是条心，供纯函数与判据使用）。
+   */
+  readonly barCenterY?: number;
 }): RowHandles {
   const { bounds, rowHeight } = args;
   const zones = zonesFor(bounds);
-  const y = bounds.y;
+  const y = args.barCenterY ?? bounds.y;
   const half = HANDLE_HEIGHT_PX / 2;
   const hasBarEnds = !bounds.isMilestone && bounds.kind !== 'summary';
 

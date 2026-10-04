@@ -1,6 +1,6 @@
 {
   "env": {
-    "采集时刻": "2026-10-04T13:35:20.251Z",
+    "采集时刻": "2026-10-04T13:49:50.424Z",
     "机器": "FAIRY",
     "系统": "win32 x64",
     "Node": "v26.7.0",
@@ -25,19 +25,19 @@
           "viewScrollTop": 0,
           "scrollLeft": 0,
           "viewScrollLeft": 0,
-          "paneTop": 86.375,
+          "paneTop": 101.375,
           "paneLeft": 891,
-          "paneHeight": 635,
+          "paneHeight": 620,
           "paneWidth": 374,
           "headerHeightChart": 28,
           "headerHeightTable": 28,
-          "tableBodyHeight": 635,
-          "svgTop": 58.375,
+          "tableBodyHeight": 620,
+          "svgTop": 73.375,
           "svgLeft": 891,
           "svgWidth": 374,
-          "svgHeight": 663,
+          "svgHeight": 648,
           "viewWidth": 374,
-          "viewHeight": 635,
+          "viewHeight": 620,
           "spacerHeight": 23544,
           "spacerWidth": 10612,
           "viewContentWidth": 10612,
@@ -48,8 +48,8 @@
             {
               "id": "s1",
               "row": 0,
-              "chartCenterY": 98.375,
-              "tableCenterY": 98.375,
+              "chartCenterY": 113.375,
+              "tableCenterY": 113.375,
               "barLeft": 1083,
               "barRight": 1347,
               "expectedBarLeft": 1083,
@@ -58,8 +58,8 @@
             {
               "id": "t1",
               "row": 1,
-              "chartCenterY": 122.375,
-              "tableCenterY": 122.375,
+              "chartCenterY": 137.375,
+              "tableCenterY": 137.375,
               "barLeft": 1083,
               "barRight": 1299,
               "expectedBarLeft": 1083,
@@ -68,8 +68,8 @@
             {
               "id": "t2",
               "row": 2,
-              "chartCenterY": 146.375,
-              "tableCenterY": 146.375,
+              "chartCenterY": 161.375,
+              "tableCenterY": 161.375,
               "barLeft": 1083,
               "barRight": 1323,
               "expectedBarLeft": 1083,
@@ -78,8 +78,8 @@
             {
               "id": "t3",
               "row": 3,
-              "chartCenterY": 170.37500762939453,
-              "tableCenterY": 170.375,
+              "chartCenterY": 185.37500762939453,
+              "tableCenterY": 185.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -88,8 +88,8 @@
             {
               "id": "t4",
               "row": 4,
-              "chartCenterY": 194.37500762939453,
-              "tableCenterY": 194.375,
+              "chartCenterY": 209.37500762939453,
+              "tableCenterY": 209.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -98,8 +98,8 @@
             {
               "id": "t5",
               "row": 5,
-              "chartCenterY": 218.375,
-              "tableCenterY": 218.375,
+              "chartCenterY": 233.375,
+              "tableCenterY": 233.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -108,8 +108,8 @@
             {
               "id": "t6",
               "row": 6,
-              "chartCenterY": 242.375,
-              "tableCenterY": 242.375,
+              "chartCenterY": 257.37500762939453,
+              "tableCenterY": 257.375,
               "barLeft": 1083,
               "barRight": 1299,
               "expectedBarLeft": 1083,
@@ -118,8 +118,8 @@
             {
               "id": "t7",
               "row": 7,
-              "chartCenterY": 266.375,
-              "tableCenterY": 266.375,
+              "chartCenterY": 281.375,
+              "tableCenterY": 281.375,
               "barLeft": 1083,
               "barRight": 1275,
               "expectedBarLeft": 1083,
@@ -128,8 +128,8 @@
             {
               "id": "t8",
               "row": 8,
-              "chartCenterY": 290.375,
-              "tableCenterY": 290.375,
+              "chartCenterY": 305.375,
+              "tableCenterY": 305.375,
               "barLeft": 1083,
               "barRight": 1275,
               "expectedBarLeft": 1083,
@@ -138,8 +138,8 @@
             {
               "id": "t9",
               "row": 9,
-              "chartCenterY": 314.375,
-              "tableCenterY": 314.375,
+              "chartCenterY": 329.375,
+              "tableCenterY": 329.375,
               "barLeft": 1083,
               "barRight": 1299,
               "expectedBarLeft": 1083,
@@ -148,8 +148,8 @@
             {
               "id": "t10",
               "row": 10,
-              "chartCenterY": 338.375,
-              "tableCenterY": 338.375,
+              "chartCenterY": 353.375,
+              "tableCenterY": 353.375,
               "barLeft": 1083,
               "barRight": 1203,
               "expectedBarLeft": 1083,
@@ -158,8 +158,8 @@
             {
               "id": "t11",
               "row": 11,
-              "chartCenterY": 362.37498474121094,
-              "tableCenterY": 362.375,
+              "chartCenterY": 377.37498474121094,
+              "tableCenterY": 377.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -168,8 +168,8 @@
             {
               "id": "t12",
               "row": 12,
-              "chartCenterY": 386.37498474121094,
-              "tableCenterY": 386.375,
+              "chartCenterY": 401.37498474121094,
+              "tableCenterY": 401.375,
               "barLeft": 1083,
               "barRight": 1179,
               "expectedBarLeft": 1083,
@@ -178,8 +178,8 @@
             {
               "id": "t13",
               "row": 13,
-              "chartCenterY": 410.37498474121094,
-              "tableCenterY": 410.375,
+              "chartCenterY": 425.37498474121094,
+              "tableCenterY": 425.375,
               "barLeft": 1083,
               "barRight": 1323,
               "expectedBarLeft": 1083,
@@ -188,8 +188,8 @@
             {
               "id": "t14",
               "row": 14,
-              "chartCenterY": 434.37498474121094,
-              "tableCenterY": 434.375,
+              "chartCenterY": 449.37498474121094,
+              "tableCenterY": 449.375,
               "barLeft": 1083,
               "barRight": 1275,
               "expectedBarLeft": 1083,
@@ -198,8 +198,8 @@
             {
               "id": "t15",
               "row": 15,
-              "chartCenterY": 458.37498474121094,
-              "tableCenterY": 458.375,
+              "chartCenterY": 473.37498474121094,
+              "tableCenterY": 473.375,
               "barLeft": 1107,
               "barRight": 1299,
               "expectedBarLeft": 1107,
@@ -208,8 +208,8 @@
             {
               "id": "t16",
               "row": 16,
-              "chartCenterY": 482.37498474121094,
-              "tableCenterY": 482.375,
+              "chartCenterY": 497.37498474121094,
+              "tableCenterY": 497.375,
               "barLeft": 1083,
               "barRight": 1347,
               "expectedBarLeft": 1083,
@@ -218,8 +218,8 @@
             {
               "id": "t17",
               "row": 17,
-              "chartCenterY": 506.3749694824219,
-              "tableCenterY": 506.375,
+              "chartCenterY": 521.3749694824219,
+              "tableCenterY": 521.375,
               "barLeft": 1083,
               "barRight": 1203,
               "expectedBarLeft": 1083,
@@ -228,8 +228,8 @@
             {
               "id": "t18",
               "row": 18,
-              "chartCenterY": 530.3749694824219,
-              "tableCenterY": 530.375,
+              "chartCenterY": 545.3749694824219,
+              "tableCenterY": 545.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -238,8 +238,8 @@
             {
               "id": "t19",
               "row": 19,
-              "chartCenterY": 554.375,
-              "tableCenterY": 554.375,
+              "chartCenterY": 569.375,
+              "tableCenterY": 569.375,
               "barLeft": null,
               "barRight": null,
               "expectedBarLeft": null,
@@ -248,8 +248,8 @@
             {
               "id": "s2",
               "row": 20,
-              "chartCenterY": 578.3749694824219,
-              "tableCenterY": 578.375,
+              "chartCenterY": 593.3749694824219,
+              "tableCenterY": 593.375,
               "barLeft": 1083,
               "barRight": 1611,
               "expectedBarLeft": 1083,
@@ -258,8 +258,8 @@
             {
               "id": "t20",
               "row": 21,
-              "chartCenterY": 602.375,
-              "tableCenterY": 602.375,
+              "chartCenterY": 617.375,
+              "tableCenterY": 617.375,
               "barLeft": 1083,
               "barRight": 1203,
               "expectedBarLeft": 1083,
@@ -268,8 +268,8 @@
             {
               "id": "t21",
               "row": 22,
-              "chartCenterY": 626.375,
-              "tableCenterY": 626.375,
+              "chartCenterY": 641.375,
+              "tableCenterY": 641.375,
               "barLeft": 1083,
               "barRight": 1107,
               "expectedBarLeft": 1083,
@@ -278,8 +278,8 @@
             {
               "id": "t22",
               "row": 23,
-              "chartCenterY": 650.375,
-              "tableCenterY": 650.375,
+              "chartCenterY": 665.375,
+              "tableCenterY": 665.375,
               "barLeft": 1083,
               "barRight": 1323,
               "expectedBarLeft": 1083,
@@ -288,8 +288,8 @@
             {
               "id": "t23",
               "row": 24,
-              "chartCenterY": 674.375,
-              "tableCenterY": 674.375,
+              "chartCenterY": 689.375,
+              "tableCenterY": 689.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -298,8 +298,8 @@
             {
               "id": "t24",
               "row": 25,
-              "chartCenterY": 698.375,
-              "tableCenterY": 698.375,
+              "chartCenterY": 713.375,
+              "tableCenterY": 713.375,
               "barLeft": 1083,
               "barRight": 1323,
               "expectedBarLeft": 1083,
@@ -308,8 +308,8 @@
             {
               "id": "t25",
               "row": 26,
-              "chartCenterY": 722.375,
-              "tableCenterY": 722.375,
+              "chartCenterY": 737.375,
+              "tableCenterY": 737.375,
               "barLeft": 1299,
               "barRight": 1323,
               "expectedBarLeft": 1299,
@@ -318,8 +318,8 @@
             {
               "id": "t26",
               "row": 27,
-              "chartCenterY": 746.375,
-              "tableCenterY": 746.375,
+              "chartCenterY": 761.375,
+              "tableCenterY": 761.375,
               "barLeft": 1323,
               "barRight": 1347,
               "expectedBarLeft": 1323,
@@ -328,8 +328,8 @@
             {
               "id": "t27",
               "row": 28,
-              "chartCenterY": 770.375,
-              "tableCenterY": 770.375,
+              "chartCenterY": 785.375,
+              "tableCenterY": 785.375,
               "barLeft": 1275,
               "barRight": 1443,
               "expectedBarLeft": 1275,
@@ -338,8 +338,8 @@
             {
               "id": "t28",
               "row": 29,
-              "chartCenterY": 794.375,
-              "tableCenterY": 794.375,
+              "chartCenterY": 809.375,
+              "tableCenterY": 809.375,
               "barLeft": 1179,
               "barRight": 1299,
               "expectedBarLeft": 1179,
@@ -348,26 +348,16 @@
             {
               "id": "t29",
               "row": 30,
-              "chartCenterY": 818.375,
-              "tableCenterY": 818.375,
+              "chartCenterY": 833.375,
+              "tableCenterY": 833.375,
               "barLeft": 1107,
               "barRight": 1347,
               "expectedBarLeft": 1107,
               "expectedBarRight": 1347
-            },
-            {
-              "id": "t30",
-              "row": 31,
-              "chartCenterY": 842.375,
-              "tableCenterY": 842.375,
-              "barLeft": 1299,
-              "barRight": 1467,
-              "expectedBarLeft": 1299,
-              "expectedBarRight": 1467
             }
           ],
           "axisCoverage": {
-            "top": 86.375,
+            "top": 101.375,
             "bottom": 721.375,
             "left": 891,
             "right": 1251
@@ -378,15 +368,15 @@
           },
           "tickSpacingPx": 24,
           "axisLabels": {
-            "top": 66.375,
-            "bottom": 79.375
+            "top": 81.375,
+            "bottom": 94.375
           },
           "hitTest": {
-            "id": "t16",
-            "row": 16,
-            "clientY": 482.37498474121094,
-            "expectedContentY": 396,
-            "actualContentY": 395.99998474121094
+            "id": "t15",
+            "row": 15,
+            "clientY": 473.37498474121094,
+            "expectedContentY": 372,
+            "actualContentY": 371.99998474121094
           }
         },
         "verdict": {
@@ -548,11 +538,6 @@
               "id": "t29",
               "row": 30,
               "deltaPx": 0
-            },
-            {
-              "id": "t30",
-              "row": 31,
-              "deltaPx": 0
             }
           ],
           "pinned": true,
@@ -578,19 +563,19 @@
           "viewScrollTop": 120,
           "scrollLeft": 0,
           "viewScrollLeft": 0,
-          "paneTop": 86.375,
+          "paneTop": 101.375,
           "paneLeft": 891,
-          "paneHeight": 635,
+          "paneHeight": 620,
           "paneWidth": 374,
           "headerHeightChart": 28,
           "headerHeightTable": 28,
-          "tableBodyHeight": 635,
-          "svgTop": 58.375,
+          "tableBodyHeight": 620,
+          "svgTop": 73.375,
           "svgLeft": 891,
           "svgWidth": 374,
-          "svgHeight": 663,
+          "svgHeight": 648,
           "viewWidth": 374,
-          "viewHeight": 635,
+          "viewHeight": 620,
           "spacerHeight": 23544,
           "spacerWidth": 10612,
           "viewContentWidth": 10612,
@@ -601,8 +586,8 @@
             {
               "id": "s1",
               "row": 0,
-              "chartCenterY": -21.625,
-              "tableCenterY": -21.625,
+              "chartCenterY": -6.624999523162842,
+              "tableCenterY": -6.625,
               "barLeft": 1083,
               "barRight": 1347,
               "expectedBarLeft": 1083,
@@ -611,8 +596,8 @@
             {
               "id": "t1",
               "row": 1,
-              "chartCenterY": 2.374998092651367,
-              "tableCenterY": 2.375,
+              "chartCenterY": 17.374998092651367,
+              "tableCenterY": 17.375,
               "barLeft": 1083,
               "barRight": 1299,
               "expectedBarLeft": 1083,
@@ -621,8 +606,8 @@
             {
               "id": "t2",
               "row": 2,
-              "chartCenterY": 26.374998092651367,
-              "tableCenterY": 26.375,
+              "chartCenterY": 41.37499809265137,
+              "tableCenterY": 41.375,
               "barLeft": 1083,
               "barRight": 1323,
               "expectedBarLeft": 1083,
@@ -631,8 +616,8 @@
             {
               "id": "t3",
               "row": 3,
-              "chartCenterY": 50.375003814697266,
-              "tableCenterY": 50.375,
+              "chartCenterY": 65.37500381469727,
+              "tableCenterY": 65.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -641,8 +626,8 @@
             {
               "id": "t4",
               "row": 4,
-              "chartCenterY": 74.37500381469727,
-              "tableCenterY": 74.375,
+              "chartCenterY": 89.37500381469727,
+              "tableCenterY": 89.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -651,8 +636,8 @@
             {
               "id": "t5",
               "row": 5,
-              "chartCenterY": 98.375,
-              "tableCenterY": 98.375,
+              "chartCenterY": 113.375,
+              "tableCenterY": 113.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -661,8 +646,8 @@
             {
               "id": "t6",
               "row": 6,
-              "chartCenterY": 122.375,
-              "tableCenterY": 122.375,
+              "chartCenterY": 137.375,
+              "tableCenterY": 137.375,
               "barLeft": 1083,
               "barRight": 1299,
               "expectedBarLeft": 1083,
@@ -671,8 +656,8 @@
             {
               "id": "t7",
               "row": 7,
-              "chartCenterY": 146.375,
-              "tableCenterY": 146.375,
+              "chartCenterY": 161.375,
+              "tableCenterY": 161.375,
               "barLeft": 1083,
               "barRight": 1275,
               "expectedBarLeft": 1083,
@@ -681,8 +666,8 @@
             {
               "id": "t8",
               "row": 8,
-              "chartCenterY": 170.375,
-              "tableCenterY": 170.375,
+              "chartCenterY": 185.375,
+              "tableCenterY": 185.375,
               "barLeft": 1083,
               "barRight": 1275,
               "expectedBarLeft": 1083,
@@ -691,8 +676,8 @@
             {
               "id": "t9",
               "row": 9,
-              "chartCenterY": 194.375,
-              "tableCenterY": 194.375,
+              "chartCenterY": 209.375,
+              "tableCenterY": 209.375,
               "barLeft": 1083,
               "barRight": 1299,
               "expectedBarLeft": 1083,
@@ -701,8 +686,8 @@
             {
               "id": "t10",
               "row": 10,
-              "chartCenterY": 218.37500762939453,
-              "tableCenterY": 218.375,
+              "chartCenterY": 233.37500762939453,
+              "tableCenterY": 233.375,
               "barLeft": 1083,
               "barRight": 1203,
               "expectedBarLeft": 1083,
@@ -711,8 +696,8 @@
             {
               "id": "t11",
               "row": 11,
-              "chartCenterY": 242.37498474121094,
-              "tableCenterY": 242.375,
+              "chartCenterY": 257.37498474121094,
+              "tableCenterY": 257.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -721,8 +706,8 @@
             {
               "id": "t12",
               "row": 12,
-              "chartCenterY": 266.37498474121094,
-              "tableCenterY": 266.375,
+              "chartCenterY": 281.37498474121094,
+              "tableCenterY": 281.375,
               "barLeft": 1083,
               "barRight": 1179,
               "expectedBarLeft": 1083,
@@ -731,8 +716,8 @@
             {
               "id": "t13",
               "row": 13,
-              "chartCenterY": 290.37498474121094,
-              "tableCenterY": 290.375,
+              "chartCenterY": 305.37498474121094,
+              "tableCenterY": 305.375,
               "barLeft": 1083,
               "barRight": 1323,
               "expectedBarLeft": 1083,
@@ -741,8 +726,8 @@
             {
               "id": "t14",
               "row": 14,
-              "chartCenterY": 314.37498474121094,
-              "tableCenterY": 314.375,
+              "chartCenterY": 329.37498474121094,
+              "tableCenterY": 329.375,
               "barLeft": 1083,
               "barRight": 1275,
               "expectedBarLeft": 1083,
@@ -751,8 +736,8 @@
             {
               "id": "t15",
               "row": 15,
-              "chartCenterY": 338.37498474121094,
-              "tableCenterY": 338.375,
+              "chartCenterY": 353.37498474121094,
+              "tableCenterY": 353.375,
               "barLeft": 1107,
               "barRight": 1299,
               "expectedBarLeft": 1107,
@@ -761,8 +746,8 @@
             {
               "id": "t16",
               "row": 16,
-              "chartCenterY": 362.37498474121094,
-              "tableCenterY": 362.375,
+              "chartCenterY": 377.37498474121094,
+              "tableCenterY": 377.375,
               "barLeft": 1083,
               "barRight": 1347,
               "expectedBarLeft": 1083,
@@ -771,8 +756,8 @@
             {
               "id": "t17",
               "row": 17,
-              "chartCenterY": 386.37498474121094,
-              "tableCenterY": 386.375,
+              "chartCenterY": 401.37498474121094,
+              "tableCenterY": 401.375,
               "barLeft": 1083,
               "barRight": 1203,
               "expectedBarLeft": 1083,
@@ -781,8 +766,8 @@
             {
               "id": "t18",
               "row": 18,
-              "chartCenterY": 410.37498474121094,
-              "tableCenterY": 410.375,
+              "chartCenterY": 425.37498474121094,
+              "tableCenterY": 425.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -791,8 +776,8 @@
             {
               "id": "t19",
               "row": 19,
-              "chartCenterY": 434.375,
-              "tableCenterY": 434.375,
+              "chartCenterY": 449.375,
+              "tableCenterY": 449.375,
               "barLeft": null,
               "barRight": null,
               "expectedBarLeft": null,
@@ -801,8 +786,8 @@
             {
               "id": "s2",
               "row": 20,
-              "chartCenterY": 458.37498474121094,
-              "tableCenterY": 458.375,
+              "chartCenterY": 473.37498474121094,
+              "tableCenterY": 473.375,
               "barLeft": 1083,
               "barRight": 1611,
               "expectedBarLeft": 1083,
@@ -811,8 +796,8 @@
             {
               "id": "t20",
               "row": 21,
-              "chartCenterY": 482.375,
-              "tableCenterY": 482.375,
+              "chartCenterY": 497.375,
+              "tableCenterY": 497.375,
               "barLeft": 1083,
               "barRight": 1203,
               "expectedBarLeft": 1083,
@@ -821,8 +806,8 @@
             {
               "id": "t21",
               "row": 22,
-              "chartCenterY": 506.375,
-              "tableCenterY": 506.375,
+              "chartCenterY": 521.375,
+              "tableCenterY": 521.375,
               "barLeft": 1083,
               "barRight": 1107,
               "expectedBarLeft": 1083,
@@ -831,8 +816,8 @@
             {
               "id": "t22",
               "row": 23,
-              "chartCenterY": 530.375,
-              "tableCenterY": 530.375,
+              "chartCenterY": 545.375,
+              "tableCenterY": 545.375,
               "barLeft": 1083,
               "barRight": 1323,
               "expectedBarLeft": 1083,
@@ -841,8 +826,8 @@
             {
               "id": "t23",
               "row": 24,
-              "chartCenterY": 554.375,
-              "tableCenterY": 554.375,
+              "chartCenterY": 569.375,
+              "tableCenterY": 569.375,
               "barLeft": 1083,
               "barRight": 1131,
               "expectedBarLeft": 1083,
@@ -851,8 +836,8 @@
             {
               "id": "t24",
               "row": 25,
-              "chartCenterY": 578.375,
-              "tableCenterY": 578.375,
+              "chartCenterY": 593.375,
+              "tableCenterY": 593.375,
               "barLeft": 1083,
               "barRight": 1323,
               "expectedBarLeft": 1083,
@@ -861,8 +846,8 @@
             {
               "id": "t25",
               "row": 26,
-              "chartCenterY": 602.375,
-              "tableCenterY": 602.375,
+              "chartCenterY": 617.375,
+              "tableCenterY": 617.375,
               "barLeft": 1299,
               "barRight": 1323,
               "expectedBarLeft": 1299,
@@ -871,8 +856,8 @@
             {
               "id": "t26",
               "row": 27,
-              "chartCenterY": 626.375,
-              "tableCenterY": 626.375,
+              "chartCenterY": 641.375,
+              "tableCenterY": 641.375,
               "barLeft": 1323,
               "barRight": 1347,
               "expectedBarLeft": 1323,
@@ -881,8 +866,8 @@
             {
               "id": "t27",
               "row": 28,
-              "chartCenterY": 650.375,
-              "tableCenterY": 650.375,
+              "chartCenterY": 665.375,
+              "tableCenterY": 665.375,
               "barLeft": 1275,
               "barRight": 1443,
               "expectedBarLeft": 1275,
@@ -891,8 +876,8 @@
             {
               "id": "t28",
               "row": 29,
-              "chartCenterY": 674.375,
-              "tableCenterY": 674.375,
+              "chartCenterY": 689.375,
+              "tableCenterY": 689.375,
               "barLeft": 1179,
               "barRight": 1299,
               "expectedBarLeft": 1179,
@@ -901,8 +886,8 @@
             {
               "id": "t29",
               "row": 30,
-              "chartCenterY": 698.375,
-              "tableCenterY": 698.375,
+              "chartCenterY": 713.375,
+              "tableCenterY": 713.375,
               "barLeft": 1107,
               "barRight": 1347,
               "expectedBarLeft": 1107,
@@ -911,8 +896,8 @@
             {
               "id": "t30",
               "row": 31,
-              "chartCenterY": 722.375,
-              "tableCenterY": 722.375,
+              "chartCenterY": 737.375,
+              "tableCenterY": 737.375,
               "barLeft": 1299,
               "barRight": 1467,
               "expectedBarLeft": 1299,
@@ -921,8 +906,8 @@
             {
               "id": "t31",
               "row": 32,
-              "chartCenterY": 746.375,
-              "tableCenterY": 746.375,
+              "chartCenterY": 761.375,
+              "tableCenterY": 761.375,
               "barLeft": 1299,
               "barRight": 1515,
               "expectedBarLeft": 1299,
@@ -931,8 +916,8 @@
             {
               "id": "t32",
               "row": 33,
-              "chartCenterY": 770.375,
-              "tableCenterY": 770.375,
+              "chartCenterY": 785.375,
+              "tableCenterY": 785.375,
               "barLeft": 1083,
               "barRight": 1347,
               "expectedBarLeft": 1083,
@@ -941,8 +926,8 @@
             {
               "id": "t33",
               "row": 34,
-              "chartCenterY": 794.375,
-              "tableCenterY": 794.375,
+              "chartCenterY": 809.375,
+              "tableCenterY": 809.375,
               "barLeft": 1443,
               "barRight": 1491,
               "expectedBarLeft": 1443,
@@ -951,26 +936,16 @@
             {
               "id": "t34",
               "row": 35,
-              "chartCenterY": 818.375,
-              "tableCenterY": 818.375,
+              "chartCenterY": 833.375,
+              "tableCenterY": 833.375,
               "barLeft": 1107,
               "barRight": 1203,
               "expectedBarLeft": 1107,
               "expectedBarRight": 1203
-            },
-            {
-              "id": "t35",
-              "row": 36,
-              "chartCenterY": 842.375,
-              "tableCenterY": 842.375,
-              "barLeft": 1299,
-              "barRight": 1371,
-              "expectedBarLeft": 1299,
-              "expectedBarRight": 1371
             }
           ],
           "axisCoverage": {
-            "top": 86.375,
+            "top": 101.375,
             "bottom": 721.375,
             "left": 891,
             "right": 1251
@@ -981,13 +956,13 @@
           },
           "tickSpacingPx": 24,
           "axisLabels": {
-            "top": 66.375,
-            "bottom": 79.375
+            "top": 81.375,
+            "bottom": 94.375
           },
           "hitTest": {
             "id": "t18",
             "row": 18,
-            "clientY": 410.37498474121094,
+            "clientY": 425.37498474121094,
             "expectedContentY": 444,
             "actualContentY": 443.99998474121094
           }
@@ -1176,11 +1151,6 @@
               "id": "t34",
               "row": 35,
               "deltaPx": 0
-            },
-            {
-              "id": "t35",
-              "row": 36,
-              "deltaPx": 0
             }
           ],
           "pinned": true,
@@ -1206,19 +1176,19 @@
           "viewScrollTop": 480,
           "scrollLeft": 600,
           "viewScrollLeft": 600,
-          "paneTop": 86.375,
+          "paneTop": 101.375,
           "paneLeft": 891,
-          "paneHeight": 635,
+          "paneHeight": 620,
           "paneWidth": 374,
           "headerHeightChart": 28,
           "headerHeightTable": 28,
-          "tableBodyHeight": 635,
-          "svgTop": 58.375,
+          "tableBodyHeight": 620,
+          "svgTop": 73.375,
           "svgLeft": 891,
           "svgWidth": 374,
-          "svgHeight": 663,
+          "svgHeight": 648,
           "viewWidth": 374,
-          "viewHeight": 635,
+          "viewHeight": 620,
           "spacerHeight": 23544,
           "spacerWidth": 10612,
           "viewContentWidth": 10612,
@@ -1229,8 +1199,8 @@
             {
               "id": "t15",
               "row": 15,
-              "chartCenterY": -21.625015258789062,
-              "tableCenterY": -21.625,
+              "chartCenterY": -6.6250152587890625,
+              "tableCenterY": -6.625,
               "barLeft": 507,
               "barRight": 699,
               "expectedBarLeft": 507,
@@ -1239,8 +1209,8 @@
             {
               "id": "t16",
               "row": 16,
-              "chartCenterY": 2.3749847412109375,
-              "tableCenterY": 2.375,
+              "chartCenterY": 17.374984741210938,
+              "tableCenterY": 17.375,
               "barLeft": 483,
               "barRight": 747,
               "expectedBarLeft": 483,
@@ -1249,8 +1219,8 @@
             {
               "id": "t17",
               "row": 17,
-              "chartCenterY": 26.374984741210938,
-              "tableCenterY": 26.375,
+              "chartCenterY": 41.37498474121094,
+              "tableCenterY": 41.375,
               "barLeft": 483,
               "barRight": 603,
               "expectedBarLeft": 483,
@@ -1259,8 +1229,8 @@
             {
               "id": "t18",
               "row": 18,
-              "chartCenterY": 50.37498474121094,
-              "tableCenterY": 50.375,
+              "chartCenterY": 65.37498474121094,
+              "tableCenterY": 65.375,
               "barLeft": 483,
               "barRight": 531,
               "expectedBarLeft": 483,
@@ -1269,8 +1239,8 @@
             {
               "id": "t19",
               "row": 19,
-              "chartCenterY": 74.375,
-              "tableCenterY": 74.375,
+              "chartCenterY": 89.375,
+              "tableCenterY": 89.375,
               "barLeft": null,
               "barRight": null,
               "expectedBarLeft": null,
@@ -1279,8 +1249,8 @@
             {
               "id": "s2",
               "row": 20,
-              "chartCenterY": 98.37498474121094,
-              "tableCenterY": 98.375,
+              "chartCenterY": 113.37498474121094,
+              "tableCenterY": 113.375,
               "barLeft": 483,
               "barRight": 1011,
               "expectedBarLeft": 483,
@@ -1289,8 +1259,8 @@
             {
               "id": "t20",
               "row": 21,
-              "chartCenterY": 122.375,
-              "tableCenterY": 122.375,
+              "chartCenterY": 137.375,
+              "tableCenterY": 137.375,
               "barLeft": 483,
               "barRight": 603,
               "expectedBarLeft": 483,
@@ -1299,8 +1269,8 @@
             {
               "id": "t21",
               "row": 22,
-              "chartCenterY": 146.375,
-              "tableCenterY": 146.375,
+              "chartCenterY": 161.375,
+              "tableCenterY": 161.375,
               "barLeft": 483,
               "barRight": 507,
               "expectedBarLeft": 483,
@@ -1309,8 +1279,8 @@
             {
               "id": "t22",
               "row": 23,
-              "chartCenterY": 170.375,
-              "tableCenterY": 170.375,
+              "chartCenterY": 185.375,
+              "tableCenterY": 185.375,
               "barLeft": 483,
               "barRight": 723,
               "expectedBarLeft": 483,
@@ -1319,8 +1289,8 @@
             {
               "id": "t23",
               "row": 24,
-              "chartCenterY": 194.375,
-              "tableCenterY": 194.375,
+              "chartCenterY": 209.375,
+              "tableCenterY": 209.375,
               "barLeft": 483,
               "barRight": 531,
               "expectedBarLeft": 483,
@@ -1329,8 +1299,8 @@
             {
               "id": "t24",
               "row": 25,
-              "chartCenterY": 218.375,
-              "tableCenterY": 218.375,
+              "chartCenterY": 233.375,
+              "tableCenterY": 233.375,
               "barLeft": 483,
               "barRight": 723,
               "expectedBarLeft": 483,
@@ -1339,8 +1309,8 @@
             {
               "id": "t25",
               "row": 26,
-              "chartCenterY": 242.375,
-              "tableCenterY": 242.375,
+              "chartCenterY": 257.375,
+              "tableCenterY": 257.375,
               "barLeft": 699,
               "barRight": 723,
               "expectedBarLeft": 699,
@@ -1349,8 +1319,8 @@
             {
               "id": "t26",
               "row": 27,
-              "chartCenterY": 266.375,
-              "tableCenterY": 266.375,
+              "chartCenterY": 281.375,
+              "tableCenterY": 281.375,
               "barLeft": 723,
               "barRight": 747,
               "expectedBarLeft": 723,
@@ -1359,8 +1329,8 @@
             {
               "id": "t27",
               "row": 28,
-              "chartCenterY": 290.375,
-              "tableCenterY": 290.375,
+              "chartCenterY": 305.375,
+              "tableCenterY": 305.375,
               "barLeft": 675,
               "barRight": 843,
               "expectedBarLeft": 675,
@@ -1369,8 +1339,8 @@
             {
               "id": "t28",
               "row": 29,
-              "chartCenterY": 314.375,
-              "tableCenterY": 314.375,
+              "chartCenterY": 329.375,
+              "tableCenterY": 329.375,
               "barLeft": 579,
               "barRight": 699,
               "expectedBarLeft": 579,
@@ -1379,8 +1349,8 @@
             {
               "id": "t29",
               "row": 30,
-              "chartCenterY": 338.375,
-              "tableCenterY": 338.375,
+              "chartCenterY": 353.375,
+              "tableCenterY": 353.375,
               "barLeft": 507,
               "barRight": 747,
               "expectedBarLeft": 507,
@@ -1389,8 +1359,8 @@
             {
               "id": "t30",
               "row": 31,
-              "chartCenterY": 362.375,
-              "tableCenterY": 362.375,
+              "chartCenterY": 377.375,
+              "tableCenterY": 377.375,
               "barLeft": 699,
               "barRight": 867,
               "expectedBarLeft": 699,
@@ -1399,8 +1369,8 @@
             {
               "id": "t31",
               "row": 32,
-              "chartCenterY": 386.375,
-              "tableCenterY": 386.375,
+              "chartCenterY": 401.375,
+              "tableCenterY": 401.375,
               "barLeft": 699,
               "barRight": 915,
               "expectedBarLeft": 699,
@@ -1409,8 +1379,8 @@
             {
               "id": "t32",
               "row": 33,
-              "chartCenterY": 410.375,
-              "tableCenterY": 410.375,
+              "chartCenterY": 425.375,
+              "tableCenterY": 425.375,
               "barLeft": 483,
               "barRight": 747,
               "expectedBarLeft": 483,
@@ -1419,8 +1389,8 @@
             {
               "id": "t33",
               "row": 34,
-              "chartCenterY": 434.375,
-              "tableCenterY": 434.375,
+              "chartCenterY": 449.375,
+              "tableCenterY": 449.375,
               "barLeft": 843,
               "barRight": 891,
               "expectedBarLeft": 843,
@@ -1429,8 +1399,8 @@
             {
               "id": "t34",
               "row": 35,
-              "chartCenterY": 458.375,
-              "tableCenterY": 458.375,
+              "chartCenterY": 473.375,
+              "tableCenterY": 473.375,
               "barLeft": 507,
               "barRight": 603,
               "expectedBarLeft": 507,
@@ -1439,8 +1409,8 @@
             {
               "id": "t35",
               "row": 36,
-              "chartCenterY": 482.375,
-              "tableCenterY": 482.375,
+              "chartCenterY": 497.375,
+              "tableCenterY": 497.375,
               "barLeft": 699,
               "barRight": 771,
               "expectedBarLeft": 699,
@@ -1449,8 +1419,8 @@
             {
               "id": "t36",
               "row": 37,
-              "chartCenterY": 506.375,
-              "tableCenterY": 506.375,
+              "chartCenterY": 521.375,
+              "tableCenterY": 521.375,
               "barLeft": 747,
               "barRight": 1011,
               "expectedBarLeft": 747,
@@ -1459,8 +1429,8 @@
             {
               "id": "t37",
               "row": 38,
-              "chartCenterY": 530.375,
-              "tableCenterY": 530.375,
+              "chartCenterY": 545.375,
+              "tableCenterY": 545.375,
               "barLeft": 579,
               "barRight": 675,
               "expectedBarLeft": 579,
@@ -1469,8 +1439,8 @@
             {
               "id": "t38",
               "row": 39,
-              "chartCenterY": 554.375,
-              "tableCenterY": 554.375,
+              "chartCenterY": 569.375,
+              "tableCenterY": 569.375,
               "barLeft": null,
               "barRight": null,
               "expectedBarLeft": null,
@@ -1479,8 +1449,8 @@
             {
               "id": "s3",
               "row": 40,
-              "chartCenterY": 578.375,
-              "tableCenterY": 578.375,
+              "chartCenterY": 593.375,
+              "tableCenterY": 593.375,
               "barLeft": 483,
               "barRight": 1347,
               "expectedBarLeft": 483,
@@ -1489,8 +1459,8 @@
             {
               "id": "s4",
               "row": 41,
-              "chartCenterY": 602.375,
-              "tableCenterY": 602.375,
+              "chartCenterY": 617.375,
+              "tableCenterY": 617.375,
               "barLeft": 483,
               "barRight": 1515,
               "expectedBarLeft": 483,
@@ -1499,8 +1469,8 @@
             {
               "id": "t58",
               "row": 42,
-              "chartCenterY": 626.3749694824219,
-              "tableCenterY": 626.375,
+              "chartCenterY": 641.3749694824219,
+              "tableCenterY": 641.375,
               "barLeft": 579,
               "barRight": 675,
               "expectedBarLeft": 579,
@@ -1509,8 +1479,8 @@
             {
               "id": "t59",
               "row": 43,
-              "chartCenterY": 650.3750610351562,
-              "tableCenterY": 650.375,
+              "chartCenterY": 665.3750610351562,
+              "tableCenterY": 665.375,
               "barLeft": 579,
               "barRight": 747,
               "expectedBarLeft": 579,
@@ -1519,8 +1489,8 @@
             {
               "id": "t60",
               "row": 44,
-              "chartCenterY": 674.3750610351562,
-              "tableCenterY": 674.375,
+              "chartCenterY": 689.3750610351562,
+              "tableCenterY": 689.375,
               "barLeft": 915,
               "barRight": 1011,
               "expectedBarLeft": 915,
@@ -1529,8 +1499,8 @@
             {
               "id": "t61",
               "row": 45,
-              "chartCenterY": 698.3750610351562,
-              "tableCenterY": 698.375,
+              "chartCenterY": 713.3750610351562,
+              "tableCenterY": 713.375,
               "barLeft": 651,
               "barRight": 915,
               "expectedBarLeft": 651,
@@ -1539,8 +1509,8 @@
             {
               "id": "t62",
               "row": 46,
-              "chartCenterY": 722.3750610351562,
-              "tableCenterY": 722.375,
+              "chartCenterY": 737.3750610351562,
+              "tableCenterY": 737.375,
               "barLeft": 867,
               "barRight": 939,
               "expectedBarLeft": 867,
@@ -1549,8 +1519,8 @@
             {
               "id": "t63",
               "row": 47,
-              "chartCenterY": 746.3750610351562,
-              "tableCenterY": 746.375,
+              "chartCenterY": 761.3750610351562,
+              "tableCenterY": 761.375,
               "barLeft": 1035,
               "barRight": 1059,
               "expectedBarLeft": 1035,
@@ -1559,8 +1529,8 @@
             {
               "id": "t64",
               "row": 48,
-              "chartCenterY": 770.3750610351562,
-              "tableCenterY": 770.375,
+              "chartCenterY": 785.3750610351562,
+              "tableCenterY": 785.375,
               "barLeft": 1059,
               "barRight": 1179,
               "expectedBarLeft": 1059,
@@ -1569,8 +1539,8 @@
             {
               "id": "t65",
               "row": 49,
-              "chartCenterY": 794.3750610351562,
-              "tableCenterY": 794.375,
+              "chartCenterY": 809.3750610351562,
+              "tableCenterY": 809.375,
               "barLeft": 699,
               "barRight": 939,
               "expectedBarLeft": 699,
@@ -1579,26 +1549,16 @@
             {
               "id": "t66",
               "row": 50,
-              "chartCenterY": 818.3750610351562,
-              "tableCenterY": 818.375,
+              "chartCenterY": 833.3750610351562,
+              "tableCenterY": 833.375,
               "barLeft": 1011,
               "barRight": 1059,
               "expectedBarLeft": 1011,
               "expectedBarRight": 1059
-            },
-            {
-              "id": "t67",
-              "row": 51,
-              "chartCenterY": 842.3750610351562,
-              "tableCenterY": 842.375,
-              "barLeft": 1203,
-              "barRight": 1515,
-              "expectedBarLeft": 1203,
-              "expectedBarRight": 1515
             }
           ],
           "axisCoverage": {
-            "top": 86.375,
+            "top": 101.375,
             "bottom": 721.375,
             "left": 939,
             "right": 1155
@@ -1609,13 +1569,13 @@
           },
           "tickSpacingPx": 24,
           "axisLabels": {
-            "top": 66.375,
-            "bottom": 79.375
+            "top": 81.375,
+            "bottom": 94.375
           },
           "hitTest": {
             "id": "t32",
             "row": 33,
-            "clientY": 410.375,
+            "clientY": 425.375,
             "expectedContentY": 804,
             "actualContentY": 804
           }
@@ -1804,11 +1764,6 @@
               "id": "t66",
               "row": 50,
               "deltaPx": 0
-            },
-            {
-              "id": "t67",
-              "row": 51,
-              "deltaPx": 0
             }
           ],
           "pinned": true,
@@ -1830,23 +1785,23 @@
         "requestedScrollTop": 9999999,
         "requestedScrollLeft": 0,
         "probe": {
-          "scrollTop": 22909,
-          "viewScrollTop": 22909,
+          "scrollTop": 22924,
+          "viewScrollTop": 22924,
           "scrollLeft": 0,
           "viewScrollLeft": 0,
-          "paneTop": 86.375,
+          "paneTop": 101.375,
           "paneLeft": 891,
-          "paneHeight": 635,
+          "paneHeight": 620,
           "paneWidth": 374,
           "headerHeightChart": 28,
           "headerHeightTable": 28,
-          "tableBodyHeight": 635,
-          "svgTop": 58.375,
+          "tableBodyHeight": 620,
+          "svgTop": 73.375,
           "svgLeft": 891,
           "svgWidth": 374,
-          "svgHeight": 663,
+          "svgHeight": 648,
           "viewWidth": 374,
-          "viewHeight": 635,
+          "viewHeight": 620,
           "spacerHeight": 23544,
           "spacerWidth": 10612,
           "viewContentWidth": 10612,
@@ -1854,16 +1809,6 @@
           "rowHeight": 24,
           "tableRowHeight": 24,
           "samples": [
-            {
-              "id": "t920",
-              "row": 949,
-              "chartCenterY": -34.6240234375,
-              "tableCenterY": -34.625,
-              "barLeft": 10707,
-              "barRight": 10899,
-              "expectedBarLeft": 10707,
-              "expectedBarRight": 10899
-            },
             {
               "id": "t921",
               "row": 950,
@@ -2176,7 +2121,7 @@
             }
           ],
           "axisCoverage": {
-            "top": 86.375,
+            "top": 101.375,
             "bottom": 721.375,
             "left": 891,
             "right": 1251
@@ -2187,8 +2132,8 @@
           },
           "tickSpacingPx": 24,
           "axisLabels": {
-            "top": 66.375,
-            "bottom": 79.375
+            "top": 81.375,
+            "bottom": 94.375
           },
           "hitTest": {
             "id": "t935",
@@ -2203,11 +2148,6 @@
           "maxAbsRowDeltaPx": 0.001,
           "maxAbsBarXDeltaPx": 0,
           "rowDeltas": [
-            {
-              "id": "t920",
-              "row": 949,
-              "deltaPx": 0.001
-            },
             {
               "id": "t921",
               "row": 950,
@@ -2387,19 +2327,19 @@
           "viewScrollTop": 0,
           "scrollLeft": 10238,
           "viewScrollLeft": 10238,
-          "paneTop": 86.375,
+          "paneTop": 101.375,
           "paneLeft": 891,
-          "paneHeight": 635,
+          "paneHeight": 620,
           "paneWidth": 374,
           "headerHeightChart": 28,
           "headerHeightTable": 28,
-          "tableBodyHeight": 635,
-          "svgTop": 58.375,
+          "tableBodyHeight": 620,
+          "svgTop": 73.375,
           "svgLeft": 891,
           "svgWidth": 374,
-          "svgHeight": 663,
+          "svgHeight": 648,
           "viewWidth": 374,
-          "viewHeight": 635,
+          "viewHeight": 620,
           "spacerHeight": 23544,
           "spacerWidth": 10612,
           "viewContentWidth": 10612,
@@ -2410,8 +2350,8 @@
             {
               "id": "s1",
               "row": 0,
-              "chartCenterY": 98.375,
-              "tableCenterY": 98.375,
+              "chartCenterY": 113.375,
+              "tableCenterY": 113.375,
               "barLeft": -9155,
               "barRight": -8891,
               "expectedBarLeft": -9155,
@@ -2420,8 +2360,8 @@
             {
               "id": "t1",
               "row": 1,
-              "chartCenterY": 122.375,
-              "tableCenterY": 122.375,
+              "chartCenterY": 137.375,
+              "tableCenterY": 137.375,
               "barLeft": -9155,
               "barRight": -8939,
               "expectedBarLeft": -9155,
@@ -2430,8 +2370,8 @@
             {
               "id": "t2",
               "row": 2,
-              "chartCenterY": 146.375,
-              "tableCenterY": 146.375,
+              "chartCenterY": 161.375,
+              "tableCenterY": 161.375,
               "barLeft": -9155,
               "barRight": -8915,
               "expectedBarLeft": -9155,
@@ -2440,8 +2380,8 @@
             {
               "id": "t3",
               "row": 3,
-              "chartCenterY": 170.37500762939453,
-              "tableCenterY": 170.375,
+              "chartCenterY": 185.37500762939453,
+              "tableCenterY": 185.375,
               "barLeft": -9155,
               "barRight": -9107,
               "expectedBarLeft": -9155,
@@ -2450,8 +2390,8 @@
             {
               "id": "t4",
               "row": 4,
-              "chartCenterY": 194.37500762939453,
-              "tableCenterY": 194.375,
+              "chartCenterY": 209.37500762939453,
+              "tableCenterY": 209.375,
               "barLeft": -9155,
               "barRight": -9107,
               "expectedBarLeft": -9155,
@@ -2460,8 +2400,8 @@
             {
               "id": "t5",
               "row": 5,
-              "chartCenterY": 218.375,
-              "tableCenterY": 218.375,
+              "chartCenterY": 233.375,
+              "tableCenterY": 233.375,
               "barLeft": -9155,
               "barRight": -9107,
               "expectedBarLeft": -9155,
@@ -2470,8 +2410,8 @@
             {
               "id": "t6",
               "row": 6,
-              "chartCenterY": 242.375,
-              "tableCenterY": 242.375,
+              "chartCenterY": 257.37500762939453,
+              "tableCenterY": 257.375,
               "barLeft": -9155,
               "barRight": -8939,
               "expectedBarLeft": -9155,
@@ -2480,8 +2420,8 @@
             {
               "id": "t7",
               "row": 7,
-              "chartCenterY": 266.375,
-              "tableCenterY": 266.375,
+              "chartCenterY": 281.375,
+              "tableCenterY": 281.375,
               "barLeft": -9155,
               "barRight": -8963,
               "expectedBarLeft": -9155,
@@ -2490,8 +2430,8 @@
             {
               "id": "t8",
               "row": 8,
-              "chartCenterY": 290.375,
-              "tableCenterY": 290.375,
+              "chartCenterY": 305.375,
+              "tableCenterY": 305.375,
               "barLeft": -9155,
               "barRight": -8963,
               "expectedBarLeft": -9155,
@@ -2500,8 +2440,8 @@
             {
               "id": "t9",
               "row": 9,
-              "chartCenterY": 314.375,
-              "tableCenterY": 314.375,
+              "chartCenterY": 329.375,
+              "tableCenterY": 329.375,
               "barLeft": -9155,
               "barRight": -8939,
               "expectedBarLeft": -9155,
@@ -2510,8 +2450,8 @@
             {
               "id": "t10",
               "row": 10,
-              "chartCenterY": 338.375,
-              "tableCenterY": 338.375,
+              "chartCenterY": 353.375,
+              "tableCenterY": 353.375,
               "barLeft": -9155,
               "barRight": -9035,
               "expectedBarLeft": -9155,
@@ -2520,8 +2460,8 @@
             {
               "id": "t11",
               "row": 11,
-              "chartCenterY": 362.37498474121094,
-              "tableCenterY": 362.375,
+              "chartCenterY": 377.37498474121094,
+              "tableCenterY": 377.375,
               "barLeft": -9155,
               "barRight": -9107,
               "expectedBarLeft": -9155,
@@ -2530,8 +2470,8 @@
             {
               "id": "t12",
               "row": 12,
-              "chartCenterY": 386.37498474121094,
-              "tableCenterY": 386.375,
+              "chartCenterY": 401.37498474121094,
+              "tableCenterY": 401.375,
               "barLeft": -9155,
               "barRight": -9059,
               "expectedBarLeft": -9155,
@@ -2540,8 +2480,8 @@
             {
               "id": "t13",
               "row": 13,
-              "chartCenterY": 410.37498474121094,
-              "tableCenterY": 410.375,
+              "chartCenterY": 425.37498474121094,
+              "tableCenterY": 425.375,
               "barLeft": -9155,
               "barRight": -8915,
               "expectedBarLeft": -9155,
@@ -2550,8 +2490,8 @@
             {
               "id": "t14",
               "row": 14,
-              "chartCenterY": 434.37498474121094,
-              "tableCenterY": 434.375,
+              "chartCenterY": 449.37498474121094,
+              "tableCenterY": 449.375,
               "barLeft": -9155,
               "barRight": -8963,
               "expectedBarLeft": -9155,
@@ -2560,8 +2500,8 @@
             {
               "id": "t15",
               "row": 15,
-              "chartCenterY": 458.37498474121094,
-              "tableCenterY": 458.375,
+              "chartCenterY": 473.37498474121094,
+              "tableCenterY": 473.375,
               "barLeft": -9131,
               "barRight": -8939,
               "expectedBarLeft": -9131,
@@ -2570,8 +2510,8 @@
             {
               "id": "t16",
               "row": 16,
-              "chartCenterY": 482.37498474121094,
-              "tableCenterY": 482.375,
+              "chartCenterY": 497.37498474121094,
+              "tableCenterY": 497.375,
               "barLeft": -9155,
               "barRight": -8891,
               "expectedBarLeft": -9155,
@@ -2580,8 +2520,8 @@
             {
               "id": "t17",
               "row": 17,
-              "chartCenterY": 506.3749694824219,
-              "tableCenterY": 506.375,
+              "chartCenterY": 521.3749694824219,
+              "tableCenterY": 521.375,
               "barLeft": -9155,
               "barRight": -9035,
               "expectedBarLeft": -9155,
@@ -2590,8 +2530,8 @@
             {
               "id": "t18",
               "row": 18,
-              "chartCenterY": 530.3749694824219,
-              "tableCenterY": 530.375,
+              "chartCenterY": 545.3749694824219,
+              "tableCenterY": 545.375,
               "barLeft": -9155,
               "barRight": -9107,
               "expectedBarLeft": -9155,
@@ -2600,8 +2540,8 @@
             {
               "id": "t19",
               "row": 19,
-              "chartCenterY": 554.375,
-              "tableCenterY": 554.375,
+              "chartCenterY": 569.375,
+              "tableCenterY": 569.375,
               "barLeft": null,
               "barRight": null,
               "expectedBarLeft": null,
@@ -2610,8 +2550,8 @@
             {
               "id": "s2",
               "row": 20,
-              "chartCenterY": 578.3749694824219,
-              "tableCenterY": 578.375,
+              "chartCenterY": 593.3749694824219,
+              "tableCenterY": 593.375,
               "barLeft": -9155,
               "barRight": -8627,
               "expectedBarLeft": -9155,
@@ -2620,8 +2560,8 @@
             {
               "id": "t20",
               "row": 21,
-              "chartCenterY": 602.375,
-              "tableCenterY": 602.375,
+              "chartCenterY": 617.375,
+              "tableCenterY": 617.375,
               "barLeft": -9155,
               "barRight": -9035,
               "expectedBarLeft": -9155,
@@ -2630,8 +2570,8 @@
             {
               "id": "t21",
               "row": 22,
-              "chartCenterY": 626.375,
-              "tableCenterY": 626.375,
+              "chartCenterY": 641.375,
+              "tableCenterY": 641.375,
               "barLeft": -9155,
               "barRight": -9131,
               "expectedBarLeft": -9155,
@@ -2640,8 +2580,8 @@
             {
               "id": "t22",
               "row": 23,
-              "chartCenterY": 650.375,
-              "tableCenterY": 650.375,
+              "chartCenterY": 665.375,
+              "tableCenterY": 665.375,
               "barLeft": -9155,
               "barRight": -8915,
               "expectedBarLeft": -9155,
@@ -2650,8 +2590,8 @@
             {
               "id": "t23",
               "row": 24,
-              "chartCenterY": 674.375,
-              "tableCenterY": 674.375,
+              "chartCenterY": 689.375,
+              "tableCenterY": 689.375,
               "barLeft": -9155,
               "barRight": -9107,
               "expectedBarLeft": -9155,
@@ -2660,8 +2600,8 @@
             {
               "id": "t24",
               "row": 25,
-              "chartCenterY": 698.375,
-              "tableCenterY": 698.375,
+              "chartCenterY": 713.375,
+              "tableCenterY": 713.375,
               "barLeft": -9155,
               "barRight": -8915,
               "expectedBarLeft": -9155,
@@ -2670,8 +2610,8 @@
             {
               "id": "t25",
               "row": 26,
-              "chartCenterY": 722.375,
-              "tableCenterY": 722.375,
+              "chartCenterY": 737.375,
+              "tableCenterY": 737.375,
               "barLeft": -8939,
               "barRight": -8915,
               "expectedBarLeft": -8939,
@@ -2680,8 +2620,8 @@
             {
               "id": "t26",
               "row": 27,
-              "chartCenterY": 746.375,
-              "tableCenterY": 746.375,
+              "chartCenterY": 761.375,
+              "tableCenterY": 761.375,
               "barLeft": -8915,
               "barRight": -8891,
               "expectedBarLeft": -8915,
@@ -2690,8 +2630,8 @@
             {
               "id": "t27",
               "row": 28,
-              "chartCenterY": 770.375,
-              "tableCenterY": 770.375,
+              "chartCenterY": 785.375,
+              "tableCenterY": 785.375,
               "barLeft": -8963,
               "barRight": -8795,
               "expectedBarLeft": -8963,
@@ -2700,8 +2640,8 @@
             {
               "id": "t28",
               "row": 29,
-              "chartCenterY": 794.375,
-              "tableCenterY": 794.375,
+              "chartCenterY": 809.375,
+              "tableCenterY": 809.375,
               "barLeft": -9059,
               "barRight": -8939,
               "expectedBarLeft": -9059,
@@ -2710,26 +2650,16 @@
             {
               "id": "t29",
               "row": 30,
-              "chartCenterY": 818.375,
-              "tableCenterY": 818.375,
+              "chartCenterY": 833.375,
+              "tableCenterY": 833.375,
               "barLeft": -9131,
               "barRight": -8891,
               "expectedBarLeft": -9131,
               "expectedBarRight": -8891
-            },
-            {
-              "id": "t30",
-              "row": 31,
-              "chartCenterY": 842.375,
-              "tableCenterY": 842.375,
-              "barLeft": -8939,
-              "barRight": -8771,
-              "expectedBarLeft": -8939,
-              "expectedBarRight": -8771
             }
           ],
           "axisCoverage": {
-            "top": 86.375,
+            "top": 101.375,
             "bottom": 721.375,
             "left": 877,
             "right": 1261
@@ -2740,15 +2670,15 @@
           },
           "tickSpacingPx": 24,
           "axisLabels": {
-            "top": 66.375,
-            "bottom": 79.375
+            "top": 81.375,
+            "bottom": 94.375
           },
           "hitTest": {
-            "id": "t16",
-            "row": 16,
-            "clientY": 482.37498474121094,
-            "expectedContentY": 396,
-            "actualContentY": 395.99998474121094
+            "id": "t15",
+            "row": 15,
+            "clientY": 473.37498474121094,
+            "expectedContentY": 372,
+            "actualContentY": 371.99998474121094
           }
         },
         "verdict": {
@@ -2910,11 +2840,6 @@
               "id": "t29",
               "row": 30,
               "deltaPx": 0
-            },
-            {
-              "id": "t30",
-              "row": 31,
-              "deltaPx": 0
             }
           ],
           "pinned": true,
@@ -2936,23 +2861,23 @@
         "requestedScrollTop": 9999999,
         "requestedScrollLeft": 9999999,
         "probe": {
-          "scrollTop": 22909,
-          "viewScrollTop": 22909,
+          "scrollTop": 22924,
+          "viewScrollTop": 22924,
           "scrollLeft": 10238,
           "viewScrollLeft": 10238,
-          "paneTop": 86.375,
+          "paneTop": 101.375,
           "paneLeft": 891,
-          "paneHeight": 635,
+          "paneHeight": 620,
           "paneWidth": 374,
           "headerHeightChart": 28,
           "headerHeightTable": 28,
-          "tableBodyHeight": 635,
-          "svgTop": 58.375,
+          "tableBodyHeight": 620,
+          "svgTop": 73.375,
           "svgLeft": 891,
           "svgWidth": 374,
-          "svgHeight": 663,
+          "svgHeight": 648,
           "viewWidth": 374,
-          "viewHeight": 635,
+          "viewHeight": 620,
           "spacerHeight": 23544,
           "spacerWidth": 10612,
           "viewContentWidth": 10612,
@@ -2960,16 +2885,6 @@
           "rowHeight": 24,
           "tableRowHeight": 24,
           "samples": [
-            {
-              "id": "t920",
-              "row": 949,
-              "chartCenterY": -34.6240234375,
-              "tableCenterY": -34.625,
-              "barLeft": 469,
-              "barRight": 661,
-              "expectedBarLeft": 469,
-              "expectedBarRight": 661
-            },
             {
               "id": "t921",
               "row": 950,
@@ -3282,7 +3197,7 @@
             }
           ],
           "axisCoverage": {
-            "top": 86.375,
+            "top": 101.375,
             "bottom": 721.375,
             "left": 877,
             "right": 1261
@@ -3293,8 +3208,8 @@
           },
           "tickSpacingPx": 24,
           "axisLabels": {
-            "top": 66.375,
-            "bottom": 79.375
+            "top": 81.375,
+            "bottom": 94.375
           },
           "hitTest": {
             "id": "t935",
@@ -3309,11 +3224,6 @@
           "maxAbsRowDeltaPx": 0.001,
           "maxAbsBarXDeltaPx": 0,
           "rowDeltas": [
-            {
-              "id": "t920",
-              "row": 949,
-              "deltaPx": 0.001
-            },
             {
               "id": "t921",
               "row": 950,
