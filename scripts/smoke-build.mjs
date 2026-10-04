@@ -26,7 +26,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +34,8 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = join(repoRoot, 'apps', 'web', 'dist');
 const profileRoot = join(repoRoot, 'tmp', 'smoke-profile');
+/** 本轮用的配置目录（跑完删掉：`tmp/` 虽已 gitignore，但"只增不减"是运行卫生问题）。 */
+let currentProfileDir = null;
 
 const MIME = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -95,6 +97,7 @@ function findChrome() {
 /** 启动无头 Chrome 并等 DevTools 端口落盘。 */
 function launchChrome(executable) {
   const profileDir = join(profileRoot, String(Date.now()));
+  currentProfileDir = profileDir;
   const child = spawn(
     executable,
     [
@@ -249,4 +252,13 @@ try {
 } finally {
   chromeHandle?.child.kill();
   serverHandle?.server.close();
+  // 等 Chrome 放开配置目录再删（Windows 上占用中的目录删不掉，删不掉就算了——它已 gitignore）。
+  if (currentProfileDir !== null) {
+    await new Promise((settle) => setTimeout(settle, 500));
+    try {
+      rmSync(currentProfileDir, { recursive: true, force: true });
+    } catch {
+      // 忽略：留给下次运行覆盖
+    }
+  }
 }
