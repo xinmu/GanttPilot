@@ -233,6 +233,9 @@ pnpm gate           # lint → typecheck → test → build → license:check（
   ⇒ 按住拖不出线）：连接点已改为**跨在条端上**、尺寸 12 px、命中区 = 方块 + 外侧 4 px 容差
   （可用宽度 14 → 20 px），拖动期间不再显示。**提示：`pnpm dev` 前请先 `pnpm build`**
   （`render-core` 的 `dist` 曾停在上一轮构建，导致复验看到的是旧几何）。详见
+  第四次复验定位到**事件投递层**：`mousedown` 会启动浏览器文本选择（实测顺序 `mousedown → selectstart → mousemove`），
+  随后 `mousemove` 不再按窗格路径派发 ⇒ 只收到一次移动、拖不出线。已加 `preventDefault()`、
+  手势期 `mousemove` 挂 `window`、以及 `pointerdown` 的 `setPointerCapture`。详见
   [ADR 0008 §16.7](docs/02-adr/0008-列身份所有权与拖拽交互契约.md)。
   **已知限制不变**：拖动指针移出图表窗格时不做边缘自动滚动；拖动期的会话锚点不落盘。
 
