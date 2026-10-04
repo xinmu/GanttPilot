@@ -233,7 +233,14 @@ export function cellText(args: CellTextArgs): { readonly text: string; readonly 
           const from = args.document.tasks.find((item) => item.id === link.from);
           const lag =
             link.lagDays === 0 ? '' : link.lagDays > 0 ? `+${String(link.lagDays)}` : String(link.lagDays);
-          return `${from?.outlineNumber ?? link.from}${link.type === 'FS' ? '' : link.type}${lag}`;
+          /**
+           * **类型一律显示**（第五次人工复验的第 2 条：左表只显示 `1.3`、看不出关系）。
+           *
+           * 口径与 [ADR 0006](../../../docs/02-adr/0006-xlsx-协议契约.md) §2 第 6 行的导出形态
+           * `编号[FS|SS|FF|SF][±lag]` **同形**（只是不含方括号）⇒ 左表的值可以直接照抄回"前置任务"列，
+           * `parsePredecessors` 认这个形态。**不省 `FS`**：省掉之后"默认 FS"与"类型读丢了"在视觉上无法区分。
+           */
+          return `${from?.outlineNumber ?? link.from}${link.type}${lag}`;
         })
         .join('; ');
       return { text, derived: true };

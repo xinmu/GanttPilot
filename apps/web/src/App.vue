@@ -93,7 +93,13 @@ const gesture = useGesture({
   clearAnchors: project.clearAnchors,
   notify: (commit) => {
     if (commit.kind === 'rejected') {
-      show('error', `建线被拒绝：会形成环（${commit.cyclePath.join(' → ')}）——已高亮成环路径`);
+      // 两种预检拒绝的呈现不同：成环**高亮路径**；重复边**只提示**（它不改变图，高亮会误导）。
+      show(
+        'error',
+        commit.reason === 'duplicate'
+          ? '建线被拒绝：这条依赖已经存在（同类型、同 lag）——未重复插入'
+          : `建线被拒绝：会形成环（${commit.cyclePath.join(' → ')}）——已高亮成环路径`,
+      );
       return;
     }
     if (commit.code !== undefined) {
@@ -439,6 +445,17 @@ function updateHover(pointer: PointerInput): void {
   if (hoverX.value !== nextX) hoverX.value = nextX;
 }
 
+/**
+ * 建线期推进"指针所在行"（**只影响可见性**，不参与命中判定）。
+ *
+ * 与 `updateHover` 的差别只有一处：空闲时靠窗格的 `mousemove` 就够，而建线期必须**同时**在
+ * window 级推进——拖动期行的 `<g>` 会因为连接点显隐被重建，窗格路径的派发可能中断（见 `onWindowPointerMove`）。
+ */
+function advanceLinkHover(event: MouseEvent): void {
+  const pointer = pointerFromClientPoint(event.clientX, event.clientY, 1);
+  if (pointer !== null) updateHover(pointer);
+}
+
 /** 指针离开窗格：连接点立刻消失（不留"悬空的方块"）。 */
 function clearHover(): void {
   hoverTaskId.value = null;
@@ -446,7 +463,9 @@ function clearHover(): void {
 }
 /** 窗格 `mousemove` 的**唯一入口**（模板上只能有一个 `@mousemove`，否则 Vue 报重复属性）。 */
 function onChartMouseMove(event: MouseEvent): void {
-  if (gesture.state.value.kind === 'idle') onMouseMoveHint(event);
+  const kind = gesture.state.value.kind;
+  if (kind === 'idle') onMouseMoveHint(event);
+  else if (kind === 'linking') advanceLinkHover(event);
   onChartPointerMove(event);
 }
 
@@ -457,7 +476,10 @@ function onChartMouseMove(event: MouseEvent): void {
  * 绑在窗格路径上的派发可能随之中断；挂 `window` 不依赖任何行元素的生命周期。
  */
 function onWindowPointerMove(event: MouseEvent): void {
-  if (gesture.state.value.kind === 'idle') return;
+  const kind = gesture.state.value.kind;
+  if (kind === 'idle') return;
+  // 建线期也要推进"指针所在行"：可落点因此跟着指针走（第五次人工复验第 1 条）。
+  if (kind === 'linking') advanceLinkHover(event);
   onChartPointerMove(event);
 }
 
@@ -789,6 +811,7 @@ onUnmounted(() => {
             :drag-preview="dragPreview"
             :hover-task-id="hoverTaskId"
             :hover-x="hoverX"
+            :linking="gesture.state.value.kind === 'linking'"
           />
         </div>
       </div>

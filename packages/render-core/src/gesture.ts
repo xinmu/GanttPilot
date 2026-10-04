@@ -195,10 +195,11 @@ export type GestureState =
       readonly taskId: string;
     }
   | {
-      /** 建线被预检拒绝（成环）。 */
+      /** 建线被预检拒绝（成环 = `cycle`；重复边 = `duplicate`）。 */
       readonly kind: 'rejected';
       readonly fromTaskId: string;
       readonly toTaskId: string;
+      readonly reason: 'cycle' | 'duplicate';
     }
   | {
       /** 指针移出可判定区域（回调上一帧的候选仍然有效，但状态显式标记）。 */
@@ -222,7 +223,11 @@ export interface LinkPreview {
   readonly exitPoint: readonly [number, number];
   readonly enterPoint: readonly [number, number];
   readonly cyclic: boolean;
+  /** 该候选边**已经存在**（同 from/to/type/lag）⇒ 拖动期即标红、松手拒绝（§16.8）。 */
+  readonly duplicate: boolean;
   readonly cyclePath: readonly string[];
+  /** 预检拒绝的原因（`cyclic` 与 `duplicate` 的呈现不同：前者高亮成环路径，后者只提示重复）。 */
+  readonly reason: 'cycle' | 'duplicate' | null;
 }
 
 /** 一次手势状态推进的**全部产出**（调用方据此重算/提交/绘制）。 */
@@ -1098,6 +1103,8 @@ function updateForLink(
   }
 
   const cycle = wouldCreateCycle(args.document.links, candidate.link);
+  const rejected = cycle.cyclic || candidate.duplicate;
+  const reason: 'cycle' | 'duplicate' | null = cycle.cyclic ? 'cycle' : candidate.duplicate ? 'duplicate' : null;
   const preview: LinkPreview = {
     fromTaskId: state.fromTaskId,
     toTaskId: state.toTaskId,
@@ -1105,8 +1112,11 @@ function updateForLink(
     lagDays: candidate.link.lagDays,
     exitPoint: candidate.exitPoint,
     enterPoint: candidate.enterPoint,
-    cyclic: cycle.cyclic,
+    // 拖动期就用"警戒色"呈现两种拒绝（`cyclic` 在渲染层同时驱动成环路径的高亮）。
+    cyclic: rejected,
+    duplicate: candidate.duplicate,
     cyclePath: cycle.path,
+    reason,
   };
 
   if (!releasing) {
@@ -1123,10 +1133,10 @@ function updateForLink(
     };
   }
 
-  if (cycle.cyclic) {
+  if (rejected) {
     // 预检即拒绝（ADR 0008 §7）：不提交、只高亮成环路径。
     return {
-      state: { kind: 'rejected', fromTaskId: state.fromTaskId, toTaskId: state.toTaskId },
+      state: { kind: 'rejected', fromTaskId: state.fromTaskId, toTaskId: state.toTaskId, reason: reason ?? 'cycle' },
       gestureToken: null,
       anchors: [],
       commands: [],
@@ -1169,6 +1179,7 @@ function buildCandidateLink(args: {
   readonly exitSide: 'left' | 'right';
 }): {
   readonly link: DocumentLink;
+  readonly duplicate: boolean;
   readonly exitPoint: readonly [number, number];
   readonly enterPoint: readonly [number, number];
 } | null {
@@ -1191,15 +1202,27 @@ function buildCandidateLink(args: {
   });
   const type = linkTypeFor(args.exitSide, decideEnterSide);
   const enterSide = routeSides(type).enter;
+  const lagDays = 0;
+  /**
+   * **重复边**（第五次人工复验的第 3 条）：同 `from`/`to`/`type`/`lagDays` 的边已存在 ⇒ 拒绝建线。
+   *
+   * 为什么放在这里而不是只在松手时查：拖动期就该**看得见**（预览标红），否则用户会先看到一条
+   * 像模像样的预览、以为能连，松手却什么都没发生（等于"静默失败"——本仓库明确否掉的降级方案）。
+   * 与 `wouldCreateCycle` 的关系：两者都是**预检拒绝**，但"重复"不是环（既不改变图，也不该高亮路径）。
+   */
+  const duplicate = args.document.links.some(
+    (link) => link.from === args.fromTaskId && link.to === args.toTaskId && link.type === type && link.lagDays === lagDays,
+  );
   const link: DocumentLink = {
     id: suggestLinkIdFor(args.document, args.fromTaskId, args.toTaskId, type),
     from: args.fromTaskId,
     to: args.toTaskId,
     type,
-    lagDays: 0,
+    lagDays,
   };
   return {
     link,
+    duplicate,
     exitPoint: [exitXFor(from, args.exitSide), from.y],
     enterPoint: [enterXFor(to, enterSide), to.y],
   };

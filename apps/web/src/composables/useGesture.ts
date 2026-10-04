@@ -44,6 +44,8 @@ export interface GestureCommit {
   readonly code?: string;
   readonly message?: string;
   readonly cyclePath: readonly string[];
+  /** 仅 `rejected` 有值：`cycle` = 成环（已高亮路径）；`duplicate` = 该依赖已存在（不改变图）。 */
+  readonly reason?: 'cycle' | 'duplicate';
 }
 
 /** `useGesture` 的入参。 */
@@ -178,8 +180,9 @@ export function useGesture(args: UseGestureArgs): UseGesture {
         cyclePath: [],
       });
     }
-    if (update.state.kind === 'rejected' && update.cyclePath.length > 0) {
-      args.notify?.({ kind: 'rejected', cyclePath: update.cyclePath });
+    // 两种预检拒绝都要报（成环**有路径**、重复边**没有路径**，因此判据不能只看 `cyclePath.length`）。
+    if (update.state.kind === 'rejected') {
+      args.notify?.({ kind: 'rejected', cyclePath: update.cyclePath, reason: update.state.reason });
     }
   }
 

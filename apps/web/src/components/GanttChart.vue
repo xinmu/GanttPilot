@@ -81,6 +81,13 @@ const props = withDefaults(
     readonly hoverTaskId?: string | null;
     /** 指针的内容坐标 x（用于判断是否"靠近条端"）；`null` = 无指针。 */
     readonly hoverX?: number | null;
+    /**
+     * 是否正在**建线**（`GestureState.kind === 'linking'`）。
+     *
+     * 建线期间：① `hoverTaskId` 会跟着指针走（拖到哪一行、哪一行就显形），
+     * 于是"可落点"在全图上**可见**（第五次人工复验的第 1 条：拖动时其他条体的连接点不显示）。
+     */
+    readonly linking?: boolean;
   }>(),
   {
     cyclePath: () => [],
@@ -91,6 +98,7 @@ const props = withDefaults(
     dragPreview: null,
     hoverTaskId: null,
     hoverX: null,
+    linking: false,
   },
 );
 type Edge = ViewModel['edges'][number];
@@ -258,12 +266,19 @@ const drawnRows = computed(() =>
         // 连接点**只在指针靠近该行条端时**发射（P-32 复验第 3.2 条：常显会画面杂乱）。
         // 手柄恒显（它是"可拖动区域"的暗示，且只占 2×4 px 的短竖线）。
         // 只有"指针就在这一行"时才继续判断"是否靠近条端"（`hoverX` 在两行之间漂移不会误显）。
-        // **拖动/建线期间一律不显示**：那时行画的是"结果几何"（§14），连接点会变成幽灵方块。
+        /**
+         * 连接点显形规则（第五次人工复验第 1 条的订正）：
+         *
+         * - **拖动（`dragPreview` 非空）**：一律不显示。那时行画的是"结果几何"（§14），
+         *   显示连接点会变成幽灵方块；
+         * - **建线（`linking`）**：指针所在的**任意一行**都显示 ⇒ "可落点"在全图上可见
+         *   （旧规则要求"指针靠近该行条端"，于是拖到别的条上时那一行什么都不显示）；
+         * - **空闲**：只有"指针在该行且靠近条端"时才显示（避免满屏白框）。
+         */
         connectVisible:
           props.dragPreview === null &&
           props.hoverTaskId === row.id &&
-          props.hoverX !== null &&
-          rowConnectVisibleAt(row, props.hoverX, true),
+          (props.linking || (props.hoverX !== null && rowConnectVisibleAt(row, props.hoverX, true))),
       })),
 );
 </script>

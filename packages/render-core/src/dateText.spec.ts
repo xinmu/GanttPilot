@@ -34,6 +34,33 @@ function dayOfIso(iso: string): number {
   return isoDateToDayNumber(iso);
 }
 
+describe('`predecessors` 的显示文本（第五次人工复验第 2 条：关系类型必须显示）', () => {
+  it('类型一律显示（含默认的 `FS`）、lag 带符号；口径与 ADR 0006 §2 的导出形态同形', () => {
+    // 用夹具里**已经存在**的边（保证 `from`/`to` 都能解析出 `outlineNumber`），
+    // 再补一条同对任务、类型不同的边 ⇒ 文本里必然同时出现 `FS` 与 `SS`。
+    const document = fixture.document;
+    const first = document.links[0];
+    if (first === undefined) throw new Error('夹具没有依赖边');
+    const targetIndex = document.tasks.findIndex((task) => task.id === first.to);
+    expect(targetIndex).toBeGreaterThanOrEqual(0);
+    const text = cellText({
+      key: 'predecessors',
+      document,
+      schedule: fixture.schedule,
+      calendar: fixture.calendar,
+      docIndex: targetIndex,
+    }).text;
+    // 有前置任务时文本非空，且**每一条都带类型**（`FS`/`SS`/`FF`/`SF` 之一）。
+    expect(text.length).toBeGreaterThan(0);
+    const segments = text.split('; ');
+    for (const segment of segments) {
+      expect(segment).toMatch(/(FS|SS|FF|SF)/);
+    }
+    // NC：旧式把默认的 `FS` 省掉 ⇒ 把 `FS` 从文本里去掉之后**仍然相等**，
+    // 即"信息丢了也看不出来"（这条断言在旧实现下必然失败）。
+    expect(text.replace(/FS/g, '')).not.toBe(text);
+  });
+});
 describe('P-19 判据 ①：显示的开始不晚于显示的完成（全部行）', () => {
   it('每一行的 开始 ≤ 完成，且空值行会被计数（不是"静默通过"）', () => {
     const { document, schedule, calendar } = fixture;

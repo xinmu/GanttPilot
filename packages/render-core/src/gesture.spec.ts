@@ -45,7 +45,7 @@ import {
 import { highlightForCyclePath } from './highlight.js';
 import { taskBounds, type TaskBounds } from './domain.js';
 import { CONNECT_SIZE_PX } from './interaction.js';
-import { zonesFor } from './zones.js';
+import { linkTypeFor, zonesFor } from './zones.js';
 
 const fixture = buildFixture(DATASETS[2]); // dense：1,000 任务 / 1,500 依赖
 const viewport: Viewport = {
@@ -583,6 +583,107 @@ describe('建线与检环（ADR 0008 §7）', () => {
     expect(fixture.document.links.some((link) => link.id === dropped.link?.id)).toBe(false);
   });
 
+  it('**重复边被拒绝**（第五次复验的第 3 条）：同 from/to/type/lag 已存在 ⇒ 拖动期预览标红、松手不重复插入', () => {
+    /**
+     * 挑一条"**能被同一手势复现**"的已存在边：入端侧由目标相对位置决定（§16.3），
+     * 出端侧由我抓的连接点决定 ⇒ 只有"出端侧与入端侧都由相对位置唯一确定"的边才保证复现
+     * （挑 `FF` 时目标在左、入端是右缘，就不是同一条边了）。这是**前提自证**，不是静默跳过。
+     */
+    const candidates = fixture.document.links.filter((link) => {
+      const a = fixture.document.tasks.findIndex((task) => task.id === link.from);
+      const b = fixture.document.tasks.findIndex((task) => task.id === link.to);
+      const fromRow = tallView.rowOfDocIndex[a] ?? -1;
+      const toRow = tallView.rowOfDocIndex[b] ?? -1;
+      // **必须落在渲染窗口内**（`resolvePointerTarget` 只认 `[renderFirst, renderLast]`）：
+      // 只判 `rowOfDocIndex >= 0` 会把"可见但未渲染"的行也算进来（夹具里 `t856` 就是这样，
+      // 悬停到它时目标解析为 null ⇒ 没有预览 ⇒ 判据假红）。
+      if (fromRow < tallView.renderFirst || fromRow > tallView.renderLast) return false;
+      if (toRow < tallView.renderFirst || toRow > tallView.renderLast) return false;
+      if (tallView.rows.find((row) => row.row === fromRow)?.kind === 'summary') return false;
+      const fromBounds = taskBounds({
+        document: fixture.document,
+        schedule: fixture.schedule,
+        calendar: fixture.calendar,
+        rowOfDocIndex: tallView.rowOfDocIndex,
+        axisOriginDay: tallView.axisOriginDay,
+        pxPerDay: tallView.pxPerDay,
+        rowHeight: tallView.rowHeight,
+        docIndex: a,
+      });
+      const toBounds = taskBounds({
+        document: fixture.document,
+        schedule: fixture.schedule,
+        calendar: fixture.calendar,
+        rowOfDocIndex: tallView.rowOfDocIndex,
+        axisOriginDay: tallView.axisOriginDay,
+        pxPerDay: tallView.pxPerDay,
+        rowHeight: tallView.rowHeight,
+        docIndex: b,
+      });
+      if (fromBounds === null || toBounds === null) return false;
+      // 入端侧：目标在出端右侧 ⇒ 左入（`FS`/`SS`）；否则右入（`FF`/`SF`）。
+      const enter = toBounds.xLeft >= fromBounds.xLeft ? 'left' : 'right';
+      const exit = enter === 'left' ? 'right' : 'left';
+      // 手势产出的边**恒为 lag 0**（§16.3）⇒ 只有 lag 0 的边才可能被判"重复"。
+      return link.lagDays === 0 && linkTypeFor(exit, enter) === link.type;
+    });
+    if (candidates.length === 0) {
+      // 前提自证失败要**看得见**（不是静默跳过）：打出窗口内的边类型分布，便于定位夹具变化。
+      const visibleTypes = fixture.document.links
+        .filter((link) => {
+          const a = fixture.document.tasks.findIndex((task) => task.id === link.from);
+          const b = fixture.document.tasks.findIndex((task) => task.id === link.to);
+          return (tallView.rowOfDocIndex[a] ?? -1) >= 0 && (tallView.rowOfDocIndex[b] ?? -1) >= 0;
+        })
+        .map((link) => `${link.from}->${link.to}:${link.type}`);
+      expect(visibleTypes.slice(0, 12)).toStrictEqual([]);
+      return;
+    }
+    const existing = candidates[0];
+    if (existing === undefined) return;
+
+    const fromRow = tallView.rowOfDocIndex[fixture.document.tasks.findIndex((task) => task.id === existing.from)] ?? -1;
+    const toRow = tallView.rowOfDocIndex[fixture.document.tasks.findIndex((task) => task.id === existing.to)] ?? -1;
+    const fromBounds = boundsIn(tallView, fromRow);
+    const toBounds = boundsIn(tallView, toRow);
+    // 出端侧由"该边本身"反推（与上面同一式）。
+    const exitSide: 'left' | 'right' = toBounds.xLeft >= fromBounds.xLeft ? 'right' : 'left';
+    expect(linkTypeFor(exitSide, toBounds.xLeft >= fromBounds.xLeft ? 'left' : 'right')).toBe(existing.type);
+
+    const started = beginGesture({
+      ...dragArgsFor(tallView),
+      pointer: { x: connectPointXFor(fromBounds, exitSide), y: rowCenterY(fromRow), buttons: 1 },
+      anchorMode: 'snap',
+      entryPoint: { taskId: existing.from, exitSide },
+    });
+    expect(started.state.kind).toBe('linking');
+    const hovered = reduceGesture({
+      ...dragArgsFor(tallView),
+      pointer: { x: (toBounds.xLeft + toBounds.xRight) / 2, y: rowCenterY(toRow), buttons: 1 },
+      anchorMode: 'snap',
+      state: started.state,
+    });
+    // 拖动期就看得见"这条不能建"：预览存在、类型一致、被标记为拒绝。
+    expect(hovered.preview).not.toBeNull();
+    expect(hovered.preview?.type).toBe(existing.type);
+    expect(hovered.preview?.duplicate).toBe(true);
+    expect(hovered.preview?.cyclic).toBe(true);
+
+    const dropped = reduceGesture({
+      ...dragArgsFor(tallView),
+      pointer: { x: 0, y: 0, buttons: 0 },
+      anchorMode: 'snap',
+      state: hovered.state,
+    });
+    // **不产出任何 `link.insert`**（否则"前置任务"会出现 `1.3; 1.3; 1.3`）。
+    expect(dropped.link).toBeNull();
+    expect(dropped.commands).toStrictEqual([]);
+    expect(dropped.state.kind).toBe('rejected');
+    if (dropped.state.kind !== 'rejected') return;
+    expect(dropped.state.reason).toBe('duplicate');
+    // 重复**不是环**：不产出成环路径（用它高亮会误导）。
+    expect(dropped.cyclePath).toStrictEqual([]);
+  });
   it('成环建线被**拒绝**，并带回环路径（首尾同一 id）+ 高亮覆盖回路', () => {
     const existing = fixture.document.links.find((link) => {
       const fromIndex = fixture.document.tasks.findIndex((task) => task.id === link.from);
