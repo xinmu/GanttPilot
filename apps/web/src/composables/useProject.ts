@@ -23,6 +23,7 @@ import {
   createSession,
   DATASETS,
   generateDocument,
+  noticeAfterDispatch,
   PRIMARY_DATASET_KEY,
   reindexDocument,
   redoSession,
@@ -36,6 +37,7 @@ import {
   type ScheduleDiagnostic,
   type ScheduleResult,
   type SessionAnchor,
+  type StatusNotice,
 } from '@ganttpilot/render-core';
 import { compute, type Calendar } from '@ganttpilot/engine';
 
@@ -78,7 +80,19 @@ export interface UseProject {
   } | null>;
   readonly documentDiagnostics: ComputedRef<readonly DocumentDiagnostic[]>;
   readonly scheduleDiagnostics: ComputedRef<readonly ScheduleDiagnostic[]>;
+  /** 最近一次命令失败的**原始记录**（`code` + `message`）；呈现见 `notice`，成功即一起清。 */
   readonly lastFailure: Ref<{ readonly code: string; readonly message: string } | null>;
+  /**
+   * **状态栏提示条**（`info` 呈报 / `error` 失败）。
+   *
+   * 它的迁移**只在本文件的 `commit()` 里发生**（`noticeAfterDispatch`，进 `pnpm gate`）——
+   * 于是"成功且真的改了 ⇒ 清掉失败提示"对**每一条命令通道**都成立：行内编辑 / 折叠 /
+   * **拖动与建线的松手提交**（手势自己的 `dispatch` 回调）/ 导入 / 撤销 / 重做。
+   * 裁决 P-30 定的规则 + P-31 的落点修正：`apps/web` 的任何调用点都**不再自己碰它**。
+   */
+  readonly notice: Ref<StatusNotice | null>;
+  /** 直接呈报（**非命令**消息：导入进度与结果、手势被拒绝、重置提示、测量钩子报错）。 */
+  setNotice: (notice: StatusNotice | null) => void;
   /**
    * 会话内锚点（G5 的拖拽跟手位置，ADR 0004 §2 / ADR 0008 §6）。
    *
@@ -105,6 +119,7 @@ export function useProject(initial?: ProjectDocument): UseProject {
   const documentRef = shallowRef<ProjectDocument>(markRaw(initial ?? createDemoDocument()));
   const sessionRef = shallowRef<DocumentSession>(markRaw(createSession(documentRef.value)));
   const lastFailure = ref<{ code: string; message: string } | null>(null);
+  const notice = ref<StatusNotice | null>(null);
   const anchors = shallowRef<readonly SessionAnchor[]>([]);
 
   const calendar = computed<Calendar>(() => markRaw(createScheduleCalendar(documentRef.value)));
@@ -114,16 +129,28 @@ export function useProject(initial?: ProjectDocument): UseProject {
   );
 
   function commit(result: ReturnType<typeof applyToSession>, touchedTaskIds: readonly string[]): DispatchResult {
+    const outcome: DispatchResult = result.ok
+      ? { ok: true, changed: result.changed, touchedTaskIds }
+      : { ok: false, changed: false, code: result.code, message: result.message, touchedTaskIds };
+    /**
+     * **提示条随命令通道走**（P-30 的规则 + P-31 的落点修正）。
+     *
+     * 放在这里而不是 `App.vue` 的 `applyCommandResult`：**所有**命令都经过本函数——行内编辑、折叠、
+     * **拖动/建线的松手提交**（`useGesture` 直接调 `dispatch`）、导入、撤销、重做。
+     * P-30 第一版把规则放在 `App.vue`，而拖动提交走的是手势自己的回调，于是那条路径漏掉了
+     * （维护者的报文实测：拖动后"没有可撤销的步骤"仍挂着）。
+     */
+    notice.value = noticeAfterDispatch(notice.value, outcome);
     if (!result.ok) {
       lastFailure.value = { code: result.code, message: result.message };
-      return { ok: false, changed: false, code: result.code, message: result.message, touchedTaskIds };
+      return outcome;
     }
     lastFailure.value = null;
     if (result.changed) {
       sessionRef.value = markRaw(result.session);
       documentRef.value = markRaw(result.session.document);
     }
-    return { ok: true, changed: result.changed, touchedTaskIds };
+    return outcome;
   }
 
   function dispatch(command: DocumentCommand): DispatchResult {
@@ -151,6 +178,10 @@ export function useProject(initial?: ProjectDocument): UseProject {
     documentDiagnostics: computed<readonly DocumentDiagnostic[]>(() => validateDocument(documentRef.value)),
     scheduleDiagnostics: computed<readonly ScheduleDiagnostic[]>(() => scheduleDiagnosticsOf(scheduleResult.value)),
     lastFailure,
+    notice,
+    setNotice: (next: StatusNotice | null) => {
+      notice.value = next;
+    },
     anchors,
     dispatch,
     setAnchors: (next: readonly SessionAnchor[]) => {
@@ -168,6 +199,8 @@ export function useProject(initial?: ProjectDocument): UseProject {
       documentRef.value = value;
       sessionRef.value = markRaw(createSession(value));
       lastFailure.value = null;
+      // 整份换文档 ⇒ 旧提示讲的是**上一份文档**上的尝试，一并作废（新会话的栈本来就是空的）。
+      notice.value = null;
       // 锚点不属于文档：重置时一并清空，避免"锚在一个已经不存在的任务上"。
       anchors.value = [];
     },

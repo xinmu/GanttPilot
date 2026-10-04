@@ -69,6 +69,8 @@ const {
   documentDiagnostics,
   scheduleDiagnostics,
   anchors,
+  notice,
+  setNotice,
 } = project;
 
 /**
@@ -101,7 +103,6 @@ const {
   highlight,
   preview,
 } = gesture;
-const notice = ref<{ readonly level: 'info' | 'error'; readonly text: string } | null>(null);
 
 /**
  * 左表可见性。
@@ -181,15 +182,17 @@ const cycleLabels = computed(() =>
 );
 
 function show(level: 'info' | 'error', text: string): void {
-  notice.value = { level, text };
+  setNotice({ level, text });
 }
 
-/** 命令派发：成功且真的改了，就把"受影响行 + 受影响边"标出来（ADR 0007 §8）。 */
+/**
+ * 命令派发：成功且真的改了，就把"受影响行 + 受影响边"标出来（ADR 0007 §8）。
+ *
+ * **提示条不在这里管**：它由 `useProject()` 的 `commit()` 统一迁移（`noticeAfterDispatch`，裁决 P-30 / P-31）——
+ * 那样连手势自己的回调（拖动与建线的松手提交）也跑不掉；本层只负责渲染。
+ */
 function applyCommandResult(result: DispatchResult): void {
-  if (!result.ok) {
-    show('error', `命令被拒绝：${result.code ?? '未知'} —— ${result.message ?? ''}`);
-    return;
-  }
+  if (!result.ok) return;
   if (!result.changed) return; // 无操作（恒等 patch）不压撤销栈，也不需要重绘
   chart.markEdited(result.touchedTaskIds);
 }
@@ -534,7 +537,6 @@ onUnmounted(() => {
         :document="document"
         :schedule="schedule"
         :calendar="calendar"
-        :revision="revision"
         :scroll-top="scrollTop"
         :column-height="columnHeight"
         :content-height="contentHeight"

@@ -9,7 +9,9 @@
  *   由 `edit.ts` 的纯函数 `editToCommand` 映射成 `task.update` —— 值到命令的映射只有一处；
  * - **不整表重建**：本组件只渲染"渲染窗口内的行"，`key` 用任务 id，
  *   编辑一个单元格不会重建整张表（折叠/展开才会改变可见行集合，那是必要的重算）；
- * - `wbs` / `predecessors` 只读（前者是派生值，后者改边归 G5 的建线）。
+ * - `wbs` / `predecessors` 只读（前者是派生值，后者改边归 G5 的建线）；
+ * - **编辑态只在"该任务该列的原始值真的变了"时才结束**（P-21 批次 C 的 R5：判据 `isEditStale`
+ *   在 `render-core`、进 `pnpm gate`）——别的任务、别的列变化不再关掉输入框（原先 `watch(revision)` 会）。
  *
  * ## 滚动模型与两栏对齐（ADR 0007 §4/§14）
  *
@@ -28,6 +30,8 @@ import { computed, ref, watch } from 'vue';
 import {
   cellText,
   HEADER_HEIGHT_PX,
+  isEditStale,
+  rawCellText,
   TABLE_COLUMNS,
   type ColumnKey,
   type ProjectDocument,
@@ -42,7 +46,6 @@ const props = defineProps<{
   readonly schedule: Schedule | null;
   /** **与图表同一个日历**（`createScheduleCalendar(document)`）——左表日期与图表同源的唯一前提（P-19）。 */
   readonly calendar: Calendar;
-  readonly revision: number;
   readonly scrollTop: number;
   /** **整列外高** = 表头带 + 表体（= 图表列的外高；由 `useChart.columnHeight` 给出）。 */
   readonly columnHeight: number;
@@ -102,29 +105,6 @@ function displayOf(docIndex: number, column: ColumnKey): { text: string; derived
   });
 }
 
-function rawOf(docIndex: number, column: ColumnKey): string {
-  const task = props.document.tasks[docIndex];
-  if (task === undefined) return '';
-  switch (column) {
-    case 'name':
-      return task.name;
-    case 'start':
-      return task.startDate ?? '';
-    case 'end':
-      return task.endDate ?? '';
-    case 'duration':
-      return task.durationDays === null ? '' : String(task.durationDays);
-    case 'progress':
-      return task.progress === null ? '' : String(task.progress);
-    case 'milestone':
-      return task.milestone ? '是' : '否';
-    case 'notes':
-      return task.notes ?? '';
-    default:
-      return '';
-  }
-}
-
 function isEditing(taskId: string, column: ColumnKey): boolean {
   return editing.value !== null && editing.value.taskId === taskId && editing.value.column === column;
 }
@@ -134,7 +114,8 @@ function beginEdit(docIndex: number, column: ColumnKey, editable: boolean): void
   const task = props.document.tasks[docIndex];
   if (task === undefined) return;
   editing.value = { taskId: task.id, column };
-  draft.value = rawOf(docIndex, column);
+  // 草稿种子 = 原始字段文本（`rawCellText`，与陈旧判据同源；显示值可能带 `≈`，不能当种子）。
+  draft.value = rawCellText({ document: props.document, taskId: task.id, column }) ?? '';
 }
 
 function cancelEdit(): void {
@@ -150,10 +131,20 @@ function commitEdit(): void {
   emit('cellEdit', { taskId: state.taskId, column: state.column, text });
 }
 
-/** 文档变化（编辑成功/撤销）后结束编辑态，避免对着旧文本继续编辑。 */
+/**
+ * 文档变化后**按值**决定是否结束编辑态（P-21 批次 C 的 R5，取代原先"任何版本变化都取消"）。
+ *
+ * 判据在 `render-core`（`isEditStale`，进 `pnpm gate`）：只有"**该任务该列**的原始值真的变了"
+ * （或任务消失）才关掉输入框——别的任务被拖动、别的列被改，草稿都留着
+ * （ADR 0008 §10 的"编辑态优先"由此在事实上成立）。行被折叠隐藏或滚出渲染窗口**不算**变化。
+ */
 watch(
-  () => props.revision,
-  () => cancelEdit(),
+  () => props.document,
+  (after, before) => {
+    const state = editing.value;
+    if (state === null) return;
+    if (isEditStale({ before, after, taskId: state.taskId, column: state.column })) cancelEdit();
+  },
 );
 
 function requestToggle(taskId: string): void {
