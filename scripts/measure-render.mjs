@@ -23,6 +23,8 @@
  * 用法：
  *   node scripts/measure-render.mjs                  # 主口径（dense·日档）+ 2,200 边对照
  *   node scripts/measure-render.mjs --zoom=week      # 只测某档位
+ *   node scripts/measure-render.mjs --align          # G5 批次 D：两栏行对齐（左表在场；记录制）
+ *   node scripts/measure-render.mjs --align=<label>  # 同上，证据文件名加后缀（诊断/复测各留一份）
  *   GANTTPILOT_CHROME=<path> node scripts/measure-render.mjs
  */
 
@@ -60,6 +62,10 @@ function parseArgs(argv) {
      * （`--import=<path>`；裁决 P-21 遗留 3 / P-22 的收口动作）。
      */
     importPath: null,
+    /** G5 批次 D：两栏行对齐的**诊断/复测**（记录制），写 `chart-align[-<label>]-chrome<大版本>.md`。 */
+    align: false,
+    /** `--align=<label>`：证据文件名后缀（诊断与复测互不覆盖）。 */
+    alignLabel: '',
   };
   for (const arg of argv) {
     if (arg.startsWith('--zoom=')) {
@@ -79,6 +85,11 @@ function parseArgs(argv) {
       options.dragFrames = Number(arg.slice('--drag-frames='.length)) || options.dragFrames;
     } else if (arg.startsWith('--import=')) {
       options.importPath = arg.slice('--import='.length);
+    } else if (arg === '--align' || arg.startsWith('--align=')) {
+      // G5 批次 D：诊断与复测各留一份证据 ⇒ `--align=<label>` 只影响输出文件名。
+      options.align = true;
+      const label = arg.slice('--align'.length).replace(/^=/, '');
+      if (label !== '') options.alignLabel = label;
     }
   }
   return options;
@@ -384,6 +395,14 @@ function renderEvidence({ env, runs, options }) {
   lines.push(`- **元素预算**：${budgetInAll ? '**全部在 `c₁·rows + c₂·edges + c₃` 之内**' : '**有超预算项**'}；`);
   lines.push(`- **零空白行**：${blankOk ? '**成立**' : '**出现空白行**'}；`);
   lines.push(`- **主线程 p95 ≤ 16.7 ms**（记录制候选）：${frameOk ? '**成立**' : '**超出**'}。`);
+  const collectErrors = runs.flatMap((run) =>
+    (run.result?.errors ?? []).map((error) => `${run.dataset}/${run.zoom}：${String(error)}`),
+  );
+  if (collectErrors.length > 0) {
+    lines.push('');
+    lines.push('**页面内报错 / 判据失败**：');
+    for (const error of collectErrors) lines.push(`- ${String(error)}`);
+  }
   lines.push('');
   lines.push(`> 生成参数：${JSON.stringify(options)}`);
   lines.push('');
@@ -397,7 +416,7 @@ function renderDragEvidence({ env, result, options }) {
   const gapP50 = Number(result?.frameGapP50Ms ?? 0);
   const gapP95 = Number(result?.frameGapP95Ms ?? 0);
   const releaseMs = Number(result?.releaseMs ?? 0);
-  const followObserved = Number(result?.observedWidthChanges ?? 0) > 0;
+  const followObserved = Number(result?.observedGeometryChanges ?? 0) > 0;
   const anchorsCleared = Number(result?.anchorsAfterRelease ?? -1) === 0;
   const fpsOk = gapP95 > 0 && gapP95 <= 1000 / 30;
   const releaseOk = releaseMs > 0 && releaseMs <= 200;
@@ -431,7 +450,26 @@ function renderDragEvidence({ env, result, options }) {
   lines.push(`- **位移** = 抓取点取条体**第一个工作日格的中点**，逐帧移到「该格 + offset」个工作日；`);
   lines.push('  因此"拖 N 个工作日"是一个**线性**位移（基准是拖动前的开始序号，不是拖动期视图里跟着动的 `es`）。');
   lines.push('');
-  lines.push('## 结果');
+  lines.push('## 两个滚动状态各一次（P-25）');
+  lines.push('');
+  lines.push('| 滚动位置 (top,left) | 目标任务 | 松手后锚点 | 期望 `startDate` | 实际 `startDate` | 判定 |');
+  lines.push('|---|---|---|---|---|---|');
+  for (const run of result?.runs ?? []) {
+    const item = run.result ?? {};
+    const expected = item.expectedStartAfter ?? null;
+    const actual = item.documentStartAfter ?? null;
+    const moved = actual !== null && expected !== null && actual === expected;
+    const anchored = Number(item.anchorsAfterRelease ?? -1) === 0;
+    lines.push(
+      `| (${String(run.scrollTop)}, ${String(run.scrollLeft)}) | \`${String(item.taskId ?? '')}\` | ${anchored ? '0（已清）' : String(item.anchorsAfterRelease ?? '-')} | ${String(expected ?? '—')} | ${String(actual ?? '—')} | ${moved ? '✅' : '❌'} |`,
+    );
+  }
+  lines.push('');
+  lines.push('> **滚动状态是 P-25 新增的判据**：R13（命中反算多加一次 `scrollTop`）会让"按下后根本没进拖动"；');
+  lines.push('> R14（`dayAtX` 多加一次 `scrollLeft`）会让候选整体偏 `scrollLeft / pxPerDay` 天（600 px ⇒ 偏 25 个自然日）。');
+  lines.push('> `(0,0)` 那一行在两处缺陷下**都是绿的**——只跑首屏的判据证明不了这一半。');
+  lines.push('');
+  lines.push('## 结果（两次运行取最差 / 并集）');
   lines.push('');
   lines.push('| 量 | 值 | 判据 | 判定 |');
   lines.push('|---|---|---|---|');
@@ -440,7 +478,7 @@ function renderDragEvidence({ env, result, options }) {
   lines.push(`| 帧间隔 p50 | ${gapP50.toFixed(1)} ms | 记录 | — |`);
   lines.push(`| 帧间隔 p95 | ${gapP95.toFixed(1)} ms | ≥30 fps ⇒ ≤ 33.3 ms | ${fpsOk ? '✅' : '⚠️'} |`);
   lines.push(`| 松手 → 重算 + 冲突标记 | ${releaseMs.toFixed(1)} ms | ≤ 200 ms（IX-04） | ${releaseOk ? '✅' : '⚠️'} |`);
-  lines.push(`| 拖动期 DOM 变化帧数 | ${String(result?.observedWidthChanges ?? 0)} / ${String(result?.frames ?? 0)} | > 0（下游跟随） | ${followObserved ? '✅' : '❌'} |`);
+  lines.push(`| 拖动期 DOM 变化帧数 | ${String(result?.observedGeometryChanges ?? 0)} / ${String(result?.frames ?? 0)} | > 0（下游跟随） | ${followObserved ? '✅' : '❌'} |`);
   lines.push(`| longtask 条目 | ${String(result?.longTasks ?? 0)} | 记录 | — |`);
   lines.push(`| 松手后锚点数 | ${String(result?.anchorsAfterRelease ?? '-')} | = 0（锚点不进文档、松手即清） | ${anchorsCleared ? '✅' : '❌'} |`);
   lines.push(`| 拖动前开始序号 | ${String(result?.anchorOrdinal ?? '—')} | 记录（位移的绝对基准） | — |`);
@@ -534,8 +572,8 @@ async function importSample(cdp, origin, filePath) {
       footer: document.querySelector('footer.status')?.textContent ?? '',
       diagnostics: items,
       unschedulable: document.querySelector('.unschedulable') !== null,
-      chartRows: document.querySelectorAll('#chart-pane .rows > g').length,
-      chartEdges: document.querySelectorAll('#chart-pane .edges > g').length,
+      chartRows: document.querySelectorAll('.chart-pane-wrap .rows > g, #chart-pane .rows > g').length,
+      chartEdges: document.querySelectorAll('.chart-pane-wrap .edges > g, #chart-pane .edges > g').length,
     };
   })()`);
 
@@ -633,6 +671,190 @@ function renderImportEvidence({ env, result }) {
   return lines.join('\n');
 }
 
+// ---------------------------------------------------------------- G5 批次 D：两栏行对齐（记录制，ADR 0007 §14 / 裁决 P-23）
+
+/**
+ * 探测用的滚动位置：**必须含 0 与"尽量大"**。
+ *
+ * P-22 遗留 1 的两条硬要求：① 双重偏移在 `scrollTop = 0` 处恒为 0（机制不可见）；
+ * ② 最末那个大值由浏览器夹到 `maxScroll` ⇒"最末行能不能滚进绘制区"（"下方空白"）也在被测范围内。
+ */
+const ALIGN_POSITIONS = [
+  { top: 0, left: 0 },
+  { top: 120, left: 0 },
+  { top: 480, left: 600 },
+  { top: 9_999_999, left: 0 },
+  { top: 0, left: 9_999_999 },
+  { top: 9_999_999, left: 9_999_999 },
+];
+
+/** 数字格式化（证据表用；`null`/`undefined` 显示 `—`）。 */
+function num(value, digits = 2) {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : '—';
+}
+
+/**
+ * 对齐探测：**左表必须在场**（不带 `?table=0`），因此这里不改 `measureOne` 的 URL 口径。
+ *
+ * 与 `--drag` / `--import` 的分层相同：**判读逻辑**在 `packages/render-core/src/align.ts`
+ * （`align.spec.ts` 进 `pnpm gate`），本函数只负责驱动页面、取回数字。
+ */
+async function alignProbe(cdp, origin, args) {
+  await cdp.navigate(`${origin}/?measure=1`);
+  const deadline = Date.now() + 20_000;
+  let ready = false;
+  while (Date.now() < deadline) {
+    ready = await cdp.evaluate(
+      'typeof window.__GANTTPILOT_MEASURE_ALIGN__ === "function" && Boolean(window.__GANTTPILOT_READY__)',
+    );
+    if (ready === true) break;
+    await new Promise((settle) => setTimeout(settle, 100));
+  }
+  if (ready !== true) {
+    const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
+    throw new Error(`对齐测量钩子未就绪：${String(captured)}`);
+  }
+  return cdp.evaluate(
+    `window.__GANTTPILOT_MEASURE_ALIGN__(${JSON.stringify({
+      dataset: args.dataset ?? PRIMARY_DATASET,
+      positions: ALIGN_POSITIONS,
+    })})`,
+  );
+}
+
+/** 对齐证据（记录制 Markdown）。 */
+function renderAlignEvidence({ env, result, options }) {
+  const lines = [];
+  const summary = result?.summary ?? {};
+  const tolerated = 0.5;
+  lines.push('# G5 批次 D：两栏行对齐（记录制，不进 `pnpm gate`）');
+  lines.push('');
+  lines.push('> 由 `node scripts/measure-render.mjs --align[=<label>]` 采集；**这是测量快照，不是门禁**');
+  lines.push('> （[ADR 0007 §14](../../../docs/02-adr/0007-渲染几何与裁剪契约.md)、[裁决 P-23](../../../docs/00-baseline/裁决记录.md)）。');
+  lines.push('> **判读逻辑**在 `packages/render-core/src/align.ts`，它的判别力由 `align.spec.ts`');
+  lines.push('> （正例"未变造时零检出" + 每条机制一条负向对照）**在 `pnpm gate` 里**守住；');
+  lines.push('> 本文件守的是**应用层那一遍**：真实 DOM 的两栏行矩形、SVG 盒与滚动几何。');
+  lines.push('');
+  lines.push('## 环境（与数字一起登记）');
+  lines.push('');
+  lines.push('| 项 | 值 |');
+  lines.push('|---|---|');
+  for (const [key, value] of Object.entries(env)) lines.push(`| ${key} | ${String(value)} |`);
+  lines.push('');
+  lines.push('## 口径');
+  lines.push('');
+  lines.push('- 页面 = `apps/web/dist` 的**打包产物**；**左表在场**（不带 `?table=0`，否则判据没有对手可比）；');
+  lines.push('- 每个位置：设 `pane.scrollTop` → `nextTick` + **两帧** → 读 `getBoundingClientRect()`；');
+  lines.push('- **只读**：不改文档、不派发指针事件、不进手势；采完把 `scrollTop` 复位 0；');
+  lines.push('- 行差 = `图表行顶 − 左表行顶`（**对齐时 = 0**；图表比左表高时为负）；');
+  lines.push('- 条形 x 判据 = DOM 条形左边 − (`paneLeft + xLeft − scrollLeft`)：守"所见 = 所点"的横向一半；');
+  lines.push(`- 容差 = \`THRESHOLDS.rowAlignTolerancePx\` = **${String(tolerated)} px**；`);
+  lines.push('- 轴覆盖优先用**色带矩形**（无描边误差），无色带时退到网格线（含 ±0.5 px 描边）；');
+  lines.push('');
+  lines.push('## 判定汇总');
+  lines.push('');
+  lines.push('| 项 | 值 | 判据 | 判定 |');
+  lines.push('|---|---|---|---|');
+  lines.push(`| 探测位置数 | ${String(summary.probes ?? 0)} | ≥ 2（含 0 与非 0） | ${(summary.probes ?? 0) >= 2 ? '✅' : '❌'} |`);
+  lines.push(`| 失败位置数 | ${String(summary.failingProbes ?? 0)} | = 0 | ${(summary.failingProbes ?? 1) === 0 ? '✅' : '❌'} |`);
+  lines.push(
+    `| 最大行差 | ${num(summary.maxAbsRowDeltaPx, 3)} px | ≤ ${String(tolerated)} | ${Number(summary.maxAbsRowDeltaPx ?? 1) <= tolerated ? '✅' : '❌'} |`,
+  );
+  lines.push(
+    `| 最大条形 x 偏差 | ${num(summary.maxAbsBarXDeltaPx, 3)} px | ≤ ${String(tolerated)} | ${Number(summary.maxAbsBarXDeltaPx ?? 1) <= tolerated ? '✅' : '❌'} |`,
+  );
+  const mechanisms = Array.isArray(summary.mechanisms) ? summary.mechanisms : [];
+  lines.push(`| 机制判读 | ${mechanisms.length === 0 ? '(无)' : mechanisms.join(' / ')} | 必须为空 | ${mechanisms.length === 0 ? '✅' : '❌'} |`);
+  lines.push(`| 总体 | ${result?.status === 'ok' ? '**通过**' : '**不通过**'} | — | — |`);
+  lines.push('');
+  lines.push('## 逐位置明细');
+  for (const item of result?.probes ?? []) {
+    const probe = item.probe ?? {};
+    const verdict = item.verdict ?? {};
+    lines.push('');
+    lines.push(
+      `### 请求 top/left = ${String(item.requestedScrollTop)}/${String(item.requestedScrollLeft)}` +
+        `（实际 ${String(probe.scrollTop)}/${String(probe.scrollLeft)}）`,
+    );
+    lines.push('');
+    lines.push('| 量 | 值 | 判据 | 判定 |');
+    lines.push('|---|---|---|---|');
+    lines.push(`| 绘制区 w×h | ${String(probe.paneWidth)}×${String(probe.paneHeight)} | 记录 | — |`);
+    lines.push(`| 内容高（spacer） | ${num(probe.spacerHeight, 1)} | 记录（最末行可达性） | — |`);
+    lines.push(
+      `| 内容宽（spacer / \`ViewModel\`） | ${num(probe.spacerWidth, 1)} / ${num(probe.viewContentWidth, 1)} | 滚动范围要够到项目末端（R11） | ${verdict.contentRangeAligned === true ? '✅' : '❌'} |`,
+    );
+    lines.push(
+      `| 两栏表头高（图表 / 左表） | ${num(probe.headerHeightChart)} / ${num(probe.headerHeightTable)} | 相等 | ${verdict.headerAligned === true ? '✅' : '❌'} |`,
+    );
+    lines.push(`| 左表表体高 | ${num(probe.tableBodyHeight)} | = 绘制区高 | ${verdict.heightAligned === true ? '✅' : '❌'} |`);
+    lines.push(
+      `| 左表行外高（DOM） | ${num(probe.tableRowHeight)} | = 模型行高 ${String(probe.rowHeight)}（否则逐行累积漂移，R9） | ${verdict.rowHeightAligned === true ? '✅' : '❌'} |`,
+    );
+    lines.push(
+      `| SVG 盒（left / top / w×h） | ${num(probe.svgLeft)} / ${num(probe.svgTop)} / ${num(probe.svgWidth)}×${num(probe.svgHeight)} | 钉在**列**左上（= 绘制区顶 − 表头带） | ${verdict.pinned === true ? '✅' : '❌'} |`,
+    );
+    lines.push(
+      `| SVG 盒 = viewBox（期望 ${num(probe.viewWidth)}×${num(probe.viewHeight + probe.headerHeightChart)}） | ${num(probe.svgWidth)}×${num(probe.svgHeight)} | 1:1（盒高 = 绘制区 + 表头带） | ${verdict.svgBoxAligned === true ? '✅' : '❌'} |`,
+    );
+    lines.push(
+      `| \`ViewModel\` w×h / scroll | ${String(probe.viewWidth)}×${String(probe.viewHeight)} / ${num(probe.viewScrollTop)}·${num(probe.viewScrollLeft)} | 两个方向都 = DOM | ${verdict.scrollInSync === true ? '✅' : '❌'} |`,
+    );
+    const axis = probe.axisCoverage;
+    lines.push(
+      `| 轴覆盖（色带上下 / 刻度左右） | ${
+        axis === null || axis === undefined ? '—' : `${num(axis.top)}..${num(axis.bottom)}`
+      } / ${
+        probe.axisTicks === null || probe.axisTicks === undefined
+          ? '—'
+          : `${num(probe.axisTicks.left)}..${num(probe.axisTicks.right)}`
+      } | 纵向铺满绘制区 + 横向铺满视口（P-24 加了横向） | ${mechanisms.includes('axis-not-covering') ? '❌' : '✅'} |`,
+    );
+    lines.push(
+      `| 刻度文本（上..下） | ${
+        probe.axisLabels === null || probe.axisLabels === undefined
+          ? '—'
+          : `${num(probe.axisLabels.top)}..${num(probe.axisLabels.bottom)}`
+      } | 落在**表头带**内（不压第一行；P-24 第 ③ 条） | ${verdict.labelsInHeader === true ? '✅' : '❌'} |`,
+    );
+    lines.push(
+      `| 空白带（顶 / 底） | ${verdict.coverage === null || verdict.coverage === undefined ? '（文档比绘制区短，不断言）' : `${num(verdict.coverage.topBandPx)} / ${num(verdict.coverage.bottomBandPx)}`} | = 0 | ${verdict.coverage === null || verdict.coverage === undefined || (verdict.coverage.topBandPx <= tolerated && verdict.coverage.bottomBandPx <= tolerated) ? '✅' : '❌'} |`,
+    );
+    lines.push(
+      `| 最大行差 / 条形 x 偏差 | ${num(verdict.maxAbsRowDeltaPx, 3)} / ${num(verdict.maxAbsBarXDeltaPx, 3)} px | ≤ ${String(tolerated)} | ${Number(verdict.maxAbsRowDeltaPx ?? 1) <= tolerated && Number(verdict.maxAbsBarXDeltaPx ?? 1) <= tolerated ? '✅' : '❌'} |`,
+    );
+    const hit = probe.hitTest;
+    lines.push(
+      `| 所见 = 所点（内容 y） | ${hit === null || hit === undefined ? '—' : `${num(hit.expectedContentY)} vs ${num(hit.actualContentY)}`} | ≤ ${String(tolerated)} | ${mechanisms.includes('hit-test-mismatch') ? '❌' : '✅'} |`,
+    );
+    const probeMechanisms = Array.isArray(verdict.mechanisms) ? verdict.mechanisms : [];
+    lines.push(`| 机制 | ${probeMechanisms.length === 0 ? '(无)' : probeMechanisms.join(' / ')} | 空 | ${probeMechanisms.length === 0 ? '✅' : '❌'} |`);
+    lines.push('');
+    lines.push('| 行 | 任务 | 图表行中心 | 左表行中心 | 行差 | 条形左边（DOM / 期望） |');
+    lines.push('|---|---|---|---|---|---|');
+    const deltas = verdict.rowDeltas ?? [];
+    const shown = deltas.length <= 14 ? deltas : [...deltas.slice(0, 10), ...deltas.slice(-4)];
+    for (const delta of shown) {
+      const sample = (probe.samples ?? []).find((item2) => item2.id === delta.id) ?? {};
+      lines.push(
+        `| ${String(delta.row)} | \`${String(delta.id)}\` | ${num(sample.chartCenterY)} | ${num(sample.tableCenterY)} | ${num(delta.deltaPx, 3)} | ` +
+          `${num(sample.barLeft)} / ${num(sample.expectedBarLeft)} |`,
+      );
+    }
+    if (shown.length !== deltas.length) {
+      lines.push(`| … | （共 ${String(deltas.length)} 行；证据表只列首 10 + 末 4 行，逐行值见 raw JSON） | | | |`);
+    }
+  }
+  if ((result?.errors ?? []).length > 0) {
+    lines.push('');
+    lines.push('**判定失败 / 采数失败**：');
+    for (const error of result.errors) lines.push(`- ${String(error)}`);
+  }
+  lines.push('');
+  lines.push(`> 生成参数：${JSON.stringify(options)}`);
+  lines.push('');
+  return lines.join('\n');
+}
 async function main() {  const options = parseArgs(process.argv.slice(2));
   if (!existsSync(join(distRoot, 'index.html'))) {
     console.error('[measure] 缺少打包产物：先跑 `pnpm --filter @ganttpilot/web build`');
@@ -720,6 +942,46 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
       return;
     }
 
+    // ---------------------------------------------------------------- G5 批次 D：两栏行对齐（记录制）
+    if (options.align) {
+      const result = await alignProbe(cdp, origin, { dataset: PRIMARY_DATASET });
+      const env = {
+        采集时刻: new Date().toISOString(),
+        机器: process.env.COMPUTERNAME ?? 'local',
+        系统: `${process.platform} ${process.arch}`,
+        Node: process.version,
+        Chrome: chromeVersion,
+        'Chrome 模式': '--headless=new',
+        DPR: 1,
+        视口: '1280×800（窗格尺寸随结果登记）',
+        数据集: PRIMARY_DATASET,
+        左表: '在场（不带 ?table=0）',
+        探测位置: ALIGN_POSITIONS.map((item) => `top${String(item.top)}·left${String(item.left)}`).join(' / '),
+      };
+      const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
+      const suffix = options.alignLabel === '' ? '' : `-${options.alignLabel}`;
+      const alignPath = join(evidenceDir, `chart-align${suffix}-chrome${major}.md`);
+      writeFileSync(alignPath, renderAlignEvidence({ env, result, options }), 'utf8');
+      writeFileSync(
+        join(evidenceDir, `chart-align${suffix}-raw.json`),
+        `${JSON.stringify({ env, result }, null, 2)}\n`,
+        'utf8',
+      );
+      const summary = result?.summary ?? {};
+      console.log(
+        `[align] 位置 ${String(summary.probes ?? 0)}（失败 ${String(summary.failingProbes ?? 0)}）、` +
+          `最大行差 ${Number(summary.maxAbsRowDeltaPx ?? 0).toFixed(3)} px、` +
+          `最大条形 x 偏差 ${Number(summary.maxAbsBarXDeltaPx ?? 0).toFixed(3)} px、` +
+          `机制 ${(summary.mechanisms ?? []).join(' / ') || '(无)'}`,
+      );
+      if (result?.status === 'error') {
+        console.error(`[align] errors: ${(result.errors ?? []).join('；')}`);
+        process.exitCode = 1;
+      }
+      console.log(`[measure] 对齐证据已写入 ${alignPath}`);
+      return;
+    }
+
     // 预热一次导航（模块加载与首次布局的冷启动不进数字）。
     await cdp.navigate(`${origin}/?measure=1`);
     await new Promise((settle) => setTimeout(settle, 600));
@@ -745,13 +1007,50 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
     if (options.drag) {
       const dragReady = await cdp.evaluate('typeof window.__GANTTPILOT_MEASURE_DRAG__ === "function"');
       if (dragReady !== true) throw new Error('拖动测量钩子未就绪（页面里没有 __GANTTPILOT_MEASURE_DRAG__）');
-      const dragResult = await cdp.evaluate(
-        `window.__GANTTPILOT_MEASURE_DRAG__(${JSON.stringify({
-          dataset: PRIMARY_DATASET,
-          dayDelta: options.dayDelta,
-          frames: options.dragFrames,
-        })})`,
-      );
+      // **两个状态各跑一次**（P-25：R13/R14 只在滚动后现形——只拖首屏的判据结构上抓不到它们）。
+      const dragRuns = [];
+      for (const scroll of [
+        { scrollTop: 0, scrollLeft: 0 },
+        { scrollTop: 480, scrollLeft: 600 },
+      ]) {
+        const run = await cdp.evaluate(
+          `window.__GANTTPILOT_MEASURE_DRAG__(${JSON.stringify({
+            dataset: PRIMARY_DATASET,
+            dayDelta: options.dayDelta,
+            frames: options.dragFrames,
+            scrollTop: scroll.scrollTop,
+            scrollLeft: scroll.scrollLeft,
+          })})`,
+        );
+        dragRuns.push({ ...scroll, result: run });
+      }
+      const first = dragRuns[0]?.result ?? {};
+      const dragResult = {
+        status: dragRuns.every((run) => run.result?.status === 'ok') ? 'ok' : 'error',
+        errors: dragRuns.flatMap((run) =>
+          (run.result?.errors ?? []).map(
+            (error) => `scroll(${String(run.scrollTop)},${String(run.scrollLeft)})：${String(error)}`,
+          ),
+        ),
+        runs: dragRuns,
+        dataset: first.dataset ?? PRIMARY_DATASET,
+        taskId: first.taskId ?? '',
+        dayDelta: options.dayDelta,
+        frames: options.dragFrames,
+        mainThreadP50Ms: Number(first.mainThreadP50Ms ?? 0),
+        mainThreadP95Ms: Math.max(...dragRuns.map((run) => Number(run.result?.mainThreadP95Ms ?? 0))),
+        frameGapP50Ms: Number(first.frameGapP50Ms ?? 0),
+        frameGapP95Ms: Math.max(...dragRuns.map((run) => Number(run.result?.frameGapP95Ms ?? 0))),
+        releaseMs: Math.max(...dragRuns.map((run) => Number(run.result?.releaseMs ?? 0))),
+        longTasks: 0,
+        observedGeometryChanges: Math.min(
+          ...dragRuns.map((run) => Number(run.result?.observedGeometryChanges ?? 0)),
+        ),
+        anchorsAfterRelease: Math.max(...dragRuns.map((run) => Number(run.result?.anchorsAfterRelease ?? 0))),
+        documentStartAfter: first.documentStartAfter ?? null,
+        anchorOrdinal: first.anchorOrdinal ?? null,
+        expectedStartAfter: first.expectedStartAfter ?? null,
+      };
       const env = {
         采集时刻: new Date().toISOString(),
         机器: process.env.COMPUTERNAME ?? 'local',
@@ -777,7 +1076,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         `[drag] 主线程 p95 ${Number(dragResult?.mainThreadP95Ms ?? 0).toFixed(2)} ms、` +
           `帧间隔 p50/p95 ${Number(dragResult?.frameGapP50Ms ?? 0).toFixed(1)}/${Number(dragResult?.frameGapP95Ms ?? 0).toFixed(1)} ms、` +
           `松手 ${Number(dragResult?.releaseMs ?? 0).toFixed(1)} ms、` +
-          `DOM 变化帧 ${String(dragResult?.observedWidthChanges ?? 0)}、` +
+          `DOM 变化帧 ${String(dragResult?.observedGeometryChanges ?? 0)}、` +
           `松手后锚点 ${String(dragResult?.anchorsAfterRelease ?? '-')}、` +
           `startDate ${String(dragResult?.documentStartAfter ?? '-')}` +
           `（期望 ${String(dragResult?.expectedStartAfter ?? '-')}）`,
