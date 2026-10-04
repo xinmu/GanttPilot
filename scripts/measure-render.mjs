@@ -27,7 +27,8 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -54,6 +55,11 @@ function parseArgs(argv) {
     dayDelta: 3,
     /** G5：拖动期的测试帧数。 */
     dragFrames: 12,
+    /**
+     * 记录制：把一份 xlsx 交给**真实导入入口**并读回应用的反应
+     * （`--import=<path>`；裁决 P-21 遗留 3 / P-22 的收口动作）。
+     */
+    importPath: null,
   };
   for (const arg of argv) {
     if (arg.startsWith('--zoom=')) {
@@ -71,6 +77,8 @@ function parseArgs(argv) {
       options.dayDelta = Number(arg.slice('--day-delta='.length)) || options.dayDelta;
     } else if (arg.startsWith('--drag-frames=')) {
       options.dragFrames = Number(arg.slice('--drag-frames='.length)) || options.dragFrames;
+    } else if (arg.startsWith('--import=')) {
+      options.importPath = arg.slice('--import='.length);
     }
   }
   return options;
@@ -394,12 +402,16 @@ function renderDragEvidence({ env, result, options }) {
   const fpsOk = gapP95 > 0 && gapP95 <= 1000 / 30;
   const releaseOk = releaseMs > 0 && releaseMs <= 200;
   const wroteDocument = result?.documentStartAfter !== null && result?.documentStartAfter !== undefined;
+  const expectedAfter = result?.expectedStartAfter ?? null;
+  const movedExactly = wroteDocument && expectedAfter !== null && result?.documentStartAfter === expectedAfter;
 
   lines.push('# G5 拖动测量（记录制，不进 `pnpm gate`）');
   lines.push('');
   lines.push('> 由 `node scripts/measure-render.mjs --drag` 采集；**这是测量快照，不是门禁**');
   lines.push('> （[ADR 0008 §11](../../../docs/02-adr/0008-列身份所有权与拖拽交互契约.md)、[裁决 P-9/P-17](../../../docs/00-baseline/裁决记录.md)）。');
   lines.push('> 拖动的判据本身（手势状态机、候选序号、松手命令、成环拒绝）在 `packages/render-core/src/gesture.spec.ts` 里，**进 `pnpm gate`**。');
+  lines.push('> **位移判据**（裁决 [P-22](../../../docs/00-baseline/裁决记录.md) 补上）：松手后的 `startDate` 必须等于');
+  lines.push('> 「拖动前该行的开始序号 + 拖动天数」——旧证据只断言"非空"，因此"拖了但没有效位移"也会算通过。');
   lines.push('');
   lines.push('## 环境（与数字一起登记）');
   lines.push('');
@@ -415,7 +427,9 @@ function renderDragEvidence({ env, result, options }) {
   lines.push('- **主线程工作量** = 派发事件 + `await nextTick()`（**不含帧等待**）——与 G4 的滚动口径同源；');
   lines.push('- **帧间隔** = 连续 rAF 的间隔（只作记录；**不能用双 rAF 测帧时长**，那会把等待算进来）；');
   lines.push('- **松手耗时** = `mouseup` → 命令落库 + `compute` + 覆盖层清空 的墙钟；');
-  lines.push('- **下游跟随**的间接证据 = 拖动期 DOM 上条形的宽度/位置串发生过变化（不是只有覆盖层在动）。');
+  lines.push('- **下游跟随**的间接证据 = 拖动期 DOM 上条形的宽度/位置串发生过变化（不是只有覆盖层在动）；');
+  lines.push(`- **位移** = 抓取点取条体**第一个工作日格的中点**，逐帧移到「该格 + offset」个工作日；`);
+  lines.push('  因此"拖 N 个工作日"是一个**线性**位移（基准是拖动前的开始序号，不是拖动期视图里跟着动的 `es`）。');
   lines.push('');
   lines.push('## 结果');
   lines.push('');
@@ -429,7 +443,9 @@ function renderDragEvidence({ env, result, options }) {
   lines.push(`| 拖动期 DOM 变化帧数 | ${String(result?.observedWidthChanges ?? 0)} / ${String(result?.frames ?? 0)} | > 0（下游跟随） | ${followObserved ? '✅' : '❌'} |`);
   lines.push(`| longtask 条目 | ${String(result?.longTasks ?? 0)} | 记录 | — |`);
   lines.push(`| 松手后锚点数 | ${String(result?.anchorsAfterRelease ?? '-')} | = 0（锚点不进文档、松手即清） | ${anchorsCleared ? '✅' : '❌'} |`);
-  lines.push(`| 松手后文档 startDate | ${String(result?.documentStartAfter ?? '—')} | 非空（命令真的落库） | ${wroteDocument ? '✅' : '❌'} |`);
+  lines.push(`| 拖动前开始序号 | ${String(result?.anchorOrdinal ?? '—')} | 记录（位移的绝对基准） | — |`);
+  lines.push(`| 期望的松手后 startDate | ${String(expectedAfter ?? '—')} | = 拖动前开始序号 + ${String(options.dayDelta)} 个工作日 | — |`);
+  lines.push(`| 松手后文档 startDate | ${String(result?.documentStartAfter ?? '—')} | = 期望值（**位移判据**） | ${movedExactly ? '✅' : '❌'} |`);
   lines.push('');
   lines.push(`> 拖动目标任务：\`${String(result?.taskId ?? '')}\`；数据集 \`${String(result?.dataset ?? '')}\`。`);
   if ((result?.errors ?? []).length > 0) {
@@ -443,8 +459,181 @@ function renderDragEvidence({ env, result, options }) {
   return lines.join('\n');
 }
 
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
+/**
+ * 记录制：**把一份 xlsx 交给真实导入入口**，读回应用的反应（裁决 P-21 遗留 3 / P-22）。
+ *
+ * 口径：
+ * - 文件走 CDP 的 `DOM.setFileInputFiles` 打到工具栏的 `input[type=file]` ——
+ *   **不碰应用源码**，也不给导入路径开后门；
+ * - 结果**全部从 DOM 读**：页脚的任务/依赖/诊断计数、诊断清单（点击工具栏「诊断」展开）、
+ *   是否出现"不可排程"占位；
+ * - 判据（缺一即 `status: 'error'`）：6 任务 / 5 依赖、恰有 **1** 条
+ *   `XLSX_CYCLE_EDGE_DROPPED` 且消息里带成环路径、**没有**"不可排程"。
+ */
+async function importSample(cdp, origin, filePath) {
+  const errors = [];
+  const base = {
+    file: filePath,
+    sizeBytes: statSync(filePath).size,
+    sha256: createHash('sha256').update(readFileSync(filePath)).digest('hex'),
+    footer: '',
+    tasks: null,
+    links: null,
+    diagnostics: [],
+    cycleDropped: 0,
+    unschedulable: null,
+    chartRows: 0,
+    chartEdges: 0,
+  };
+
+  await cdp.navigate(`${origin}/`);
+  // 应用启动 + 演示文档（1,000 任务）就位。
+  await new Promise((settle) => setTimeout(settle, 800));
+
+  await cdp.call('DOM.enable');
+  const root = await cdp.call('DOM.getDocument', { depth: -1 });
+  const input = await cdp.call('DOM.querySelector', {
+    nodeId: root.root.nodeId,
+    selector: 'input[type=file]',
+  });
+  if (input?.nodeId === undefined || input.nodeId === 0) {
+    return { ...base, status: 'error', errors: ['找不到文件输入框（工具栏的 input[type=file]）'] };
+  }
+
+  const before = await cdp.evaluate(`document.querySelector('footer.status')?.textContent ?? ''`);
+  await cdp.call('DOM.setFileInputFiles', { files: [filePath], nodeId: input.nodeId });
+
+  // 等导入完成：exceljs 是动态 import，页脚计数会从演示文档变成导入文档。
+  const deadline = Date.now() + 30_000;
+  let footer = before;
+  while (Date.now() < deadline) {
+    await new Promise((settle) => setTimeout(settle, 250));
+    footer = await cdp.evaluate(`document.querySelector('footer.status')?.textContent ?? ''`);
+    if (footer !== before) break;
+  }
+  if (footer === before) {
+    errors.push('导入后页脚计数未变化（导入可能未触发或仍在进行）');
+  }
+
+  // 展开诊断清单（工具栏按钮文案是「诊断 N」）。
+  await cdp.evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find((item) => item.textContent.includes('诊断'));
+    if (button !== undefined) button.click();
+    return true;
+  })()`);
+  await new Promise((settle) => setTimeout(settle, 250));
+
+  const snapshot = await cdp.evaluate(`(() => {
+    const items = [...document.querySelectorAll('.diagnostics li')].map((li) => ({
+      code: li.querySelector('code')?.textContent ?? '',
+      severity: li.className,
+      message: [...li.querySelectorAll('span')].map((span) => span.textContent).join(''),
+      taskId: li.querySelector('em')?.textContent ?? null,
+    }));
+    return {
+      footer: document.querySelector('footer.status')?.textContent ?? '',
+      diagnostics: items,
+      unschedulable: document.querySelector('.unschedulable') !== null,
+      chartRows: document.querySelectorAll('#chart-pane .rows > g').length,
+      chartEdges: document.querySelectorAll('#chart-pane .edges > g').length,
+    };
+  })()`);
+
+  const footerText = String(snapshot?.footer ?? '');
+  const parsed = /任务\s*(\d+)\s*·\s*依赖\s*(\d+)/.exec(footerText);
+  const diagnostics = Array.isArray(snapshot?.diagnostics) ? snapshot.diagnostics : [];
+  const dropped = diagnostics.filter((item) => item.code === 'XLSX_CYCLE_EDGE_DROPPED');
+
+  const result = {
+    ...base,
+    footer: footerText,
+    tasks: parsed === null ? null : Number(parsed[1]),
+    links: parsed === null ? null : Number(parsed[2]),
+    diagnostics,
+    cycleDropped: dropped.length,
+    unschedulable: snapshot?.unschedulable === true,
+    chartRows: Number(snapshot?.chartRows ?? 0),
+    chartEdges: Number(snapshot?.chartEdges ?? 0),
+  };
+
+  if (result.tasks !== 6) errors.push(`任务数不是 6：${String(result.tasks)}`);
+  if (result.links !== 5) errors.push(`依赖数不是 5：${String(result.links)}`);
+  if (result.cycleDropped !== 1) {
+    errors.push(`XLSX_CYCLE_EDGE_DROPPED 不是恰好 1 条：${String(result.cycleDropped)}`);
+  }
+  if (dropped.length > 0 && !String(dropped[0].message).includes('成环路径')) {
+    errors.push(`成环丢弃的诊断里没有成环路径：${String(dropped[0].message)}`);
+  }
+  if (result.unschedulable) errors.push('导入产物被判为"不可排程"（成环边本该被确定性丢弃）');
+
+  return { ...result, status: errors.length === 0 ? 'ok' : 'error', errors };
+}
+
+/** 导入记录制的证据（Markdown）。 */
+function renderImportEvidence({ env, result }) {
+  const lines = [];
+  lines.push('# xlsx 导入记录制（成环样本，不进 `pnpm gate`）');
+  lines.push('');
+  lines.push('> 由 `node scripts/make-sample.mjs` + `node scripts/measure-render.mjs --import=<path>` 采集');
+  lines.push('> （[裁决 P-21](../../../docs/00-baseline/裁决记录.md) §5 遗留 3、[P-22](../../../docs/00-baseline/裁决记录.md)）。');
+  lines.push('> 成环边**丢弃**的语义本身由 `packages/xlsx-protocol/src/xlsxDependencies.spec.ts` 在门禁里覆盖；');
+  lines.push('> 这一份证据守的是**应用层那一遍**：导入 → 诊断清单 → 任务/依赖计数。');
+  lines.push('');
+  lines.push('## 环境（与数字一起登记）');
+  lines.push('');
+  lines.push('| 项 | 值 |');
+  lines.push('|---|---|');
+  for (const [key, value] of Object.entries(env)) lines.push(`| ${key} | ${String(value)} |`);
+  lines.push('');
+  lines.push('## 样本');
+  lines.push('');
+  lines.push('| 项 | 值 |');
+  lines.push('|---|---|');
+  lines.push(`| 路径 | \`${String(result.file)}\` |`);
+  lines.push(`| 体积 | ${String(result.sizeBytes)} 字节 |`);
+  lines.push(`| sha256 | \`${String(result.sha256)}\` |`);
+  lines.push('| 形状 | 表 `任务`，表头 `WBS / 任务名称 / 前置任务`（**仅三列**），6 行 |');
+  lines.push('| 环 | 第 6 行的 `前置任务=5` 闭合 `t5→t6`，被 `wouldCreateCycle` 判为成环 ⇒ 丢弃 |');
+  lines.push('');
+  lines.push('## 结果');
+  lines.push('');
+  lines.push('| 量 | 值 | 判据 | 判定 |');
+  lines.push('|---|---|---|---|');
+  lines.push(`| 任务数 | ${String(result.tasks ?? '—')} | = 6 | ${result.tasks === 6 ? '✅' : '❌'} |`);
+  lines.push(`| 依赖数 | ${String(result.links ?? '—')} | = 5（第 6 条被丢弃） | ${result.links === 5 ? '✅' : '❌'} |`);
+  lines.push(
+    `| \`XLSX_CYCLE_EDGE_DROPPED\` 条数 | ${String(result.cycleDropped)} | = 1（带成环路径） | ${result.cycleDropped === 1 ? '✅' : '❌'} |`,
+  );
+  lines.push(
+    `| 不可排程占位 | ${result.unschedulable ? '有' : '无'} | 无（丢弃后应为无环） | ${result.unschedulable ? '❌' : '✅'} |`,
+  );
+  lines.push(`| 渲染行 / 边 | ${String(result.chartRows)} / ${String(result.chartEdges)} | 记录 | — |`);
+  lines.push('');
+  lines.push(`> 页脚原文：\`${String(result.footer)}\``);
+  lines.push('');
+  lines.push('## 诊断清单（应用层读回的全部条目）');
+  lines.push('');
+  if ((result.diagnostics ?? []).length === 0) {
+    lines.push('（空）');
+  } else {
+    lines.push('| # | severity | code | message | 定位 |');
+    lines.push('|---|---|---|---|---|');
+    result.diagnostics.forEach((item, index) => {
+      lines.push(
+        `| ${String(index + 1)} | ${String(item.severity)} | \`${String(item.code)}\` | ${String(item.message)} | ${String(item.taskId ?? '—')} |`,
+      );
+    });
+  }
+  if ((result.errors ?? []).length > 0) {
+    lines.push('');
+    lines.push('**判定失败**：');
+    for (const error of result.errors) lines.push(`- ${String(error)}`);
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+async function main() {  const options = parseArgs(process.argv.slice(2));
   if (!existsSync(join(distRoot, 'index.html'))) {
     console.error('[measure] 缺少打包产物：先跑 `pnpm --filter @ganttpilot/web build`');
     process.exit(1);
@@ -489,6 +678,47 @@ async function main() {
     });
     const version = await cdp.call('Browser.getVersion');
     const chromeVersion = String(version.product ?? 'unknown');
+
+    // ---------------------------------------------------------------- 记录制：xlsx 导入（P-21 遗留 3）
+    if (options.importPath !== null) {
+      const filePath = resolve(options.importPath);
+      if (!existsSync(filePath)) {
+        console.error(`[import] 找不到样本文件：${filePath}`);
+        console.error('[import] 先生成：node scripts/make-sample.mjs');
+        process.exitCode = 1;
+        return;
+      }
+      const result = await importSample(cdp, origin, filePath);
+      const env = {
+        采集时刻: new Date().toISOString(),
+        机器: process.env.COMPUTERNAME ?? 'local',
+        系统: `${process.platform} ${process.arch}`,
+        Node: process.version,
+        Chrome: chromeVersion,
+        'Chrome 模式': '--headless=new',
+        DPR: 1,
+        视口: '1280×800',
+        样本: 'cyclic-dependency.xlsx（三列 / 6 行 / t5→t6 成环）',
+      };
+      const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
+      const evidencePath = join(evidenceDir, `import-cyclic-sample-chrome${major}.md`);
+      writeFileSync(evidencePath, renderImportEvidence({ env, result }), 'utf8');
+      writeFileSync(
+        join(evidenceDir, 'import-cyclic-sample-raw.json'),
+        `${JSON.stringify({ env, result }, null, 2)}\n`,
+        'utf8',
+      );
+      console.log(
+        `[import] 任务 ${String(result.tasks ?? '-')} / 依赖 ${String(result.links ?? '-')} / ` +
+          `成环丢弃 ${String(result.cycleDropped)} / 不可排程 ${result.unschedulable ? '有' : '无'}`,
+      );
+      if (result.status === 'error') {
+        console.error(`[import] errors: ${(result.errors ?? []).join('；')}`);
+        process.exitCode = 1;
+      }
+      console.log(`[measure] 导入证据已写入 ${evidencePath}`);
+      return;
+    }
 
     // 预热一次导航（模块加载与首次布局的冷启动不进数字）。
     await cdp.navigate(`${origin}/?measure=1`);
@@ -548,7 +778,9 @@ async function main() {
           `帧间隔 p50/p95 ${Number(dragResult?.frameGapP50Ms ?? 0).toFixed(1)}/${Number(dragResult?.frameGapP95Ms ?? 0).toFixed(1)} ms、` +
           `松手 ${Number(dragResult?.releaseMs ?? 0).toFixed(1)} ms、` +
           `DOM 变化帧 ${String(dragResult?.observedWidthChanges ?? 0)}、` +
-          `松手后锚点 ${String(dragResult?.anchorsAfterRelease ?? '-')}`,
+          `松手后锚点 ${String(dragResult?.anchorsAfterRelease ?? '-')}、` +
+          `startDate ${String(dragResult?.documentStartAfter ?? '-')}` +
+          `（期望 ${String(dragResult?.expectedStartAfter ?? '-')}）`,
       );
       if (dragResult?.status === 'error') {
         console.error(`[drag] errors: ${(dragResult.errors ?? []).join('；')}`);
