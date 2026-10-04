@@ -39,6 +39,7 @@
 | `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13**）：屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、位移与候选 `deltaFor` / `candidateOrdinalFor`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture`、结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor` |
 | `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
 | `affected.ts` | `affectedRenderSet`：受影响行 + 受影响边（编辑重绘的判据） |
+| `align.ts` | **两栏行对齐的判读内核**（ADR 0007 §14/§15 / [P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)）：`diagnoseRowAlignment`（一次探测）+ `summarizeAlignment`（多位置汇总）；判据含**轴的四边覆盖**与**滚动范围**（`content-range-mismatch`）。输入全是**视口坐标的数字**（DOM 采数在 `apps/web/src/measure.ts` 的记录制钩子里）。机制标签见 ADR §14.4 |
 | `fixtures.ts` | 确定性夹具生成（演示 / 测量 / spec 同源） |
 
 **主入口**
@@ -62,6 +63,12 @@ buildView({
 
 **x 轴按「自然日连续」排列**，非工作日照常占位并视觉区分；工期/序号语义仍是工作日。
 
+**反算的坐标口径（ADR 0007 §16 / 裁决 P-25）**：`dayAtX(view, x)` / `ordinalAtX(view, x, calendar)` 的 `x`
+是**内容坐标**（与 `row.xLeft/xRight`、`bounds`、`points` 同一坐标系），因此**不含** `scrollLeft`：
+屏幕坐标必须先经 `pointerFromClient` 归一化（ADR 0008 §15）。反算公式**只允许一处**（`dayAtX`）。
+同理 `resolvePointerTarget` 的 `y` 是内容坐标，**不得**再加 `scrollTop`。
+**所有坐标换算类判据至少要取一个非 0 滚动位置**（P-25：R13/R14 只在滚动后现形）。
+
 ```
 axisOriginDay = dayOfOrdinal(projectStart) 按档位向前取整到该档位起点 − AXIS_LEFT_GUTTER_DAYS
 xLeft(i)      = (dayOfOrdinal(es[i])             − axisOriginDay) · pxPerDay
@@ -80,6 +87,28 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 - **序号 → 日期必须用同一个 `createScheduleCalendar(document)`**，否则容量不足时 `isoOfOrdinal` 会抛错。
 
 ## 四、行模型
+
+**两栏行屏幕几何同一式**（ADR 0007 §14 / P-23）：
+
+```
+行屏幕 y = 列顶 + HEADER_HEIGHT_PX + row × ROW_HEIGHT − scrollTop
+```
+
+- `HEADER_HEIGHT_PX = 28`（`manifest.ts` 单点声明）= 左表表头与图表表头带的**外高**（两栏 `box-sizing: border-box`）；
+- **绘制区 = 滚动容器客户区**：`Viewport.height = clientHeight`（§2 的 `scrollTop // 不含表头` 由此字面成立）；
+- **行外高必须 = `ROW_HEIGHT`**：`.row` 若在 `content-box` 下加 1 px 下边框，外高成 25 px ⇒ 每行漂 1 px（R9）；
+- 图表行的 `<g>` **没有自己的盒子**，`getBoundingClientRect()` 是子元素（条 / 菱形）的并集，
+  而条在行内垂直居中 ⇒ 对齐判据取**条中心 = 行中心**，不取行顶。
+
+**内容横向范围与轴**（ADR 0007 §15 / P-24）：
+
+- `ViewModel.contentWidth` = 滚动范围（spacer 宽）的**唯一真相源**：
+  `max(窗格宽, 最末任务右缘 + EDGE_STUB_PX + EDGE_WRAP_PX + CONTENT_RIGHT_PAD_PX)`，
+  最末任务右缘来自 `Schedule.projectFinish`（**不得**按窗格宽外推——那会让大项目只能滚开头几十天）；
+- **轴的 `x` 是窗口坐标**（`buildAxis` 已扣 `scrollLeft`、只发射视口内的元素，§6.1 ③）：
+  因此轴必须渲染在**滚动组之外**（放进滚动组就是横向双重偏移，`scrollLeft = 0` 处不可见）；
+- SVG 覆盖**整列**：`svgHeight = height + HEADER_HEIGHT_PX`，盒 = `viewBox`（1 单位 = 1 px）；
+  色带/网格线整体下移 `HEADER_HEIGHT_PX`（落到绘制区），日期刻度画在表头带内（0..28）。
 
 | 项 | 冻结内容 |
 |---|---|
@@ -158,7 +187,7 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
   （出口条件禁止的是**行内编辑**触发整表重建）；`v-for` 的 `key` 仍是任务 id，DOM 复用不受影响；
 - 撤销/重做 UI 在 `apps/web`（G5 已落地），命令回退栈的持久化归 G6。
 
-## 八之二、拖拽手势与交互态（G5，ADR 0008 §4–§11 + **§13**）
+## 八之二、拖拽手势与交互态（G5，ADR 0008 §4–§11 + **§13** + **§14**）
 
 - **纯内核在 `gesture.ts`**：入参是**归一化指针**（`{x, y, buttons, altKey, escPressed}`，
   内容坐标；绝不出现 `MouseEvent`），出参是 `{ state, anchors, commands, link, rows, edges, cyclePath, preview }`。
@@ -212,6 +241,12 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | **G5 ③** 依赖方向护栏 | `boundary.spec.ts` | 本包发布源与**构建产物**都没有指向 `exceljs` 的模块边；本包铁律夹具被拦下 | **进** |
 | **G5 ④** 拖动计时 | `scripts/measure-render.mjs --drag` | 帧间隔 p95 ≤ 33.3 ms（≥30 fps）、松手 → 重算 + 冲突标记 ≤ 200 ms、下游跟随、**位移**（松手后 `startDate` = 按下时的开始序号 + 天数） | **不进**（记录制，ADR 0008 §11） |
 | **G5 ⑤** 导入（第 13 条，[P-22](../../docs/00-baseline/裁决记录.md)） | `scripts/measure-render.mjs --import=<xlsx>` + `scripts/make-sample.mjs` | 成环样本 ⇒ 6 任务 / 5 依赖 / 恰 1 条 `XLSX_CYCLE_EDGE_DROPPED`（带成环路径）/ 无"不可排程" | **不进**（记录制） |
+| **G5 ⑥** 两栏行对齐判读（批次 D，[P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)、ADR §14/§15） | `align.ts` + `align.spec.ts`（**20 例**） | 正例"未变造时零检出" + **每条机制一条负向对照**（③双重偏移 / ②缺表头带 / ①测量过期 / R8 盒≠viewBox / R9 行外高 / 表体高 / 表头高 / 轴纵向或**横向**不覆盖 / **刻度侵入第一行** / **R11 滚动范围** / 单行漂移 / 滚动不同步 / 所见≠所点 / 空白带 / 空样本） | **进** |
+| **G5 ⑥** 两栏行对齐（真实 DOM） | `scripts/measure-render.mjs --align[=<label>]`（**左表在场**） | **6 个 (top,left) 位置**（含 0 与 `maxScroll` 两个方向）逐行 \|Δ\| ≤ 0.5 px；`pinned`/`svgBoxAligned`/`headerAligned`/`heightAligned`/`rowHeightAligned`/`scrollInSync`/`contentRangeAligned`/`labelsInHeader`/`hitTestOk` 全真；空白带 0；轴四边覆盖 + 刻度在表头带内 | **不进**（记录制，需本机 Chrome） |
+| **G5 ⑦** 拖动画的是结果（[P-24](../../docs/00-baseline/裁决记录.md)、ADR 0008 §14） | `gesture.spec.ts`（24 → 26 例） | 三语义下 `drawnBarForRow` == 落库重算后的 `taskBounds`；与**锚点视图**的对照（`resize-start` 的右端固定）；未被拖行不受影响 | **进** |
+| **G5 ⑧** 滚动状态下的反算与命中（[P-25](../../docs/00-baseline/裁决记录.md)、ADR 0007 §16 / ADR 0008 §15） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** |
+| **G5 ⑧** 滚动状态下的拖动（记录制） | `scripts/measure-render.mjs --drag` | **两个滚动状态各一次**（`(0,0)` 与 `(480,600)`）：各自的"松手后 `startDate` = 按下时的开始序号 + 天数"都必须成立；目标行必须**无有效入边约束**（否则 `snap` 夹住候选 = 假红） | **不进**（记录制，需本机 Chrome） |
+| **G4/G5 ②** 内容横向范围（[P-24](../../docs/00-baseline/裁决记录.md)、ADR §15） | `viewModel.spec.ts`（16 → 19 例） | `contentWidth` 覆盖**全部任务最右缘** + 引出段 + 回绕走廊；随项目末端单调；空文档回落窗格宽；**负向对照**：旧式"按窗格宽推导"必须不满足 | **进** |
 
 **元素预算的常数与实测**（[`apps/web/evidence/render-timing-chrome152.md`](../../apps/web/evidence/render-timing-chrome152.md)）：
 
