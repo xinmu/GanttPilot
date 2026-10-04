@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * 应用外壳（G4 + G5）：左表右图分屏 + 滚动同步 + 档位切换 + 折叠 + 行内编辑 + xlsx 导入
- * + **拖拽三语义 / 建线 / 撤销重做 / 冲突与成环标记 / 诊断清单**。
+ * 应用外壳（G4 + G5 + G6）：左表右图分屏 + 滚动同步 + 档位切换 + 折叠 + 行内编辑 + xlsx 导入
+ * + **拖拽三语义 / 建线 / 撤销重做 / 冲突与成环标记 / 诊断清单**
+ * + **自动保存与跨会话恢复**（G6：策略在引擎、时序与 DOM 在 `usePersistence`，本文件只接线）。
  *
  * ## 分工（G5 的落地口径，ADR 0008 §4）
  *
@@ -22,6 +23,8 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';import {
   collapseToCommand,
   countElements,
+  generateDocument,
+  reindexDocument,
   countOverlays,
   cursorForPointer,
   dragPreviewFor,
@@ -44,8 +47,9 @@ import TaskTable from './components/TaskTable.vue';
 import Toolbar from './components/Toolbar.vue';
 import { useChart } from './composables/useChart.js';
 import { useGesture } from './composables/useGesture.js';
+import { usePersistence } from './composables/usePersistence.js';
 import { useProject, type DispatchResult } from './composables/useProject.js';
-import { createDemoDocumentOf, createPrimaryDemoDocument } from './demo.js';
+import { createPrimaryDemoDocument } from './demo.js';
 
 const project = useProject();
 const chart = useChart({
@@ -64,6 +68,7 @@ const chart = useChart({
 const { view, zoom, scrollTop, columnHeight, contentHeight, contentWidth, paneRef } = chart;
 const {
   document,
+  session,
   schedule,
   scheduleError,
   calendar,
@@ -113,6 +118,72 @@ const {
   highlight,
   preview,
 } = gesture;
+
+/**
+ * **测量旁路**（`?persist=0` / `localStorage['ganttpilot:persist']='0'`）：关掉自动保存。
+ *
+ * 存在的理由：出口条件①要"自动保存**不**吃拖拽帧预算"，那就必须有**同一台机器上的对照组**
+ * （开/关持久化各跑一次，同尺比较）。默认开启，关掉只影响这一个标签页。
+ */
+function readPersistenceEnabled(): boolean {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('persist') === '0') return false;
+  try {
+    return window.localStorage.getItem('ganttpilot:persist') !== '0';
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * **持久化接线**（G6；ADR 0009）。
+ *
+ * 本文件只做三件事：把 `session`/`revision` 交给 `usePersistence`、把恢复结果交回 `useProject`、
+ * 把**手势活动态**喂给策略（"拖动期不落盘"靠它，不靠运气）。
+ * 触发条件、检查点阈值、去抖与封顶全部是引擎侧的纯状态机（`pnpm gate` 里有假时钟用例）。
+ */
+const persistenceEnabled = readPersistenceEnabled();
+const persistence = usePersistence({
+  document,
+  revision,
+  session,
+  restore: (restored) => {
+    project.restore(restored);
+  },
+  notify: (next) => {
+    setNotice(next);
+  },
+  enabled: persistenceEnabled,
+});
+const { status: persistenceStatus, probe: persistenceProbe } = persistence;
+
+/** 手势活动态 → 策略（回到 `idle` 时若还有积压会立刻补写，见 `usePersistence.setGesture`）。 */
+watch(
+  () => gesture.state.value.kind,
+  (kind) => {
+    persistence.setGesture(kind === 'dragging' || kind === 'linking' ? 'dragging' : 'idle');
+  },
+);
+
+/** 状态栏那一栏的文案（**只有一处**：不在模板里拼字符串）。 */
+const persistenceText = computed(() => {
+  const state = persistenceStatus.value;
+  if (!persistence.ready.value) return '持久化：启动中';
+  if (!state.enabled) {
+    const reason =
+      state.degradedReason === 'blocked-by-other-tab'
+        ? '另一个标签页正在编辑'
+        : (state.degradedReason ?? '测量旁路');
+    return `持久化：已停用（${reason}）`;
+  }
+  const saved =
+    state.lastSavedAtMs === null ? '尚未写入' : `已保存 ${new Date(state.lastSavedAtMs).toLocaleTimeString()}`;
+  // **只显示"未落盘步数"且只在 >0 时显示**：`已保存` 之后它必须消失（这是自动保存真的发生的
+  // 可观察证据）。旧文案写的"待落步数"其实是"最近一次写入覆盖的增量步数"，两者不是一回事——
+  // 维护者的报文（拖动后显示 3）当场把这处**名不副实**抓了出来。
+  const pending = state.unsavedSteps > 0 ? ` · 未落盘 ${String(state.unsavedSteps)} 步` : '';
+  return `持久化：${saved} · 检查点 ${String(state.checkpoints)} 份${pending}${state.quotaDegraded ? ' · 配额降级' : ''}`;
+});
 
 /**
  * 左表可见性。
@@ -605,9 +676,99 @@ onMounted(() => {
   if (!params.has('measure')) return;
   void (async () => {
     try {
-      const { exposeMeasurement } = await import('./measure.js');
+      const { exposeMeasurement, specOfDataset } = await import('./measure.js');
+
+      /**
+       * **记录制专用的"强制收口"入口**：不等去抖窗口就把当前状态写下去。
+       *
+       * 与产品路径同一个函数（`persistence.flushNow`：松手 / 文档隐藏 / `pagehide` 都走它），
+       * 因此"重启恢复"这条对照测的是产品行为；只是由测量脚本显式触发，免得依赖定时器时机。
+       */
+      (window as unknown as { __GANTTPILOT_MEASURE_PERSIST_FLUSH__?: () => Promise<boolean> })
+        .__GANTTPILOT_MEASURE_PERSIST_FLUSH__ = () => persistence.flushNow();
+      // G5：拖动测量的宿主——**走真实指针入口**（`useGesture`），不另开测试后门。
+      const dragHost = {
+      view: () => view.value,
+      document: () => document.value,
+      schedule: () => schedule.value,
+      calendar: () => calendar.value,
+      pointer: {
+        down: (event: MouseEvent) => {
+          const pointer = pointerFrom(event);
+          if (pointer === null) return;
+          const entry = linkEntryOf(pointer);
+          gesture.onPointerDown(entry === null ? { pointer } : { pointer, entryPoint: entry });
+        },
+        move: (event: MouseEvent) => {
+          const pointer = pointerFrom(event);
+          if (pointer !== null) gesture.onPointerMove(pointer);
+        },
+        up: (event: MouseEvent) => {
+          const pointer = pointerFrom(event);
+          if (pointer !== null) gesture.onPointerUp({ ...pointer, buttons: 0 });
+        },
+      },          gestureKind: () => gesture.state.value.kind,
+      /** 建线入口的判定（**与用户操作同一条路**：linkEntryFor 的纯函数）。 */
+      entryPointOf: (clientX: number, clientY: number) => {
+        const pointer = pointerFromClientPoint(clientX, clientY, 1);
+        return pointer === null ? null : linkEntryOf(pointer);
+      },
+      /** 把"指针在某屏幕点"交给应用（触发连接点的显形判定；记录制先 hover 再读 DOM）。 */
+      hoverAt: (clientX: number, clientY: number) => {
+        const pointer = pointerFromClientPoint(clientX, clientY, 1);
+        if (pointer !== null) updateHover(pointer);
+      },
+      clearHover: () => {
+        clearHover();
+      },
+      /** 光标提示的分类（记录制用它核对"手柄/连接点/判定区"的光标真的不同）。 */
+      cursorAt: (clientX: number, clientY: number) => {
+        const pointer = pointerFromClientPoint(clientX, clientY, 1);
+        const current = view.value;
+        const currentSchedule = schedule.value;
+        if (pointer === null || current === null || currentSchedule === null) return 'default';
+        if (
+          linkEntryFor({
+            point: pointer,
+            view: current,
+            document: document.value,
+            schedule: currentSchedule,
+            calendar: calendar.value,
+          }) !== null
+        ) {
+          return 'crosshair';
+        }
+        return cursorForPointer({
+          point: pointer,
+          view: current,
+          document: document.value,
+          schedule: currentSchedule,
+          calendar: calendar.value,
+        });
+      },
+      anchors: () => anchors.value.length,
+      startDateOf: (taskId: string) =>
+        document.value.tasks.find((task) => task.id === taskId)?.startDate ?? null,
+      };
+
+      // G5 批次 D：两栏行对齐的**只读**采数入口（判读在 `render-core` 的 `diagnoseRowAlignment`）。
+      // `pointerFromClientOf` 走**用户操作的同一个换算**（`pointerFromClientPoint`）——
+      // "所见 = 所点"判据因此不是一条平行公式（ADR 0007 §14）。
+      const alignHost = {
+      view: () => view.value,
+      pane: () => paneRef.value,
+      pointerFromClientOf: (clientX: number, clientY: number) =>
+        pointerFromClientPoint(clientX, clientY, 1),
+      };
       exposeMeasurement({
-        buildFixtureDocument: (key) => createDemoDocumentOf(key),
+        // G6：测量用的夹具解析必须与 `measure.ts` 的 `specOfDataset` 同源——
+        // 否则 `dense-2000`（2,000 任务）会静默退回主口径（**出口条件④就测错规模了**）。
+        buildFixtureDocument: (key) => {
+          const spec = specOfDataset(key);
+          // 由 spec 现场产文档：`specOfDataset` 认识 `dense-2000`（2,000 任务），
+          // 而 `demo.ts` 的解析不认识它——出口条件④要的就是那个规模。
+          return reindexDocument(generateDocument(spec).document);
+        },
         loadDocument: async (nextDocument) => {
           project.reset(nextDocument);
           await nextTick();
@@ -634,79 +795,19 @@ onMounted(() => {
             }
           },
         }),
-        // G5：拖动测量的宿主——**走真实指针入口**（`useGesture`），不另开测试后门。
-        drag: {
-          view: () => view.value,
-          document: () => document.value,
-          schedule: () => schedule.value,
-          calendar: () => calendar.value,
-          pointer: {
-            down: (event) => {
-              const pointer = pointerFrom(event);
-              if (pointer === null) return;
-              const entry = linkEntryOf(pointer);
-              gesture.onPointerDown(entry === null ? { pointer } : { pointer, entryPoint: entry });
-            },
-            move: (event) => {
-              const pointer = pointerFrom(event);
-              if (pointer !== null) gesture.onPointerMove(pointer);
-            },
-            up: (event) => {
-              const pointer = pointerFrom(event);
-              if (pointer !== null) gesture.onPointerUp({ ...pointer, buttons: 0 });
-            },
-          },          gestureKind: () => gesture.state.value.kind,
-          /** 建线入口的判定（**与用户操作同一条路**：linkEntryFor 的纯函数）。 */
-          entryPointOf: (clientX: number, clientY: number) => {
-            const pointer = pointerFromClientPoint(clientX, clientY, 1);
-            return pointer === null ? null : linkEntryOf(pointer);
-          },
-          /** 把"指针在某屏幕点"交给应用（触发连接点的显形判定；记录制先 hover 再读 DOM）。 */
-          hoverAt: (clientX: number, clientY: number) => {
-            const pointer = pointerFromClientPoint(clientX, clientY, 1);
-            if (pointer !== null) updateHover(pointer);
-          },
-          clearHover: () => {
-            clearHover();
-          },
-          /** 光标提示的分类（记录制用它核对"手柄/连接点/判定区"的光标真的不同）。 */
-          cursorAt: (clientX: number, clientY: number) => {
-            const pointer = pointerFromClientPoint(clientX, clientY, 1);
-            const current = view.value;
-            const currentSchedule = schedule.value;
-            if (pointer === null || current === null || currentSchedule === null) return 'default';
-            if (
-              linkEntryFor({
-                point: pointer,
-                view: current,
-                document: document.value,
-                schedule: currentSchedule,
-                calendar: calendar.value,
-              }) !== null
-            ) {
-              return 'crosshair';
-            }
-            return cursorForPointer({
-              point: pointer,
-              view: current,
-              document: document.value,
-              schedule: currentSchedule,
-              calendar: calendar.value,
-            });
-          },
-          anchors: () => anchors.value.length,
-          startDateOf: (taskId: string) =>
-            document.value.tasks.find((task) => task.id === taskId)?.startDate ?? null,
+        drag: dragHost,
+        // G6：持久化测量（记录制）。`drag` **复用同一个宿主**——同一条真实指针路径，
+        // 因此"拖拽期间不产生可见掉帧"测的是产品行为，不是平行公式。
+        persist: {
+          enabled: () => persistenceEnabled,
+          ready: () => persistence.ready.value,
+          flush: () => persistence.flushNow(),
+          writeRecord: () => persistence.writeRecordNow(),
+          rebase: () => persistence.rebaseNow(),
+          probe: () => persistenceProbe.value,
+          drag: dragHost,
         },
-        // G5 批次 D：两栏行对齐的**只读**采数入口（判读在 `render-core` 的 `diagnoseRowAlignment`）。
-        // `pointerFromClientOf` 走**用户操作的同一个换算**（`pointerFromClientPoint`）——
-        // "所见 = 所点"判据因此不是一条平行公式（ADR 0007 §14）。
-        align: {
-          view: () => view.value,
-          pane: () => paneRef.value,
-          pointerFromClientOf: (clientX: number, clientY: number) =>
-            pointerFromClientPoint(clientX, clientY, 1),
-        },
+        align: alignHost
       });
       window.__GANTTPILOT_READY__ = true;
     } catch (error) {
@@ -866,6 +967,10 @@ onUnmounted(() => {
         首个汇总进度 {{ formatProgress(schedule.summaryProgress[0]) }}
       </span>
       <span
+        class="persist"
+        title="命令级撤销/重做 + 低频检查点恢复（ADR 0009）；会话锚点、滚动位置与档位不跨会话恢复"
+      >{{ persistenceText }}</span>
+      <span
         v-if="notice !== null"
         :class="['notice', notice.level]"
       >{{ notice.text }}</span>
@@ -962,6 +1067,10 @@ body {
 
 .status .warn {
   color: #b54708;
+}
+
+.status .persist {
+  color: #475467;
 }
 
 .notice.info {

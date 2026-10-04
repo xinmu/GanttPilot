@@ -16,7 +16,7 @@
  * **排程**由 `engine` 拥有，两处各一个真相源。
  */
 
-import { computed, markRaw, ref, shallowRef, type ComputedRef, type Ref } from 'vue';
+import { computed, markRaw, ref, shallowRef, type ComputedRef, type Ref, type ShallowRef } from 'vue';
 import {
   applyToSession,
   createScheduleCalendar,
@@ -27,6 +27,7 @@ import {
   PRIMARY_DATASET_KEY,
   reindexDocument,
   redoSession,
+  restoreSession,
   undoSession,
   validateDocument,
   type DocumentCommand,
@@ -37,6 +38,7 @@ import {
   type ScheduleDiagnostic,
   type ScheduleResult,
   type SessionAnchor,
+  type SessionStep,
   type StatusNotice,
 } from '@ganttpilot/render-core';
 import { compute, type Calendar } from '@ganttpilot/engine';
@@ -67,6 +69,13 @@ export function createDemoDocument(): ProjectDocument {
 /** 应用级项目状态：会话 + 排程 + 诊断（**不含**任何渲染几何）。 */
 export interface UseProject {
   readonly document: Ref<ProjectDocument>;
+  /**
+   * **会话本身**（G6 的持久化需要它：`undoStack`/`redoStack`/`revision` 都是落盘内容）。
+   *
+   * 此前只暴露 `revision`/`canUndo`/`canRedo` 三个派生值——够 G4/G5 用，但 G6 要"把会话交出去"，
+   * 因此这里如实暴露（**只读**：改会话仍然只有 `dispatch`/`undo`/`redo`/`restore`/重置 几条路）。
+   */
+  readonly session: ShallowRef<DocumentSession>;
   readonly revision: ComputedRef<number>;
   readonly canUndo: ComputedRef<boolean>;
   readonly canRedo: ComputedRef<boolean>;
@@ -106,6 +115,18 @@ export interface UseProject {
   ingestDocument: (document: ProjectDocument) => DispatchResult;
   undo: () => DispatchResult;
   redo: () => DispatchResult;
+  /**
+   * **跨会话恢复**（G6，ADR 0009 §4）：换掉整份会话——文档、两个栈与 `revision` 一起换。
+   *
+   * 与 `reset` 的分工：`reset` 是"新建一份会话"（栈必空）；本函数是"续上一个会话"，
+   * 因此**保留**撤销/重做栈——"会话内可逐步撤销 ≥50 步"必须对"重开之后"同样成立。
+   */
+  restore: (restored: {
+    readonly document: ProjectDocument;
+    readonly undo: readonly SessionStep[];
+    readonly redo: readonly SessionStep[];
+    readonly revision: number;
+  }) => void;
   reset: (document?: ProjectDocument) => void;
 }
 
@@ -158,8 +179,33 @@ export function useProject(initial?: ProjectDocument): UseProject {
     return commit(applyToSession(sessionRef.value, command), touchedTaskIdsOf(command));
   }
 
+  /**
+   * 恢复会话：文档、两个栈与 `revision` 一起换。
+   *
+   * 走引擎给出的**唯一**入口 `restoreSession`（不在应用层手搓 `DocumentSession` 字面量）。
+   * 恢复之后：锚点清空（ADR 0009 §6：拖动期的临时意图不跨会话）、提示作废
+   * （P-30 的口径：提示不得比它描述的事实活得更久）。
+   */
+  function restore(restored: {
+    readonly document: ProjectDocument;
+    readonly undo: readonly SessionStep[];
+    readonly redo: readonly SessionStep[];
+    readonly revision: number;
+  }): void {
+    const session = restoreSession(restored.document, restored.revision, {
+      undo: restored.undo,
+      redo: restored.redo,
+    });
+    sessionRef.value = markRaw(session);
+    documentRef.value = markRaw(session.document);
+    lastFailure.value = null;
+    notice.value = null;
+    anchors.value = [];
+  }
+
   return {
     document: documentRef,
+    session: sessionRef,
     revision: computed(() => sessionRef.value.revision),
     canUndo: computed(() => sessionRef.value.undoStack.length > 0),
     canRedo: computed(() => sessionRef.value.redoStack.length > 0),
@@ -194,6 +240,7 @@ export function useProject(initial?: ProjectDocument): UseProject {
       commit(applyToSession(sessionRef.value, { kind: 'document.replace', document }), []),
     undo: () => commit(undoSession(sessionRef.value), []),
     redo: () => commit(redoSession(sessionRef.value), []),
+    restore,
     reset: (next?: ProjectDocument) => {
       const value = markRaw(next ?? createDemoDocument());
       documentRef.value = value;
