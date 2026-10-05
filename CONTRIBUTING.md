@@ -56,7 +56,7 @@
 | Node | **24 LTS**（`engines: >=24.0.0`；仓库根的 `.nvmrc` 写的也是 24）。更新的版本（如 26）实测可用，但 CI 与发布以 24 为准 |
 | 包管理器 | pnpm（`packageManager: pnpm@10.34.6`，经 corepack 或全局安装均可） |
 | 系统 | Windows / macOS / Linux 均可；门禁脚本刻意避开平台特定的可执行包装 |
-| Chrome | **本机 Chrome（G6 起必需）**：`pnpm gate` 里的 `smoke:build` 要用它打开**打包产物**并断言界面真的渲染了（此前没有任何门禁碰过 `dist/`）。缺失即失败、不跳过；用 `GANTTPILOT_CHROME=<path>` 指定。**Windows 上不得默认用正式版 Chrome，用 Chrome Beta**——见下面的[驱动浏览器用哪一个 Chrome](#驱动浏览器用哪一个-chromewindows-必须遵守) |
+| Chrome | **本机 Chrome（G6 起必需）**：`pnpm gate` 里的 `smoke:build` 要用它打开**打包产物**并断言界面真的渲染了（此前没有任何门禁碰过 `dist/`）。缺失即失败、不跳过；用 `GANTTPILOT_CHROME=<path>` 指定 |
 | Python | **3.x（G2 起必需）**：只有**差分测试**用得到——G2 与 `tools/cpm-reference/` 的独立参照实现比对；**G3 起**另与 `tools/xlsx-reference/` 比对，需 **`openpyxl==3.1.5`**（`pip install openpyxl==3.1.5`）。门禁中**缺失即失败，不静默跳过**（[裁决 P-12](docs/00-baseline/裁决记录.md) / [ADR 0004](docs/02-adr/0004-排程契约.md) §9 / [ADR 0006](docs/02-adr/0006-xlsx-协议契约.md) §12） |
 
 首次准备：
@@ -65,42 +65,6 @@
 pnpm install          # 同时通过 prepare 钩子设置 core.hooksPath=.husky
 pnpm gate             # 跑一次完整门禁，确认环境可用
 ```
-
-### 驱动浏览器用哪一个 Chrome（Windows 必须遵守）
-
-**Windows 上的人工机器：自动化一律用本机已安装的 Chrome Beta，不要用正式版 Chrome。**
-正式版的那份是维护者日常在用的浏览器，自动化（打包产物冒烟、打包产物测量、截图/UI 复验）
-一旦起在它上面就会影响日常使用。
-
-| 项 | 值 |
-|---|---|
-| **首选** | `C:\Program Files\Google\Chrome Beta\Application\chrome.exe`（Chrome Beta） |
-| **默认禁止** | `C:\Program Files\Google\Chrome\Application\chrome.exe`（正式版 Chrome）；`C:\Program Files (x86)\…` 同理 |
-| **确需用正式版时** | **先和维护者确认**，得到同意再跑；不要"顺手"回退过去 |
-| **Chrome Beta 不可用时** | **直接失败并如实报告**（路径不存在 / 起不来），不静默回退到正式版、也不擅自改用 Edge——与 P-12"缺失即失败，不静默跳过"同一条口径 |
-
-两个脚本的 `findChrome()`（[`scripts/smoke-build.mjs`](scripts/smoke-build.mjs)、
-[`scripts/measure-render.mjs`](scripts/measure-render.mjs)）在 Windows 上的候选顺序都**先命中正式版**，
-所以 Windows 上跑它们（含 `pnpm gate` 里的 `smoke:build`）**必须显式指定**，否则规则形同虚设：
-
-```powershell
-# PowerShell：本次会话内生效，两个脚本都以它为首选
-$env:GANTTPILOT_CHROME = 'C:\Program Files\Google\Chrome Beta\Application\chrome.exe'
-pnpm gate               # 或 node scripts/measure-render.mjs [--drag|--persist-drag|--storage-metrics|--import=…]
-```
-
-两点后果，跑之前先知道：
-
-1. **证据按 Chrome 大版本分文件**（`apps/web/evidence/*-chrome<大版本>.md`）。
-   Beta 与正式版的大版本一般不同（本机实测：Beta `156.0.8078.4` / 正式版 `154.0.8037.95`），
-   于是新证据会落到 `*-chrome156.md` 一类的**新文件**里，与既有的 152/154 **并存、不覆盖**；
-   跨版本的数字差异属**预期**（"换 Chrome 大版本数值必变"，见[裁决 P-17](docs/00-baseline/裁决记录.md)），
-   不要把这种差异当成回归。
-2. **`smoke:build` 是门禁的一步**，它换浏览器只影响"界面真的渲染了"这一断言（版本无关），
-   所以用 Beta 不会让门禁失真；但**记录制测量**的数字必须与证据文件里登记的大版本**同尺**才能比较。
-
-> 这条是**环境纪律**，不是契约裁决：所以它写在这里（`CONTRIBUTING` 的"环境"一节），
-> 不进 `docs/00-baseline/裁决记录.md`，也不改任何脚本的默认候选顺序。
 
 ## 开发命令
 
