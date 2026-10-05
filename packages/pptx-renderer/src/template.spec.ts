@@ -335,19 +335,57 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
     const ganttCenter = plan.ganttBox.y + plan.fit.offsetY + (plan.projection.innerHeight * plan.fit.scale) / 2;
     expect(Math.abs(sidebarCenter - ganttCenter)).toBeLessThan(6);
   });
-  it('⑧ 图例的箭头形态与画布**同形**：FS/FF 三角、SS/SF 开放箭头（两条臂拼尖角）', async () => {
+  it('⑧ 图例的箭头形态与画布**同形**，且开放箭头**朝向正确**（"→"而不是"<"）', async () => {
     const fixture = demoFixture();
+    const plan = planTemplateA({ ...fixture, zoom: 'week' });
     const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
     const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
     // 实心两类：三角形 preset
     for (const key of ['edge-FS', 'edge-FF']) {
       expect(new RegExp(`name="legend-swatch-${key}-head"[\\s\\S]{0,600}?prst="triangle"`).test(slideXml)).toBe(true);
     }
-    // 开放两类：两条臂（旋转的细矩形），不再用三角形
+
+    const pxOf = (emu: number): number => emu / (12700 * (72 / 96));
+    /** 由 `<a:xfrm rot>` + `<a:off>/<a:ext>` 还原一条臂的**两个端点**（px，旋转绕包围盒中心）。 */
+    const endsOf = (name: string): readonly (readonly [number, number])[] => {
+      const m = new RegExp(
+        `name="${name}"[\\s\\S]{0,700}?<a:xfrm(?: rot="(-?\\d+)")?><a:off x="(-?\\d+)" y="(-?\\d+)"/><a:ext cx="(\\d+)" cy="(\\d+)"`,
+      ).exec(slideXml);
+      expect(m).not.toBeNull();
+      if (m === null) return [];
+      const theta = (Number(m[1] ?? '0') / 60_000) * (Math.PI / 180);
+      const left = pxOf(Number(m[2]));
+      const top = pxOf(Number(m[3]));
+      const cx = pxOf(Number(m[4]));
+      const cy = pxOf(Number(m[5]));
+      const centerX = left + cx / 2;
+      const centerY = top + cy / 2;
+      const half = cx / 2;
+      return [
+        [centerX + half * Math.cos(theta), centerY + half * Math.sin(theta)],
+        [centerX - half * Math.cos(theta), centerY - half * Math.sin(theta)],
+      ];
+    };
+
+    for (const row of plan.legendRows) {
+      const key = row.item.styleKey;
+      if (key !== 'edge-SS' && key !== 'edge-SF') continue;
+      const tipX = plan.sidebarBox.x + 6 + 23;
+      const tipY = row.y;
+      for (const arm of ['arm1', 'arm2']) {
+        const ends = endsOf(`legend-swatch-${key}-head-${arm}`);
+        expect(ends).toHaveLength(2);
+        // 一条端点必须落在尖端（≤0.6 px）：尖角由两条臂**交于右端**构成
+        const atTip = ends.some(([ex, ey]) => Math.hypot(ex - tipX, ey - tipY) < 0.6);
+        expect(atTip).toBe(true);
+        // 另一条端点必须在**左侧** ⇒ 尖角朝右（"→"；写反 rot 会得到"<"）
+        const farEnd = ends.find(([ex, ey]) => Math.hypot(ex - tipX, ey - tipY) >= 0.6);
+        expect(farEnd).toBeDefined();
+        expect(farEnd?.[0] ?? tipX).toBeLessThan(tipX - 3);
+      }
+    }
+    // 开放两类不再用三角形 preset
     for (const key of ['edge-SS', 'edge-SF']) {
-      expect(slideXml).toContain(`name="legend-swatch-${key}-head-arm1"`);
-      expect(slideXml).toContain(`name="legend-swatch-${key}-head-arm2"`);
-      expect(new RegExp(`name="legend-swatch-${key}-head-arm1"[\\s\\S]{0,600}?rot="-?\\d+"`).test(slideXml)).toBe(true);
       expect(new RegExp(`name="legend-swatch-${key}-head"[\\s\\S]{0,400}?prst="triangle"`).test(slideXml)).toBe(false);
     }
   });

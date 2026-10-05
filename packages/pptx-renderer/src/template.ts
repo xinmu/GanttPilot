@@ -697,10 +697,18 @@ function legendSwatchXmlOf(args: {
 }
 
 /**
- * **开放箭头（"→"）**：两条细矩形各旋转 ±45°，拼成一个尖角，尖端落在 `tipX`。
+ * **开放箭头（"→"）**：两条细矩形各旋转 ±45°，拼成一个**朝右**的尖角，尖端落在 `tipX`。
  *
- * 用途：PPT 里 `SS`/`SF` 的**图例**swatch —— 画布上这两类用的是 OOXML 原生 `type="arrow"`，
- * 图例必须画成**同一种形态**，否则"图例教不会读者看图"（人工复验第 3/4 条的同类问题）。
+ * ## 几何（`rot` 的正负是这里的全部难点）
+ *
+ * OOXML 的 `rot` 以**顺时针为正**，且旋转绕**自身包围盒中心**。一根水平细矩形（长 `L`）转 `θ` 后，
+ * 它的两端在 `center ± (L/2)·(cosθ, sinθ)`。要让两条臂的**右端交于尖端** `(tipX, tipY)`：
+ *
+ * - **上臂**：另一端在左上方 ⇒ 方向 `(1,1)` ⇒ `θ = +45°`，中心 `= (tipX − d, tipY − d)`
+ * - **下臂**：另一端在左下方 ⇒ 方向 `(1,−1)` ⇒ `θ = −45°`，中心 `= (tipX − d, tipY + d)`
+ *
+ * 其中 `d = (L/2)/√2`。**把两个 `θ` 写反就会得到"-<"**（两条臂改为共用**左端**顶点、
+ * 尖角朝左）——这正是人工复验抓到的那次错误，判据已按"右端必须在尖端"写死。
  */
 function openArrowXml(args: {
   readonly allocator: IdAllocator;
@@ -713,26 +721,24 @@ function openArrowXml(args: {
   const armThickness = 1.5;
   const half = armLength / 2;
   const diag = half / Math.SQRT2;
-  const arms: string[] = [];
-  for (const [index, rotateDeg] of [-45, 45].entries()) {
-    const centerX = args.tipX - diag;
-    const centerY = args.tipY + (rotateDeg === -45 ? -diag : diag);
-    arms.push(
-      plainRectSpXml({
-        id: args.allocator.next(),
-        name: `${args.name}-arm${String(index + 1)}`,
-        rect: {
-          x: pxToEmu(centerX - half),
-          y: pxToEmu(centerY - armThickness / 2),
-          cx: pxToEmu(armLength),
-          cy: pxToEmu(armThickness),
-        },
-        fill: args.color,
-        rotateDeg,
-      }),
-    );
-  }
-  return arms;
+  const arms: readonly { readonly centerY: number; readonly rotateDeg: number }[] = [
+    { centerY: args.tipY - diag, rotateDeg: 45 },
+    { centerY: args.tipY + diag, rotateDeg: -45 },
+  ];
+  return arms.map((arm, index) =>
+    plainRectSpXml({
+      id: args.allocator.next(),
+      name: `${args.name}-arm${String(index + 1)}`,
+      rect: {
+        x: pxToEmu(args.tipX - diag - half),
+        y: pxToEmu(arm.centerY - armThickness / 2),
+        cx: pxToEmu(armLength),
+        cy: pxToEmu(armThickness),
+      },
+      fill: args.color,
+      rotateDeg: arm.rotateDeg,
+    }),
+  );
 }
 
 /** 解包后的产物尺寸（`p:sldSz`）。 */

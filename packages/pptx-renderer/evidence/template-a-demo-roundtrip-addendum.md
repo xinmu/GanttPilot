@@ -14,7 +14,7 @@
 | WPS 另存后（**拖动后**） | `evidence/wps/template-a-demo-saved-by-wps-after-drag.xml` |
 
 被验产物：`tmp/exports/template-a-demo-week.pptx`，**15,886 字节**，
-sha256 `b5f644d4a8602a9d27b49221a725cc22eb9903c096e260b29641c5e67fb2ccc8`（`twoRunIdentical = true`，行 15 / 边 14）。
+sha256 `d144a8130ab2a40d524e019205be58bb77a95c4c7ef6175e3f736476b390e9fe`（`twoRunIdentical = true`，行 15 / 边 14）。
 
 环境：WPS 演示 COM 自报 `Name=Microsoft PowerPoint` / `Version=12.0`（**伪装字符串**，
 识别靠 `Path` 指向 `Kingsoft\WPS Office\12.1.0.28505\office6`）。
@@ -57,6 +57,15 @@ sha256 `b5f644d4a8602a9d27b49221a725cc22eb9903c096e260b29641c5e67fb2ccc8`（`two
 **图例必须与画布同形**：PPT 的图例里 `SS`/`SF` 因此画成**开放箭头**
 （`legend-swatch-edge-SS-head-arm1/arm2`：两条细矩形旋转 ±45° 拼尖角），
 `FS`/`FF` 画实心三角——**图例教的就是画布上真实的样子**。
+
+**开放箭头的朝向（第三次人工复验抓到的一次真缺陷）**：两条臂的 **`rot` 正负写反**会得到
+**尖角朝左的 "-<"**——因为 `rot` 是**顺时针为正**、且旋转绕**包围盒中心**：
+一根水平细矩形转 `θ` 后两端在 `center ± (L/2)·(cosθ, sinθ)`，要让两臂的**右端交于尖端**，
+上臂必须 `θ = +45°`、下臂 `θ = −45°`（写反则两臂改为**共用左端**顶点）。
+现在这条已写成**几何判据**：由 `<a:xfrm rot>` + `<a:off>/<a:ext>` 反解每条臂的两个端点，
+**必须一端落在尖端（≤0.6 px）、另一端在尖端左侧** ⇒ 尖角只能朝右；
+判据的**判别力**用负向对照验过（把 `θ` 写反，该用例立刻红）。
+4× 放大目视复核（`tmp/legend-zoom.png`）：`FS`/`FF` 实心三角、`SS`/`SF` 为 "->"。**
 
 ## 三、看图结论（`evidence/vision/template-a-demo-before.png` / `-after.png`，1600×900）
 

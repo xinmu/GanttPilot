@@ -23,14 +23,14 @@
 |---|---|---|
 | 1 | 打开无修复弹窗（COM 打开未抛错） | 通过（无异常） |
 | 2 | 幻灯片可读 | 通过（slides=1） |
-| 3 | `Slide.Export` 出 PNG（拖动前） | 通过（140100 bytes） |
-| 4 | `SaveAs` 另存 pptx（拖动前） | 通过（21155 bytes） |
+| 3 | `Slide.Export` 出 PNG（拖动前） | 通过（140075 bytes） |
+| 4 | `SaveAs` 另存 pptx（拖动前） | 通过（21152 bytes） |
 | 5 | 另存后 `a:stCxn`/`a:endCxn` 条数存活 | 通过（补丁 14 条：st=14 end=14 ⇒ WPS 后 st=14 end=14） |
 | 6 | 逐条 connector 端点（归一到形状名后）存活 | 通过（14 条全部一致） |
 | 7 | `cxnSp` 条数（另存前/后） | 补丁 14 条 ⇒ WPS 14 条（一致） |
 | 8 | 拖动任务条（COM 移动 `Left`/`Top`） | 通过（`bar-t1`：L=199.7 T=117.7 → L=319.7 T=177.7） |
-| 9 | `Slide.Export` 出 PNG（拖动后） | 通过（140416 bytes） |
-| 10 | `SaveAs` 另存 pptx（拖动后） | 通过（21381 bytes） |
+| 9 | `Slide.Export` 出 PNG（拖动后） | 通过（140388 bytes） |
+| 10 | `SaveAs` 另存 pptx（拖动后） | 通过（21379 bytes） |
 | 11 | **端点跟随**（相关 connector 的 `xfrm` 重算） | 通过（xfrm 随移动重算） |
 | 12 | `cxnSpLocks` | 补丁 0 处 ⇒ WPS 0 处 |
 
