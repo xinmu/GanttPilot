@@ -36,11 +36,11 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { closeOwnChrome, ensureProfileDir, profileDirFor, psCommandLine } from './chrome-harness.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = join(repoRoot, 'apps', 'web', 'dist');
 const evidenceDir = join(repoRoot, 'apps', 'web', 'evidence');
-const chromeProfileRoot = join(repoRoot, 'tmp', 'measure-chrome-profile');
 
 const ZOOM_KEYS = ['day', 'week', 'month'];
 const PRIMARY_DATASET = 'dense';
@@ -163,8 +163,7 @@ function findChrome() {
 
 /** 启动 Chrome 与一个 CDP 会话（`--remote-debugging-port=0` + 读 `DevToolsActivePort`）。 */
 async function launchChrome(executable) {
-  const profileDir = join(chromeProfileRoot, String(Date.now()));
-  mkdirSync(profileDir, { recursive: true });
+  const profileDir = ensureProfileDir(profileDirFor('measure-chrome-profile'));
   const child = spawn(
     executable,
     [
@@ -194,7 +193,8 @@ async function launchChrome(executable) {
     await new Promise((settle) => setTimeout(settle, 120));
   }
   if (port === 0) {
-    child.kill();
+    // 起不来时的兜底也走同一道闸（协议级关闭此时通常不可用，故按 PID 树）。
+    await closeOwnChrome({ profileDir, pid: child.pid, lookup: psCommandLine, timeoutMs: 2_000 });
     throw new Error('Chrome 未在 20 秒内写出 DevToolsActivePort');
   }
   return { child, port, profileDir };
@@ -1158,7 +1158,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
 
   const { server, origin } = await startStaticServer(distRoot);
   const executable = findChrome();
-  const { child, port } = await launchChrome(executable);
+  const { child, port, profileDir } = await launchChrome(executable);
   const cdp = await connectCdp(port);
 
   try {
@@ -1526,7 +1526,11 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
     }
   } finally {
     cdp.close();
-    child.kill();
+    // 收尾：协议级 `Browser.close` 优先，超时才按 PID 树；两条路都先过 profile 闸
+    // （不杀进程、不按名字匹配——见 `scripts/chrome-harness.mjs`）。
+    const outcome = await closeOwnChrome({ profileDir, pid: child.pid, lookup: psCommandLine });
+    if (outcome.closedBy === 'pid-tree') console.error('[measure] 协议级关闭未生效，已按 PID 树兜底');
+    if (outcome.note !== '') console.error(`[measure] 收尾说明：${outcome.note}`);
     server.close();
   }
 }

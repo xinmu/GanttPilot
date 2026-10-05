@@ -30,11 +30,14 @@ import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertOwnProfile, closeOwnChrome, profileDirFor, psCommandLine } from './chrome-harness.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = join(repoRoot, 'apps', 'web', 'dist');
-const profileRoot = join(repoRoot, 'tmp', 'smoke-profile');
-/** 本轮用的配置目录（跑完删掉：`tmp/` 虽已 gitignore，但"只增不减"是运行卫生问题）。 */
+/**
+ * 本轮用的配置目录（跑完删掉：`tmp/` 虽已 gitignore，但"只增不减"是运行卫生问题）。
+ * 形状由 `chrome-harness.mjs` 的白名单定死，收尾**只认这个目录**（见那里的三条闸）。
+ */
 let currentProfileDir = null;
 
 const MIME = new Map([
@@ -96,7 +99,7 @@ function findChrome() {
 
 /** 启动无头 Chrome 并等 DevTools 端口落盘。 */
 function launchChrome(executable) {
-  const profileDir = join(profileRoot, String(Date.now()));
+  const profileDir = assertOwnProfile(profileDirFor('smoke-profile'));
   currentProfileDir = profileDir;
   const child = spawn(
     executable,
@@ -250,7 +253,15 @@ try {
   console.error(`[smoke] 失败：${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;
 } finally {
-  chromeHandle?.child.kill();
+  // 收尾走 `chrome-harness.mjs` 的三条闸：正常路径是协议级 `Browser.close`（不杀进程），
+  // 只有它超时才按**我们自己的 PID 树**兜底——绝不按名字匹配 chrome.exe。
+  const outcome = await closeOwnChrome({
+    profileDir: currentProfileDir,
+    pid: chromeHandle?.child.pid,
+    lookup: psCommandLine,
+  });
+  if (outcome.closedBy === 'pid-tree') console.log('[smoke] 协议级关闭未生效，已按 PID 树兜底');
+  if (outcome.note !== '') console.log(`[smoke] 收尾说明：${outcome.note}`);
   serverHandle?.server.close();
   // 等 Chrome 放开配置目录再删（Windows 上占用中的目录删不掉，删不掉就算了——它已 gitignore）。
   if (currentProfileDir !== null) {

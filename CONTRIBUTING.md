@@ -66,6 +66,15 @@ pnpm install          # 同时通过 prepare 钩子设置 core.hooksPath=.husky
 pnpm gate             # 跑一次完整门禁，确认环境可用
 ```
 
+**无头 Chrome 的收尾（脚本必须遵守）**：跑无头 Chrome 的脚本（`smoke:build`、`measure-render.mjs`）
+起浏览器时一律用 `tmp/<已知 profile 根>/<时间戳>` 做 `--user-data-dir`，收尾走
+[`scripts/chrome-harness.mjs`](scripts/chrome-harness.mjs)。三条不变量：**① profile 白名单**（只认
+`tmp/` 下已知的那几个 profile 根；日常 Chrome 的默认 profile 结构上过不了这道闸，因为它的命令行连
+`--user-data-dir` 都没有）；**② 不杀进程**（正常路径是协议级 `Browser.close`，超时才按 PID 树兜底，
+且动手前先核对"该 PID 的命令行带 `--headless` 且指向同一个 profile"）；**③ 禁止按名字匹配
+`chrome.exe`**——那是唯一能把维护者正在用的浏览器一起关掉的动作。判定逻辑是纯函数，自检见
+`node scripts/chrome-harness.selftest.mjs`（不需要 Chrome）。
+
 ## 开发命令
 
 | 命令 | 作用 |
@@ -81,6 +90,7 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 | `node scripts/measure-render.mjs` | **打包产物测量**（记录制、**不进 `pnpm gate`**）：先 `pnpm --filter @ganttpilot/web build`，再驱本机 Chrome 测首屏与 10× 滚动并写 `apps/web/evidence/render-timing-chrome<大版本>.md`。缺 Chrome 即失败，可用 `GANTTPILOT_CHROME` 指定；`--zoom=day|week|month` / `--rounds=` / `--steps=` / `--no-reference` 可选 |
 | `node scripts/measure-render.mjs --drag` | **G5 拖动测量**（记录制）：同样先构建，再用**真实指针事件**拖 3 个工作日，测帧间隔、主线程同步工作量、松手 → 重算 + 冲突标记的墙钟、"下游跟随"的 DOM 证据，以及**位移判据**（松手后 `startDate` = 按下时的开始序号 + 天数），写 `apps/web/evidence/drag-timing-chrome<大版本>.md`；`--day-delta=` / `--drag-frames=` 可选 |
 | `node scripts/make-sample.mjs` | **成环样本**生成（P-21 遗留 3）：写 `tmp/samples/cyclic-dependency.xlsx`（三列 / 6 行 / `t5→t6` 成环；**`tmp/` 已 gitignore，不入库二进制**） |
+| `node scripts/chrome-harness.selftest.mjs` | **无头 Chrome 收尾闸的自检**（纯函数 + 替身进程，**不需要 Chrome**）：profile 白名单、PID 身份核对、协议级关闭与按 PID 兜底三条闸的正负对照 |
 | `node scripts/measure-render.mjs --import=<xlsx>` | **G5 导入测量**（记录制）：用 CDP 的 `DOM.setFileInputFiles` 走真实导入入口，读回任务/依赖计数、诊断清单与"不可排程"占位，写 `apps/web/evidence/import-cyclic-sample-chrome<大版本>.md` |
 | `pnpm build` | 四包 `tsc -b`（产出 `dist/*.js` + `*.d.ts`）+ 应用 `vite build` |
 | `pnpm --filter @ganttpilot/engine build` | 只构建/类型检查某个包（`build`/`typecheck` 支持 `--filter`） |
