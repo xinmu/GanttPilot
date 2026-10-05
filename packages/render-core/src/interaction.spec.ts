@@ -166,13 +166,23 @@ describe('判定区：随条宽收缩（ADR 0008 §16.1／裁决 P-32）', () =>
     expect(dragModeOfZones(narrowBar, zonesFor(narrowBar), center)).toBe('move');
   });
 
-  it('里程碑：不走判定区，按**菱形中心**分半（§5 的既有口径由 §16.1 保留）', () => {
+  it('里程碑：不走判定区，**整条 `move`**（P-43 删掉"右半 = 改工期"）', () => {
     const zones = zonesFor(milestoneBar);
     expect(zones.edgeL).toBeNull();
     expect(zones.edgeR).toBeNull();
     const cx = milestoneBar.milestone?.cx ?? 0;
     expect(dragModeOfZones(milestoneBar, zones, cx - 1)).toBe('move');
-    expect(dragModeOfZones(milestoneBar, zones, cx + 1)).toBe('resize-duration');
+    expect(dragModeOfZones(milestoneBar, zones, cx + 1)).toBe('move');
+    // **负向对照**：旧口径（按菱形中心分半）在右半区给出 `resize-duration` ⇒ 新旧必然不同。
+    expect(cx + 1 >= cx ? 'resize-duration' : 'move').not.toBe(dragModeOfZones(milestoneBar, zones, cx + 1));
+  });
+
+  it('**汇总条：没有任何判定区**（P-43）——光标因此不会承诺"可拉长"', () => {
+    expect(zonesFor(summaryBar)).toStrictEqual({ edgeL: null, move: null, edgeR: null });
+    // 整条（含两端）都拿不到任何判定区（旧口径在这里会给 `resize-start`/`resize-duration`）。
+    for (const x of [summaryBar.xLeft, summaryBar.xLeft + 4, (summaryBar.xLeft + summaryBar.xRight) / 2, summaryBar.xRight]) {
+      expect(zoneAt(zonesFor(summaryBar), x)).toBeNull();
+    }
   });
 
   it('退化条（宽 ≤ 0）：只给 `move`，不产生"没有任何判定区"的行', () => {
@@ -238,15 +248,73 @@ describe('端点手柄与连接点（ADR 0008 §16.2／裁决 P-32 的 R3）', (
     const cases: readonly TaskBounds[] = [wideBar, narrowBar, summaryBar, milestoneBar];
     for (const bounds of cases) {
       const handles = rowHandlesFor({ taskId: 't', bounds, rowHeight: ROW_HEIGHT });
-      // 手持 + 连接点 ≤ 4；但"最胖的行"是**有进度的叶子**：条 1 + 进度 1 + 手柄 2 + 连接点 2 = 6
-      // （进度是 c₁ 的老口径，不在这里）。
+      // 手柄 + 连接点 ≤ 4；但"最胖的行"是**有进度的叶子**：条 1 + 进度 1 + 手柄 2 + 连接点 2 = 6
+      // （进度是 c₁ 的老口径，不在这里）。三者的**上界**不变（`perRenderedRow = 3` 是上界）。
       expect(handles.handles.length + handles.connectPoints.length).toBeLessThanOrEqual(4);
     }
-    // 汇总行与里程碑：**没有手柄**（不可拖），只有连接点（可作建线端点）。
-    for (const bounds of [summaryBar, milestoneBar]) {
-      const handles = rowHandlesFor({ taskId: 't', bounds, rowHeight: ROW_HEIGHT });
-      expect(handles.handles).toStrictEqual([]);
-      expect(handles.connectPoints).toHaveLength(2);
+    // 汇总行：**没有手柄、也没有连接点**（P-43：汇总端点上的依赖在传播中"等同不存在"）。
+    const summaryHandles = rowHandlesFor({ taskId: 't', bounds: summaryBar, rowHeight: ROW_HEIGHT });
+    expect(summaryHandles.handles).toStrictEqual([]);
+    expect(summaryHandles.connectPoints).toStrictEqual([]);
+    // 里程碑（叶子）：没有手柄，但**有**连接点（它的依赖照常参与传播，是 US-2 的对象）。
+    const milestoneHandles = rowHandlesFor({ taskId: 't', bounds: milestoneBar, rowHeight: ROW_HEIGHT });
+    expect(milestoneHandles.handles).toStrictEqual([]);
+    expect(milestoneHandles.connectPoints).toHaveLength(2);
+  });
+
+  it('**汇总行：光标 `default`、建线入口为 null**（P-43：不给"引擎不会兑现的承诺"）', () => {
+    const target = viewOf('day');
+    let summaryRow: number | null = null;
+    for (let row = target.renderFirst; row <= target.renderLast; row += 1) {
+      const bounds = boundsOf(target, row);
+      if (bounds.kind === 'summary') {
+        summaryRow = row;
+        break;
+      }
+    }
+    expect(summaryRow).not.toBeNull();
+    if (summaryRow === null) return;
+    const bounds = boundsOf(target, summaryRow);
+    const docIndex = target.order[summaryRow] ?? 0;
+    const taskId = fixture.document.tasks[docIndex]?.id ?? '';
+    const y = bounds.y;
+    const geometry = {
+      view: target,
+      document: fixture.document,
+      schedule: fixture.schedule,
+      calendar: fixture.calendar,
+    };
+    // 整条（含两端与中部）都必须是 `default`——旧口径会在两端给出 `col-resize`。
+    for (const x of [bounds.xLeft, bounds.xLeft + 3, (bounds.xLeft + bounds.xRight) / 2, bounds.xRight - 3, bounds.xRight]) {
+      expect(cursorForPointer({ ...geometry, point: { x, y, buttons: 0 } })).toBe('default');
+      // 建线入口同样为 null（汇总端点上的依赖在传播中"等同不存在"）。
+      expect(linkEntryFor({ ...geometry, point: { x, y, buttons: 1 } })).toBeNull();
+    }
+    // 前提自证：这一行确实是汇总（否则上面两条会退化成"随便找一行"）。
+    expect(taskId).not.toBe('');
+  });
+
+  it('**里程碑：整条光标都是 `move`**（P-43：菱形不再承诺"可拉长"）', () => {
+    const target = viewOf('day');
+    let milestoneRow: number | null = null;
+    for (let row = target.renderFirst; row <= target.renderLast; row += 1) {
+      if (boundsOf(target, row).isMilestone) {
+        milestoneRow = row;
+        break;
+      }
+    }
+    expect(milestoneRow).not.toBeNull();
+    if (milestoneRow === null) return;
+    const bounds = boundsOf(target, milestoneRow);
+    const geometry = {
+      view: target,
+      document: fixture.document,
+      schedule: fixture.schedule,
+      calendar: fixture.calendar,
+    };
+    const cx = bounds.milestone?.cx ?? (bounds.xLeft + bounds.xRight) / 2;
+    for (const x of [cx - 1, cx, cx + 1]) {
+      expect(cursorForPointer({ ...geometry, point: { x, y: bounds.y, buttons: 0 } })).toBe('move');
     }
   });
 
@@ -512,12 +580,15 @@ describe('元素预算的每行常数与记录制入口（ADR 0008 §16.4）', (
     expect(described).toHaveLength(target.rows.length);
     let handleTotal = 0;
     let connectTotal = 0;
+    let summaryRows = 0;
     for (const item of described) {
       handleTotal += item.handleCount;
       connectTotal += item.connectCount;
     }
-    // 汇总/里程碑 0 手柄；其余行 2 手柄；连接点恒 2。
-    expect(connectTotal).toBe(target.rows.length * 2);
+    for (const row of target.rows) if (row.kind === 'summary') summaryRows += 1;
+    // 汇总/里程碑 0 手柄；其余行 2 手柄；连接点：**非汇总行**恒 2（P-43：汇总行 0）。
+    expect(summaryRows).toBeGreaterThan(0); // 前提自证：窗口里确实有汇总行，否则上面那条会退化成恒真式
+    expect(connectTotal).toBe((target.rows.length - summaryRows) * 2);
     expect(handleTotal % 2).toBe(0);
     expect(handleTotal).toBeLessThanOrEqual(target.rows.length * 2);
   });

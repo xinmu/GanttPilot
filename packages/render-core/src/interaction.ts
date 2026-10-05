@@ -184,12 +184,17 @@ export function rowHandlesFor(args: {
 
   // 连接点**两侧对称**（§16.2）：命中盒内缘与条端对齐、整体向**外**伸（P-32 人工复验的订正）；
   // **可见的是圆**（P-42 批次③）：直径略小于条高、且不超过命中盒（`visible ⊆ hit`）。
-  // 汇总行只有连接点（可作建线端点、不可拖）；里程碑同理（菱形的"端"不是条形的端）。
+  // **汇总行没有连接点**（P-43）：汇总端点上的依赖在传播中"等同不存在"（SCHEDULE.md §四.6，
+  // 文档层只给 warning `LINK_SUMMARY_ENDPOINT`）⇒ 给它一个建线入口就是给一个**引擎不会兑现的承诺**。
+  // 里程碑（叶子）仍然两侧对称——它的依赖**照常参与传播**，是 US-2 的对象。
   const connectDiameter = connectDiameterFor(bounds, rowHeight);
-  const connectPoints: ConnectPoint[] = [
-    { side: 'left', x: connectLeftEdgeFor(bounds, 'left'), y, size: CONNECT_SIZE_PX, diameter: connectDiameter },
-    { side: 'right', x: connectLeftEdgeFor(bounds, 'right'), y, size: CONNECT_SIZE_PX, diameter: connectDiameter },
-  ];
+  const connectPoints: ConnectPoint[] =
+    bounds.kind === 'summary'
+      ? []
+      : [
+          { side: 'left', x: connectLeftEdgeFor(bounds, 'left'), y, size: CONNECT_SIZE_PX, diameter: connectDiameter },
+          { side: 'right', x: connectLeftEdgeFor(bounds, 'right'), y, size: CONNECT_SIZE_PX, diameter: connectDiameter },
+        ];
 
   return {
     taskId: args.taskId,
@@ -289,6 +294,12 @@ export function rowConnectVisibleAt(bounds: TaskBounds, x: number, insideRow: bo
 export function cursorForPointer(args: PointerGeometryArgs): CursorHint {
   const target = targetOf(args);
   if (target === null) return 'default';
+  /**
+   * **汇总条：整条 `default`**（P-43）——它既不可拖（日期是聚合结果），也没有连接点（端点会被忽略）
+   * ⇒ 光标**不承诺任何动作**。这条必须与 `zonesFor`/`rowHandlesFor` 同源：
+   * 否则会出现"光标变了、但按下什么都不会发生"（人工复核的原始报文）。
+   */
+  if (target.bounds.kind === 'summary') return 'default';
   if (connectSideAt(target.bounds, args.point.x) !== null) return cursorForZone('link-out');
   if (!barHitFor({ bounds: target.bounds, x: args.point.x })) return 'default';
   return cursorForZone(dragModeOfZones(target.bounds, zonesFor(target.bounds), args.point.x));
@@ -310,11 +321,16 @@ export interface LinkEntry {
  *
  * **出端侧由所抓的连接点决定**（用户的显式选择），不由几何反推——这是 R4 的修法：
  * `Alt` 不再是入口，出端侧也不再需要"靠相对位置猜"。
- * 汇总行**允许**作为出端（§5/§13 的既有口径：汇总可作建线端点）。
+ *
+ * **汇总行不作为出端**（P-43 撤销 §5/§13 的旧口径）：端点含汇总的依赖在传播中"等同不存在"
+ * （SCHEDULE.md §四.6）⇒ 入口不该存在。**注意**：这只去掉"新建"的入口，
+ * **导入**的文档里若本来就有这样的边，文档层继续容忍并报 `LINK_SUMMARY_ENDPOINT` warning
+ * （UI 不给入口 ≠ 不支持读入）。
  */
 export function linkEntryFor(args: PointerGeometryArgs): LinkEntry | null {
   const target = targetOf(args);
   if (target === null) return null;
+  if (target.bounds.kind === 'summary') return null;
   const side = connectSideAt(target.bounds, args.point.x);
   if (side === null) return null;
   return {

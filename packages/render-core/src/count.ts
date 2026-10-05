@@ -115,9 +115,9 @@ export function countElements(view: ViewModel, overlays: OverlayCounts = {}): El
     else bars += 1;
     if (row.hasProgress) progressFills += 1;
     // ADR 0008 §16.2 的发射规则（与 `interaction.ts` 的 `rowHandlesFor` 同源：
-    // 手柄只给**有条形端**的行；连接点给**有可画条形的行**，两侧对称）。
+    // 手柄只给**有条形端**的行；连接点给**非汇总的**行，两侧对称——P-43 起汇总行不再有连接点）。
     if (!row.isMilestone && row.kind !== 'summary') handles += 2;
-    connectPoints += 2;
+    if (row.kind !== 'summary') connectPoints += 2;
   }
 
   const edgePaths = view.edges.length;
@@ -200,13 +200,16 @@ export function countElementsByEnumeration(
     if (row.isMilestone) emitted.push('milestone-polygon');
     else emitted.push('bar-rect');
     if (row.hasProgress) emitted.push('progress-rect');
-    // G5 的手柄与连接点（ADR 0008 §16.2）：**逐项枚举**，必须与 `countElements` 的分类累加逐项相等。
+    // G5 的手柄与连接点（ADR 0008 §16.2；**汇总行无连接点见 P-43**）：**逐项枚举**，
+    // 必须与 `countElements` 的分类累加逐项相等。
     if (!row.isMilestone && row.kind !== 'summary') {
       emitted.push('row-handle-left');
       emitted.push('row-handle-right');
     }
-    emitted.push('row-connect-point-left');
-    emitted.push('row-connect-point-right');
+    if (row.kind !== 'summary') {
+      emitted.push('row-connect-point-left');
+      emitted.push('row-connect-point-right');
+    }
   }
   for (let index = 0; index < view.edges.length; index += 1) {
     emitted.push('edge-path');

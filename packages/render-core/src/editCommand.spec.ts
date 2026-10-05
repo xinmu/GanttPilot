@@ -90,6 +90,31 @@ describe('P-19 判据 ③：编辑 `start` 后写回的 `endDate` 与图表一�
     expect(writtenEnd).toBe(isoOfOrdinalSafe(nextCalendar, ef - 1));
   });
 
+  it('**里程碑的工期恒为 0**（P-43）：改工期被拒绝并给出可执行的出口，而不是产出"图/表不一致"的命令', () => {
+    const { document, calendar } = fixture;
+    const milestone = document.tasks.find((task) => task.milestone);
+    expect(milestone).toBeDefined();
+    if (milestone === undefined) return;
+    for (const text of ['3', '1', '0', '']) {
+      const outcome = editToCommand({ document, taskId: milestone.id, column: 'duration', text, calendar });
+      // 连"清空"也拒绝：里程碑的工期是语义的一部分，没有"未指定"这个状态可用。
+      expect(outcome.ok).toBe(false);
+      if (!outcome.ok) expect(outcome.reason).toContain('里程碑');
+    }
+    // **出口是可执行的**：先在「里程碑」列解除标记（`milestone: false`），再改工期就通过。
+    const unflagged = {
+      ...document,
+      tasks: document.tasks.map((task) => (task.id === milestone.id ? { ...task, milestone: false } : task)),
+    };
+    const after = editToCommand({ document: unflagged, taskId: milestone.id, column: 'duration', text: '3', calendar });
+    expect(after.ok).toBe(true);
+    if (after.ok) expect(after.command.patch.durationDays).toBe(3);
+    // **负向对照**：把守卫去掉（直接走原分支）会产出 `{durationDays: 3, endDate}` ——
+    // 而那份文档在文档层带 `TASK_MILESTONE_WITH_DURATION` warning（"里程碑的 durationDays 应为 0"），
+    // 图形层仍按 `milestone` 画菱形 ⇒ 三方不一致。判据必须拦住它。
+    expect(milestone.milestone).toBe(true);
+  });
+
   it('改 `duration` 同样写回与图表一致的 `endDate`', () => {
     const { document, calendar } = fixture;
     const target = firstEditableLeaf(document);

@@ -443,6 +443,18 @@ export function editToCommand(args: EditToCommandArgs): EditOutcome {
       };
     }
     case 'duration': {
+      /**
+       * **里程碑的工期恒为 0**（P-43 的人工裁决）：标记为真时**拒绝**改工期，
+       * 而不是让它产生一个"图上是菱形、表里工期是 N、文档层警告不一致"的状态
+       * （文档层的 `TASK_MILESTONE_WITH_DURATION` 是 warning，正是这个不一致的签名）。
+       * 出口是先在「里程碑」列**解除标记**，再改工期——这是唯一需要的顺序。
+       */
+      if (task.milestone) {
+        return {
+          ok: false,
+          reason: '里程碑的工期恒为 0：请先在「里程碑」列改为"否"，再修改工期',
+        };
+      }
       const trimmed = text.trim();
       if (trimmed === '') {
         return {

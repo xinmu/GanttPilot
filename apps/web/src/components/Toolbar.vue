@@ -103,6 +103,7 @@ void props;
     <button
       type="button"
       class="action"
+      data-reset
       @click="emit('reset')"
     >
       重置演示数据

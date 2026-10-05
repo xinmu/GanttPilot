@@ -45,7 +45,7 @@ import {
 import { highlightForCyclePath } from './highlight.js';
 import { taskBounds, type TaskBounds } from './domain.js';
 import { CONNECT_SIZE_PX } from './interaction.js';
-import { linkTypeFor, zonesFor } from './zones.js';
+import { linkTypeFor, zoneAt, zonesFor } from './zones.js';
 
 const fixture = buildFixture(DATASETS[2]); // dense：1,000 任务 / 1,500 依赖
 const viewport: Viewport = {
@@ -257,8 +257,11 @@ function boundsAfterPatch(taskId: string, patch: Record<string, unknown>): TaskB
 
 describe('三语义的判定区（ADR 0008 §5）', () => {
   it('条的左端 ⇒ 改开始；右端 ⇒ 改工期；中间 ⇒ 整体移动', () => {
-    const bounds = boundsOfRow(0);
-    if (bounds.isMilestone) throw new Error('第 0 行是里程碑，夹具前提不成立');
+    // **夹具前提**（P-43 起）：必须是**叶子**——汇总条没有任何判定区，里程碑只有 `move`。
+    let row = view.renderFirst;
+    while (row <= view.renderLast && (boundsOfRow(row).isMilestone || boundsOfRow(row).kind === 'summary')) row += 1;
+    const bounds = boundsOfRow(row);
+    expect(bounds.kind).toBe('leaf');
     expect(dragModeFor(bounds, bounds.xLeft)).toBe('resize-start');
     expect(dragModeFor(bounds, bounds.xLeft + 5)).toBe('resize-start');
     expect(dragModeFor(bounds, (bounds.xLeft + bounds.xRight) / 2)).toBe('move');
@@ -266,7 +269,7 @@ describe('三语义的判定区（ADR 0008 §5）', () => {
     expect(dragModeFor(bounds, bounds.xRight - 5)).toBe('resize-duration');
   });
 
-  it('里程碑没有"两端"：左右半区分别对应整体移动与改工期', () => {
+  it('**里程碑整条 = 整体移动**（P-43：菱形不再有"右半 = 改工期"）', () => {
     let milestoneRow: number | null = null;
     for (let row = view.renderFirst; row <= view.renderLast; row += 1) {
       if (boundsOfRow(row).isMilestone) {
@@ -279,8 +282,33 @@ describe('三语义的判定区（ADR 0008 §5）', () => {
     const bounds = boundsOfRow(milestoneRow);
     const cx = bounds.milestone?.cx ?? bounds.xLeft;
     expect(dragModeFor(bounds, cx - 1)).toBe('move');
-    expect(dragModeFor(bounds, cx + 1)).toBe('resize-duration');
-    expect(dragModeFor(bounds, cx)).toBe('resize-duration');
+    expect(dragModeFor(bounds, cx)).toBe('move');
+    expect(dragModeFor(bounds, cx + 1)).toBe('move');
+    expect(dragModeFor(bounds, bounds.xRight)).toBe('move');
+    // **负向对照**（按旧口径的公式直接对照，证明判别力）：旧实现"按菱形中心分半"，
+    // 右半区给出 `resize-duration` ⇒ "里程碑被拖成有长度的任务"。新旧两式在右半区**必然不同**。
+    const oldFormula = (x: number): string => (x >= cx ? 'resize-duration' : 'move');
+    expect(oldFormula(cx + 1)).toBe('resize-duration');
+    expect(dragModeFor(bounds, cx + 1)).not.toBe(oldFormula(cx + 1));
+  });
+
+  it('**汇总条没有任何判定区**（P-43：光标不再承诺"可拉长"）', () => {
+    let summaryRow: number | null = null;
+    for (let row = view.renderFirst; row <= view.renderLast; row += 1) {
+      if (boundsOfRow(row).kind === 'summary') {
+        summaryRow = row;
+        break;
+      }
+    }
+    expect(summaryRow).not.toBeNull();
+    if (summaryRow === null) return;
+    const bounds = boundsOfRow(summaryRow);
+    const zones = zonesFor(bounds);
+    expect(zones).toStrictEqual({ edgeL: null, move: null, edgeR: null });
+    // 整条（含两端）都不得给出"改开始/改工期"这类**会改变几何**的语义。
+    for (const x of [bounds.xLeft, bounds.xLeft + 3, (bounds.xLeft + bounds.xRight) / 2, bounds.xRight - 3, bounds.xRight]) {
+      expect(zoneAt(zones, x)).toBeNull();
+    }
   });
 });
 
@@ -1312,38 +1340,34 @@ describe('批次 A 的入口判据（P-22：指针归一化 / 条体命中 / 按
     // NC：旧式用 `候选 + 工期 − 1 = 候选 − 1` ⇒ 完成日跑到**前一个工作日**。
     expect(fixture.calendar.isoOfOrdinal(origin + 2 - 1)).not.toBe(fixture.calendar.isoOfOrdinal(origin + 2));
 
-    // 右半区（resize-duration）：按下不动 ⇒ 仍是里程碑（不产出命令）；向右 3 天 ⇒ 3 个工作日的任务。
-    const resizing = beginGesture({
+    // 右半区（P-43 起**也是 `move`**）：菱形不存在"改工期"语义 ⇒ 拖右半仍是移动这个点，
+    // 产出的 patch **不含 `durationDays`**（旧口径会把它变成一个 3 天的任务 ⇒ 图/表/数据三方不一致）。
+    const rightHalf = beginGesture({
       ...dragArgsFor(target),
       pointer: { x: cx + 1, y, buttons: 1 },
       anchorMode: 'snap',
     });
-    if (resizing.state.kind !== 'dragging') throw new Error('未进入改工期');
-    expect(resizing.state.mode).toBe('resize-duration');
-    const zero = reduceGesture({
-      ...dragArgsFor(target),
-      pointer: { x: cx + 1, y, buttons: 0 },
-      anchorMode: 'snap',
-      state: resizing.state,
-    });
-    expect(zero.commands).toStrictEqual([]);
-
-    const grown = reduceGesture({
+    if (rightHalf.state.kind !== 'dragging') throw new Error('未进入拖动（右半区）');
+    expect(rightHalf.state.mode).toBe('move');
+    const rightGrown = reduceGesture({
       ...dragArgsFor(target),
       pointer: { x: xForOrdinalIn(target, origin + 2), y, buttons: 1 },
       anchorMode: 'snap',
-      state: resizing.state,
+      state: rightHalf.state,
     });
-    const grownRelease = reduceGesture({
+    const rightRelease = reduceGesture({
       ...dragArgsFor(target),
       pointer: { x: xForOrdinalIn(target, origin + 2), y, buttons: 0 },
       anchorMode: 'snap',
-      state: grown.state,
+      state: rightGrown.state,
     });
-    const grownPatch = grownRelease.commands[0]?.patch ?? {};
-    expect(grownPatch.durationDays).toBe(3);
-    expect(grownPatch.endDate).toBe(fixture.calendar.isoOfOrdinal(origin + 2));
-    expect(grownPatch).not.toHaveProperty('startDate');
+    const rightPatch = rightRelease.commands[0]?.patch ?? {};
+    expect(rightPatch).not.toHaveProperty('durationDays');
+    expect(rightPatch.startDate).toBe(fixture.calendar.isoOfOrdinal(origin + 2));
+    expect(rightPatch.endDate).toBe(rightPatch.startDate);
+    // **负向对照**：旧口径下同一个"右半区 + 向右 3 天"会产出 `{durationDays: 3, endDate}` ⇒
+    // "里程碑被拖成有长度的任务"。新实现里 `durationDays` 必须**完全不存在**（上面那条断言即判别力）。
+    expect(rightPatch.durationDays).toBeUndefined();
   });
 
   it('拖动期视图带**会话锚点**重算也不会累积：基准是按下时的开始序号（R7 的第二道判据）', () => {

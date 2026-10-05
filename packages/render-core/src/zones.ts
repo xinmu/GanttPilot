@@ -53,12 +53,17 @@ export interface DragZones {
 export type CursorHint = 'col-resize' | 'move' | 'crosshair' | 'default';
 
 /**
- * 判定区的**唯一**产出函数（ADR 0008 §16.1）。
+ * 判定区的**唯一**产出函数（ADR 0008 §16.1；**可拖性由本函数一处决定**，P-43 订正）。
  *
- * - **里程碑**不适用本条（§5 已冻结"按菱形中心分半"）⇒ `edgeL = edgeR = null`、`move` 覆盖整条；
+ * - **汇总条**：**没有任何判定区**（`edgeL = move = edgeR = null`）。汇总日期是**聚合结果**，
+ *   改它要改子树 ⇒ `beginGesture` 早有守卫；而"不能拖"必须在**判定区这一层**就成立，
+ *   否则光标会按几何给出 `col-resize`——**承诺一个手势不提供的动作**（P-43 的人工复核报文：
+ *   "汇总条两端不能拖动，但鼠标会改变样式，这会给用户带来误导"）；
+ * - **里程碑**：不适用三语义（§5 已冻结"按菱形中心分半"）⇒ `edgeL = edgeR = null`、`move` 覆盖整条；
  * - **退化条**（条宽 ≤ 0，理论上不出现）同样只给 `move`，以免出现"没有任何判定区"的行。
  */
 export function zonesFor(bounds: TaskBounds): DragZones {
+  if (bounds.kind === 'summary') return { edgeL: null, move: null, edgeR: null };
   const width = bounds.xRight - bounds.xLeft;
   if (bounds.isMilestone || width <= 0) {
     return { edgeL: null, move: { kind: 'move', x1: bounds.xLeft, x2: bounds.xRight }, edgeR: null };
@@ -104,7 +109,14 @@ export function zoneAt(zones: DragZones, x: number): DragZone | null {
 }
 
 /**
- * 判定区 → 拖动语义（**里程碑按菱形中心分半**，§5 的既有口径由 §16.1 保留）。
+ * 判定区 → 拖动语义（**里程碑整条 = `move`**：§5 的"按菱形中心分半"由 §16.1 保留，但
+ * **右半的 `resize-duration` 已由 P-43 删除**）。
+ *
+ * 为什么删：里程碑是**零时长的点**，"拖长它"等于把"里程碑"改写成"任务"，而那条改写**绕不过
+ * `milestone` 标记**（文档层只给 warning `TASK_MILESTONE_WITH_DURATION`）⇒ 结果是
+ * **图（菱形）/ 表（工期 N）/ 数据（标记仍为真）三方不一致**（P-43 的人工复核报文把它定为业务逻辑缺陷）。
+ * 里程碑的位置仍可拖（`move`）；"改成有长度的任务"改由**左表**完成：先在「里程碑」列解除标记，
+ * 再改工期——那里有 `editToCommand` 的一致性判据守着。
  *
  * `x` 落在判定区之外（条外、空白）时返回 `'move'`——调用方必须先过 `barHitFor`/连接点判定，
  * 本函数**不承担命中检查**（那是 `gesture.ts` 的前置）。
@@ -114,12 +126,7 @@ export function dragModeOfZones(
   zones: DragZones,
   x: number,
 ): 'move' | 'resize-start' | 'resize-duration' {
-  if (bounds.isMilestone) {
-    // 里程碑只有"整体移动"，但拖右半边是"把它变成有长度的任务"（改工期）。
-    // `DRAG_EDGE_PX` 相对 12 px 宽的菱形太大（菱形中心距边只有 6 px），因此这里按**中心**分半。
-    const cx = bounds.milestone?.cx ?? (bounds.xLeft + bounds.xRight) / 2;
-    return x >= cx ? 'resize-duration' : 'move';
-  }
+  if (bounds.isMilestone) return 'move';
   const zone = zoneAt(zones, x);
   if (zone === null) return 'move';
   return zone.kind === 'link-out' ? 'move' : zone.kind;

@@ -261,6 +261,126 @@ async function smoke(cdp, url) {
 }
 
 /**
+ * **布局稳态判据**（P-43，**进 `pnpm gate`**）：状态栏的高度必须与它的文案长度**无关**。
+ *
+ * 背景（人工复核报文）："刷新页面会发生短暂的画面抖动，点击『重置演示数据』会发生持续抖动，
+ * 再次点击恢复。" 根因是自激环——状态栏文案含**视图派生的数字**（可见行/渲染行/渲染边/元素），
+ * 而它原先 `flex-wrap: wrap`：文案跨过换行临界值 ⇒ footer 变高 ⇒ 窗格变矮 ⇒ 视图重新裁剪 ⇒
+ * **文案里的数字又变** ⇒ 再决定换行……两态互为因果。
+ *
+ * 判据：连续 `frames` 帧内，**根元素不出现纵向滚动条**且 `(根高, 根滚动高, footer 高,
+ * 窗格 clientWidth/clientHeight/scrollHeight)` 的**组合只有一种取值**。任一帧不同即抖动。
+ */
+async function probeLayoutStability(cdp, label, frames = 60) {
+  const problems = [];
+  const result = await cdp.call('Runtime.evaluate', {
+    expression: `(async () => {
+      const pane = document.getElementById('chart-pane');
+      const footer = document.querySelector('.status');
+      const root = document.documentElement;
+      const samples = [];
+      for (let index = 0; index < ${String(frames)}; index += 1) {
+        await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+        samples.push([
+          root.clientHeight,
+          root.scrollHeight,
+          footer === null ? -1 : footer.offsetHeight,
+          pane === null ? -1 : pane.clientWidth,
+          pane === null ? -1 : pane.clientHeight,
+          pane === null ? -1 : pane.scrollHeight,
+        ].join('|'));
+      }
+      const distinct = [...new Set(samples)];
+      return JSON.stringify({
+        frames: samples.length,
+        distinct,
+        first: distinct[0] ?? null,
+        last: distinct[distinct.length - 1] ?? null,
+      });
+    })()`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const snapshot = JSON.parse(result.result.value);
+  if (snapshot.distinct.length !== 1) {
+    problems.push(
+      `[布局稳态·${label}] ${String(snapshot.frames)} 帧内不收敛（自激环）：出现 ${String(snapshot.distinct.length)} 种状态，首/末 = ${String(snapshot.first)} / ${String(snapshot.last)}`,
+    );
+  }
+  const [rootClient, rootScroll] = String(snapshot.first ?? '').split('|');
+  if (Number(rootScroll) > Number(rootClient)) {
+    problems.push(
+      `[布局稳态·${label}] 根元素出现纵向滚动条（scrollHeight ${String(rootScroll)} > clientHeight ${String(rootClient)}）`,
+    );
+  }
+
+  /**
+   * **机制判据**（比"等 60 帧看它抖不抖"更硬）：**状态栏的高度必须与文案长度无关**。
+   *
+   * 为什么要这一条：自激环的**驱动项**就是"文案长度 → footer 高度"。只靠"等帧观察"会受环境摆布
+   * ——headless 的宽度下状态栏没到换行临界值，旧口径（`flex-wrap: wrap`）也能 60 帧不动
+   * （本判据的负向对照因此**测不出来**）。这里改为**直接把文案变长**：往 footer 末尾塞 200 个字，
+   * 重新量高度。`nowrap` 下高度**必须一字不变**；`wrap` 下必然多出一行 ⇒ 判据必然变红。
+   */
+  const textProbe = await cdp.call('Runtime.evaluate', {
+    expression: `(async () => {
+      const footer = document.querySelector('.status');
+      if (footer === null) return JSON.stringify({ reason: 'no-footer' });
+      // **改现有 span 的文本**（不能新建 span：scoped style 会给页面的 span 加 data-v-* 属性，
+      // 新建的那个不带属性、绕过了页面 CSS，量到的就不是真实机制——负向对照当场抓到了这一点）。
+      const first = footer.querySelector('span');
+      if (first === null) return JSON.stringify({ reason: 'no-span' });
+      const original = first.textContent ?? '';
+      const before = footer.offsetHeight;
+      first.textContent = original + '测'.repeat(200);
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      const after = footer.offsetHeight;
+      first.textContent = original;
+      await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      return JSON.stringify({ before, after, restored: footer.offsetHeight === before });
+    })()`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const text = JSON.parse(textProbe.result.value);
+  if (text.reason === 'no-footer' || text.reason === 'no-span') {
+    problems.push(`[布局稳态·${label}] 找不到状态栏 / 它的第一段（${String(text.reason)}）`);
+  } else if (text.after !== text.before) {
+    problems.push(
+      `[布局稳态·${label}] 状态栏高度**随文案长度变化**（${String(text.before)} → ${String(text.after)} px）：` +
+        '这正是 P-43 自激环的驱动项（文案 ⇒ 换行 ⇒ footer 变高 ⇒ 窗格变矮 ⇒ 视图重裁 ⇒ 文案又变）',
+    );
+  }
+  if (text.restored === false) problems.push(`[布局稳态·${label}] 探针未能把状态栏文本还原（测量污染了页面）`);
+  /**
+   * **单行判据**（这条是本判据的判别力来源）：状态栏必须**只有一行**。
+   *
+   * 上界按 `getComputedStyle` 现推（字号 × 1.6 + 上下 padding + 上边框），不写死像素；
+   * 旧口径（`flex-wrap: wrap`）实测 98 / 133 px（2–3 行）⇒ 必然越界，负向对照因此**可判定地变红**。
+   */
+  const line = await cdp.call('Runtime.evaluate', {
+    expression: `(() => {
+      const footer = document.querySelector('.status');
+      if (footer === null) return JSON.stringify({ reason: 'no-footer' });
+      const cs = getComputedStyle(footer);
+      const bound = Number.parseFloat(cs.fontSize) * 1.6 + Number.parseFloat(cs.paddingTop) + Number.parseFloat(cs.paddingBottom) + 1;
+      return JSON.stringify({ height: footer.offsetHeight, bound: Math.ceil(bound) });
+    })()`,
+    returnByValue: true,
+  });
+  const single = JSON.parse(line.result.value);
+  if (single.reason === 'no-footer') {
+    problems.push(`[布局稳态·${label}] 找不到状态栏（.status）`);
+  } else if (single.height > single.bound) {
+    problems.push(
+      `[布局稳态·${label}] 状态栏不是单行：高 ${String(single.height)} px > 单行上界 ${String(single.bound)} px（P-43 的自激环就是靠"换行 ⇒ 变高"驱动的）`,
+    );
+  }
+  return problems;
+}
+
+/**
  * **真的点一次导出**（G7 端到端）：SVG / PNG / PPTX 三条路径各点一次，检查落盘文件。
  *
  * 为什么必须有这一条：几何与 OOXML 的判据都在 Node 侧（`render-core` / `pptx-renderer` 的 spec），
@@ -369,10 +489,28 @@ try {
   const port = await readDevToolsPort(chromeHandle.profileDir);
   const cdp = await connect(port);
   const { probe, errors } = await smoke(cdp, url);
+  /**
+   * P-43 的**布局稳态**：首屏一次、**点一次"重置演示数据"之后再一次**
+   * （人工复核报的是"重置后持续抖动"，那是最容易复现的一段）。
+   */
+  const layoutProblems = [];
+  layoutProblems.push(...(await probeLayoutStability(cdp, '首屏')));
+  const resetClick = await cdp.call('Runtime.evaluate', {
+    expression:
+      "(() => { const btn = document.querySelector('[data-reset]'); if (!btn) return 'no-button'; btn.click(); return 'clicked'; })()",
+    returnByValue: true,
+  });
+  if (resetClick.result.value !== 'clicked') {
+    layoutProblems.push(`找不到「重置演示数据」按钮（selector [data-reset]）：${String(resetClick.result.value)}`);
+  } else {
+    await new Promise((settle) => setTimeout(settle, 500));
+    layoutProblems.push(...(await probeLayoutStability(cdp, '重置后')));
+  }
   const exports = await exerciseExports(cdp);
   cdp.close();
 
   const problems = [];
+  problems.push(...layoutProblems);
   // G7：导出库的分包纪律（首屏主 chunk 不得含 pptxgenjs；且某个 chunk 里必须真有它）
   problems.push(...checkExportChunking());
   // G7：三条导出路径端到端（真的点、真的落盘）

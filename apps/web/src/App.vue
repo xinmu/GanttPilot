@@ -1091,15 +1091,40 @@ body {
   color: #b42318;
 }
 
+/**
+ * 状态栏（P-43 的**布局稳态**要求）：**高度必须与文案长度无关**。
+ *
+ * 人工复核报文："刷新页面会发生短暂的画面抖动，点击'重置演示数据'会发生持续抖动，再次点击恢复。"
+ * 根因是一个**自激环**：状态栏文案里含**视图派生的数字**（可见行/渲染行/渲染边/元素…），
+ * 而它原先 `flex-wrap: wrap` ⇒ 文案跨过换行临界值时 footer 变高 ⇒ 图表窗格变矮 ⇒
+ * 视图重新裁剪 ⇒ **文案里的数字又变** ⇒ 再决定换行……两态互为因果、无法收敛。
+ *
+ * 修法：`nowrap + overflow: hidden`（**永远单行**）+ 各段 `white-space: nowrap`；
+ * 最长的那一段允许**省略号截断**而不是换行。判据在 `scripts/smoke-build.mjs` 的
+ * 「布局稳态」（进 `pnpm gate`）：60 帧内根元素不滚动、footer 高度与窗格尺寸恒定。
+ */
 .status {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 1.25rem;
   padding: 0.35rem 0.75rem;
   border-top: 1px solid #e4e7ec;
   background: #f9fafb;
   font-size: 12px;
   color: #475467;
+  overflow: hidden;
+}
+
+.status > span {
+  white-space: nowrap;
+}
+
+/* 第一段最长（任务/依赖/可见行/渲染行/渲染边/元素）：**只让它截断**，其余各段保持完整。 */
+.status > span:first-child {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .status .warn {
