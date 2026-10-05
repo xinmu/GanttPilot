@@ -135,6 +135,12 @@
       "note": "P-38：G7 二次复验的排版/形态返工与 P-26 的收口"
     },
     {
+      "path": "docs/00-baseline/裁决R38.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-39：G7 第三次人工复验通过与 G7 收口"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",

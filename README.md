@@ -42,8 +42,8 @@ G4（纯 SVG 甘特渲染，含裁剪）与 **G5（编辑体验：拖拽三语�
 开工前置与准入实验见 [P-35](docs/00-baseline/裁决R34.md)、落地与出口条件判定见 [P-36](docs/00-baseline/裁决R35.md)：
 **几何与屏幕同源（非截屏）**、PPTX 为**原生形状**（`roundRect` 条 / `diamond` 里程碑 / `p:cxnSp` 吸附 connector /
 一级 `p:grpSp`）、同一文档两次导出**逐字节一致**（字节级 golden）；
-WPS 自动化证据（无修复弹窗、另存后锚点 14/14 存活、拖动后端点重新走线）已通过，
-**人工真机拖动复验待做**。
+WPS 自动化证据（无修复弹窗、另存后锚点 14/14 存活、拖动后端点重新走线）与**三轮人工真机复验**均已通过
+（[P-39](docs/00-baseline/裁决R38.md)）；**PowerPoint 未验证、不承诺**。
 **G5 的人工复核（[P-21](docs/00-baseline/裁决记录.md)）的批次 A 已落地、第 13 条（导入与成环清单）已闭**
 （[P-22](docs/00-baseline/裁决记录.md)）；**批次 D 已收口**（[P-23](docs/00-baseline/裁决记录.md) →
 [P-24](docs/00-baseline/裁决记录.md) → [P-25](docs/00-baseline/裁决记录.md)，人工复验通过）、
@@ -284,8 +284,9 @@ pnpm preview    # 起一个本地静态服务器（Vite preview），按它打�
   承诺的是"端点落在同一条边上"（几何同源），不是"折线一模一样"；
   ④ **Microsoft PowerPoint / Keynote 未验证**（[验证环境口径](#验证环境口径裁决-p-4)）：只输出标准 OOXML、
   未用私有扩展，但**不承诺**其下行为；**导出物的拖动跟随结论仅在 WPS 下成立**；
-  ⑤ **人工真机拖动复验待做**（见 [P-36](docs/00-baseline/裁决R35.md)）：门禁与 WPS 自动化证据已通过，
-  但在维护者亲手复验前，不对外声称"人工复验通过"。
+  ⑤ **人工真机复验已通过**（三轮：[P-37](docs/00-baseline/裁决R36.md) 报文 4 项功能缺口 + 1 项样式、
+  [P-38](docs/00-baseline/裁决R37.md) 报文 3 项排版/形态、[P-39](docs/00-baseline/裁决R38.md) **验证通过**）；
+  唯一遗留的"不做"是 PowerPoint/Keynote 的行为承诺（见 ④）。
 - **G5 的人工复核已知问题（[P-21](docs/00-baseline/裁决记录.md)；批次 A = [P-22](docs/00-baseline/裁决记录.md)、
   批次 D = [P-23](docs/00-baseline/裁决记录.md)/[P-24](docs/00-baseline/裁决记录.md)/[P-25](docs/00-baseline/裁决记录.md)、
   批次 C = [P-28](docs/00-baseline/裁决记录.md)）**：
