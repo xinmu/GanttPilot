@@ -33,8 +33,10 @@ import {
   dragPreviewFor,
   drawnBarForRow,
   entryConstraintFor,
+  idleGesture,
   ordinalAtClamped,
   pointerFromClient,
+  previewDocumentFor,
   reduceGesture,
   resolveDragOutcome,
   resolvePointerTarget,
@@ -1691,3 +1693,150 @@ describe('批次 A 的入口判据（P-22：指针归一化 / 条体命中 / 按
     expect(drawnBarForRow(row, null).fromPreview).toBe(false);
   });
 });
+
+/**
+ * 裁决 P-45：拖动期的**下游也所见即所提交**。
+ *
+ * 契约面一字未改（`SessionAnchor` 仍是 `{taskId, startOrdinal}`）——工期那一半靠
+ * **未提交文档副本**（`previewDocumentFor`）喂给 `compute`。这一组判据守的就是"副本"这件事：
+ * 它只改那一个任务、原文档不动，而且"副本 + 锚点"算出来的下游与**落库之后**逐位一致。
+ *
+ * **负向对照**（缺了它整组都是恒真式）：只喂锚点（= P-45 之前的实现）在同一手势上
+ * 必然给出**另一个**下游值——那条断言就是判别力本身。
+ */
+describe('预览副本（P-45：拖动期的下游也所见即所提交）', () => {
+  /** 序号 → 该序号所在工作日格的左端 x（内容坐标）。 */
+  const xForOrdinalIn = (target: ViewModel, ordinal: number): number =>
+    (fixture.calendar.dayOfOrdinal(ordinal) - target.axisOriginDay) * target.pxPerDay;
+
+  it('`previewDocumentFor`：只改那一个任务、其余按引用共享、原文档一字不动', () => {
+    const index = fixture.document.tasks.findIndex((task) => (task.durationDays ?? 0) > 1);
+    const task = fixture.document.tasks[index];
+    if (task === undefined) throw new Error('夹具前提不成立（没有工期 > 1 的任务）');
+    const before = task.durationDays;
+
+    const patched = previewDocumentFor({
+      document: fixture.document,
+      taskId: task.id,
+      patch: { durationDays: 7 },
+    });
+    expect(patched).not.toBeNull();
+    // ① 目标任务的字段被改（且只有它）
+    expect(patched?.tasks[index]?.durationDays).toBe(7);
+    // ② **结构性共享**：数组是新数组，其余任务是**同一个对象**（不是深拷贝）
+    expect(patched?.tasks).not.toBe(fixture.document.tasks);
+    expect(patched?.tasks).toHaveLength(fixture.document.tasks.length);
+    const otherIndex = index === 0 ? 1 : 0;
+    expect(patched?.tasks[otherIndex]).toBe(fixture.document.tasks[otherIndex]);
+    expect(patched?.links).toBe(fixture.document.links);
+    expect(patched?.project).toBe(fixture.document.project);
+    // ③ 原文档一字不动
+    expect(fixture.document.tasks[index]?.durationDays).toBe(before);
+    // ④ 没有预览（零位移）/ 未知 id ⇒ `null`：调用方据此**回落**到已提交文档，
+    //    而不是造一份"内容相同、身份不同"的副本（那会让每个 computed 白白失效一次）。
+    expect(previewDocumentFor({ document: fixture.document, taskId: task.id, patch: null })).toBeNull();
+    expect(
+      previewDocumentFor({ document: fixture.document, taskId: '不存在的任务', patch: { durationDays: 3 } }),
+    ).toBeNull();
+  });
+
+  it('`resize-duration` 拖动期喂**副本** ⇒ 下游与落库结果逐位一致（只喂锚点必然不同）', () => {
+    const target = tallView;
+    const length = 3;
+    let checked = 0;
+
+    for (let row = 0; row < target.order.length && checked === 0; row += 1) {
+      const docIndex = target.order[row];
+      const task = docIndex === undefined ? undefined : fixture.document.tasks[docIndex];
+      if (task === undefined || (task.durationDays ?? 0) < 2) continue;
+      const bounds = boundsIn(target, row);
+      if (bounds.kind === 'summary' || bounds.isMilestone) continue;
+
+      const origin = bounds.es;
+      const duration = task.durationDays ?? 0;
+      const y = rowCenterY(row);
+      const started = beginGesture({
+        ...dragArgsFor(target),
+        pointer: { x: bounds.xRight - 1, y, buttons: 1 },
+        anchorMode: 'snap',
+      });
+      // 抓右端 ⇒ 必须是"改工期"（抓错了就换一个样本，别把整体移动当成改工期来判）。
+      if (started.state.kind !== 'dragging' || started.state.mode !== 'resize-duration') continue;
+      const targetOrdinal = origin + duration - 1 + length;
+      const moved = reduceGesture({
+        ...dragArgsFor(target),
+        pointer: { x: xForOrdinalIn(target, targetOrdinal), y, buttons: 1 },
+        anchorMode: 'snap',
+        state: started.state,
+      });
+      const outcome = moved.dragOutcome;
+      if (outcome === null || outcome.patch === null) continue;
+
+      const preview = previewDocumentFor({ document: fixture.document, taskId: task.id, patch: outcome.patch });
+      if (preview === null) throw new Error('副本没有造出来（patch 非空、id 存在 ⇒ 不该为 null）');
+      // 三路：① 只喂锚点（P-45 之前的实现）② 副本 + 锚点（现在的实现）③ 落库 + 重算（松手之后的事实）
+      const anchorOnly = compute(fixture.document, fixture.calendar, moved.anchors);
+      const withPreview = compute(preview, fixture.calendar, moved.anchors);
+      const committed = compute(withPatch(task.id, outcome.patch), fixture.calendar);
+      if (!anchorOnly.ok || !withPreview.ok || !committed.ok) throw new Error('某一路不可排程');
+
+      for (const link of fixture.document.links) {
+        if (link.from !== task.id) continue;
+        const successorIndex = fixture.document.tasks.findIndex((item) => item.id === link.to);
+        if (successorIndex < 0) continue;
+        const anchorOnlyEs = anchorOnly.schedule.es[successorIndex] ?? -1;
+        const committedEs = committed.schedule.es[successorIndex] ?? -1;
+        const previewEs = withPreview.schedule.es[successorIndex] ?? -1;
+        if (anchorOnlyEs < 0 || committedEs < 0 || previewEs < 0) continue;
+        // 这条边不决定它的开始日（被别的入边顶住）⇒ 拿它判"预览 == 提交"是恒真式，换一条。
+        if (committedEs === anchorOnlyEs) continue;
+
+        // **判据**：预览（副本 + 锚点）与落库结果**逐位一致**——拖动期的下游就是松手后的下游。
+        expect(previewEs).toBe(committedEs);
+        // **负向对照**：只喂锚点（旧实现）必然给出另一个值。这一条就是上面那条的判别力。
+        expect(anchorOnlyEs).not.toBe(committedEs);
+        checked += 1;
+      }
+    }
+
+    // 前提自证：夹具里**必须**存在"被拖任务的完成日决定后继开始日"的样本，否则上面一条断言都没跑。
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('`GestureUpdate.dragOutcome` 就是松手要提交的那一份（预览的 patch 不可能与提交分叉）', () => {
+    const target = view;
+    const pick = firstFreeLeafRow();
+    const bounds = boundsOfRow(pick.row);
+    const y = rowCenterY(pick.row);
+    const length = 3;
+    const grabX = xForOrdinalIn(target, bounds.es) + target.pxPerDay / 2;
+    const moveX = xForOrdinalIn(target, bounds.es + length) + target.pxPerDay / 2;
+
+    const started = beginGesture({
+      ...dragArgs(),
+      pointer: { x: grabX, y, buttons: 1 },
+      anchorMode: 'snap',
+    });
+    if (started.state.kind !== 'dragging') throw new Error('未进入拖动');
+    const moved = reduceGesture({
+      ...dragArgs(),
+      pointer: { x: moveX, y, buttons: 1 },
+      anchorMode: 'snap',
+      state: started.state,
+    });
+    const released = reduceGesture({
+      ...dragArgs(),
+      pointer: { x: moveX, y, buttons: 0 },
+      anchorMode: 'snap',
+      state: moved.state,
+    });
+
+    // 拖动帧与松手帧带的是**同一个结果对象的内容**（应用层就是拿它去造副本的）。
+    expect(moved.dragOutcome?.patch).not.toBeNull();
+    expect(moved.dragOutcome?.patch).toStrictEqual(released.commands[0]?.patch);
+    expect(released.dragOutcome?.patch).toStrictEqual(released.commands[0]?.patch);
+    // 其余产出不带拖动结果（建线/空闲）：应用层据此**清掉**预览，而不是留着上一帧的副本。
+    expect(idleGesture().dragOutcome).toBeNull();
+  });
+});
+

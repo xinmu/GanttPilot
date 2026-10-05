@@ -171,6 +171,12 @@
       "note": "P-44：抖动续查（滚动条 ⇄ 窗格客户区的自引用环 ⇒ 常驻滚动条）"
     },
     {
+      "path": "docs/00-baseline/裁决R44.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-45：批次④（不扩锚点形状；拖动期下游跟随改由未提交文档副本承担 ⇒ 未决归零）"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",

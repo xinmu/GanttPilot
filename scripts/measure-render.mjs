@@ -72,6 +72,14 @@ function parseArgs(argv) {
     /** G5：拖动期的测试帧数。 */
     dragFrames: 12,
     /**
+     * G5：拖动测量的夹具（默认主口径 `dense` = 1,000 任务 / 1,500 依赖）。
+     *
+     * 为什么需要它（P-45）：拖动期新增的那一份"未提交副本"是 **O(n) 指针拷贝**，
+     * 因此"帧预算够不够"这件事**与规模有关**——规模对照必须能复现，不能只留一张小夹具的快照。
+     * 非主口径的证据文件名带数据集后缀（与 `--align=<label>` 同精神），不会覆盖主口径快照。
+     */
+    dragDataset: PRIMARY_DATASET,
+    /**
      * 记录制：把一份 xlsx 交给**真实导入入口**并读回应用的反应
      * （`--import=<path>`；裁决 P-21 遗留 3 / P-22 的收口动作）。
      */
@@ -113,6 +121,8 @@ function parseArgs(argv) {
       options.dayDelta = Number(arg.slice('--day-delta='.length)) || options.dayDelta;
     } else if (arg.startsWith('--drag-frames=')) {
       options.dragFrames = Number(arg.slice('--drag-frames='.length)) || options.dragFrames;
+    } else if (arg.startsWith('--drag-dataset=')) {
+      options.dragDataset = arg.slice('--drag-dataset='.length) || options.dragDataset;
     } else if (arg.startsWith('--import=')) {
       options.importPath = arg.slice('--import='.length);
     } else if (arg === '--persist-drag') {
@@ -457,7 +467,7 @@ function renderEvidence({ env, runs, options }) {
 }
 
 /** G5 拖动证据（记录制）：帧预算 ≥30 fps、松手 ≤200 ms、下游跟随、松手清锚点。 */
-function renderDragEvidence({ env, result, options }) {
+function renderDragEvidence({ env, result, resize = null, options }) {
   const lines = [];
   const mainP95 = Number(result?.mainThreadP95Ms ?? 0);
   const gapP50 = Number(result?.frameGapP50Ms ?? 0);
@@ -496,8 +506,11 @@ function renderDragEvidence({ env, result, options }) {
   lines.push('- **下游跟随**的间接证据 = 拖动期 DOM 上条形的宽度/位置串发生过变化（不是只有覆盖层在动）；');
   lines.push(`- **位移** = 抓取点取条体**第一个工作日格的中点**，逐帧移到「该格 + offset」个工作日；`);
   lines.push('  因此"拖 N 个工作日"是一个**线性**位移（基准是拖动前的开始序号，不是拖动期视图里跟着动的 `es`）。');
+  lines.push('- **两种语义各跑一轮**（P-45 起）：① `move`（整体移动）——位移判据看 `startDate`；');
+  lines.push('  ② `resize-duration`（改工期）——抓条右端内 2 px，位移判据看 `durationDays`，');
+  lines.push('  另加"下游跟随"（拖动期 == 松手后 **且** ≠ 拖动前）与"预览不落库"（拖动期 `revision` 不变）两条。');
   lines.push('');
-  lines.push('## 两个滚动状态各一次（P-25）');
+  lines.push('## ① 整体移动（`move`）：两个滚动状态各一次（P-25）');
   lines.push('');
   lines.push('| 滚动位置 (top,left) | 目标任务 | 松手后锚点 | 期望 `startDate` | 实际 `startDate` | 判定 |');
   lines.push('|---|---|---|---|---|---|');
@@ -552,7 +565,7 @@ function renderDragEvidence({ env, result, options }) {
   lines.push('> 这三条是**入口层**性质（手柄是否在、光标是否分三类、连接点是否真的起建线），');
   lines.push('> 纯函数判据在 `interaction.spec.ts`（进 `pnpm gate`），这里只采打包产物上的真实 DOM。');
   lines.push('');
-  lines.push('## 结果（两次运行取最差 / 并集）');
+  lines.push('## ① 整体移动（`move`）的结果（两次运行取最差 / 并集）');
   lines.push('');
   lines.push('| 量 | 值 | 判据 | 判定 |');
   lines.push('|---|---|---|---|');
@@ -574,6 +587,84 @@ function renderDragEvidence({ env, result, options }) {
     lines.push('**页面内报错**：');
     for (const error of result.errors) lines.push(`- ${String(error)}`);
   }
+
+  // ---------------------------------------------------------------- ② 改工期（P-45）
+  if (resize !== null && resize !== undefined) {
+    const rMainP95 = Number(resize.mainThreadP95Ms ?? 0);
+    const rGapP50 = Number(resize.frameGapP50Ms ?? 0);
+    const rGapP95 = Number(resize.frameGapP95Ms ?? 0);
+    const rDurationOk =
+      resize.durationAfter !== null &&
+      resize.expectedDurationAfter !== null &&
+      Number(resize.durationAfter) === Number(resize.expectedDurationAfter);
+    const rNotPersisted = Number(resize.revisionDuringDrag) === Number(resize.revisionBefore);
+    const rLanded = Number(resize.revisionAfterRelease) > Number(resize.revisionBefore);
+    const downstream = resize.downstream ?? null;
+    const downstreamMoved = downstream !== null && Number(downstream.after) !== Number(downstream.before);
+    const downstreamMatches = downstream !== null && Number(downstream.during) === Number(downstream.after);
+
+    lines.push('');
+    lines.push('## ② 改工期（`resize-duration`）——下游跟随与"预览不落库"（P-45 新增）');
+    lines.push('');
+    lines.push('> 抓取点 = **条右端内 4 px**（`edgeR = [xRight − edgePx, xRight]`，而连接点的命中区从 `xRight − CONNECT_INSET_PX` 起');
+    lines.push('> ⇒ 能起"改工期"的窗口是 `[xRight − 6, xRight − 2)`，取中点 4）。判据先用 `gestureMode`');
+    lines.push('> **自证**内核真的把它判成了 `resize-duration`——否则探针会退化成整体移动，');
+    lines.push('> 而"下游跟随"在退化下换个理由也能成立（那种绿是恒真式）。');
+    lines.push('');
+    lines.push('| 滚动位置 (top,left) | 目标任务 | 工期 拖动前 → 松手后 | 期望 | 判定 |');
+    lines.push('|---|---|---|---|---|');
+    for (const run of resize.runs ?? []) {
+      const item = run.result ?? {};
+      const ok = Number(item.durationAfter) === Number(item.expectedDurationAfter) && item.status === 'ok';
+      lines.push(
+        `| (${String(run.scrollTop)}, ${String(run.scrollLeft)}) | \`${String(item.taskId ?? '')}\` | ${String(item.durationBefore ?? '-')} → ${String(item.durationAfter ?? '-')} | ${String(item.expectedDurationAfter ?? '-')} | ${ok ? '✅' : '❌'} |`,
+      );
+    }
+    lines.push('');
+    lines.push('### 下游跟随（预览 == 提交）');
+    lines.push('');
+    lines.push('| 后继任务 | 边 | 拖动前 es | 拖动期 es（预览副本） | 松手后 es（已落库） | 判定 |');
+    lines.push('|---|---|---|---|---|---|');
+    if (downstream === null) {
+      lines.push('| — | — | — | — | — | ❌（没采到载体） |');
+    } else {
+      lines.push(
+        `| \`${String(downstream.taskId)}\` | ${String(downstream.linkType)} | ${String(downstream.before)} | ${String(downstream.during)} | ${String(downstream.after)} | ${downstreamMatches ? '✅' : '❌'} |`,
+      );
+    }
+    lines.push('');
+    lines.push('> 判据两条一起读：**拖动期 == 松手后**（预览与提交同源）**且 松手后 ≠ 拖动前**');
+    lines.push('> （前提自证：这条边真的由被拖任务的完成日决定，否则"相等"是恒真式）。');
+    lines.push('');
+    lines.push('### 预览不落库（修订号）');
+    lines.push('');
+    lines.push('| 时刻 | 已提交 `revision` | 判据 | 判定 |');
+    lines.push('|---|---|---|---|');
+    lines.push(`| 拖动前 | ${String(resize.revisionBefore ?? '-')} | 基准 | — |`);
+    lines.push(`| 拖动期（预览副本生效） | ${String(resize.revisionDuringDrag ?? '-')} | = 拖动前（预览**不进命令通道**） | ${rNotPersisted ? '✅' : '❌'} |`);
+    lines.push(`| 松手后 | ${String(resize.revisionAfterRelease ?? '-')} | > 拖动前（命令真的落库） | ${rLanded ? '✅' : '❌'} |`);
+    lines.push('');
+    lines.push('### 帧预算（同尺）');
+    lines.push('');
+    lines.push('| 量 | 值 | 判据 | 判定 |');
+    lines.push('|---|---|---|---|');
+    lines.push(`| 主线程同步工作量 p50 | ${rMainP95 === 0 ? '—' : `${Number(resize.mainThreadP50Ms ?? 0).toFixed(2)} ms`} | 记录 | — |`);
+    lines.push(`| 主线程同步工作量 p95 | ${rMainP95.toFixed(2)} ms | ≤ 16.7 ms（帧预算候选） | ${rMainP95 <= 16.7 ? '✅' : '⚠️'} |`);
+    lines.push(`| 帧间隔 p50 | ${rGapP50.toFixed(1)} ms | 记录 | — |`);
+    lines.push(`| 帧间隔 p95 | ${rGapP95.toFixed(1)} ms | ≥30 fps ⇒ ≤ 33.3 ms | ${rGapP95 > 0 && rGapP95 <= 1000 / 30 ? '✅' : '⚠️'} |`);
+    lines.push(`| 松手 → 重算 + 冲突标记 | ${Number(resize.releaseMs ?? 0).toFixed(1)} ms | ≤ 200 ms（IX-04） | ${Number(resize.releaseMs ?? 0) <= 200 ? '✅' : '⚠️'} |`);
+    lines.push(`| 拖动期 DOM 变化帧数 | ${String(resize.observedGeometryChanges ?? 0)} / ${String(resize.frames ?? 0)} | > 0 | ${Number(resize.observedGeometryChanges ?? 0) > 0 ? '✅' : '❌'} |`);
+    lines.push(`| 内核判定的语义 | \`${String(resize.gestureMode ?? '-')}\` | = \`resize-duration\`（自证抓对了地方） | ${resize.gestureMode === 'resize-duration' ? '✅' : '❌'} |`);
+    lines.push(`| 工期位移 | ${String(resize.durationBefore ?? '-')} → ${String(resize.durationAfter ?? '-')} | = 拖动前 + ${String(options.dayDelta)} | ${rDurationOk ? '✅' : '❌'} |`);
+    lines.push(`| 下游跟随 | ${downstream === null ? '—' : `${String(downstream.before)} → ${String(downstream.during)} → ${String(downstream.after)}`} | 拖动期 == 松手后 **且** ≠ 拖动前 | ${downstreamMoved && downstreamMatches ? '✅' : '❌'} |`);
+    lines.push('');
+    if ((resize.errors ?? []).length > 0) {
+      lines.push('**页面内报错**：');
+      for (const error of resize.errors) lines.push(`- ${String(error)}`);
+      lines.push('');
+    }
+  }
+
   lines.push('');
   lines.push(`> 生成参数：${JSON.stringify(options)}`);
   lines.push('');
@@ -1628,51 +1719,78 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
       const dragReady = await cdp.evaluate('typeof window.__GANTTPILOT_MEASURE_DRAG__ === "function"');
       if (dragReady !== true) throw new Error('拖动测量钩子未就绪（页面里没有 __GANTTPILOT_MEASURE_DRAG__）');
       // **两个状态各跑一次**（P-25：R13/R14 只在滚动后现形——只拖首屏的判据结构上抓不到它们）。
-      const dragRuns = [];
-      for (const scroll of [
+      // 两种语义各跑这两个状态（P-45：`resize-duration` 的下游跟随与"预览不落库"是**另一族**判据，
+      // 而它同样只在滚动后才有判别力——P-25 的教训对每一族都成立）。
+      const DRAG_SCROLL_STATES = [
         { scrollTop: 0, scrollLeft: 0 },
         { scrollTop: 480, scrollLeft: 600 },
-      ]) {
-        const run = await cdp.evaluate(
-          `window.__GANTTPILOT_MEASURE_DRAG__(${JSON.stringify({
-            dataset: PRIMARY_DATASET,
-            dayDelta: options.dayDelta,
-            frames: options.dragFrames,
-            scrollTop: scroll.scrollTop,
-            scrollLeft: scroll.scrollLeft,
-          })})`,
-        );
-        dragRuns.push({ ...scroll, result: run });
-      }
-      const first = dragRuns[0]?.result ?? {};
-      const dragResult = {
-        status: dragRuns.every((run) => run.result?.status === 'ok') ? 'ok' : 'error',
-        errors: dragRuns.flatMap((run) =>
-          (run.result?.errors ?? []).map(
-            (error) => `scroll(${String(run.scrollTop)},${String(run.scrollLeft)})：${String(error)}`,
-          ),
-        ),
-        runs: dragRuns,
-        dataset: first.dataset ?? PRIMARY_DATASET,
-        taskId: first.taskId ?? '',
-        dayDelta: options.dayDelta,
-        frames: options.dragFrames,
-        mainThreadP50Ms: Number(first.mainThreadP50Ms ?? 0),
-        mainThreadP95Ms: Math.max(...dragRuns.map((run) => Number(run.result?.mainThreadP95Ms ?? 0))),
-        frameGapP50Ms: Number(first.frameGapP50Ms ?? 0),
-        frameGapP95Ms: Math.max(...dragRuns.map((run) => Number(run.result?.frameGapP95Ms ?? 0))),
-        releaseMs: Math.max(...dragRuns.map((run) => Number(run.result?.releaseMs ?? 0))),
-        longTasks: 0,
-        observedGeometryChanges: Math.min(
-          ...dragRuns.map((run) => Number(run.result?.observedGeometryChanges ?? 0)),
-        ),
-        anchorsAfterRelease: Math.max(...dragRuns.map((run) => Number(run.result?.anchorsAfterRelease ?? 0))),
-        documentStartAfter: first.documentStartAfter ?? null,
-        anchorOrdinal: first.anchorOrdinal ?? null,
-        expectedStartAfter: first.expectedStartAfter ?? null,
-        // 批次 B 的记录制采样（ADR 0008 §16.2/§16.3／裁决 P-32）：手柄可见性、光标分类、连接点起手。
-        handles: first.handles ?? null,
+      ];
+      const runDragMode = async (mode) => {
+        const runs = [];
+        for (const scroll of DRAG_SCROLL_STATES) {
+          const run = await cdp.evaluate(
+            `window.__GANTTPILOT_MEASURE_DRAG__(${JSON.stringify({
+              dataset: options.dragDataset,
+              mode,
+              dayDelta: options.dayDelta,
+              frames: options.dragFrames,
+              scrollTop: scroll.scrollTop,
+              scrollLeft: scroll.scrollLeft,
+            })})`,
+          );
+          runs.push({ ...scroll, result: run });
+        }
+        return runs;
       };
+      /**
+       * 把一轮（同语义、多滚动状态）的结果并成一行证据：**取最差 / 并集**。
+       *
+       * 两族共用一个聚合函数（P-45 起）：数字口径必须逐字相同，否则"两种语义的帧预算"不可比。
+       */
+      const aggregateDrag = (runs, mode) => {
+        const first = runs[0]?.result ?? {};
+        return {
+          status: runs.every((run) => run.result?.status === 'ok') ? 'ok' : 'error',
+          errors: runs.flatMap((run) =>
+            (run.result?.errors ?? []).map(
+              (error) => `scroll(${String(run.scrollTop)},${String(run.scrollLeft)})：${String(error)}`,
+            ),
+          ),
+          runs,
+          mode,
+          dataset: first.dataset ?? PRIMARY_DATASET,
+          taskId: first.taskId ?? '',
+          dayDelta: options.dayDelta,
+          frames: options.dragFrames,
+          mainThreadP50Ms: Number(first.mainThreadP50Ms ?? 0),
+          mainThreadP95Ms: Math.max(...runs.map((run) => Number(run.result?.mainThreadP95Ms ?? 0))),
+          frameGapP50Ms: Number(first.frameGapP50Ms ?? 0),
+          frameGapP95Ms: Math.max(...runs.map((run) => Number(run.result?.frameGapP95Ms ?? 0))),
+          releaseMs: Math.max(...runs.map((run) => Number(run.result?.releaseMs ?? 0))),
+          longTasks: 0,
+          observedGeometryChanges: Math.min(
+            ...runs.map((run) => Number(run.result?.observedGeometryChanges ?? 0)),
+          ),
+          anchorsAfterRelease: Math.max(...runs.map((run) => Number(run.result?.anchorsAfterRelease ?? 0))),
+          documentStartAfter: first.documentStartAfter ?? null,
+          anchorOrdinal: first.anchorOrdinal ?? null,
+          expectedStartAfter: first.expectedStartAfter ?? null,
+          durationBefore: first.durationBefore ?? null,
+          durationAfter: first.durationAfter ?? null,
+          expectedDurationAfter: first.expectedDurationAfter ?? null,
+          gestureMode: first.gestureMode ?? null,
+          revisionBefore: first.revisionBefore ?? 0,
+          revisionDuringDrag: first.revisionDuringDrag ?? 0,
+          revisionAfterRelease: first.revisionAfterRelease ?? 0,
+          downstream: first.downstream ?? null,
+          // 批次 B 的记录制采样（ADR 0008 §16.2/§16.3／裁决 P-32）：手柄可见性、光标分类、连接点起手。
+          handles: first.handles ?? null,
+        };
+      };
+      const dragRuns = await runDragMode('move');
+      const dragResult = aggregateDrag(dragRuns, 'move');
+      const resizeRuns = await runDragMode('resize-duration');
+      const resizeResult = aggregateDrag(resizeRuns, 'resize-duration');
       const env = {
         采集时刻: new Date().toISOString(),
         机器: process.env.COMPUTERNAME ?? 'local',
@@ -1682,16 +1800,22 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         'Chrome 模式': '--headless=new',
         DPR: 1,
         视口: '1280×800（窗格尺寸随结果登记）',
-        数据集: PRIMARY_DATASET,
+        数据集: options.dragDataset,
         拖动天数: options.dayDelta,
         测试帧数: options.dragFrames,
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
-      const dragEvidencePath = join(evidenceDir, `drag-timing-chrome${major}.md`);
-      writeFileSync(dragEvidencePath, renderDragEvidence({ env, result: dragResult, options }), 'utf8');
+      // 非主口径的数据集**不覆盖**主口径快照（同一次采集可以留多份规模对照；与 `--align=<label>` 同精神）。
+      const dragSuffix = options.dragDataset === PRIMARY_DATASET ? '' : `-${options.dragDataset}`;
+      const dragEvidencePath = join(evidenceDir, `drag-timing${dragSuffix}-chrome${major}.md`);
       writeFileSync(
-        join(evidenceDir, 'drag-timing-raw.json'),
-        `${JSON.stringify({ env, result: dragResult }, null, 2)}\n`,
+        dragEvidencePath,
+        renderDragEvidence({ env, result: dragResult, resize: resizeResult, options }),
+        'utf8',
+      );
+      writeFileSync(
+        join(evidenceDir, `drag-timing${dragSuffix}-raw.json`),
+        `${JSON.stringify({ env, result: dragResult, resize: resizeResult }, null, 2)}\n`,
         'utf8',
       );
       console.log(
@@ -1703,8 +1827,24 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
           `startDate ${String(dragResult?.documentStartAfter ?? '-')}` +
           `（期望 ${String(dragResult?.expectedStartAfter ?? '-')}）`,
       );
+      const resizeDownstream = resizeResult?.downstream ?? null;
+      console.log(
+        `[drag/resize-duration] 主线程 p95 ${Number(resizeResult?.mainThreadP95Ms ?? 0).toFixed(2)} ms、` +
+          `帧间隔 p50/p95 ${Number(resizeResult?.frameGapP50Ms ?? 0).toFixed(1)}/${Number(resizeResult?.frameGapP95Ms ?? 0).toFixed(1)} ms、` +
+          `松手 ${Number(resizeResult?.releaseMs ?? 0).toFixed(1)} ms、` +
+          `工期 ${String(resizeResult?.durationBefore ?? '-')} → ${String(resizeResult?.durationAfter ?? '-')}` +
+          `（期望 ${String(resizeResult?.expectedDurationAfter ?? '-')}）、` +
+          `下游 \`${String(resizeDownstream?.taskId ?? '-')}\` es ${String(resizeDownstream?.before ?? '-')} → ` +
+          `拖动期 ${String(resizeDownstream?.during ?? '-')} → 松手 ${String(resizeDownstream?.after ?? '-')}、` +
+          `revision ${String(resizeResult?.revisionBefore ?? '-')} --拖动期--> ${String(resizeResult?.revisionDuringDrag ?? '-')}` +
+          ` --松手--> ${String(resizeResult?.revisionAfterRelease ?? '-')}`,
+      );
       if (dragResult?.status === 'error') {
         console.error(`[drag] errors: ${(dragResult.errors ?? []).join('；')}`);
+        process.exitCode = 1;
+      }
+      if (resizeResult?.status === 'error') {
+        console.error(`[drag/resize-duration] errors: ${(resizeResult.errors ?? []).join('；')}`);
         process.exitCode = 1;
       }
       console.log(`[measure] 拖动证据已写入 ${dragEvidencePath}`);

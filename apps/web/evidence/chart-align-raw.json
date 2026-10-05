@@ -1,6 +1,6 @@
 {
   "env": {
-    "采集时刻": "2026-10-05T18:05:53.673Z",
+    "采集时刻": "2026-10-05T20:06:02.176Z",
     "机器": "FAIRY",
     "系统": "win32 x64",
     "Node": "v26.7.0",
@@ -36,17 +36,17 @@
               "viewScrollLeft": 0,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 10612,
               "viewContentWidth": 10612,
@@ -353,11 +353,21 @@
                   "barRight": 1299,
                   "expectedBarLeft": 1179,
                   "expectedBarRight": 1299
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "chartCenterY": 867,
+                  "tableCenterY": 867,
+                  "barLeft": 1107,
+                  "barRight": 1347,
+                  "expectedBarLeft": 1107,
+                  "expectedBarRight": 1347
                 }
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 891,
                 "right": 1251
               },
@@ -532,6 +542,11 @@
                   "id": "t28",
                   "row": 29,
                   "deltaPx": 0
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "deltaPx": 0
                 }
               ],
               "pinned": true,
@@ -550,27 +565,27 @@
             }
           },
           {
-            "requestedScrollTop": 11479,
+            "requestedScrollTop": 11461,
             "requestedScrollLeft": 0,
             "settleFrames": 2,
             "probe": {
-              "scrollTop": 11479,
-              "viewScrollTop": 11479,
+              "scrollTop": 11461,
+              "viewScrollTop": 11461,
               "scrollLeft": 0,
               "viewScrollLeft": 0,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 10612,
               "viewContentWidth": 10612,
@@ -579,10 +594,20 @@
               "tableRowHeight": 24,
               "samples": [
                 {
+                  "id": "t467",
+                  "row": 472,
+                  "chartCenterY": 14,
+                  "tableCenterY": 14,
+                  "barLeft": 4851,
+                  "barRight": 5163,
+                  "expectedBarLeft": 4851,
+                  "expectedBarRight": 5163
+                },
+                {
                   "id": "t468",
                   "row": 473,
-                  "chartCenterY": 20,
-                  "tableCenterY": 20,
+                  "chartCenterY": 38,
+                  "tableCenterY": 38,
                   "barLeft": 6363,
                   "barRight": 6555,
                   "expectedBarLeft": 6363,
@@ -591,8 +616,8 @@
                 {
                   "id": "t469",
                   "row": 474,
-                  "chartCenterY": 44,
-                  "tableCenterY": 44,
+                  "chartCenterY": 62,
+                  "tableCenterY": 62,
                   "barLeft": 5379,
                   "barRight": 5643,
                   "expectedBarLeft": 5379,
@@ -601,8 +626,8 @@
                 {
                   "id": "t470",
                   "row": 475,
-                  "chartCenterY": 68,
-                  "tableCenterY": 68,
+                  "chartCenterY": 86,
+                  "tableCenterY": 86,
                   "barLeft": 6003,
                   "barRight": 6243,
                   "expectedBarLeft": 6003,
@@ -611,8 +636,8 @@
                 {
                   "id": "t471",
                   "row": 476,
-                  "chartCenterY": 92,
-                  "tableCenterY": 92,
+                  "chartCenterY": 110,
+                  "tableCenterY": 110,
                   "barLeft": 6531,
                   "barRight": 6699,
                   "expectedBarLeft": 6531,
@@ -621,8 +646,8 @@
                 {
                   "id": "t472",
                   "row": 477,
-                  "chartCenterY": 116,
-                  "tableCenterY": 116,
+                  "chartCenterY": 134,
+                  "tableCenterY": 134,
                   "barLeft": 5691,
                   "barRight": 5883,
                   "expectedBarLeft": 5691,
@@ -631,8 +656,8 @@
                 {
                   "id": "t473",
                   "row": 478,
-                  "chartCenterY": 140,
-                  "tableCenterY": 140,
+                  "chartCenterY": 158,
+                  "tableCenterY": 158,
                   "barLeft": 6651,
                   "barRight": 6723,
                   "expectedBarLeft": 6651,
@@ -641,8 +666,8 @@
                 {
                   "id": "t474",
                   "row": 479,
-                  "chartCenterY": 164,
-                  "tableCenterY": 164,
+                  "chartCenterY": 182,
+                  "tableCenterY": 182,
                   "barLeft": 6483,
                   "barRight": 6507,
                   "expectedBarLeft": 6483,
@@ -651,8 +676,8 @@
                 {
                   "id": "t475",
                   "row": 480,
-                  "chartCenterY": 188,
-                  "tableCenterY": 188,
+                  "chartCenterY": 206,
+                  "tableCenterY": 206,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -661,8 +686,8 @@
                 {
                   "id": "s26",
                   "row": 481,
-                  "chartCenterY": 212,
-                  "tableCenterY": 212,
+                  "chartCenterY": 230,
+                  "tableCenterY": 230,
                   "barLeft": 5211,
                   "barRight": 7011,
                   "expectedBarLeft": 5211,
@@ -671,8 +696,8 @@
                 {
                   "id": "t476",
                   "row": 482,
-                  "chartCenterY": 236,
-                  "tableCenterY": 236,
+                  "chartCenterY": 254,
+                  "tableCenterY": 254,
                   "barLeft": 6627,
                   "barRight": 6867,
                   "expectedBarLeft": 6627,
@@ -681,8 +706,8 @@
                 {
                   "id": "t477",
                   "row": 483,
-                  "chartCenterY": 260,
-                  "tableCenterY": 260,
+                  "chartCenterY": 278,
+                  "tableCenterY": 278,
                   "barLeft": 6675,
                   "barRight": 6843,
                   "expectedBarLeft": 6675,
@@ -691,8 +716,8 @@
                 {
                   "id": "t478",
                   "row": 484,
-                  "chartCenterY": 284,
-                  "tableCenterY": 284,
+                  "chartCenterY": 302,
+                  "tableCenterY": 302,
                   "barLeft": 5691,
                   "barRight": 5883,
                   "expectedBarLeft": 5691,
@@ -701,8 +726,8 @@
                 {
                   "id": "t479",
                   "row": 485,
-                  "chartCenterY": 308,
-                  "tableCenterY": 308,
+                  "chartCenterY": 326,
+                  "tableCenterY": 326,
                   "barLeft": 5811,
                   "barRight": 5859,
                   "expectedBarLeft": 5811,
@@ -711,8 +736,8 @@
                 {
                   "id": "t480",
                   "row": 486,
-                  "chartCenterY": 332,
-                  "tableCenterY": 332,
+                  "chartCenterY": 350,
+                  "tableCenterY": 350,
                   "barLeft": 5211,
                   "barRight": 5355,
                   "expectedBarLeft": 5211,
@@ -721,8 +746,8 @@
                 {
                   "id": "t481",
                   "row": 487,
-                  "chartCenterY": 356,
-                  "tableCenterY": 356,
+                  "chartCenterY": 374,
+                  "tableCenterY": 374,
                   "barLeft": 6651,
                   "barRight": 6747,
                   "expectedBarLeft": 6651,
@@ -731,8 +756,8 @@
                 {
                   "id": "t482",
                   "row": 488,
-                  "chartCenterY": 380,
-                  "tableCenterY": 380,
+                  "chartCenterY": 398,
+                  "tableCenterY": 398,
                   "barLeft": 5643,
                   "barRight": 5715,
                   "expectedBarLeft": 5643,
@@ -741,8 +766,8 @@
                 {
                   "id": "t483",
                   "row": 489,
-                  "chartCenterY": 404,
-                  "tableCenterY": 404,
+                  "chartCenterY": 422,
+                  "tableCenterY": 422,
                   "barLeft": 5691,
                   "barRight": 5859,
                   "expectedBarLeft": 5691,
@@ -751,8 +776,8 @@
                 {
                   "id": "t484",
                   "row": 490,
-                  "chartCenterY": 428,
-                  "tableCenterY": 428,
+                  "chartCenterY": 446,
+                  "tableCenterY": 446,
                   "barLeft": 5283,
                   "barRight": 5307,
                   "expectedBarLeft": 5283,
@@ -761,8 +786,8 @@
                 {
                   "id": "t485",
                   "row": 491,
-                  "chartCenterY": 452,
-                  "tableCenterY": 452,
+                  "chartCenterY": 470,
+                  "tableCenterY": 470,
                   "barLeft": 6147,
                   "barRight": 6243,
                   "expectedBarLeft": 6147,
@@ -771,8 +796,8 @@
                 {
                   "id": "t486",
                   "row": 492,
-                  "chartCenterY": 476,
-                  "tableCenterY": 476,
+                  "chartCenterY": 494,
+                  "tableCenterY": 494,
                   "barLeft": 6507,
                   "barRight": 6555,
                   "expectedBarLeft": 6507,
@@ -781,8 +806,8 @@
                 {
                   "id": "t487",
                   "row": 493,
-                  "chartCenterY": 500,
-                  "tableCenterY": 500,
+                  "chartCenterY": 518,
+                  "tableCenterY": 518,
                   "barLeft": 5691,
                   "barRight": 6003,
                   "expectedBarLeft": 5691,
@@ -791,8 +816,8 @@
                 {
                   "id": "t488",
                   "row": 494,
-                  "chartCenterY": 524,
-                  "tableCenterY": 524,
+                  "chartCenterY": 542,
+                  "tableCenterY": 542,
                   "barLeft": 6675,
                   "barRight": 6723,
                   "expectedBarLeft": 6675,
@@ -801,8 +826,8 @@
                 {
                   "id": "t489",
                   "row": 495,
-                  "chartCenterY": 548,
-                  "tableCenterY": 548,
+                  "chartCenterY": 566,
+                  "tableCenterY": 566,
                   "barLeft": 6867,
                   "barRight": 7011,
                   "expectedBarLeft": 6867,
@@ -811,8 +836,8 @@
                 {
                   "id": "t490",
                   "row": 496,
-                  "chartCenterY": 572,
-                  "tableCenterY": 572,
+                  "chartCenterY": 590,
+                  "tableCenterY": 590,
                   "barLeft": 6315,
                   "barRight": 6579,
                   "expectedBarLeft": 6315,
@@ -821,8 +846,8 @@
                 {
                   "id": "t491",
                   "row": 497,
-                  "chartCenterY": 596,
-                  "tableCenterY": 596,
+                  "chartCenterY": 614,
+                  "tableCenterY": 614,
                   "barLeft": 6627,
                   "barRight": 6747,
                   "expectedBarLeft": 6627,
@@ -831,8 +856,8 @@
                 {
                   "id": "t492",
                   "row": 498,
-                  "chartCenterY": 620,
-                  "tableCenterY": 620,
+                  "chartCenterY": 638,
+                  "tableCenterY": 638,
                   "barLeft": 5547,
                   "barRight": 5811,
                   "expectedBarLeft": 5547,
@@ -841,8 +866,8 @@
                 {
                   "id": "t493",
                   "row": 499,
-                  "chartCenterY": 644,
-                  "tableCenterY": 644,
+                  "chartCenterY": 662,
+                  "tableCenterY": 662,
                   "barLeft": 6627,
                   "barRight": 6675,
                   "expectedBarLeft": 6627,
@@ -851,8 +876,8 @@
                 {
                   "id": "t494",
                   "row": 500,
-                  "chartCenterY": 668,
-                  "tableCenterY": 668,
+                  "chartCenterY": 686,
+                  "tableCenterY": 686,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -861,8 +886,8 @@
                 {
                   "id": "s27",
                   "row": 501,
-                  "chartCenterY": 692,
-                  "tableCenterY": 692,
+                  "chartCenterY": 710,
+                  "tableCenterY": 710,
                   "barLeft": 5355,
                   "barRight": 7347,
                   "expectedBarLeft": 5355,
@@ -871,8 +896,8 @@
                 {
                   "id": "t495",
                   "row": 502,
-                  "chartCenterY": 716,
-                  "tableCenterY": 716,
+                  "chartCenterY": 734,
+                  "tableCenterY": 734,
                   "barLeft": 7059,
                   "barRight": 7347,
                   "expectedBarLeft": 7059,
@@ -881,8 +906,8 @@
                 {
                   "id": "t496",
                   "row": 503,
-                  "chartCenterY": 740,
-                  "tableCenterY": 740,
+                  "chartCenterY": 758,
+                  "tableCenterY": 758,
                   "barLeft": 6867,
                   "barRight": 6987,
                   "expectedBarLeft": 6867,
@@ -891,8 +916,8 @@
                 {
                   "id": "t497",
                   "row": 504,
-                  "chartCenterY": 764,
-                  "tableCenterY": 764,
+                  "chartCenterY": 782,
+                  "tableCenterY": 782,
                   "barLeft": 6867,
                   "barRight": 7035,
                   "expectedBarLeft": 6867,
@@ -901,8 +926,8 @@
                 {
                   "id": "t498",
                   "row": 505,
-                  "chartCenterY": 788,
-                  "tableCenterY": 788,
+                  "chartCenterY": 806,
+                  "tableCenterY": 806,
                   "barLeft": 6555,
                   "barRight": 6747,
                   "expectedBarLeft": 6555,
@@ -911,8 +936,8 @@
                 {
                   "id": "t499",
                   "row": 506,
-                  "chartCenterY": 812,
-                  "tableCenterY": 812,
+                  "chartCenterY": 830,
+                  "tableCenterY": 830,
                   "barLeft": 5715,
                   "barRight": 5859,
                   "expectedBarLeft": 5715,
@@ -921,8 +946,8 @@
                 {
                   "id": "t500",
                   "row": 507,
-                  "chartCenterY": 836,
-                  "tableCenterY": 836,
+                  "chartCenterY": 854,
+                  "tableCenterY": 854,
                   "barLeft": 5451,
                   "barRight": 5571,
                   "expectedBarLeft": 5451,
@@ -931,7 +956,7 @@
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 891,
                 "right": 1251
               },
@@ -947,7 +972,7 @@
               "hitTest": {
                 "id": "t484",
                 "row": 490,
-                "clientY": 428,
+                "clientY": 446,
                 "expectedContentY": 11772,
                 "actualContentY": 11772
               }
@@ -957,6 +982,11 @@
               "maxAbsRowDeltaPx": 0,
               "maxAbsBarXDeltaPx": 0,
               "rowDeltas": [
+                {
+                  "id": "t467",
+                  "row": 472,
+                  "deltaPx": 0
+                },
                 {
                   "id": "t468",
                   "row": 473,
@@ -1149,27 +1179,27 @@
             }
           },
           {
-            "requestedScrollTop": 22957,
+            "requestedScrollTop": 22922,
             "requestedScrollLeft": 0,
             "settleFrames": 2,
             "probe": {
-              "scrollTop": 22957,
-              "viewScrollTop": 22957,
+              "scrollTop": 22922,
+              "viewScrollTop": 22922,
               "scrollLeft": 0,
               "viewScrollLeft": 0,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 10612,
               "viewContentWidth": 10612,
@@ -1178,10 +1208,20 @@
               "tableRowHeight": 24,
               "samples": [
                 {
+                  "id": "t921",
+                  "row": 950,
+                  "chartCenterY": 25.0009765625,
+                  "tableCenterY": 25,
+                  "barLeft": 10347,
+                  "barRight": 10611,
+                  "expectedBarLeft": 10347,
+                  "expectedBarRight": 10611
+                },
+                {
                   "id": "t922",
                   "row": 951,
-                  "chartCenterY": 14.0009765625,
-                  "tableCenterY": 14,
+                  "chartCenterY": 49.0009765625,
+                  "tableCenterY": 49,
                   "barLeft": 10899,
                   "barRight": 11043,
                   "expectedBarLeft": 10899,
@@ -1190,8 +1230,8 @@
                 {
                   "id": "t923",
                   "row": 952,
-                  "chartCenterY": 38.0009765625,
-                  "tableCenterY": 38,
+                  "chartCenterY": 73.0009765625,
+                  "tableCenterY": 73,
                   "barLeft": 10659,
                   "barRight": 10683,
                   "expectedBarLeft": 10659,
@@ -1200,8 +1240,8 @@
                 {
                   "id": "t924",
                   "row": 953,
-                  "chartCenterY": 62.0009765625,
-                  "tableCenterY": 62,
+                  "chartCenterY": 97.0009765625,
+                  "tableCenterY": 97,
                   "barLeft": 11067,
                   "barRight": 11259,
                   "expectedBarLeft": 11067,
@@ -1210,8 +1250,8 @@
                 {
                   "id": "t925",
                   "row": 954,
-                  "chartCenterY": 86.0009765625,
-                  "tableCenterY": 86,
+                  "chartCenterY": 121.0009765625,
+                  "tableCenterY": 121,
                   "barLeft": 10491,
                   "barRight": 10611,
                   "expectedBarLeft": 10491,
@@ -1220,8 +1260,8 @@
                 {
                   "id": "t926",
                   "row": 955,
-                  "chartCenterY": 110.0009765625,
-                  "tableCenterY": 110,
+                  "chartCenterY": 145.0009765625,
+                  "tableCenterY": 145,
                   "barLeft": 10875,
                   "barRight": 11115,
                   "expectedBarLeft": 10875,
@@ -1230,8 +1270,8 @@
                 {
                   "id": "t927",
                   "row": 956,
-                  "chartCenterY": 134.0009765625,
-                  "tableCenterY": 134,
+                  "chartCenterY": 169.0009765625,
+                  "tableCenterY": 169,
                   "barLeft": 10875,
                   "barRight": 11043,
                   "expectedBarLeft": 10875,
@@ -1240,8 +1280,8 @@
                 {
                   "id": "t928",
                   "row": 957,
-                  "chartCenterY": 158.0009765625,
-                  "tableCenterY": 158,
+                  "chartCenterY": 193.0009765625,
+                  "tableCenterY": 193,
                   "barLeft": 10227,
                   "barRight": 10515,
                   "expectedBarLeft": 10227,
@@ -1250,8 +1290,8 @@
                 {
                   "id": "t929",
                   "row": 958,
-                  "chartCenterY": 182.0009765625,
-                  "tableCenterY": 182,
+                  "chartCenterY": 217.0009765625,
+                  "tableCenterY": 217,
                   "barLeft": 10995,
                   "barRight": 11091,
                   "expectedBarLeft": 10995,
@@ -1260,8 +1300,8 @@
                 {
                   "id": "t930",
                   "row": 959,
-                  "chartCenterY": 206.0009765625,
-                  "tableCenterY": 206,
+                  "chartCenterY": 241.0009765625,
+                  "tableCenterY": 241,
                   "barLeft": 10899,
                   "barRight": 11019,
                   "expectedBarLeft": 10899,
@@ -1270,8 +1310,8 @@
                 {
                   "id": "t931",
                   "row": 960,
-                  "chartCenterY": 230,
-                  "tableCenterY": 230,
+                  "chartCenterY": 265,
+                  "tableCenterY": 265,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -1280,8 +1320,8 @@
                 {
                   "id": "s50",
                   "row": 961,
-                  "chartCenterY": 254.0009765625,
-                  "tableCenterY": 254,
+                  "chartCenterY": 289.0009765625,
+                  "tableCenterY": 289,
                   "barLeft": 9867,
                   "barRight": 11451,
                   "expectedBarLeft": 9867,
@@ -1290,8 +1330,8 @@
                 {
                   "id": "t932",
                   "row": 962,
-                  "chartCenterY": 278.0009765625,
-                  "tableCenterY": 278,
+                  "chartCenterY": 313.0009765625,
+                  "tableCenterY": 313,
                   "barLeft": 10587,
                   "barRight": 10875,
                   "expectedBarLeft": 10587,
@@ -1300,8 +1340,8 @@
                 {
                   "id": "t933",
                   "row": 963,
-                  "chartCenterY": 302.0009765625,
-                  "tableCenterY": 302,
+                  "chartCenterY": 337.0009765625,
+                  "tableCenterY": 337,
                   "barLeft": 10851,
                   "barRight": 11115,
                   "expectedBarLeft": 10851,
@@ -1310,8 +1350,8 @@
                 {
                   "id": "t934",
                   "row": 964,
-                  "chartCenterY": 326.0009765625,
-                  "tableCenterY": 326,
+                  "chartCenterY": 361.0009765625,
+                  "tableCenterY": 361,
                   "barLeft": 10683,
                   "barRight": 10923,
                   "expectedBarLeft": 10683,
@@ -1320,8 +1360,8 @@
                 {
                   "id": "t935",
                   "row": 965,
-                  "chartCenterY": 350.0009765625,
-                  "tableCenterY": 350,
+                  "chartCenterY": 385.0009765625,
+                  "tableCenterY": 385,
                   "barLeft": 11187,
                   "barRight": 11451,
                   "expectedBarLeft": 11187,
@@ -1330,8 +1370,8 @@
                 {
                   "id": "t936",
                   "row": 966,
-                  "chartCenterY": 374.0009765625,
-                  "tableCenterY": 374,
+                  "chartCenterY": 409.0009765625,
+                  "tableCenterY": 409,
                   "barLeft": 10491,
                   "barRight": 10755,
                   "expectedBarLeft": 10491,
@@ -1340,8 +1380,8 @@
                 {
                   "id": "t937",
                   "row": 967,
-                  "chartCenterY": 398.0009765625,
-                  "tableCenterY": 398,
+                  "chartCenterY": 433.0009765625,
+                  "tableCenterY": 433,
                   "barLeft": 10755,
                   "barRight": 10851,
                   "expectedBarLeft": 10755,
@@ -1350,8 +1390,8 @@
                 {
                   "id": "t938",
                   "row": 968,
-                  "chartCenterY": 422.0009765625,
-                  "tableCenterY": 422,
+                  "chartCenterY": 457.0009765625,
+                  "tableCenterY": 457,
                   "barLeft": 11043,
                   "barRight": 11187,
                   "expectedBarLeft": 11043,
@@ -1360,8 +1400,8 @@
                 {
                   "id": "t939",
                   "row": 969,
-                  "chartCenterY": 446.0009765625,
-                  "tableCenterY": 446,
+                  "chartCenterY": 481.0009765625,
+                  "tableCenterY": 481,
                   "barLeft": 9867,
                   "barRight": 10107,
                   "expectedBarLeft": 9867,
@@ -1370,8 +1410,8 @@
                 {
                   "id": "t940",
                   "row": 970,
-                  "chartCenterY": 470.0009765625,
-                  "tableCenterY": 470,
+                  "chartCenterY": 505.0009765625,
+                  "tableCenterY": 505,
                   "barLeft": 10995,
                   "barRight": 11067,
                   "expectedBarLeft": 10995,
@@ -1380,8 +1420,8 @@
                 {
                   "id": "t941",
                   "row": 971,
-                  "chartCenterY": 494.0009765625,
-                  "tableCenterY": 494,
+                  "chartCenterY": 529.0009765625,
+                  "tableCenterY": 529,
                   "barLeft": 10659,
                   "barRight": 10779,
                   "expectedBarLeft": 10659,
@@ -1390,8 +1430,8 @@
                 {
                   "id": "t942",
                   "row": 972,
-                  "chartCenterY": 518.0009765625,
-                  "tableCenterY": 518,
+                  "chartCenterY": 553.0009765625,
+                  "tableCenterY": 553,
                   "barLeft": 10995,
                   "barRight": 11187,
                   "expectedBarLeft": 10995,
@@ -1400,8 +1440,8 @@
                 {
                   "id": "t943",
                   "row": 973,
-                  "chartCenterY": 542.0009765625,
-                  "tableCenterY": 542,
+                  "chartCenterY": 577.0009765625,
+                  "tableCenterY": 577,
                   "barLeft": 10683,
                   "barRight": 10851,
                   "expectedBarLeft": 10683,
@@ -1410,8 +1450,8 @@
                 {
                   "id": "t944",
                   "row": 974,
-                  "chartCenterY": 566.0009765625,
-                  "tableCenterY": 566,
+                  "chartCenterY": 601.0009765625,
+                  "tableCenterY": 601,
                   "barLeft": 11331,
                   "barRight": 11427,
                   "expectedBarLeft": 11331,
@@ -1420,8 +1460,8 @@
                 {
                   "id": "t945",
                   "row": 975,
-                  "chartCenterY": 590.0009765625,
-                  "tableCenterY": 590,
+                  "chartCenterY": 625.0009765625,
+                  "tableCenterY": 625,
                   "barLeft": 10659,
                   "barRight": 10899,
                   "expectedBarLeft": 10659,
@@ -1430,8 +1470,8 @@
                 {
                   "id": "t946",
                   "row": 976,
-                  "chartCenterY": 614.0009765625,
-                  "tableCenterY": 614,
+                  "chartCenterY": 649.0009765625,
+                  "tableCenterY": 649,
                   "barLeft": 11163,
                   "barRight": 11211,
                   "expectedBarLeft": 11163,
@@ -1440,8 +1480,8 @@
                 {
                   "id": "t947",
                   "row": 977,
-                  "chartCenterY": 638.0009765625,
-                  "tableCenterY": 638,
+                  "chartCenterY": 673.0009765625,
+                  "tableCenterY": 673,
                   "barLeft": 11163,
                   "barRight": 11379,
                   "expectedBarLeft": 11163,
@@ -1450,8 +1490,8 @@
                 {
                   "id": "t948",
                   "row": 978,
-                  "chartCenterY": 662.0009765625,
-                  "tableCenterY": 662,
+                  "chartCenterY": 697.0009765625,
+                  "tableCenterY": 697,
                   "barLeft": 10587,
                   "barRight": 10899,
                   "expectedBarLeft": 10587,
@@ -1460,8 +1500,8 @@
                 {
                   "id": "t949",
                   "row": 979,
-                  "chartCenterY": 686.0009765625,
-                  "tableCenterY": 686,
+                  "chartCenterY": 721.0009765625,
+                  "tableCenterY": 721,
                   "barLeft": 10851,
                   "barRight": 10947,
                   "expectedBarLeft": 10851,
@@ -1470,8 +1510,8 @@
                 {
                   "id": "t950",
                   "row": 980,
-                  "chartCenterY": 710,
-                  "tableCenterY": 710,
+                  "chartCenterY": 745,
+                  "tableCenterY": 745,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -1480,7 +1520,7 @@
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 891,
                 "right": 1251
               },
@@ -1494,11 +1534,11 @@
                 "bottom": 128
               },
               "hitTest": {
-                "id": "t936",
-                "row": 966,
-                "clientY": 374.0009765625,
-                "expectedContentY": 23196,
-                "actualContentY": 23196.0009765625
+                "id": "t935",
+                "row": 965,
+                "clientY": 385.0009765625,
+                "expectedContentY": 23172,
+                "actualContentY": 23172.0009765625
               }
             },
             "verdict": {
@@ -1506,6 +1546,11 @@
               "maxAbsRowDeltaPx": 0.001,
               "maxAbsBarXDeltaPx": 0,
               "rowDeltas": [
+                {
+                  "id": "t921",
+                  "row": 950,
+                  "deltaPx": 0.001
+                },
                 {
                   "id": "t922",
                   "row": 951,
@@ -1683,17 +1728,17 @@
               "viewScrollLeft": 5119,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 10612,
               "viewContentWidth": 10612,
@@ -2000,11 +2045,21 @@
                   "barRight": -3820,
                   "expectedBarLeft": -3940,
                   "expectedBarRight": -3820
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "chartCenterY": 867,
+                  "tableCenterY": 867,
+                  "barLeft": -4012,
+                  "barRight": -3772,
+                  "expectedBarLeft": -4012,
+                  "expectedBarRight": -3772
                 }
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 956,
                 "right": 1172
               },
@@ -2179,6 +2234,11 @@
                   "id": "t28",
                   "row": 29,
                   "deltaPx": 0
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "deltaPx": 0
                 }
               ],
               "pinned": true,
@@ -2207,17 +2267,17 @@
               "viewScrollLeft": 10238,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 10612,
               "viewContentWidth": 10612,
@@ -2524,11 +2584,21 @@
                   "barRight": -8939,
                   "expectedBarLeft": -9059,
                   "expectedBarRight": -8939
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "chartCenterY": 867,
+                  "tableCenterY": 867,
+                  "barLeft": -9131,
+                  "barRight": -8891,
+                  "expectedBarLeft": -9131,
+                  "expectedBarRight": -8891
                 }
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 877,
                 "right": 1261
               },
@@ -2703,6 +2773,11 @@
                   "id": "t28",
                   "row": 29,
                   "deltaPx": 0
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "deltaPx": 0
                 }
               ],
               "pinned": true,
@@ -2721,27 +2796,27 @@
             }
           },
           {
-            "requestedScrollTop": 22957,
+            "requestedScrollTop": 22922,
             "requestedScrollLeft": 10238,
             "settleFrames": 2,
             "probe": {
-              "scrollTop": 22957,
-              "viewScrollTop": 22957,
+              "scrollTop": 22922,
+              "viewScrollTop": 22922,
               "scrollLeft": 10238,
               "viewScrollLeft": 10238,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 10612,
               "viewContentWidth": 10612,
@@ -2750,10 +2825,20 @@
               "tableRowHeight": 24,
               "samples": [
                 {
+                  "id": "t921",
+                  "row": 950,
+                  "chartCenterY": 25.0009765625,
+                  "tableCenterY": 25,
+                  "barLeft": 109,
+                  "barRight": 373,
+                  "expectedBarLeft": 109,
+                  "expectedBarRight": 373
+                },
+                {
                   "id": "t922",
                   "row": 951,
-                  "chartCenterY": 14.0009765625,
-                  "tableCenterY": 14,
+                  "chartCenterY": 49.0009765625,
+                  "tableCenterY": 49,
                   "barLeft": 661,
                   "barRight": 805,
                   "expectedBarLeft": 661,
@@ -2762,8 +2847,8 @@
                 {
                   "id": "t923",
                   "row": 952,
-                  "chartCenterY": 38.0009765625,
-                  "tableCenterY": 38,
+                  "chartCenterY": 73.0009765625,
+                  "tableCenterY": 73,
                   "barLeft": 421,
                   "barRight": 445,
                   "expectedBarLeft": 421,
@@ -2772,8 +2857,8 @@
                 {
                   "id": "t924",
                   "row": 953,
-                  "chartCenterY": 62.0009765625,
-                  "tableCenterY": 62,
+                  "chartCenterY": 97.0009765625,
+                  "tableCenterY": 97,
                   "barLeft": 829,
                   "barRight": 1021,
                   "expectedBarLeft": 829,
@@ -2782,8 +2867,8 @@
                 {
                   "id": "t925",
                   "row": 954,
-                  "chartCenterY": 86.0009765625,
-                  "tableCenterY": 86,
+                  "chartCenterY": 121.0009765625,
+                  "tableCenterY": 121,
                   "barLeft": 253,
                   "barRight": 373,
                   "expectedBarLeft": 253,
@@ -2792,8 +2877,8 @@
                 {
                   "id": "t926",
                   "row": 955,
-                  "chartCenterY": 110.0009765625,
-                  "tableCenterY": 110,
+                  "chartCenterY": 145.0009765625,
+                  "tableCenterY": 145,
                   "barLeft": 637,
                   "barRight": 877,
                   "expectedBarLeft": 637,
@@ -2802,8 +2887,8 @@
                 {
                   "id": "t927",
                   "row": 956,
-                  "chartCenterY": 134.0009765625,
-                  "tableCenterY": 134,
+                  "chartCenterY": 169.0009765625,
+                  "tableCenterY": 169,
                   "barLeft": 637,
                   "barRight": 805,
                   "expectedBarLeft": 637,
@@ -2812,8 +2897,8 @@
                 {
                   "id": "t928",
                   "row": 957,
-                  "chartCenterY": 158.0009765625,
-                  "tableCenterY": 158,
+                  "chartCenterY": 193.0009765625,
+                  "tableCenterY": 193,
                   "barLeft": -11,
                   "barRight": 277,
                   "expectedBarLeft": -11,
@@ -2822,8 +2907,8 @@
                 {
                   "id": "t929",
                   "row": 958,
-                  "chartCenterY": 182.0009765625,
-                  "tableCenterY": 182,
+                  "chartCenterY": 217.0009765625,
+                  "tableCenterY": 217,
                   "barLeft": 757,
                   "barRight": 853,
                   "expectedBarLeft": 757,
@@ -2832,8 +2917,8 @@
                 {
                   "id": "t930",
                   "row": 959,
-                  "chartCenterY": 206.0009765625,
-                  "tableCenterY": 206,
+                  "chartCenterY": 241.0009765625,
+                  "tableCenterY": 241,
                   "barLeft": 661,
                   "barRight": 781,
                   "expectedBarLeft": 661,
@@ -2842,8 +2927,8 @@
                 {
                   "id": "t931",
                   "row": 960,
-                  "chartCenterY": 230,
-                  "tableCenterY": 230,
+                  "chartCenterY": 265,
+                  "tableCenterY": 265,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -2852,8 +2937,8 @@
                 {
                   "id": "s50",
                   "row": 961,
-                  "chartCenterY": 254.0009765625,
-                  "tableCenterY": 254,
+                  "chartCenterY": 289.0009765625,
+                  "tableCenterY": 289,
                   "barLeft": -371,
                   "barRight": 1213,
                   "expectedBarLeft": -371,
@@ -2862,8 +2947,8 @@
                 {
                   "id": "t932",
                   "row": 962,
-                  "chartCenterY": 278.0009765625,
-                  "tableCenterY": 278,
+                  "chartCenterY": 313.0009765625,
+                  "tableCenterY": 313,
                   "barLeft": 349,
                   "barRight": 637,
                   "expectedBarLeft": 349,
@@ -2872,8 +2957,8 @@
                 {
                   "id": "t933",
                   "row": 963,
-                  "chartCenterY": 302.0009765625,
-                  "tableCenterY": 302,
+                  "chartCenterY": 337.0009765625,
+                  "tableCenterY": 337,
                   "barLeft": 613,
                   "barRight": 877,
                   "expectedBarLeft": 613,
@@ -2882,8 +2967,8 @@
                 {
                   "id": "t934",
                   "row": 964,
-                  "chartCenterY": 326.0009765625,
-                  "tableCenterY": 326,
+                  "chartCenterY": 361.0009765625,
+                  "tableCenterY": 361,
                   "barLeft": 445,
                   "barRight": 685,
                   "expectedBarLeft": 445,
@@ -2892,8 +2977,8 @@
                 {
                   "id": "t935",
                   "row": 965,
-                  "chartCenterY": 350.0009765625,
-                  "tableCenterY": 350,
+                  "chartCenterY": 385.0009765625,
+                  "tableCenterY": 385,
                   "barLeft": 949,
                   "barRight": 1213,
                   "expectedBarLeft": 949,
@@ -2902,8 +2987,8 @@
                 {
                   "id": "t936",
                   "row": 966,
-                  "chartCenterY": 374.0009765625,
-                  "tableCenterY": 374,
+                  "chartCenterY": 409.0009765625,
+                  "tableCenterY": 409,
                   "barLeft": 253,
                   "barRight": 517,
                   "expectedBarLeft": 253,
@@ -2912,8 +2997,8 @@
                 {
                   "id": "t937",
                   "row": 967,
-                  "chartCenterY": 398.0009765625,
-                  "tableCenterY": 398,
+                  "chartCenterY": 433.0009765625,
+                  "tableCenterY": 433,
                   "barLeft": 517,
                   "barRight": 613,
                   "expectedBarLeft": 517,
@@ -2922,8 +3007,8 @@
                 {
                   "id": "t938",
                   "row": 968,
-                  "chartCenterY": 422.0009765625,
-                  "tableCenterY": 422,
+                  "chartCenterY": 457.0009765625,
+                  "tableCenterY": 457,
                   "barLeft": 805,
                   "barRight": 949,
                   "expectedBarLeft": 805,
@@ -2932,8 +3017,8 @@
                 {
                   "id": "t939",
                   "row": 969,
-                  "chartCenterY": 446.0009765625,
-                  "tableCenterY": 446,
+                  "chartCenterY": 481.0009765625,
+                  "tableCenterY": 481,
                   "barLeft": -371,
                   "barRight": -131,
                   "expectedBarLeft": -371,
@@ -2942,8 +3027,8 @@
                 {
                   "id": "t940",
                   "row": 970,
-                  "chartCenterY": 470.0009765625,
-                  "tableCenterY": 470,
+                  "chartCenterY": 505.0009765625,
+                  "tableCenterY": 505,
                   "barLeft": 757,
                   "barRight": 829,
                   "expectedBarLeft": 757,
@@ -2952,8 +3037,8 @@
                 {
                   "id": "t941",
                   "row": 971,
-                  "chartCenterY": 494.0009765625,
-                  "tableCenterY": 494,
+                  "chartCenterY": 529.0009765625,
+                  "tableCenterY": 529,
                   "barLeft": 421,
                   "barRight": 541,
                   "expectedBarLeft": 421,
@@ -2962,8 +3047,8 @@
                 {
                   "id": "t942",
                   "row": 972,
-                  "chartCenterY": 518.0009765625,
-                  "tableCenterY": 518,
+                  "chartCenterY": 553.0009765625,
+                  "tableCenterY": 553,
                   "barLeft": 757,
                   "barRight": 949,
                   "expectedBarLeft": 757,
@@ -2972,8 +3057,8 @@
                 {
                   "id": "t943",
                   "row": 973,
-                  "chartCenterY": 542.0009765625,
-                  "tableCenterY": 542,
+                  "chartCenterY": 577.0009765625,
+                  "tableCenterY": 577,
                   "barLeft": 445,
                   "barRight": 613,
                   "expectedBarLeft": 445,
@@ -2982,8 +3067,8 @@
                 {
                   "id": "t944",
                   "row": 974,
-                  "chartCenterY": 566.0009765625,
-                  "tableCenterY": 566,
+                  "chartCenterY": 601.0009765625,
+                  "tableCenterY": 601,
                   "barLeft": 1093,
                   "barRight": 1189,
                   "expectedBarLeft": 1093,
@@ -2992,8 +3077,8 @@
                 {
                   "id": "t945",
                   "row": 975,
-                  "chartCenterY": 590.0009765625,
-                  "tableCenterY": 590,
+                  "chartCenterY": 625.0009765625,
+                  "tableCenterY": 625,
                   "barLeft": 421,
                   "barRight": 661,
                   "expectedBarLeft": 421,
@@ -3002,8 +3087,8 @@
                 {
                   "id": "t946",
                   "row": 976,
-                  "chartCenterY": 614.0009765625,
-                  "tableCenterY": 614,
+                  "chartCenterY": 649.0009765625,
+                  "tableCenterY": 649,
                   "barLeft": 925,
                   "barRight": 973,
                   "expectedBarLeft": 925,
@@ -3012,8 +3097,8 @@
                 {
                   "id": "t947",
                   "row": 977,
-                  "chartCenterY": 638.0009765625,
-                  "tableCenterY": 638,
+                  "chartCenterY": 673.0009765625,
+                  "tableCenterY": 673,
                   "barLeft": 925,
                   "barRight": 1141,
                   "expectedBarLeft": 925,
@@ -3022,8 +3107,8 @@
                 {
                   "id": "t948",
                   "row": 978,
-                  "chartCenterY": 662.0009765625,
-                  "tableCenterY": 662,
+                  "chartCenterY": 697.0009765625,
+                  "tableCenterY": 697,
                   "barLeft": 349,
                   "barRight": 661,
                   "expectedBarLeft": 349,
@@ -3032,8 +3117,8 @@
                 {
                   "id": "t949",
                   "row": 979,
-                  "chartCenterY": 686.0009765625,
-                  "tableCenterY": 686,
+                  "chartCenterY": 721.0009765625,
+                  "tableCenterY": 721,
                   "barLeft": 613,
                   "barRight": 709,
                   "expectedBarLeft": 613,
@@ -3042,8 +3127,8 @@
                 {
                   "id": "t950",
                   "row": 980,
-                  "chartCenterY": 710,
-                  "tableCenterY": 710,
+                  "chartCenterY": 745,
+                  "tableCenterY": 745,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -3052,7 +3137,7 @@
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 877,
                 "right": 1261
               },
@@ -3066,11 +3151,11 @@
                 "bottom": 128
               },
               "hitTest": {
-                "id": "t936",
-                "row": 966,
-                "clientY": 374.0009765625,
-                "expectedContentY": 23196,
-                "actualContentY": 23196.0009765625
+                "id": "t935",
+                "row": 965,
+                "clientY": 385.0009765625,
+                "expectedContentY": 23172,
+                "actualContentY": 23172.0009765625
               }
             },
             "verdict": {
@@ -3078,6 +3163,11 @@
               "maxAbsRowDeltaPx": 0.001,
               "maxAbsBarXDeltaPx": 0,
               "rowDeltas": [
+                {
+                  "id": "t921",
+                  "row": 950,
+                  "deltaPx": 0.001
+                },
                 {
                   "id": "t922",
                   "row": 951,
@@ -3247,7 +3337,7 @@
         ],
         "stableReadBudgetFrames": 12,
         "coverage": {
-          "maxScrollTop": 22957,
+          "maxScrollTop": 22922,
           "maxScrollLeft": 10238,
           "horizontalCovered": true,
           "verticalCovered": true,
@@ -3264,7 +3354,7 @@
           "maxAbsBarXDeltaPx": 0,
           "mechanisms": [],
           "coverage": {
-            "maxScrollTop": 22957,
+            "maxScrollTop": 22922,
             "maxScrollLeft": 10238,
             "horizontalCovered": true,
             "verticalCovered": true,
@@ -3295,17 +3385,17 @@
               "viewScrollLeft": 0,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 3572,
               "viewContentWidth": 3572,
@@ -3612,11 +3702,21 @@
                   "barRight": 1027,
                   "expectedBarLeft": 987,
                   "expectedBarRight": 1027
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "chartCenterY": 867,
+                  "tableCenterY": 867,
+                  "barLeft": 963,
+                  "barRight": 1043,
+                  "expectedBarLeft": 963,
+                  "expectedBarRight": 1043
                 }
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 891,
                 "right": 1235
               },
@@ -3791,6 +3891,11 @@
                   "id": "t28",
                   "row": 29,
                   "deltaPx": 0
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "deltaPx": 0
                 }
               ],
               "pinned": true,
@@ -3809,27 +3914,27 @@
             }
           },
           {
-            "requestedScrollTop": 11479,
+            "requestedScrollTop": 11461,
             "requestedScrollLeft": 0,
             "settleFrames": 2,
             "probe": {
-              "scrollTop": 11479,
-              "viewScrollTop": 11479,
+              "scrollTop": 11461,
+              "viewScrollTop": 11461,
               "scrollLeft": 0,
               "viewScrollLeft": 0,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 3572,
               "viewContentWidth": 3572,
@@ -3838,10 +3943,20 @@
               "tableRowHeight": 24,
               "samples": [
                 {
+                  "id": "t467",
+                  "row": 472,
+                  "chartCenterY": 14,
+                  "tableCenterY": 14,
+                  "barLeft": 2211,
+                  "barRight": 2315,
+                  "expectedBarLeft": 2211,
+                  "expectedBarRight": 2315
+                },
+                {
                   "id": "t468",
                   "row": 473,
-                  "chartCenterY": 20,
-                  "tableCenterY": 20,
+                  "chartCenterY": 38,
+                  "tableCenterY": 38,
                   "barLeft": 2715,
                   "barRight": 2779,
                   "expectedBarLeft": 2715,
@@ -3850,8 +3965,8 @@
                 {
                   "id": "t469",
                   "row": 474,
-                  "chartCenterY": 44,
-                  "tableCenterY": 44,
+                  "chartCenterY": 62,
+                  "tableCenterY": 62,
                   "barLeft": 2387,
                   "barRight": 2475,
                   "expectedBarLeft": 2387,
@@ -3860,8 +3975,8 @@
                 {
                   "id": "t470",
                   "row": 475,
-                  "chartCenterY": 68,
-                  "tableCenterY": 68,
+                  "chartCenterY": 86,
+                  "tableCenterY": 86,
                   "barLeft": 2595,
                   "barRight": 2675,
                   "expectedBarLeft": 2595,
@@ -3870,8 +3985,8 @@
                 {
                   "id": "t471",
                   "row": 476,
-                  "chartCenterY": 92,
-                  "tableCenterY": 92,
+                  "chartCenterY": 110,
+                  "tableCenterY": 110,
                   "barLeft": 2771,
                   "barRight": 2827,
                   "expectedBarLeft": 2771,
@@ -3880,8 +3995,8 @@
                 {
                   "id": "t472",
                   "row": 477,
-                  "chartCenterY": 116,
-                  "tableCenterY": 116,
+                  "chartCenterY": 134,
+                  "tableCenterY": 134,
                   "barLeft": 2491,
                   "barRight": 2555,
                   "expectedBarLeft": 2491,
@@ -3890,8 +4005,8 @@
                 {
                   "id": "t473",
                   "row": 478,
-                  "chartCenterY": 140,
-                  "tableCenterY": 140,
+                  "chartCenterY": 158,
+                  "tableCenterY": 158,
                   "barLeft": 2811,
                   "barRight": 2835,
                   "expectedBarLeft": 2811,
@@ -3900,8 +4015,8 @@
                 {
                   "id": "t474",
                   "row": 479,
-                  "chartCenterY": 164,
-                  "tableCenterY": 164,
+                  "chartCenterY": 182,
+                  "tableCenterY": 182,
                   "barLeft": 2755,
                   "barRight": 2763,
                   "expectedBarLeft": 2755,
@@ -3910,8 +4025,8 @@
                 {
                   "id": "t475",
                   "row": 480,
-                  "chartCenterY": 188,
-                  "tableCenterY": 188,
+                  "chartCenterY": 206,
+                  "tableCenterY": 206,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -3920,8 +4035,8 @@
                 {
                   "id": "s26",
                   "row": 481,
-                  "chartCenterY": 212,
-                  "tableCenterY": 212,
+                  "chartCenterY": 230,
+                  "tableCenterY": 230,
                   "barLeft": 2331,
                   "barRight": 2931,
                   "expectedBarLeft": 2331,
@@ -3930,8 +4045,8 @@
                 {
                   "id": "t476",
                   "row": 482,
-                  "chartCenterY": 236,
-                  "tableCenterY": 236,
+                  "chartCenterY": 254,
+                  "tableCenterY": 254,
                   "barLeft": 2803,
                   "barRight": 2883,
                   "expectedBarLeft": 2803,
@@ -3940,8 +4055,8 @@
                 {
                   "id": "t477",
                   "row": 483,
-                  "chartCenterY": 260,
-                  "tableCenterY": 260,
+                  "chartCenterY": 278,
+                  "tableCenterY": 278,
                   "barLeft": 2819,
                   "barRight": 2875,
                   "expectedBarLeft": 2819,
@@ -3950,8 +4065,8 @@
                 {
                   "id": "t478",
                   "row": 484,
-                  "chartCenterY": 284,
-                  "tableCenterY": 284,
+                  "chartCenterY": 302,
+                  "tableCenterY": 302,
                   "barLeft": 2491,
                   "barRight": 2555,
                   "expectedBarLeft": 2491,
@@ -3960,8 +4075,8 @@
                 {
                   "id": "t479",
                   "row": 485,
-                  "chartCenterY": 308,
-                  "tableCenterY": 308,
+                  "chartCenterY": 326,
+                  "tableCenterY": 326,
                   "barLeft": 2531,
                   "barRight": 2547,
                   "expectedBarLeft": 2531,
@@ -3970,8 +4085,8 @@
                 {
                   "id": "t480",
                   "row": 486,
-                  "chartCenterY": 332,
-                  "tableCenterY": 332,
+                  "chartCenterY": 350,
+                  "tableCenterY": 350,
                   "barLeft": 2331,
                   "barRight": 2379,
                   "expectedBarLeft": 2331,
@@ -3980,8 +4095,8 @@
                 {
                   "id": "t481",
                   "row": 487,
-                  "chartCenterY": 356,
-                  "tableCenterY": 356,
+                  "chartCenterY": 374,
+                  "tableCenterY": 374,
                   "barLeft": 2811,
                   "barRight": 2843,
                   "expectedBarLeft": 2811,
@@ -3990,8 +4105,8 @@
                 {
                   "id": "t482",
                   "row": 488,
-                  "chartCenterY": 380,
-                  "tableCenterY": 380,
+                  "chartCenterY": 398,
+                  "tableCenterY": 398,
                   "barLeft": 2475,
                   "barRight": 2499,
                   "expectedBarLeft": 2475,
@@ -4000,8 +4115,8 @@
                 {
                   "id": "t483",
                   "row": 489,
-                  "chartCenterY": 404,
-                  "tableCenterY": 404,
+                  "chartCenterY": 422,
+                  "tableCenterY": 422,
                   "barLeft": 2491,
                   "barRight": 2547,
                   "expectedBarLeft": 2491,
@@ -4010,8 +4125,8 @@
                 {
                   "id": "t484",
                   "row": 490,
-                  "chartCenterY": 428,
-                  "tableCenterY": 428,
+                  "chartCenterY": 446,
+                  "tableCenterY": 446,
                   "barLeft": 2355,
                   "barRight": 2363,
                   "expectedBarLeft": 2355,
@@ -4020,8 +4135,8 @@
                 {
                   "id": "t485",
                   "row": 491,
-                  "chartCenterY": 452,
-                  "tableCenterY": 452,
+                  "chartCenterY": 470,
+                  "tableCenterY": 470,
                   "barLeft": 2643,
                   "barRight": 2675,
                   "expectedBarLeft": 2643,
@@ -4030,8 +4145,8 @@
                 {
                   "id": "t486",
                   "row": 492,
-                  "chartCenterY": 476,
-                  "tableCenterY": 476,
+                  "chartCenterY": 494,
+                  "tableCenterY": 494,
                   "barLeft": 2763,
                   "barRight": 2779,
                   "expectedBarLeft": 2763,
@@ -4040,8 +4155,8 @@
                 {
                   "id": "t487",
                   "row": 493,
-                  "chartCenterY": 500,
-                  "tableCenterY": 500,
+                  "chartCenterY": 518,
+                  "tableCenterY": 518,
                   "barLeft": 2491,
                   "barRight": 2595,
                   "expectedBarLeft": 2491,
@@ -4050,8 +4165,8 @@
                 {
                   "id": "t488",
                   "row": 494,
-                  "chartCenterY": 524,
-                  "tableCenterY": 524,
+                  "chartCenterY": 542,
+                  "tableCenterY": 542,
                   "barLeft": 2819,
                   "barRight": 2835,
                   "expectedBarLeft": 2819,
@@ -4060,8 +4175,8 @@
                 {
                   "id": "t489",
                   "row": 495,
-                  "chartCenterY": 548,
-                  "tableCenterY": 548,
+                  "chartCenterY": 566,
+                  "tableCenterY": 566,
                   "barLeft": 2883,
                   "barRight": 2931,
                   "expectedBarLeft": 2883,
@@ -4070,8 +4185,8 @@
                 {
                   "id": "t490",
                   "row": 496,
-                  "chartCenterY": 572,
-                  "tableCenterY": 572,
+                  "chartCenterY": 590,
+                  "tableCenterY": 590,
                   "barLeft": 2699,
                   "barRight": 2787,
                   "expectedBarLeft": 2699,
@@ -4080,8 +4195,8 @@
                 {
                   "id": "t491",
                   "row": 497,
-                  "chartCenterY": 596,
-                  "tableCenterY": 596,
+                  "chartCenterY": 614,
+                  "tableCenterY": 614,
                   "barLeft": 2803,
                   "barRight": 2843,
                   "expectedBarLeft": 2803,
@@ -4090,8 +4205,8 @@
                 {
                   "id": "t492",
                   "row": 498,
-                  "chartCenterY": 620,
-                  "tableCenterY": 620,
+                  "chartCenterY": 638,
+                  "tableCenterY": 638,
                   "barLeft": 2443,
                   "barRight": 2531,
                   "expectedBarLeft": 2443,
@@ -4100,8 +4215,8 @@
                 {
                   "id": "t493",
                   "row": 499,
-                  "chartCenterY": 644,
-                  "tableCenterY": 644,
+                  "chartCenterY": 662,
+                  "tableCenterY": 662,
                   "barLeft": 2803,
                   "barRight": 2819,
                   "expectedBarLeft": 2803,
@@ -4110,8 +4225,8 @@
                 {
                   "id": "t494",
                   "row": 500,
-                  "chartCenterY": 668,
-                  "tableCenterY": 668,
+                  "chartCenterY": 686,
+                  "tableCenterY": 686,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -4120,8 +4235,8 @@
                 {
                   "id": "s27",
                   "row": 501,
-                  "chartCenterY": 692,
-                  "tableCenterY": 692,
+                  "chartCenterY": 710,
+                  "tableCenterY": 710,
                   "barLeft": 2379,
                   "barRight": 3043,
                   "expectedBarLeft": 2379,
@@ -4130,8 +4245,8 @@
                 {
                   "id": "t495",
                   "row": 502,
-                  "chartCenterY": 716,
-                  "tableCenterY": 716,
+                  "chartCenterY": 734,
+                  "tableCenterY": 734,
                   "barLeft": 2947,
                   "barRight": 3043,
                   "expectedBarLeft": 2947,
@@ -4140,8 +4255,8 @@
                 {
                   "id": "t496",
                   "row": 503,
-                  "chartCenterY": 740,
-                  "tableCenterY": 740,
+                  "chartCenterY": 758,
+                  "tableCenterY": 758,
                   "barLeft": 2883,
                   "barRight": 2923,
                   "expectedBarLeft": 2883,
@@ -4150,8 +4265,8 @@
                 {
                   "id": "t497",
                   "row": 504,
-                  "chartCenterY": 764,
-                  "tableCenterY": 764,
+                  "chartCenterY": 782,
+                  "tableCenterY": 782,
                   "barLeft": 2883,
                   "barRight": 2939,
                   "expectedBarLeft": 2883,
@@ -4160,8 +4275,8 @@
                 {
                   "id": "t498",
                   "row": 505,
-                  "chartCenterY": 788,
-                  "tableCenterY": 788,
+                  "chartCenterY": 806,
+                  "tableCenterY": 806,
                   "barLeft": 2779,
                   "barRight": 2843,
                   "expectedBarLeft": 2779,
@@ -4170,8 +4285,8 @@
                 {
                   "id": "t499",
                   "row": 506,
-                  "chartCenterY": 812,
-                  "tableCenterY": 812,
+                  "chartCenterY": 830,
+                  "tableCenterY": 830,
                   "barLeft": 2499,
                   "barRight": 2547,
                   "expectedBarLeft": 2499,
@@ -4180,8 +4295,8 @@
                 {
                   "id": "t500",
                   "row": 507,
-                  "chartCenterY": 836,
-                  "tableCenterY": 836,
+                  "chartCenterY": 854,
+                  "tableCenterY": 854,
                   "barLeft": 2411,
                   "barRight": 2451,
                   "expectedBarLeft": 2411,
@@ -4190,7 +4305,7 @@
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 891,
                 "right": 1235
               },
@@ -4206,7 +4321,7 @@
               "hitTest": {
                 "id": "t484",
                 "row": 490,
-                "clientY": 428,
+                "clientY": 446,
                 "expectedContentY": 11772,
                 "actualContentY": 11772
               }
@@ -4216,6 +4331,11 @@
               "maxAbsRowDeltaPx": 0,
               "maxAbsBarXDeltaPx": 0,
               "rowDeltas": [
+                {
+                  "id": "t467",
+                  "row": 472,
+                  "deltaPx": 0
+                },
                 {
                   "id": "t468",
                   "row": 473,
@@ -4408,27 +4528,27 @@
             }
           },
           {
-            "requestedScrollTop": 22957,
+            "requestedScrollTop": 22922,
             "requestedScrollLeft": 0,
             "settleFrames": 2,
             "probe": {
-              "scrollTop": 22957,
-              "viewScrollTop": 22957,
+              "scrollTop": 22922,
+              "viewScrollTop": 22922,
               "scrollLeft": 0,
               "viewScrollLeft": 0,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 3572,
               "viewContentWidth": 3572,
@@ -4437,10 +4557,20 @@
               "tableRowHeight": 24,
               "samples": [
                 {
+                  "id": "t921",
+                  "row": 950,
+                  "chartCenterY": 25.0009765625,
+                  "tableCenterY": 25,
+                  "barLeft": 4043,
+                  "barRight": 4131,
+                  "expectedBarLeft": 4043,
+                  "expectedBarRight": 4131
+                },
+                {
                   "id": "t922",
                   "row": 951,
-                  "chartCenterY": 14.0009765625,
-                  "tableCenterY": 14,
+                  "chartCenterY": 49.0009765625,
+                  "tableCenterY": 49,
                   "barLeft": 4227,
                   "barRight": 4275,
                   "expectedBarLeft": 4227,
@@ -4449,8 +4579,8 @@
                 {
                   "id": "t923",
                   "row": 952,
-                  "chartCenterY": 38.0009765625,
-                  "tableCenterY": 38,
+                  "chartCenterY": 73.0009765625,
+                  "tableCenterY": 73,
                   "barLeft": 4147,
                   "barRight": 4155,
                   "expectedBarLeft": 4147,
@@ -4459,8 +4589,8 @@
                 {
                   "id": "t924",
                   "row": 953,
-                  "chartCenterY": 62.0009765625,
-                  "tableCenterY": 62,
+                  "chartCenterY": 97.0009765625,
+                  "tableCenterY": 97,
                   "barLeft": 4283,
                   "barRight": 4347,
                   "expectedBarLeft": 4283,
@@ -4469,8 +4599,8 @@
                 {
                   "id": "t925",
                   "row": 954,
-                  "chartCenterY": 86.0009765625,
-                  "tableCenterY": 86,
+                  "chartCenterY": 121.0009765625,
+                  "tableCenterY": 121,
                   "barLeft": 4091,
                   "barRight": 4131,
                   "expectedBarLeft": 4091,
@@ -4479,8 +4609,8 @@
                 {
                   "id": "t926",
                   "row": 955,
-                  "chartCenterY": 110.0009765625,
-                  "tableCenterY": 110,
+                  "chartCenterY": 145.0009765625,
+                  "tableCenterY": 145,
                   "barLeft": 4219,
                   "barRight": 4299,
                   "expectedBarLeft": 4219,
@@ -4489,8 +4619,8 @@
                 {
                   "id": "t927",
                   "row": 956,
-                  "chartCenterY": 134.0009765625,
-                  "tableCenterY": 134,
+                  "chartCenterY": 169.0009765625,
+                  "tableCenterY": 169,
                   "barLeft": 4219,
                   "barRight": 4275,
                   "expectedBarLeft": 4219,
@@ -4499,8 +4629,8 @@
                 {
                   "id": "t928",
                   "row": 957,
-                  "chartCenterY": 158.0009765625,
-                  "tableCenterY": 158,
+                  "chartCenterY": 193.0009765625,
+                  "tableCenterY": 193,
                   "barLeft": 4003,
                   "barRight": 4099,
                   "expectedBarLeft": 4003,
@@ -4509,8 +4639,8 @@
                 {
                   "id": "t929",
                   "row": 958,
-                  "chartCenterY": 182.0009765625,
-                  "tableCenterY": 182,
+                  "chartCenterY": 217.0009765625,
+                  "tableCenterY": 217,
                   "barLeft": 4259,
                   "barRight": 4291,
                   "expectedBarLeft": 4259,
@@ -4519,8 +4649,8 @@
                 {
                   "id": "t930",
                   "row": 959,
-                  "chartCenterY": 206.0009765625,
-                  "tableCenterY": 206,
+                  "chartCenterY": 241.0009765625,
+                  "tableCenterY": 241,
                   "barLeft": 4227,
                   "barRight": 4267,
                   "expectedBarLeft": 4227,
@@ -4529,8 +4659,8 @@
                 {
                   "id": "t931",
                   "row": 960,
-                  "chartCenterY": 230,
-                  "tableCenterY": 230,
+                  "chartCenterY": 265,
+                  "tableCenterY": 265,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -4539,8 +4669,8 @@
                 {
                   "id": "s50",
                   "row": 961,
-                  "chartCenterY": 254.0009765625,
-                  "tableCenterY": 254,
+                  "chartCenterY": 289.0009765625,
+                  "tableCenterY": 289,
                   "barLeft": 3883,
                   "barRight": 4411,
                   "expectedBarLeft": 3883,
@@ -4549,8 +4679,8 @@
                 {
                   "id": "t932",
                   "row": 962,
-                  "chartCenterY": 278.0009765625,
-                  "tableCenterY": 278,
+                  "chartCenterY": 313.0009765625,
+                  "tableCenterY": 313,
                   "barLeft": 4123,
                   "barRight": 4219,
                   "expectedBarLeft": 4123,
@@ -4559,8 +4689,8 @@
                 {
                   "id": "t933",
                   "row": 963,
-                  "chartCenterY": 302.0009765625,
-                  "tableCenterY": 302,
+                  "chartCenterY": 337.0009765625,
+                  "tableCenterY": 337,
                   "barLeft": 4211,
                   "barRight": 4299,
                   "expectedBarLeft": 4211,
@@ -4569,8 +4699,8 @@
                 {
                   "id": "t934",
                   "row": 964,
-                  "chartCenterY": 326.0009765625,
-                  "tableCenterY": 326,
+                  "chartCenterY": 361.0009765625,
+                  "tableCenterY": 361,
                   "barLeft": 4155,
                   "barRight": 4235,
                   "expectedBarLeft": 4155,
@@ -4579,8 +4709,8 @@
                 {
                   "id": "t935",
                   "row": 965,
-                  "chartCenterY": 350.0009765625,
-                  "tableCenterY": 350,
+                  "chartCenterY": 385.0009765625,
+                  "tableCenterY": 385,
                   "barLeft": 4323,
                   "barRight": 4411,
                   "expectedBarLeft": 4323,
@@ -4589,8 +4719,8 @@
                 {
                   "id": "t936",
                   "row": 966,
-                  "chartCenterY": 374.0009765625,
-                  "tableCenterY": 374,
+                  "chartCenterY": 409.0009765625,
+                  "tableCenterY": 409,
                   "barLeft": 4091,
                   "barRight": 4179,
                   "expectedBarLeft": 4091,
@@ -4599,8 +4729,8 @@
                 {
                   "id": "t937",
                   "row": 967,
-                  "chartCenterY": 398.0009765625,
-                  "tableCenterY": 398,
+                  "chartCenterY": 433.0009765625,
+                  "tableCenterY": 433,
                   "barLeft": 4179,
                   "barRight": 4211,
                   "expectedBarLeft": 4179,
@@ -4609,8 +4739,8 @@
                 {
                   "id": "t938",
                   "row": 968,
-                  "chartCenterY": 422.0009765625,
-                  "tableCenterY": 422,
+                  "chartCenterY": 457.0009765625,
+                  "tableCenterY": 457,
                   "barLeft": 4275,
                   "barRight": 4323,
                   "expectedBarLeft": 4275,
@@ -4619,8 +4749,8 @@
                 {
                   "id": "t939",
                   "row": 969,
-                  "chartCenterY": 446.0009765625,
-                  "tableCenterY": 446,
+                  "chartCenterY": 481.0009765625,
+                  "tableCenterY": 481,
                   "barLeft": 3883,
                   "barRight": 3963,
                   "expectedBarLeft": 3883,
@@ -4629,8 +4759,8 @@
                 {
                   "id": "t940",
                   "row": 970,
-                  "chartCenterY": 470.0009765625,
-                  "tableCenterY": 470,
+                  "chartCenterY": 505.0009765625,
+                  "tableCenterY": 505,
                   "barLeft": 4259,
                   "barRight": 4283,
                   "expectedBarLeft": 4259,
@@ -4639,8 +4769,8 @@
                 {
                   "id": "t941",
                   "row": 971,
-                  "chartCenterY": 494.0009765625,
-                  "tableCenterY": 494,
+                  "chartCenterY": 529.0009765625,
+                  "tableCenterY": 529,
                   "barLeft": 4147,
                   "barRight": 4187,
                   "expectedBarLeft": 4147,
@@ -4649,8 +4779,8 @@
                 {
                   "id": "t942",
                   "row": 972,
-                  "chartCenterY": 518.0009765625,
-                  "tableCenterY": 518,
+                  "chartCenterY": 553.0009765625,
+                  "tableCenterY": 553,
                   "barLeft": 4259,
                   "barRight": 4323,
                   "expectedBarLeft": 4259,
@@ -4659,8 +4789,8 @@
                 {
                   "id": "t943",
                   "row": 973,
-                  "chartCenterY": 542.0009765625,
-                  "tableCenterY": 542,
+                  "chartCenterY": 577.0009765625,
+                  "tableCenterY": 577,
                   "barLeft": 4155,
                   "barRight": 4211,
                   "expectedBarLeft": 4155,
@@ -4669,8 +4799,8 @@
                 {
                   "id": "t944",
                   "row": 974,
-                  "chartCenterY": 566.0009765625,
-                  "tableCenterY": 566,
+                  "chartCenterY": 601.0009765625,
+                  "tableCenterY": 601,
                   "barLeft": 4371,
                   "barRight": 4403,
                   "expectedBarLeft": 4371,
@@ -4679,8 +4809,8 @@
                 {
                   "id": "t945",
                   "row": 975,
-                  "chartCenterY": 590.0009765625,
-                  "tableCenterY": 590,
+                  "chartCenterY": 625.0009765625,
+                  "tableCenterY": 625,
                   "barLeft": 4147,
                   "barRight": 4227,
                   "expectedBarLeft": 4147,
@@ -4689,8 +4819,8 @@
                 {
                   "id": "t946",
                   "row": 976,
-                  "chartCenterY": 614.0009765625,
-                  "tableCenterY": 614,
+                  "chartCenterY": 649.0009765625,
+                  "tableCenterY": 649,
                   "barLeft": 4315,
                   "barRight": 4331,
                   "expectedBarLeft": 4315,
@@ -4699,8 +4829,8 @@
                 {
                   "id": "t947",
                   "row": 977,
-                  "chartCenterY": 638.0009765625,
-                  "tableCenterY": 638,
+                  "chartCenterY": 673.0009765625,
+                  "tableCenterY": 673,
                   "barLeft": 4315,
                   "barRight": 4387,
                   "expectedBarLeft": 4315,
@@ -4709,8 +4839,8 @@
                 {
                   "id": "t948",
                   "row": 978,
-                  "chartCenterY": 662.0009765625,
-                  "tableCenterY": 662,
+                  "chartCenterY": 697.0009765625,
+                  "tableCenterY": 697,
                   "barLeft": 4123,
                   "barRight": 4227,
                   "expectedBarLeft": 4123,
@@ -4719,8 +4849,8 @@
                 {
                   "id": "t949",
                   "row": 979,
-                  "chartCenterY": 686.0009765625,
-                  "tableCenterY": 686,
+                  "chartCenterY": 721.0009765625,
+                  "tableCenterY": 721,
                   "barLeft": 4211,
                   "barRight": 4243,
                   "expectedBarLeft": 4211,
@@ -4729,8 +4859,8 @@
                 {
                   "id": "t950",
                   "row": 980,
-                  "chartCenterY": 710,
-                  "tableCenterY": 710,
+                  "chartCenterY": 745,
+                  "tableCenterY": 745,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -4739,7 +4869,7 @@
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 891,
                 "right": 1235
               },
@@ -4753,11 +4883,11 @@
                 "bottom": 128
               },
               "hitTest": {
-                "id": "t936",
-                "row": 966,
-                "clientY": 374.0009765625,
-                "expectedContentY": 23196,
-                "actualContentY": 23196.0009765625
+                "id": "t935",
+                "row": 965,
+                "clientY": 385.0009765625,
+                "expectedContentY": 23172,
+                "actualContentY": 23172.0009765625
               }
             },
             "verdict": {
@@ -4765,6 +4895,11 @@
               "maxAbsRowDeltaPx": 0.001,
               "maxAbsBarXDeltaPx": 0,
               "rowDeltas": [
+                {
+                  "id": "t921",
+                  "row": 950,
+                  "deltaPx": 0.001
+                },
                 {
                   "id": "t922",
                   "row": 951,
@@ -4942,17 +5077,17 @@
               "viewScrollLeft": 1599,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 3572,
               "viewContentWidth": 3572,
@@ -5259,11 +5394,21 @@
                   "barRight": -572,
                   "expectedBarLeft": -612,
                   "expectedBarRight": -572
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "chartCenterY": 867,
+                  "tableCenterY": 867,
+                  "barLeft": -636,
+                  "barRight": -556,
+                  "expectedBarLeft": -636,
+                  "expectedBarRight": -556
                 }
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 908,
                 "right": 1260
               },
@@ -5438,6 +5583,11 @@
                   "id": "t28",
                   "row": 29,
                   "deltaPx": 0
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "deltaPx": 0
                 }
               ],
               "pinned": true,
@@ -5466,17 +5616,17 @@
               "viewScrollLeft": 3198,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 3572,
               "viewContentWidth": 3572,
@@ -5783,11 +5933,21 @@
                   "barRight": -2171,
                   "expectedBarLeft": -2211,
                   "expectedBarRight": -2171
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "chartCenterY": 867,
+                  "tableCenterY": 867,
+                  "barLeft": -2235,
+                  "barRight": -2155,
+                  "expectedBarLeft": -2235,
+                  "expectedBarRight": -2155
                 }
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 885,
                 "right": 1229
               },
@@ -5962,6 +6122,11 @@
                   "id": "t28",
                   "row": 29,
                   "deltaPx": 0
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "deltaPx": 0
                 }
               ],
               "pinned": true,
@@ -5980,27 +6145,27 @@
             }
           },
           {
-            "requestedScrollTop": 22957,
+            "requestedScrollTop": 22922,
             "requestedScrollLeft": 3198,
             "settleFrames": 2,
             "probe": {
-              "scrollTop": 22957,
-              "viewScrollTop": 22957,
+              "scrollTop": 22922,
+              "viewScrollTop": 22922,
               "scrollLeft": 3198,
               "viewScrollLeft": 3198,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 3572,
               "viewContentWidth": 3572,
@@ -6009,10 +6174,20 @@
               "tableRowHeight": 24,
               "samples": [
                 {
+                  "id": "t921",
+                  "row": 950,
+                  "chartCenterY": 25.0009765625,
+                  "tableCenterY": 25,
+                  "barLeft": 845,
+                  "barRight": 933,
+                  "expectedBarLeft": 845,
+                  "expectedBarRight": 933
+                },
+                {
                   "id": "t922",
                   "row": 951,
-                  "chartCenterY": 14.0009765625,
-                  "tableCenterY": 14,
+                  "chartCenterY": 49.0009765625,
+                  "tableCenterY": 49,
                   "barLeft": 1029,
                   "barRight": 1077,
                   "expectedBarLeft": 1029,
@@ -6021,8 +6196,8 @@
                 {
                   "id": "t923",
                   "row": 952,
-                  "chartCenterY": 38.0009765625,
-                  "tableCenterY": 38,
+                  "chartCenterY": 73.0009765625,
+                  "tableCenterY": 73,
                   "barLeft": 949,
                   "barRight": 957,
                   "expectedBarLeft": 949,
@@ -6031,8 +6206,8 @@
                 {
                   "id": "t924",
                   "row": 953,
-                  "chartCenterY": 62.0009765625,
-                  "tableCenterY": 62,
+                  "chartCenterY": 97.0009765625,
+                  "tableCenterY": 97,
                   "barLeft": 1085,
                   "barRight": 1149,
                   "expectedBarLeft": 1085,
@@ -6041,8 +6216,8 @@
                 {
                   "id": "t925",
                   "row": 954,
-                  "chartCenterY": 86.0009765625,
-                  "tableCenterY": 86,
+                  "chartCenterY": 121.0009765625,
+                  "tableCenterY": 121,
                   "barLeft": 893,
                   "barRight": 933,
                   "expectedBarLeft": 893,
@@ -6051,8 +6226,8 @@
                 {
                   "id": "t926",
                   "row": 955,
-                  "chartCenterY": 110.0009765625,
-                  "tableCenterY": 110,
+                  "chartCenterY": 145.0009765625,
+                  "tableCenterY": 145,
                   "barLeft": 1021,
                   "barRight": 1101,
                   "expectedBarLeft": 1021,
@@ -6061,8 +6236,8 @@
                 {
                   "id": "t927",
                   "row": 956,
-                  "chartCenterY": 134.0009765625,
-                  "tableCenterY": 134,
+                  "chartCenterY": 169.0009765625,
+                  "tableCenterY": 169,
                   "barLeft": 1021,
                   "barRight": 1077,
                   "expectedBarLeft": 1021,
@@ -6071,8 +6246,8 @@
                 {
                   "id": "t928",
                   "row": 957,
-                  "chartCenterY": 158.0009765625,
-                  "tableCenterY": 158,
+                  "chartCenterY": 193.0009765625,
+                  "tableCenterY": 193,
                   "barLeft": 805,
                   "barRight": 901,
                   "expectedBarLeft": 805,
@@ -6081,8 +6256,8 @@
                 {
                   "id": "t929",
                   "row": 958,
-                  "chartCenterY": 182.0009765625,
-                  "tableCenterY": 182,
+                  "chartCenterY": 217.0009765625,
+                  "tableCenterY": 217,
                   "barLeft": 1061,
                   "barRight": 1093,
                   "expectedBarLeft": 1061,
@@ -6091,8 +6266,8 @@
                 {
                   "id": "t930",
                   "row": 959,
-                  "chartCenterY": 206.0009765625,
-                  "tableCenterY": 206,
+                  "chartCenterY": 241.0009765625,
+                  "tableCenterY": 241,
                   "barLeft": 1029,
                   "barRight": 1069,
                   "expectedBarLeft": 1029,
@@ -6101,8 +6276,8 @@
                 {
                   "id": "t931",
                   "row": 960,
-                  "chartCenterY": 230,
-                  "tableCenterY": 230,
+                  "chartCenterY": 265,
+                  "tableCenterY": 265,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -6111,8 +6286,8 @@
                 {
                   "id": "s50",
                   "row": 961,
-                  "chartCenterY": 254.0009765625,
-                  "tableCenterY": 254,
+                  "chartCenterY": 289.0009765625,
+                  "tableCenterY": 289,
                   "barLeft": 685,
                   "barRight": 1213,
                   "expectedBarLeft": 685,
@@ -6121,8 +6296,8 @@
                 {
                   "id": "t932",
                   "row": 962,
-                  "chartCenterY": 278.0009765625,
-                  "tableCenterY": 278,
+                  "chartCenterY": 313.0009765625,
+                  "tableCenterY": 313,
                   "barLeft": 925,
                   "barRight": 1021,
                   "expectedBarLeft": 925,
@@ -6131,8 +6306,8 @@
                 {
                   "id": "t933",
                   "row": 963,
-                  "chartCenterY": 302.0009765625,
-                  "tableCenterY": 302,
+                  "chartCenterY": 337.0009765625,
+                  "tableCenterY": 337,
                   "barLeft": 1013,
                   "barRight": 1101,
                   "expectedBarLeft": 1013,
@@ -6141,8 +6316,8 @@
                 {
                   "id": "t934",
                   "row": 964,
-                  "chartCenterY": 326.0009765625,
-                  "tableCenterY": 326,
+                  "chartCenterY": 361.0009765625,
+                  "tableCenterY": 361,
                   "barLeft": 957,
                   "barRight": 1037,
                   "expectedBarLeft": 957,
@@ -6151,8 +6326,8 @@
                 {
                   "id": "t935",
                   "row": 965,
-                  "chartCenterY": 350.0009765625,
-                  "tableCenterY": 350,
+                  "chartCenterY": 385.0009765625,
+                  "tableCenterY": 385,
                   "barLeft": 1125,
                   "barRight": 1213,
                   "expectedBarLeft": 1125,
@@ -6161,8 +6336,8 @@
                 {
                   "id": "t936",
                   "row": 966,
-                  "chartCenterY": 374.0009765625,
-                  "tableCenterY": 374,
+                  "chartCenterY": 409.0009765625,
+                  "tableCenterY": 409,
                   "barLeft": 893,
                   "barRight": 981,
                   "expectedBarLeft": 893,
@@ -6171,8 +6346,8 @@
                 {
                   "id": "t937",
                   "row": 967,
-                  "chartCenterY": 398.0009765625,
-                  "tableCenterY": 398,
+                  "chartCenterY": 433.0009765625,
+                  "tableCenterY": 433,
                   "barLeft": 981,
                   "barRight": 1013,
                   "expectedBarLeft": 981,
@@ -6181,8 +6356,8 @@
                 {
                   "id": "t938",
                   "row": 968,
-                  "chartCenterY": 422.0009765625,
-                  "tableCenterY": 422,
+                  "chartCenterY": 457.0009765625,
+                  "tableCenterY": 457,
                   "barLeft": 1077,
                   "barRight": 1125,
                   "expectedBarLeft": 1077,
@@ -6191,8 +6366,8 @@
                 {
                   "id": "t939",
                   "row": 969,
-                  "chartCenterY": 446.0009765625,
-                  "tableCenterY": 446,
+                  "chartCenterY": 481.0009765625,
+                  "tableCenterY": 481,
                   "barLeft": 685,
                   "barRight": 765,
                   "expectedBarLeft": 685,
@@ -6201,8 +6376,8 @@
                 {
                   "id": "t940",
                   "row": 970,
-                  "chartCenterY": 470.0009765625,
-                  "tableCenterY": 470,
+                  "chartCenterY": 505.0009765625,
+                  "tableCenterY": 505,
                   "barLeft": 1061,
                   "barRight": 1085,
                   "expectedBarLeft": 1061,
@@ -6211,8 +6386,8 @@
                 {
                   "id": "t941",
                   "row": 971,
-                  "chartCenterY": 494.0009765625,
-                  "tableCenterY": 494,
+                  "chartCenterY": 529.0009765625,
+                  "tableCenterY": 529,
                   "barLeft": 949,
                   "barRight": 989,
                   "expectedBarLeft": 949,
@@ -6221,8 +6396,8 @@
                 {
                   "id": "t942",
                   "row": 972,
-                  "chartCenterY": 518.0009765625,
-                  "tableCenterY": 518,
+                  "chartCenterY": 553.0009765625,
+                  "tableCenterY": 553,
                   "barLeft": 1061,
                   "barRight": 1125,
                   "expectedBarLeft": 1061,
@@ -6231,8 +6406,8 @@
                 {
                   "id": "t943",
                   "row": 973,
-                  "chartCenterY": 542.0009765625,
-                  "tableCenterY": 542,
+                  "chartCenterY": 577.0009765625,
+                  "tableCenterY": 577,
                   "barLeft": 957,
                   "barRight": 1013,
                   "expectedBarLeft": 957,
@@ -6241,8 +6416,8 @@
                 {
                   "id": "t944",
                   "row": 974,
-                  "chartCenterY": 566.0009765625,
-                  "tableCenterY": 566,
+                  "chartCenterY": 601.0009765625,
+                  "tableCenterY": 601,
                   "barLeft": 1173,
                   "barRight": 1205,
                   "expectedBarLeft": 1173,
@@ -6251,8 +6426,8 @@
                 {
                   "id": "t945",
                   "row": 975,
-                  "chartCenterY": 590.0009765625,
-                  "tableCenterY": 590,
+                  "chartCenterY": 625.0009765625,
+                  "tableCenterY": 625,
                   "barLeft": 949,
                   "barRight": 1029,
                   "expectedBarLeft": 949,
@@ -6261,8 +6436,8 @@
                 {
                   "id": "t946",
                   "row": 976,
-                  "chartCenterY": 614.0009765625,
-                  "tableCenterY": 614,
+                  "chartCenterY": 649.0009765625,
+                  "tableCenterY": 649,
                   "barLeft": 1117,
                   "barRight": 1133,
                   "expectedBarLeft": 1117,
@@ -6271,8 +6446,8 @@
                 {
                   "id": "t947",
                   "row": 977,
-                  "chartCenterY": 638.0009765625,
-                  "tableCenterY": 638,
+                  "chartCenterY": 673.0009765625,
+                  "tableCenterY": 673,
                   "barLeft": 1117,
                   "barRight": 1189,
                   "expectedBarLeft": 1117,
@@ -6281,8 +6456,8 @@
                 {
                   "id": "t948",
                   "row": 978,
-                  "chartCenterY": 662.0009765625,
-                  "tableCenterY": 662,
+                  "chartCenterY": 697.0009765625,
+                  "tableCenterY": 697,
                   "barLeft": 925,
                   "barRight": 1029,
                   "expectedBarLeft": 925,
@@ -6291,8 +6466,8 @@
                 {
                   "id": "t949",
                   "row": 979,
-                  "chartCenterY": 686.0009765625,
-                  "tableCenterY": 686,
+                  "chartCenterY": 721.0009765625,
+                  "tableCenterY": 721,
                   "barLeft": 1013,
                   "barRight": 1045,
                   "expectedBarLeft": 1013,
@@ -6301,8 +6476,8 @@
                 {
                   "id": "t950",
                   "row": 980,
-                  "chartCenterY": 710,
-                  "tableCenterY": 710,
+                  "chartCenterY": 745,
+                  "tableCenterY": 745,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -6311,7 +6486,7 @@
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 885,
                 "right": 1229
               },
@@ -6325,11 +6500,11 @@
                 "bottom": 128
               },
               "hitTest": {
-                "id": "t936",
-                "row": 966,
-                "clientY": 374.0009765625,
-                "expectedContentY": 23196,
-                "actualContentY": 23196.0009765625
+                "id": "t935",
+                "row": 965,
+                "clientY": 385.0009765625,
+                "expectedContentY": 23172,
+                "actualContentY": 23172.0009765625
               }
             },
             "verdict": {
@@ -6337,6 +6512,11 @@
               "maxAbsRowDeltaPx": 0.001,
               "maxAbsBarXDeltaPx": 0,
               "rowDeltas": [
+                {
+                  "id": "t921",
+                  "row": 950,
+                  "deltaPx": 0.001
+                },
                 {
                   "id": "t922",
                   "row": 951,
@@ -6506,7 +6686,7 @@
         ],
         "stableReadBudgetFrames": 12,
         "coverage": {
-          "maxScrollTop": 22957,
+          "maxScrollTop": 22922,
           "maxScrollLeft": 3198,
           "horizontalCovered": true,
           "verticalCovered": true,
@@ -6523,7 +6703,7 @@
           "maxAbsBarXDeltaPx": 0,
           "mechanisms": [],
           "coverage": {
-            "maxScrollTop": 22957,
+            "maxScrollTop": 22922,
             "maxScrollLeft": 3198,
             "horizontalCovered": true,
             "verticalCovered": true,
@@ -6554,17 +6734,17 @@
               "viewScrollLeft": 0,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 1384,
               "viewContentWidth": 1384,
@@ -6871,11 +7051,21 @@
                   "barRight": 954,
                   "expectedBarLeft": 939,
                   "expectedBarRight": 954
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "chartCenterY": 867,
+                  "tableCenterY": 867,
+                  "barLeft": 930,
+                  "barRight": 960,
+                  "expectedBarLeft": 930,
+                  "expectedBarRight": 960
                 }
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 900,
                 "right": 1263
               },
@@ -7050,6 +7240,11 @@
                   "id": "t28",
                   "row": 29,
                   "deltaPx": 0
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "deltaPx": 0
                 }
               ],
               "pinned": true,
@@ -7068,27 +7263,27 @@
             }
           },
           {
-            "requestedScrollTop": 11479,
+            "requestedScrollTop": 11461,
             "requestedScrollLeft": 0,
             "settleFrames": 2,
             "probe": {
-              "scrollTop": 11479,
-              "viewScrollTop": 11479,
+              "scrollTop": 11461,
+              "viewScrollTop": 11461,
               "scrollLeft": 0,
               "viewScrollLeft": 0,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 1384,
               "viewContentWidth": 1384,
@@ -7097,10 +7292,20 @@
               "tableRowHeight": 24,
               "samples": [
                 {
+                  "id": "t467",
+                  "row": 472,
+                  "chartCenterY": 14,
+                  "tableCenterY": 14,
+                  "barLeft": 1398,
+                  "barRight": 1437,
+                  "expectedBarLeft": 1398,
+                  "expectedBarRight": 1437
+                },
+                {
                   "id": "t468",
                   "row": 473,
-                  "chartCenterY": 20,
-                  "tableCenterY": 20,
+                  "chartCenterY": 38,
+                  "tableCenterY": 38,
                   "barLeft": 1587,
                   "barRight": 1611,
                   "expectedBarLeft": 1587,
@@ -7109,8 +7314,8 @@
                 {
                   "id": "t469",
                   "row": 474,
-                  "chartCenterY": 44,
-                  "tableCenterY": 44,
+                  "chartCenterY": 62,
+                  "tableCenterY": 62,
                   "barLeft": 1464,
                   "barRight": 1497,
                   "expectedBarLeft": 1464,
@@ -7119,8 +7324,8 @@
                 {
                   "id": "t470",
                   "row": 475,
-                  "chartCenterY": 68,
-                  "tableCenterY": 68,
+                  "chartCenterY": 86,
+                  "tableCenterY": 86,
                   "barLeft": 1542,
                   "barRight": 1572,
                   "expectedBarLeft": 1542,
@@ -7129,8 +7334,8 @@
                 {
                   "id": "t471",
                   "row": 476,
-                  "chartCenterY": 92,
-                  "tableCenterY": 92,
+                  "chartCenterY": 110,
+                  "tableCenterY": 110,
                   "barLeft": 1608,
                   "barRight": 1629,
                   "expectedBarLeft": 1608,
@@ -7139,8 +7344,8 @@
                 {
                   "id": "t472",
                   "row": 477,
-                  "chartCenterY": 116,
-                  "tableCenterY": 116,
+                  "chartCenterY": 134,
+                  "tableCenterY": 134,
                   "barLeft": 1503,
                   "barRight": 1527,
                   "expectedBarLeft": 1503,
@@ -7149,8 +7354,8 @@
                 {
                   "id": "t473",
                   "row": 478,
-                  "chartCenterY": 140,
-                  "tableCenterY": 140,
+                  "chartCenterY": 158,
+                  "tableCenterY": 158,
                   "barLeft": 1623,
                   "barRight": 1632,
                   "expectedBarLeft": 1623,
@@ -7159,8 +7364,8 @@
                 {
                   "id": "t474",
                   "row": 479,
-                  "chartCenterY": 164,
-                  "tableCenterY": 164,
+                  "chartCenterY": 182,
+                  "tableCenterY": 182,
                   "barLeft": 1602,
                   "barRight": 1605,
                   "expectedBarLeft": 1602,
@@ -7169,8 +7374,8 @@
                 {
                   "id": "t475",
                   "row": 480,
-                  "chartCenterY": 188,
-                  "tableCenterY": 188,
+                  "chartCenterY": 206,
+                  "tableCenterY": 206,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -7179,8 +7384,8 @@
                 {
                   "id": "s26",
                   "row": 481,
-                  "chartCenterY": 212,
-                  "tableCenterY": 212,
+                  "chartCenterY": 230,
+                  "tableCenterY": 230,
                   "barLeft": 1443,
                   "barRight": 1668,
                   "expectedBarLeft": 1443,
@@ -7189,8 +7394,8 @@
                 {
                   "id": "t476",
                   "row": 482,
-                  "chartCenterY": 236,
-                  "tableCenterY": 236,
+                  "chartCenterY": 254,
+                  "tableCenterY": 254,
                   "barLeft": 1620,
                   "barRight": 1650,
                   "expectedBarLeft": 1620,
@@ -7199,8 +7404,8 @@
                 {
                   "id": "t477",
                   "row": 483,
-                  "chartCenterY": 260,
-                  "tableCenterY": 260,
+                  "chartCenterY": 278,
+                  "tableCenterY": 278,
                   "barLeft": 1626,
                   "barRight": 1647,
                   "expectedBarLeft": 1626,
@@ -7209,8 +7414,8 @@
                 {
                   "id": "t478",
                   "row": 484,
-                  "chartCenterY": 284,
-                  "tableCenterY": 284,
+                  "chartCenterY": 302,
+                  "tableCenterY": 302,
                   "barLeft": 1503,
                   "barRight": 1527,
                   "expectedBarLeft": 1503,
@@ -7219,8 +7424,8 @@
                 {
                   "id": "t479",
                   "row": 485,
-                  "chartCenterY": 308,
-                  "tableCenterY": 308,
+                  "chartCenterY": 326,
+                  "tableCenterY": 326,
                   "barLeft": 1518,
                   "barRight": 1524,
                   "expectedBarLeft": 1518,
@@ -7229,8 +7434,8 @@
                 {
                   "id": "t480",
                   "row": 486,
-                  "chartCenterY": 332,
-                  "tableCenterY": 332,
+                  "chartCenterY": 350,
+                  "tableCenterY": 350,
                   "barLeft": 1443,
                   "barRight": 1461,
                   "expectedBarLeft": 1443,
@@ -7239,8 +7444,8 @@
                 {
                   "id": "t481",
                   "row": 487,
-                  "chartCenterY": 356,
-                  "tableCenterY": 356,
+                  "chartCenterY": 374,
+                  "tableCenterY": 374,
                   "barLeft": 1623,
                   "barRight": 1635,
                   "expectedBarLeft": 1623,
@@ -7249,8 +7454,8 @@
                 {
                   "id": "t482",
                   "row": 488,
-                  "chartCenterY": 380,
-                  "tableCenterY": 380,
+                  "chartCenterY": 398,
+                  "tableCenterY": 398,
                   "barLeft": 1497,
                   "barRight": 1506,
                   "expectedBarLeft": 1497,
@@ -7259,8 +7464,8 @@
                 {
                   "id": "t483",
                   "row": 489,
-                  "chartCenterY": 404,
-                  "tableCenterY": 404,
+                  "chartCenterY": 422,
+                  "tableCenterY": 422,
                   "barLeft": 1503,
                   "barRight": 1524,
                   "expectedBarLeft": 1503,
@@ -7269,8 +7474,8 @@
                 {
                   "id": "t484",
                   "row": 490,
-                  "chartCenterY": 428,
-                  "tableCenterY": 428,
+                  "chartCenterY": 446,
+                  "tableCenterY": 446,
                   "barLeft": 1452,
                   "barRight": 1455,
                   "expectedBarLeft": 1452,
@@ -7279,8 +7484,8 @@
                 {
                   "id": "t485",
                   "row": 491,
-                  "chartCenterY": 452,
-                  "tableCenterY": 452,
+                  "chartCenterY": 470,
+                  "tableCenterY": 470,
                   "barLeft": 1560,
                   "barRight": 1572,
                   "expectedBarLeft": 1560,
@@ -7289,8 +7494,8 @@
                 {
                   "id": "t486",
                   "row": 492,
-                  "chartCenterY": 476,
-                  "tableCenterY": 476,
+                  "chartCenterY": 494,
+                  "tableCenterY": 494,
                   "barLeft": 1605,
                   "barRight": 1611,
                   "expectedBarLeft": 1605,
@@ -7299,8 +7504,8 @@
                 {
                   "id": "t487",
                   "row": 493,
-                  "chartCenterY": 500,
-                  "tableCenterY": 500,
+                  "chartCenterY": 518,
+                  "tableCenterY": 518,
                   "barLeft": 1503,
                   "barRight": 1542,
                   "expectedBarLeft": 1503,
@@ -7309,8 +7514,8 @@
                 {
                   "id": "t488",
                   "row": 494,
-                  "chartCenterY": 524,
-                  "tableCenterY": 524,
+                  "chartCenterY": 542,
+                  "tableCenterY": 542,
                   "barLeft": 1626,
                   "barRight": 1632,
                   "expectedBarLeft": 1626,
@@ -7319,8 +7524,8 @@
                 {
                   "id": "t489",
                   "row": 495,
-                  "chartCenterY": 548,
-                  "tableCenterY": 548,
+                  "chartCenterY": 566,
+                  "tableCenterY": 566,
                   "barLeft": 1650,
                   "barRight": 1668,
                   "expectedBarLeft": 1650,
@@ -7329,8 +7534,8 @@
                 {
                   "id": "t490",
                   "row": 496,
-                  "chartCenterY": 572,
-                  "tableCenterY": 572,
+                  "chartCenterY": 590,
+                  "tableCenterY": 590,
                   "barLeft": 1581,
                   "barRight": 1614,
                   "expectedBarLeft": 1581,
@@ -7339,8 +7544,8 @@
                 {
                   "id": "t491",
                   "row": 497,
-                  "chartCenterY": 596,
-                  "tableCenterY": 596,
+                  "chartCenterY": 614,
+                  "tableCenterY": 614,
                   "barLeft": 1620,
                   "barRight": 1635,
                   "expectedBarLeft": 1620,
@@ -7349,8 +7554,8 @@
                 {
                   "id": "t492",
                   "row": 498,
-                  "chartCenterY": 620,
-                  "tableCenterY": 620,
+                  "chartCenterY": 638,
+                  "tableCenterY": 638,
                   "barLeft": 1485,
                   "barRight": 1518,
                   "expectedBarLeft": 1485,
@@ -7359,8 +7564,8 @@
                 {
                   "id": "t493",
                   "row": 499,
-                  "chartCenterY": 644,
-                  "tableCenterY": 644,
+                  "chartCenterY": 662,
+                  "tableCenterY": 662,
                   "barLeft": 1620,
                   "barRight": 1626,
                   "expectedBarLeft": 1620,
@@ -7369,8 +7574,8 @@
                 {
                   "id": "t494",
                   "row": 500,
-                  "chartCenterY": 668,
-                  "tableCenterY": 668,
+                  "chartCenterY": 686,
+                  "tableCenterY": 686,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -7379,8 +7584,8 @@
                 {
                   "id": "s27",
                   "row": 501,
-                  "chartCenterY": 692,
-                  "tableCenterY": 692,
+                  "chartCenterY": 710,
+                  "tableCenterY": 710,
                   "barLeft": 1461,
                   "barRight": 1710,
                   "expectedBarLeft": 1461,
@@ -7389,8 +7594,8 @@
                 {
                   "id": "t495",
                   "row": 502,
-                  "chartCenterY": 716,
-                  "tableCenterY": 716,
+                  "chartCenterY": 734,
+                  "tableCenterY": 734,
                   "barLeft": 1674,
                   "barRight": 1710,
                   "expectedBarLeft": 1674,
@@ -7399,8 +7604,8 @@
                 {
                   "id": "t496",
                   "row": 503,
-                  "chartCenterY": 740,
-                  "tableCenterY": 740,
+                  "chartCenterY": 758,
+                  "tableCenterY": 758,
                   "barLeft": 1650,
                   "barRight": 1665,
                   "expectedBarLeft": 1650,
@@ -7409,8 +7614,8 @@
                 {
                   "id": "t497",
                   "row": 504,
-                  "chartCenterY": 764,
-                  "tableCenterY": 764,
+                  "chartCenterY": 782,
+                  "tableCenterY": 782,
                   "barLeft": 1650,
                   "barRight": 1671,
                   "expectedBarLeft": 1650,
@@ -7419,8 +7624,8 @@
                 {
                   "id": "t498",
                   "row": 505,
-                  "chartCenterY": 788,
-                  "tableCenterY": 788,
+                  "chartCenterY": 806,
+                  "tableCenterY": 806,
                   "barLeft": 1611,
                   "barRight": 1635,
                   "expectedBarLeft": 1611,
@@ -7429,8 +7634,8 @@
                 {
                   "id": "t499",
                   "row": 506,
-                  "chartCenterY": 812,
-                  "tableCenterY": 812,
+                  "chartCenterY": 830,
+                  "tableCenterY": 830,
                   "barLeft": 1506,
                   "barRight": 1524,
                   "expectedBarLeft": 1506,
@@ -7439,8 +7644,8 @@
                 {
                   "id": "t500",
                   "row": 507,
-                  "chartCenterY": 836,
-                  "tableCenterY": 836,
+                  "chartCenterY": 854,
+                  "tableCenterY": 854,
                   "barLeft": 1473,
                   "barRight": 1488,
                   "expectedBarLeft": 1473,
@@ -7449,7 +7654,7 @@
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 900,
                 "right": 1263
               },
@@ -7465,7 +7670,7 @@
               "hitTest": {
                 "id": "t484",
                 "row": 490,
-                "clientY": 428,
+                "clientY": 446,
                 "expectedContentY": 11772,
                 "actualContentY": 11772
               }
@@ -7475,6 +7680,11 @@
               "maxAbsRowDeltaPx": 0,
               "maxAbsBarXDeltaPx": 0,
               "rowDeltas": [
+                {
+                  "id": "t467",
+                  "row": 472,
+                  "deltaPx": 0
+                },
                 {
                   "id": "t468",
                   "row": 473,
@@ -7667,27 +7877,27 @@
             }
           },
           {
-            "requestedScrollTop": 22957,
+            "requestedScrollTop": 22922,
             "requestedScrollLeft": 0,
             "settleFrames": 2,
             "probe": {
-              "scrollTop": 22957,
-              "viewScrollTop": 22957,
+              "scrollTop": 22922,
+              "viewScrollTop": 22922,
               "scrollLeft": 0,
               "viewScrollLeft": 0,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 1384,
               "viewContentWidth": 1384,
@@ -7696,10 +7906,20 @@
               "tableRowHeight": 24,
               "samples": [
                 {
+                  "id": "t921",
+                  "row": 950,
+                  "chartCenterY": 25.0009765625,
+                  "tableCenterY": 25,
+                  "barLeft": 2085,
+                  "barRight": 2118,
+                  "expectedBarLeft": 2085,
+                  "expectedBarRight": 2118
+                },
+                {
                   "id": "t922",
                   "row": 951,
-                  "chartCenterY": 14.0009765625,
-                  "tableCenterY": 14,
+                  "chartCenterY": 49.0009765625,
+                  "tableCenterY": 49,
                   "barLeft": 2154,
                   "barRight": 2172,
                   "expectedBarLeft": 2154,
@@ -7708,8 +7928,8 @@
                 {
                   "id": "t923",
                   "row": 952,
-                  "chartCenterY": 38.0009765625,
-                  "tableCenterY": 38,
+                  "chartCenterY": 73.0009765625,
+                  "tableCenterY": 73,
                   "barLeft": 2124,
                   "barRight": 2127,
                   "expectedBarLeft": 2124,
@@ -7718,8 +7938,8 @@
                 {
                   "id": "t924",
                   "row": 953,
-                  "chartCenterY": 62.0009765625,
-                  "tableCenterY": 62,
+                  "chartCenterY": 97.0009765625,
+                  "tableCenterY": 97,
                   "barLeft": 2175,
                   "barRight": 2199,
                   "expectedBarLeft": 2175,
@@ -7728,8 +7948,8 @@
                 {
                   "id": "t925",
                   "row": 954,
-                  "chartCenterY": 86.0009765625,
-                  "tableCenterY": 86,
+                  "chartCenterY": 121.0009765625,
+                  "tableCenterY": 121,
                   "barLeft": 2103,
                   "barRight": 2118,
                   "expectedBarLeft": 2103,
@@ -7738,8 +7958,8 @@
                 {
                   "id": "t926",
                   "row": 955,
-                  "chartCenterY": 110.0009765625,
-                  "tableCenterY": 110,
+                  "chartCenterY": 145.0009765625,
+                  "tableCenterY": 145,
                   "barLeft": 2151,
                   "barRight": 2181,
                   "expectedBarLeft": 2151,
@@ -7748,8 +7968,8 @@
                 {
                   "id": "t927",
                   "row": 956,
-                  "chartCenterY": 134.0009765625,
-                  "tableCenterY": 134,
+                  "chartCenterY": 169.0009765625,
+                  "tableCenterY": 169,
                   "barLeft": 2151,
                   "barRight": 2172,
                   "expectedBarLeft": 2151,
@@ -7758,8 +7978,8 @@
                 {
                   "id": "t928",
                   "row": 957,
-                  "chartCenterY": 158.0009765625,
-                  "tableCenterY": 158,
+                  "chartCenterY": 193.0009765625,
+                  "tableCenterY": 193,
                   "barLeft": 2070,
                   "barRight": 2106,
                   "expectedBarLeft": 2070,
@@ -7768,8 +7988,8 @@
                 {
                   "id": "t929",
                   "row": 958,
-                  "chartCenterY": 182.0009765625,
-                  "tableCenterY": 182,
+                  "chartCenterY": 217.0009765625,
+                  "tableCenterY": 217,
                   "barLeft": 2166,
                   "barRight": 2178,
                   "expectedBarLeft": 2166,
@@ -7778,8 +7998,8 @@
                 {
                   "id": "t930",
                   "row": 959,
-                  "chartCenterY": 206.0009765625,
-                  "tableCenterY": 206,
+                  "chartCenterY": 241.0009765625,
+                  "tableCenterY": 241,
                   "barLeft": 2154,
                   "barRight": 2169,
                   "expectedBarLeft": 2154,
@@ -7788,8 +8008,8 @@
                 {
                   "id": "t931",
                   "row": 960,
-                  "chartCenterY": 230,
-                  "tableCenterY": 230,
+                  "chartCenterY": 265,
+                  "tableCenterY": 265,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -7798,8 +8018,8 @@
                 {
                   "id": "s50",
                   "row": 961,
-                  "chartCenterY": 254.0009765625,
-                  "tableCenterY": 254,
+                  "chartCenterY": 289.0009765625,
+                  "tableCenterY": 289,
                   "barLeft": 2025,
                   "barRight": 2223,
                   "expectedBarLeft": 2025,
@@ -7808,8 +8028,8 @@
                 {
                   "id": "t932",
                   "row": 962,
-                  "chartCenterY": 278.0009765625,
-                  "tableCenterY": 278,
+                  "chartCenterY": 313.0009765625,
+                  "tableCenterY": 313,
                   "barLeft": 2115,
                   "barRight": 2151,
                   "expectedBarLeft": 2115,
@@ -7818,8 +8038,8 @@
                 {
                   "id": "t933",
                   "row": 963,
-                  "chartCenterY": 302.0009765625,
-                  "tableCenterY": 302,
+                  "chartCenterY": 337.0009765625,
+                  "tableCenterY": 337,
                   "barLeft": 2148,
                   "barRight": 2181,
                   "expectedBarLeft": 2148,
@@ -7828,8 +8048,8 @@
                 {
                   "id": "t934",
                   "row": 964,
-                  "chartCenterY": 326.0009765625,
-                  "tableCenterY": 326,
+                  "chartCenterY": 361.0009765625,
+                  "tableCenterY": 361,
                   "barLeft": 2127,
                   "barRight": 2157,
                   "expectedBarLeft": 2127,
@@ -7838,8 +8058,8 @@
                 {
                   "id": "t935",
                   "row": 965,
-                  "chartCenterY": 350.0009765625,
-                  "tableCenterY": 350,
+                  "chartCenterY": 385.0009765625,
+                  "tableCenterY": 385,
                   "barLeft": 2190,
                   "barRight": 2223,
                   "expectedBarLeft": 2190,
@@ -7848,8 +8068,8 @@
                 {
                   "id": "t936",
                   "row": 966,
-                  "chartCenterY": 374.0009765625,
-                  "tableCenterY": 374,
+                  "chartCenterY": 409.0009765625,
+                  "tableCenterY": 409,
                   "barLeft": 2103,
                   "barRight": 2136,
                   "expectedBarLeft": 2103,
@@ -7858,8 +8078,8 @@
                 {
                   "id": "t937",
                   "row": 967,
-                  "chartCenterY": 398.0009765625,
-                  "tableCenterY": 398,
+                  "chartCenterY": 433.0009765625,
+                  "tableCenterY": 433,
                   "barLeft": 2136,
                   "barRight": 2148,
                   "expectedBarLeft": 2136,
@@ -7868,8 +8088,8 @@
                 {
                   "id": "t938",
                   "row": 968,
-                  "chartCenterY": 422.0009765625,
-                  "tableCenterY": 422,
+                  "chartCenterY": 457.0009765625,
+                  "tableCenterY": 457,
                   "barLeft": 2172,
                   "barRight": 2190,
                   "expectedBarLeft": 2172,
@@ -7878,8 +8098,8 @@
                 {
                   "id": "t939",
                   "row": 969,
-                  "chartCenterY": 446.0009765625,
-                  "tableCenterY": 446,
+                  "chartCenterY": 481.0009765625,
+                  "tableCenterY": 481,
                   "barLeft": 2025,
                   "barRight": 2055,
                   "expectedBarLeft": 2025,
@@ -7888,8 +8108,8 @@
                 {
                   "id": "t940",
                   "row": 970,
-                  "chartCenterY": 470.0009765625,
-                  "tableCenterY": 470,
+                  "chartCenterY": 505.0009765625,
+                  "tableCenterY": 505,
                   "barLeft": 2166,
                   "barRight": 2175,
                   "expectedBarLeft": 2166,
@@ -7898,8 +8118,8 @@
                 {
                   "id": "t941",
                   "row": 971,
-                  "chartCenterY": 494.0009765625,
-                  "tableCenterY": 494,
+                  "chartCenterY": 529.0009765625,
+                  "tableCenterY": 529,
                   "barLeft": 2124,
                   "barRight": 2139,
                   "expectedBarLeft": 2124,
@@ -7908,8 +8128,8 @@
                 {
                   "id": "t942",
                   "row": 972,
-                  "chartCenterY": 518.0009765625,
-                  "tableCenterY": 518,
+                  "chartCenterY": 553.0009765625,
+                  "tableCenterY": 553,
                   "barLeft": 2166,
                   "barRight": 2190,
                   "expectedBarLeft": 2166,
@@ -7918,8 +8138,8 @@
                 {
                   "id": "t943",
                   "row": 973,
-                  "chartCenterY": 542.0009765625,
-                  "tableCenterY": 542,
+                  "chartCenterY": 577.0009765625,
+                  "tableCenterY": 577,
                   "barLeft": 2127,
                   "barRight": 2148,
                   "expectedBarLeft": 2127,
@@ -7928,8 +8148,8 @@
                 {
                   "id": "t944",
                   "row": 974,
-                  "chartCenterY": 566.0009765625,
-                  "tableCenterY": 566,
+                  "chartCenterY": 601.0009765625,
+                  "tableCenterY": 601,
                   "barLeft": 2208,
                   "barRight": 2220,
                   "expectedBarLeft": 2208,
@@ -7938,8 +8158,8 @@
                 {
                   "id": "t945",
                   "row": 975,
-                  "chartCenterY": 590.0009765625,
-                  "tableCenterY": 590,
+                  "chartCenterY": 625.0009765625,
+                  "tableCenterY": 625,
                   "barLeft": 2124,
                   "barRight": 2154,
                   "expectedBarLeft": 2124,
@@ -7948,8 +8168,8 @@
                 {
                   "id": "t946",
                   "row": 976,
-                  "chartCenterY": 614.0009765625,
-                  "tableCenterY": 614,
+                  "chartCenterY": 649.0009765625,
+                  "tableCenterY": 649,
                   "barLeft": 2187,
                   "barRight": 2193,
                   "expectedBarLeft": 2187,
@@ -7958,8 +8178,8 @@
                 {
                   "id": "t947",
                   "row": 977,
-                  "chartCenterY": 638.0009765625,
-                  "tableCenterY": 638,
+                  "chartCenterY": 673.0009765625,
+                  "tableCenterY": 673,
                   "barLeft": 2187,
                   "barRight": 2214,
                   "expectedBarLeft": 2187,
@@ -7968,8 +8188,8 @@
                 {
                   "id": "t948",
                   "row": 978,
-                  "chartCenterY": 662.0009765625,
-                  "tableCenterY": 662,
+                  "chartCenterY": 697.0009765625,
+                  "tableCenterY": 697,
                   "barLeft": 2115,
                   "barRight": 2154,
                   "expectedBarLeft": 2115,
@@ -7978,8 +8198,8 @@
                 {
                   "id": "t949",
                   "row": 979,
-                  "chartCenterY": 686.0009765625,
-                  "tableCenterY": 686,
+                  "chartCenterY": 721.0009765625,
+                  "tableCenterY": 721,
                   "barLeft": 2148,
                   "barRight": 2160,
                   "expectedBarLeft": 2148,
@@ -7988,8 +8208,8 @@
                 {
                   "id": "t950",
                   "row": 980,
-                  "chartCenterY": 710,
-                  "tableCenterY": 710,
+                  "chartCenterY": 745,
+                  "tableCenterY": 745,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -7998,7 +8218,7 @@
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 900,
                 "right": 1263
               },
@@ -8012,11 +8232,11 @@
                 "bottom": 128
               },
               "hitTest": {
-                "id": "t936",
-                "row": 966,
-                "clientY": 374.0009765625,
-                "expectedContentY": 23196,
-                "actualContentY": 23196.0009765625
+                "id": "t935",
+                "row": 965,
+                "clientY": 385.0009765625,
+                "expectedContentY": 23172,
+                "actualContentY": 23172.0009765625
               }
             },
             "verdict": {
@@ -8024,6 +8244,11 @@
               "maxAbsRowDeltaPx": 0.001,
               "maxAbsBarXDeltaPx": 0,
               "rowDeltas": [
+                {
+                  "id": "t921",
+                  "row": 950,
+                  "deltaPx": 0.001
+                },
                 {
                   "id": "t922",
                   "row": 951,
@@ -8201,17 +8426,17 @@
               "viewScrollLeft": 505,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 1384,
               "viewContentWidth": 1384,
@@ -8518,11 +8743,21 @@
                   "barRight": 449,
                   "expectedBarLeft": 434,
                   "expectedBarRight": 449
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "chartCenterY": 867,
+                  "tableCenterY": 867,
+                  "barLeft": 425,
+                  "barRight": 455,
+                  "expectedBarLeft": 425,
+                  "expectedBarRight": 455
                 }
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 899,
                 "right": 1262
               },
@@ -8697,6 +8932,11 @@
                   "id": "t28",
                   "row": 29,
                   "deltaPx": 0
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "deltaPx": 0
                 }
               ],
               "pinned": true,
@@ -8725,17 +8965,17 @@
               "viewScrollLeft": 1010,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 1384,
               "viewContentWidth": 1384,
@@ -9042,11 +9282,21 @@
                   "barRight": -56,
                   "expectedBarLeft": -71,
                   "expectedBarRight": -56
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "chartCenterY": 867,
+                  "tableCenterY": 867,
+                  "barLeft": -80,
+                  "barRight": -50,
+                  "expectedBarLeft": -80,
+                  "expectedBarRight": -50
                 }
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 898,
                 "right": 1261
               },
@@ -9221,6 +9471,11 @@
                   "id": "t28",
                   "row": 29,
                   "deltaPx": 0
+                },
+                {
+                  "id": "t29",
+                  "row": 30,
+                  "deltaPx": 0
                 }
               ],
               "pinned": true,
@@ -9239,27 +9494,27 @@
             }
           },
           {
-            "requestedScrollTop": 22957,
+            "requestedScrollTop": 22922,
             "requestedScrollLeft": 1010,
             "settleFrames": 2,
             "probe": {
-              "scrollTop": 22957,
-              "viewScrollTop": 22957,
+              "scrollTop": 22922,
+              "viewScrollTop": 22922,
               "scrollLeft": 1010,
               "viewScrollLeft": 1010,
               "paneTop": 135,
               "paneLeft": 891,
-              "paneHeight": 587,
+              "paneHeight": 622,
               "paneWidth": 374,
               "headerHeightChart": 28,
               "headerHeightTable": 28,
-              "tableBodyHeight": 587,
+              "tableBodyHeight": 622,
               "svgTop": 107,
               "svgLeft": 891,
               "svgWidth": 374,
-              "svgHeight": 615,
+              "svgHeight": 650,
               "viewWidth": 374,
-              "viewHeight": 587,
+              "viewHeight": 622,
               "spacerHeight": 23544,
               "spacerWidth": 1384,
               "viewContentWidth": 1384,
@@ -9268,10 +9523,20 @@
               "tableRowHeight": 24,
               "samples": [
                 {
+                  "id": "t921",
+                  "row": 950,
+                  "chartCenterY": 25.0009765625,
+                  "tableCenterY": 25,
+                  "barLeft": 1075,
+                  "barRight": 1108,
+                  "expectedBarLeft": 1075,
+                  "expectedBarRight": 1108
+                },
+                {
                   "id": "t922",
                   "row": 951,
-                  "chartCenterY": 14.0009765625,
-                  "tableCenterY": 14,
+                  "chartCenterY": 49.0009765625,
+                  "tableCenterY": 49,
                   "barLeft": 1144,
                   "barRight": 1162,
                   "expectedBarLeft": 1144,
@@ -9280,8 +9545,8 @@
                 {
                   "id": "t923",
                   "row": 952,
-                  "chartCenterY": 38.0009765625,
-                  "tableCenterY": 38,
+                  "chartCenterY": 73.0009765625,
+                  "tableCenterY": 73,
                   "barLeft": 1114,
                   "barRight": 1117,
                   "expectedBarLeft": 1114,
@@ -9290,8 +9555,8 @@
                 {
                   "id": "t924",
                   "row": 953,
-                  "chartCenterY": 62.0009765625,
-                  "tableCenterY": 62,
+                  "chartCenterY": 97.0009765625,
+                  "tableCenterY": 97,
                   "barLeft": 1165,
                   "barRight": 1189,
                   "expectedBarLeft": 1165,
@@ -9300,8 +9565,8 @@
                 {
                   "id": "t925",
                   "row": 954,
-                  "chartCenterY": 86.0009765625,
-                  "tableCenterY": 86,
+                  "chartCenterY": 121.0009765625,
+                  "tableCenterY": 121,
                   "barLeft": 1093,
                   "barRight": 1108,
                   "expectedBarLeft": 1093,
@@ -9310,8 +9575,8 @@
                 {
                   "id": "t926",
                   "row": 955,
-                  "chartCenterY": 110.0009765625,
-                  "tableCenterY": 110,
+                  "chartCenterY": 145.0009765625,
+                  "tableCenterY": 145,
                   "barLeft": 1141,
                   "barRight": 1171,
                   "expectedBarLeft": 1141,
@@ -9320,8 +9585,8 @@
                 {
                   "id": "t927",
                   "row": 956,
-                  "chartCenterY": 134.0009765625,
-                  "tableCenterY": 134,
+                  "chartCenterY": 169.0009765625,
+                  "tableCenterY": 169,
                   "barLeft": 1141,
                   "barRight": 1162,
                   "expectedBarLeft": 1141,
@@ -9330,8 +9595,8 @@
                 {
                   "id": "t928",
                   "row": 957,
-                  "chartCenterY": 158.0009765625,
-                  "tableCenterY": 158,
+                  "chartCenterY": 193.0009765625,
+                  "tableCenterY": 193,
                   "barLeft": 1060,
                   "barRight": 1096,
                   "expectedBarLeft": 1060,
@@ -9340,8 +9605,8 @@
                 {
                   "id": "t929",
                   "row": 958,
-                  "chartCenterY": 182.0009765625,
-                  "tableCenterY": 182,
+                  "chartCenterY": 217.0009765625,
+                  "tableCenterY": 217,
                   "barLeft": 1156,
                   "barRight": 1168,
                   "expectedBarLeft": 1156,
@@ -9350,8 +9615,8 @@
                 {
                   "id": "t930",
                   "row": 959,
-                  "chartCenterY": 206.0009765625,
-                  "tableCenterY": 206,
+                  "chartCenterY": 241.0009765625,
+                  "tableCenterY": 241,
                   "barLeft": 1144,
                   "barRight": 1159,
                   "expectedBarLeft": 1144,
@@ -9360,8 +9625,8 @@
                 {
                   "id": "t931",
                   "row": 960,
-                  "chartCenterY": 230,
-                  "tableCenterY": 230,
+                  "chartCenterY": 265,
+                  "tableCenterY": 265,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -9370,8 +9635,8 @@
                 {
                   "id": "s50",
                   "row": 961,
-                  "chartCenterY": 254.0009765625,
-                  "tableCenterY": 254,
+                  "chartCenterY": 289.0009765625,
+                  "tableCenterY": 289,
                   "barLeft": 1015,
                   "barRight": 1213,
                   "expectedBarLeft": 1015,
@@ -9380,8 +9645,8 @@
                 {
                   "id": "t932",
                   "row": 962,
-                  "chartCenterY": 278.0009765625,
-                  "tableCenterY": 278,
+                  "chartCenterY": 313.0009765625,
+                  "tableCenterY": 313,
                   "barLeft": 1105,
                   "barRight": 1141,
                   "expectedBarLeft": 1105,
@@ -9390,8 +9655,8 @@
                 {
                   "id": "t933",
                   "row": 963,
-                  "chartCenterY": 302.0009765625,
-                  "tableCenterY": 302,
+                  "chartCenterY": 337.0009765625,
+                  "tableCenterY": 337,
                   "barLeft": 1138,
                   "barRight": 1171,
                   "expectedBarLeft": 1138,
@@ -9400,8 +9665,8 @@
                 {
                   "id": "t934",
                   "row": 964,
-                  "chartCenterY": 326.0009765625,
-                  "tableCenterY": 326,
+                  "chartCenterY": 361.0009765625,
+                  "tableCenterY": 361,
                   "barLeft": 1117,
                   "barRight": 1147,
                   "expectedBarLeft": 1117,
@@ -9410,8 +9675,8 @@
                 {
                   "id": "t935",
                   "row": 965,
-                  "chartCenterY": 350.0009765625,
-                  "tableCenterY": 350,
+                  "chartCenterY": 385.0009765625,
+                  "tableCenterY": 385,
                   "barLeft": 1180,
                   "barRight": 1213,
                   "expectedBarLeft": 1180,
@@ -9420,8 +9685,8 @@
                 {
                   "id": "t936",
                   "row": 966,
-                  "chartCenterY": 374.0009765625,
-                  "tableCenterY": 374,
+                  "chartCenterY": 409.0009765625,
+                  "tableCenterY": 409,
                   "barLeft": 1093,
                   "barRight": 1126,
                   "expectedBarLeft": 1093,
@@ -9430,8 +9695,8 @@
                 {
                   "id": "t937",
                   "row": 967,
-                  "chartCenterY": 398.0009765625,
-                  "tableCenterY": 398,
+                  "chartCenterY": 433.0009765625,
+                  "tableCenterY": 433,
                   "barLeft": 1126,
                   "barRight": 1138,
                   "expectedBarLeft": 1126,
@@ -9440,8 +9705,8 @@
                 {
                   "id": "t938",
                   "row": 968,
-                  "chartCenterY": 422.0009765625,
-                  "tableCenterY": 422,
+                  "chartCenterY": 457.0009765625,
+                  "tableCenterY": 457,
                   "barLeft": 1162,
                   "barRight": 1180,
                   "expectedBarLeft": 1162,
@@ -9450,8 +9715,8 @@
                 {
                   "id": "t939",
                   "row": 969,
-                  "chartCenterY": 446.0009765625,
-                  "tableCenterY": 446,
+                  "chartCenterY": 481.0009765625,
+                  "tableCenterY": 481,
                   "barLeft": 1015,
                   "barRight": 1045,
                   "expectedBarLeft": 1015,
@@ -9460,8 +9725,8 @@
                 {
                   "id": "t940",
                   "row": 970,
-                  "chartCenterY": 470.0009765625,
-                  "tableCenterY": 470,
+                  "chartCenterY": 505.0009765625,
+                  "tableCenterY": 505,
                   "barLeft": 1156,
                   "barRight": 1165,
                   "expectedBarLeft": 1156,
@@ -9470,8 +9735,8 @@
                 {
                   "id": "t941",
                   "row": 971,
-                  "chartCenterY": 494.0009765625,
-                  "tableCenterY": 494,
+                  "chartCenterY": 529.0009765625,
+                  "tableCenterY": 529,
                   "barLeft": 1114,
                   "barRight": 1129,
                   "expectedBarLeft": 1114,
@@ -9480,8 +9745,8 @@
                 {
                   "id": "t942",
                   "row": 972,
-                  "chartCenterY": 518.0009765625,
-                  "tableCenterY": 518,
+                  "chartCenterY": 553.0009765625,
+                  "tableCenterY": 553,
                   "barLeft": 1156,
                   "barRight": 1180,
                   "expectedBarLeft": 1156,
@@ -9490,8 +9755,8 @@
                 {
                   "id": "t943",
                   "row": 973,
-                  "chartCenterY": 542.0009765625,
-                  "tableCenterY": 542,
+                  "chartCenterY": 577.0009765625,
+                  "tableCenterY": 577,
                   "barLeft": 1117,
                   "barRight": 1138,
                   "expectedBarLeft": 1117,
@@ -9500,8 +9765,8 @@
                 {
                   "id": "t944",
                   "row": 974,
-                  "chartCenterY": 566.0009765625,
-                  "tableCenterY": 566,
+                  "chartCenterY": 601.0009765625,
+                  "tableCenterY": 601,
                   "barLeft": 1198,
                   "barRight": 1210,
                   "expectedBarLeft": 1198,
@@ -9510,8 +9775,8 @@
                 {
                   "id": "t945",
                   "row": 975,
-                  "chartCenterY": 590.0009765625,
-                  "tableCenterY": 590,
+                  "chartCenterY": 625.0009765625,
+                  "tableCenterY": 625,
                   "barLeft": 1114,
                   "barRight": 1144,
                   "expectedBarLeft": 1114,
@@ -9520,8 +9785,8 @@
                 {
                   "id": "t946",
                   "row": 976,
-                  "chartCenterY": 614.0009765625,
-                  "tableCenterY": 614,
+                  "chartCenterY": 649.0009765625,
+                  "tableCenterY": 649,
                   "barLeft": 1177,
                   "barRight": 1183,
                   "expectedBarLeft": 1177,
@@ -9530,8 +9795,8 @@
                 {
                   "id": "t947",
                   "row": 977,
-                  "chartCenterY": 638.0009765625,
-                  "tableCenterY": 638,
+                  "chartCenterY": 673.0009765625,
+                  "tableCenterY": 673,
                   "barLeft": 1177,
                   "barRight": 1204,
                   "expectedBarLeft": 1177,
@@ -9540,8 +9805,8 @@
                 {
                   "id": "t948",
                   "row": 978,
-                  "chartCenterY": 662.0009765625,
-                  "tableCenterY": 662,
+                  "chartCenterY": 697.0009765625,
+                  "tableCenterY": 697,
                   "barLeft": 1105,
                   "barRight": 1144,
                   "expectedBarLeft": 1105,
@@ -9550,8 +9815,8 @@
                 {
                   "id": "t949",
                   "row": 979,
-                  "chartCenterY": 686.0009765625,
-                  "tableCenterY": 686,
+                  "chartCenterY": 721.0009765625,
+                  "tableCenterY": 721,
                   "barLeft": 1138,
                   "barRight": 1150,
                   "expectedBarLeft": 1138,
@@ -9560,8 +9825,8 @@
                 {
                   "id": "t950",
                   "row": 980,
-                  "chartCenterY": 710,
-                  "tableCenterY": 710,
+                  "chartCenterY": 745,
+                  "tableCenterY": 745,
                   "barLeft": null,
                   "barRight": null,
                   "expectedBarLeft": null,
@@ -9570,7 +9835,7 @@
               ],
               "axisCoverage": {
                 "top": 135,
-                "bottom": 722,
+                "bottom": 757,
                 "left": 898,
                 "right": 1261
               },
@@ -9584,11 +9849,11 @@
                 "bottom": 128
               },
               "hitTest": {
-                "id": "t936",
-                "row": 966,
-                "clientY": 374.0009765625,
-                "expectedContentY": 23196,
-                "actualContentY": 23196.0009765625
+                "id": "t935",
+                "row": 965,
+                "clientY": 385.0009765625,
+                "expectedContentY": 23172,
+                "actualContentY": 23172.0009765625
               }
             },
             "verdict": {
@@ -9596,6 +9861,11 @@
               "maxAbsRowDeltaPx": 0.001,
               "maxAbsBarXDeltaPx": 0,
               "rowDeltas": [
+                {
+                  "id": "t921",
+                  "row": 950,
+                  "deltaPx": 0.001
+                },
                 {
                   "id": "t922",
                   "row": 951,
@@ -9765,7 +10035,7 @@
         ],
         "stableReadBudgetFrames": 12,
         "coverage": {
-          "maxScrollTop": 22957,
+          "maxScrollTop": 22922,
           "maxScrollLeft": 1010,
           "horizontalCovered": true,
           "verticalCovered": true,
@@ -9782,7 +10052,7 @@
           "maxAbsBarXDeltaPx": 0,
           "mechanisms": [],
           "coverage": {
-            "maxScrollTop": 22957,
+            "maxScrollTop": 22922,
             "maxScrollLeft": 1010,
             "horizontalCovered": true,
             "verticalCovered": true,
@@ -9811,27 +10081,27 @@
       "mode": "positions",
       "probes": [
         {
-          "requestedScrollTop": 11479,
+          "requestedScrollTop": 11461,
           "requestedScrollLeft": 5119,
           "settleFrames": 2,
           "probe": {
-            "scrollTop": 11479,
-            "viewScrollTop": 11479,
+            "scrollTop": 11461,
+            "viewScrollTop": 11461,
             "scrollLeft": 5119,
             "viewScrollLeft": 5119,
             "paneTop": 135,
             "paneLeft": 891,
-            "paneHeight": 587,
+            "paneHeight": 622,
             "paneWidth": 374,
             "headerHeightChart": 28,
             "headerHeightTable": 28,
-            "tableBodyHeight": 587,
+            "tableBodyHeight": 622,
             "svgTop": 107,
             "svgLeft": 891,
             "svgWidth": 374,
-            "svgHeight": 615,
+            "svgHeight": 650,
             "viewWidth": 374,
-            "viewHeight": 587,
+            "viewHeight": 622,
             "spacerHeight": 23544,
             "spacerWidth": 10612,
             "viewContentWidth": 10612,
@@ -9840,10 +10110,20 @@
             "tableRowHeight": 24,
             "samples": [
               {
+                "id": "t467",
+                "row": 472,
+                "chartCenterY": 14,
+                "tableCenterY": 14,
+                "barLeft": -268,
+                "barRight": 44,
+                "expectedBarLeft": -268,
+                "expectedBarRight": 44
+              },
+              {
                 "id": "t468",
                 "row": 473,
-                "chartCenterY": 20,
-                "tableCenterY": 20,
+                "chartCenterY": 38,
+                "tableCenterY": 38,
                 "barLeft": 1244,
                 "barRight": 1436,
                 "expectedBarLeft": 1244,
@@ -9852,8 +10132,8 @@
               {
                 "id": "t469",
                 "row": 474,
-                "chartCenterY": 44,
-                "tableCenterY": 44,
+                "chartCenterY": 62,
+                "tableCenterY": 62,
                 "barLeft": 260,
                 "barRight": 524,
                 "expectedBarLeft": 260,
@@ -9862,8 +10142,8 @@
               {
                 "id": "t470",
                 "row": 475,
-                "chartCenterY": 68,
-                "tableCenterY": 68,
+                "chartCenterY": 86,
+                "tableCenterY": 86,
                 "barLeft": 884,
                 "barRight": 1124,
                 "expectedBarLeft": 884,
@@ -9872,8 +10152,8 @@
               {
                 "id": "t471",
                 "row": 476,
-                "chartCenterY": 92,
-                "tableCenterY": 92,
+                "chartCenterY": 110,
+                "tableCenterY": 110,
                 "barLeft": 1412,
                 "barRight": 1580,
                 "expectedBarLeft": 1412,
@@ -9882,8 +10162,8 @@
               {
                 "id": "t472",
                 "row": 477,
-                "chartCenterY": 116,
-                "tableCenterY": 116,
+                "chartCenterY": 134,
+                "tableCenterY": 134,
                 "barLeft": 572,
                 "barRight": 764,
                 "expectedBarLeft": 572,
@@ -9892,8 +10172,8 @@
               {
                 "id": "t473",
                 "row": 478,
-                "chartCenterY": 140,
-                "tableCenterY": 140,
+                "chartCenterY": 158,
+                "tableCenterY": 158,
                 "barLeft": 1532,
                 "barRight": 1604,
                 "expectedBarLeft": 1532,
@@ -9902,8 +10182,8 @@
               {
                 "id": "t474",
                 "row": 479,
-                "chartCenterY": 164,
-                "tableCenterY": 164,
+                "chartCenterY": 182,
+                "tableCenterY": 182,
                 "barLeft": 1364,
                 "barRight": 1388,
                 "expectedBarLeft": 1364,
@@ -9912,8 +10192,8 @@
               {
                 "id": "t475",
                 "row": 480,
-                "chartCenterY": 188,
-                "tableCenterY": 188,
+                "chartCenterY": 206,
+                "tableCenterY": 206,
                 "barLeft": null,
                 "barRight": null,
                 "expectedBarLeft": null,
@@ -9922,8 +10202,8 @@
               {
                 "id": "s26",
                 "row": 481,
-                "chartCenterY": 212,
-                "tableCenterY": 212,
+                "chartCenterY": 230,
+                "tableCenterY": 230,
                 "barLeft": 92,
                 "barRight": 1892,
                 "expectedBarLeft": 92,
@@ -9932,8 +10212,8 @@
               {
                 "id": "t476",
                 "row": 482,
-                "chartCenterY": 236,
-                "tableCenterY": 236,
+                "chartCenterY": 254,
+                "tableCenterY": 254,
                 "barLeft": 1508,
                 "barRight": 1748,
                 "expectedBarLeft": 1508,
@@ -9942,8 +10222,8 @@
               {
                 "id": "t477",
                 "row": 483,
-                "chartCenterY": 260,
-                "tableCenterY": 260,
+                "chartCenterY": 278,
+                "tableCenterY": 278,
                 "barLeft": 1556,
                 "barRight": 1724,
                 "expectedBarLeft": 1556,
@@ -9952,8 +10232,8 @@
               {
                 "id": "t478",
                 "row": 484,
-                "chartCenterY": 284,
-                "tableCenterY": 284,
+                "chartCenterY": 302,
+                "tableCenterY": 302,
                 "barLeft": 572,
                 "barRight": 764,
                 "expectedBarLeft": 572,
@@ -9962,8 +10242,8 @@
               {
                 "id": "t479",
                 "row": 485,
-                "chartCenterY": 308,
-                "tableCenterY": 308,
+                "chartCenterY": 326,
+                "tableCenterY": 326,
                 "barLeft": 692,
                 "barRight": 740,
                 "expectedBarLeft": 692,
@@ -9972,8 +10252,8 @@
               {
                 "id": "t480",
                 "row": 486,
-                "chartCenterY": 332,
-                "tableCenterY": 332,
+                "chartCenterY": 350,
+                "tableCenterY": 350,
                 "barLeft": 92,
                 "barRight": 236,
                 "expectedBarLeft": 92,
@@ -9982,8 +10262,8 @@
               {
                 "id": "t481",
                 "row": 487,
-                "chartCenterY": 356,
-                "tableCenterY": 356,
+                "chartCenterY": 374,
+                "tableCenterY": 374,
                 "barLeft": 1532,
                 "barRight": 1628,
                 "expectedBarLeft": 1532,
@@ -9992,8 +10272,8 @@
               {
                 "id": "t482",
                 "row": 488,
-                "chartCenterY": 380,
-                "tableCenterY": 380,
+                "chartCenterY": 398,
+                "tableCenterY": 398,
                 "barLeft": 524,
                 "barRight": 596,
                 "expectedBarLeft": 524,
@@ -10002,8 +10282,8 @@
               {
                 "id": "t483",
                 "row": 489,
-                "chartCenterY": 404,
-                "tableCenterY": 404,
+                "chartCenterY": 422,
+                "tableCenterY": 422,
                 "barLeft": 572,
                 "barRight": 740,
                 "expectedBarLeft": 572,
@@ -10012,8 +10292,8 @@
               {
                 "id": "t484",
                 "row": 490,
-                "chartCenterY": 428,
-                "tableCenterY": 428,
+                "chartCenterY": 446,
+                "tableCenterY": 446,
                 "barLeft": 164,
                 "barRight": 188,
                 "expectedBarLeft": 164,
@@ -10022,8 +10302,8 @@
               {
                 "id": "t485",
                 "row": 491,
-                "chartCenterY": 452,
-                "tableCenterY": 452,
+                "chartCenterY": 470,
+                "tableCenterY": 470,
                 "barLeft": 1028,
                 "barRight": 1124,
                 "expectedBarLeft": 1028,
@@ -10032,8 +10312,8 @@
               {
                 "id": "t486",
                 "row": 492,
-                "chartCenterY": 476,
-                "tableCenterY": 476,
+                "chartCenterY": 494,
+                "tableCenterY": 494,
                 "barLeft": 1388,
                 "barRight": 1436,
                 "expectedBarLeft": 1388,
@@ -10042,8 +10322,8 @@
               {
                 "id": "t487",
                 "row": 493,
-                "chartCenterY": 500,
-                "tableCenterY": 500,
+                "chartCenterY": 518,
+                "tableCenterY": 518,
                 "barLeft": 572,
                 "barRight": 884,
                 "expectedBarLeft": 572,
@@ -10052,8 +10332,8 @@
               {
                 "id": "t488",
                 "row": 494,
-                "chartCenterY": 524,
-                "tableCenterY": 524,
+                "chartCenterY": 542,
+                "tableCenterY": 542,
                 "barLeft": 1556,
                 "barRight": 1604,
                 "expectedBarLeft": 1556,
@@ -10062,8 +10342,8 @@
               {
                 "id": "t489",
                 "row": 495,
-                "chartCenterY": 548,
-                "tableCenterY": 548,
+                "chartCenterY": 566,
+                "tableCenterY": 566,
                 "barLeft": 1748,
                 "barRight": 1892,
                 "expectedBarLeft": 1748,
@@ -10072,8 +10352,8 @@
               {
                 "id": "t490",
                 "row": 496,
-                "chartCenterY": 572,
-                "tableCenterY": 572,
+                "chartCenterY": 590,
+                "tableCenterY": 590,
                 "barLeft": 1196,
                 "barRight": 1460,
                 "expectedBarLeft": 1196,
@@ -10082,8 +10362,8 @@
               {
                 "id": "t491",
                 "row": 497,
-                "chartCenterY": 596,
-                "tableCenterY": 596,
+                "chartCenterY": 614,
+                "tableCenterY": 614,
                 "barLeft": 1508,
                 "barRight": 1628,
                 "expectedBarLeft": 1508,
@@ -10092,8 +10372,8 @@
               {
                 "id": "t492",
                 "row": 498,
-                "chartCenterY": 620,
-                "tableCenterY": 620,
+                "chartCenterY": 638,
+                "tableCenterY": 638,
                 "barLeft": 428,
                 "barRight": 692,
                 "expectedBarLeft": 428,
@@ -10102,8 +10382,8 @@
               {
                 "id": "t493",
                 "row": 499,
-                "chartCenterY": 644,
-                "tableCenterY": 644,
+                "chartCenterY": 662,
+                "tableCenterY": 662,
                 "barLeft": 1508,
                 "barRight": 1556,
                 "expectedBarLeft": 1508,
@@ -10112,8 +10392,8 @@
               {
                 "id": "t494",
                 "row": 500,
-                "chartCenterY": 668,
-                "tableCenterY": 668,
+                "chartCenterY": 686,
+                "tableCenterY": 686,
                 "barLeft": null,
                 "barRight": null,
                 "expectedBarLeft": null,
@@ -10122,8 +10402,8 @@
               {
                 "id": "s27",
                 "row": 501,
-                "chartCenterY": 692,
-                "tableCenterY": 692,
+                "chartCenterY": 710,
+                "tableCenterY": 710,
                 "barLeft": 236,
                 "barRight": 2228,
                 "expectedBarLeft": 236,
@@ -10132,8 +10412,8 @@
               {
                 "id": "t495",
                 "row": 502,
-                "chartCenterY": 716,
-                "tableCenterY": 716,
+                "chartCenterY": 734,
+                "tableCenterY": 734,
                 "barLeft": 1940,
                 "barRight": 2228,
                 "expectedBarLeft": 1940,
@@ -10142,8 +10422,8 @@
               {
                 "id": "t496",
                 "row": 503,
-                "chartCenterY": 740,
-                "tableCenterY": 740,
+                "chartCenterY": 758,
+                "tableCenterY": 758,
                 "barLeft": 1748,
                 "barRight": 1868,
                 "expectedBarLeft": 1748,
@@ -10152,8 +10432,8 @@
               {
                 "id": "t497",
                 "row": 504,
-                "chartCenterY": 764,
-                "tableCenterY": 764,
+                "chartCenterY": 782,
+                "tableCenterY": 782,
                 "barLeft": 1748,
                 "barRight": 1916,
                 "expectedBarLeft": 1748,
@@ -10162,8 +10442,8 @@
               {
                 "id": "t498",
                 "row": 505,
-                "chartCenterY": 788,
-                "tableCenterY": 788,
+                "chartCenterY": 806,
+                "tableCenterY": 806,
                 "barLeft": 1436,
                 "barRight": 1628,
                 "expectedBarLeft": 1436,
@@ -10172,8 +10452,8 @@
               {
                 "id": "t499",
                 "row": 506,
-                "chartCenterY": 812,
-                "tableCenterY": 812,
+                "chartCenterY": 830,
+                "tableCenterY": 830,
                 "barLeft": 596,
                 "barRight": 740,
                 "expectedBarLeft": 596,
@@ -10182,8 +10462,8 @@
               {
                 "id": "t500",
                 "row": 507,
-                "chartCenterY": 836,
-                "tableCenterY": 836,
+                "chartCenterY": 854,
+                "tableCenterY": 854,
                 "barLeft": 332,
                 "barRight": 452,
                 "expectedBarLeft": 332,
@@ -10192,7 +10472,7 @@
             ],
             "axisCoverage": {
               "top": 135,
-              "bottom": 722,
+              "bottom": 757,
               "left": 956,
               "right": 1172
             },
@@ -10208,7 +10488,7 @@
             "hitTest": {
               "id": "t484",
               "row": 490,
-              "clientY": 428,
+              "clientY": 446,
               "expectedContentY": 11772,
               "actualContentY": 11772
             }
@@ -10218,6 +10498,11 @@
             "maxAbsRowDeltaPx": 0,
             "maxAbsBarXDeltaPx": 0,
             "rowDeltas": [
+              {
+                "id": "t467",
+                "row": 472,
+                "deltaPx": 0
+              },
               {
                 "id": "t468",
                 "row": 473,
@@ -10412,7 +10697,7 @@
       ],
       "stableReadBudgetFrames": 12,
       "coverage": {
-        "maxScrollTop": 11479,
+        "maxScrollTop": 11461,
         "maxScrollLeft": 5119,
         "horizontalCovered": true,
         "verticalCovered": true,
@@ -10429,7 +10714,7 @@
         "maxAbsBarXDeltaPx": 0,
         "mechanisms": [],
         "coverage": {
-          "maxScrollTop": 11479,
+          "maxScrollTop": 11461,
           "maxScrollLeft": 5119,
           "horizontalCovered": true,
           "verticalCovered": true,
@@ -10447,27 +10732,27 @@
       "mode": "reread",
       "probes": [
         {
-          "requestedScrollTop": 11479,
+          "requestedScrollTop": 11461,
           "requestedScrollLeft": 5119,
           "settleFrames": 3,
           "probe": {
-            "scrollTop": 11479,
-            "viewScrollTop": 11479,
+            "scrollTop": 11461,
+            "viewScrollTop": 11461,
             "scrollLeft": 5119,
             "viewScrollLeft": 5119,
             "paneTop": 149.375,
             "paneLeft": 891,
-            "paneHeight": 377,
+            "paneHeight": 447,
             "paneWidth": 118,
             "headerHeightChart": 28,
             "headerHeightTable": 28,
-            "tableBodyHeight": 377,
+            "tableBodyHeight": 447,
             "svgTop": 121.375,
             "svgLeft": 891,
             "svgWidth": 118,
-            "svgHeight": 405,
+            "svgHeight": 475,
             "viewWidth": 118,
-            "viewHeight": 377,
+            "viewHeight": 447,
             "spacerHeight": 23544,
             "spacerWidth": 10612,
             "viewContentWidth": 10612,
@@ -10476,10 +10761,20 @@
             "tableRowHeight": 24,
             "samples": [
               {
+                "id": "t467",
+                "row": 472,
+                "chartCenterY": 28.375,
+                "tableCenterY": 28.375,
+                "barLeft": -268,
+                "barRight": 44,
+                "expectedBarLeft": -268,
+                "expectedBarRight": 44
+              },
+              {
                 "id": "t468",
                 "row": 473,
-                "chartCenterY": 34.375,
-                "tableCenterY": 34.375,
+                "chartCenterY": 52.375,
+                "tableCenterY": 52.375,
                 "barLeft": 1244,
                 "barRight": 1436,
                 "expectedBarLeft": 1244,
@@ -10488,8 +10783,8 @@
               {
                 "id": "t469",
                 "row": 474,
-                "chartCenterY": 58.375,
-                "tableCenterY": 58.375,
+                "chartCenterY": 76.375,
+                "tableCenterY": 76.375,
                 "barLeft": 260,
                 "barRight": 524,
                 "expectedBarLeft": 260,
@@ -10498,8 +10793,8 @@
               {
                 "id": "t470",
                 "row": 475,
-                "chartCenterY": 82.375,
-                "tableCenterY": 82.375,
+                "chartCenterY": 100.375,
+                "tableCenterY": 100.375,
                 "barLeft": 884,
                 "barRight": 1124,
                 "expectedBarLeft": 884,
@@ -10508,8 +10803,8 @@
               {
                 "id": "t471",
                 "row": 476,
-                "chartCenterY": 106.375,
-                "tableCenterY": 106.375,
+                "chartCenterY": 124.375,
+                "tableCenterY": 124.375,
                 "barLeft": 1412,
                 "barRight": 1580,
                 "expectedBarLeft": 1412,
@@ -10518,8 +10813,8 @@
               {
                 "id": "t472",
                 "row": 477,
-                "chartCenterY": 130.375,
-                "tableCenterY": 130.375,
+                "chartCenterY": 148.375,
+                "tableCenterY": 148.375,
                 "barLeft": 572,
                 "barRight": 764,
                 "expectedBarLeft": 572,
@@ -10528,8 +10823,8 @@
               {
                 "id": "t473",
                 "row": 478,
-                "chartCenterY": 154.375,
-                "tableCenterY": 154.375,
+                "chartCenterY": 172.375,
+                "tableCenterY": 172.375,
                 "barLeft": 1532,
                 "barRight": 1604,
                 "expectedBarLeft": 1532,
@@ -10538,8 +10833,8 @@
               {
                 "id": "t474",
                 "row": 479,
-                "chartCenterY": 178.375,
-                "tableCenterY": 178.375,
+                "chartCenterY": 196.375,
+                "tableCenterY": 196.375,
                 "barLeft": 1364,
                 "barRight": 1388,
                 "expectedBarLeft": 1364,
@@ -10548,8 +10843,8 @@
               {
                 "id": "t475",
                 "row": 480,
-                "chartCenterY": 202.375,
-                "tableCenterY": 202.375,
+                "chartCenterY": 220.375,
+                "tableCenterY": 220.375,
                 "barLeft": null,
                 "barRight": null,
                 "expectedBarLeft": null,
@@ -10558,8 +10853,8 @@
               {
                 "id": "s26",
                 "row": 481,
-                "chartCenterY": 226.375,
-                "tableCenterY": 226.375,
+                "chartCenterY": 244.375,
+                "tableCenterY": 244.375,
                 "barLeft": 92,
                 "barRight": 1892,
                 "expectedBarLeft": 92,
@@ -10568,8 +10863,8 @@
               {
                 "id": "t476",
                 "row": 482,
-                "chartCenterY": 250.375,
-                "tableCenterY": 250.375,
+                "chartCenterY": 268.375,
+                "tableCenterY": 268.375,
                 "barLeft": 1508,
                 "barRight": 1748,
                 "expectedBarLeft": 1508,
@@ -10578,8 +10873,8 @@
               {
                 "id": "t477",
                 "row": 483,
-                "chartCenterY": 274.375,
-                "tableCenterY": 274.375,
+                "chartCenterY": 292.375,
+                "tableCenterY": 292.375,
                 "barLeft": 1556,
                 "barRight": 1724,
                 "expectedBarLeft": 1556,
@@ -10588,8 +10883,8 @@
               {
                 "id": "t478",
                 "row": 484,
-                "chartCenterY": 298.375,
-                "tableCenterY": 298.375,
+                "chartCenterY": 316.375,
+                "tableCenterY": 316.375,
                 "barLeft": 572,
                 "barRight": 764,
                 "expectedBarLeft": 572,
@@ -10598,8 +10893,8 @@
               {
                 "id": "t479",
                 "row": 485,
-                "chartCenterY": 322.375,
-                "tableCenterY": 322.375,
+                "chartCenterY": 340.375,
+                "tableCenterY": 340.375,
                 "barLeft": 692,
                 "barRight": 740,
                 "expectedBarLeft": 692,
@@ -10608,8 +10903,8 @@
               {
                 "id": "t480",
                 "row": 486,
-                "chartCenterY": 346.375,
-                "tableCenterY": 346.375,
+                "chartCenterY": 364.375,
+                "tableCenterY": 364.375,
                 "barLeft": 92,
                 "barRight": 236,
                 "expectedBarLeft": 92,
@@ -10618,8 +10913,8 @@
               {
                 "id": "t481",
                 "row": 487,
-                "chartCenterY": 370.375,
-                "tableCenterY": 370.375,
+                "chartCenterY": 388.375,
+                "tableCenterY": 388.375,
                 "barLeft": 1532,
                 "barRight": 1628,
                 "expectedBarLeft": 1532,
@@ -10628,8 +10923,8 @@
               {
                 "id": "t482",
                 "row": 488,
-                "chartCenterY": 394.375,
-                "tableCenterY": 394.375,
+                "chartCenterY": 412.375,
+                "tableCenterY": 412.375,
                 "barLeft": 524,
                 "barRight": 596,
                 "expectedBarLeft": 524,
@@ -10638,8 +10933,8 @@
               {
                 "id": "t483",
                 "row": 489,
-                "chartCenterY": 418.375,
-                "tableCenterY": 418.375,
+                "chartCenterY": 436.375,
+                "tableCenterY": 436.375,
                 "barLeft": 572,
                 "barRight": 740,
                 "expectedBarLeft": 572,
@@ -10648,8 +10943,8 @@
               {
                 "id": "t484",
                 "row": 490,
-                "chartCenterY": 442.375,
-                "tableCenterY": 442.375,
+                "chartCenterY": 460.375,
+                "tableCenterY": 460.375,
                 "barLeft": 164,
                 "barRight": 188,
                 "expectedBarLeft": 164,
@@ -10658,8 +10953,8 @@
               {
                 "id": "t485",
                 "row": 491,
-                "chartCenterY": 466.375,
-                "tableCenterY": 466.375,
+                "chartCenterY": 484.375,
+                "tableCenterY": 484.375,
                 "barLeft": 1028,
                 "barRight": 1124,
                 "expectedBarLeft": 1028,
@@ -10668,8 +10963,8 @@
               {
                 "id": "t486",
                 "row": 492,
-                "chartCenterY": 490.375,
-                "tableCenterY": 490.375,
+                "chartCenterY": 508.375,
+                "tableCenterY": 508.375,
                 "barLeft": 1388,
                 "barRight": 1436,
                 "expectedBarLeft": 1388,
@@ -10678,8 +10973,8 @@
               {
                 "id": "t487",
                 "row": 493,
-                "chartCenterY": 514.375,
-                "tableCenterY": 514.375,
+                "chartCenterY": 532.375,
+                "tableCenterY": 532.375,
                 "barLeft": 572,
                 "barRight": 884,
                 "expectedBarLeft": 572,
@@ -10688,8 +10983,8 @@
               {
                 "id": "t488",
                 "row": 494,
-                "chartCenterY": 538.375,
-                "tableCenterY": 538.375,
+                "chartCenterY": 556.375,
+                "tableCenterY": 556.375,
                 "barLeft": 1556,
                 "barRight": 1604,
                 "expectedBarLeft": 1556,
@@ -10698,8 +10993,8 @@
               {
                 "id": "t489",
                 "row": 495,
-                "chartCenterY": 562.375,
-                "tableCenterY": 562.375,
+                "chartCenterY": 580.375,
+                "tableCenterY": 580.375,
                 "barLeft": 1748,
                 "barRight": 1892,
                 "expectedBarLeft": 1748,
@@ -10708,8 +11003,8 @@
               {
                 "id": "t490",
                 "row": 496,
-                "chartCenterY": 586.375,
-                "tableCenterY": 586.375,
+                "chartCenterY": 604.375,
+                "tableCenterY": 604.375,
                 "barLeft": 1196,
                 "barRight": 1460,
                 "expectedBarLeft": 1196,
@@ -10718,8 +11013,8 @@
               {
                 "id": "t491",
                 "row": 497,
-                "chartCenterY": 610.375,
-                "tableCenterY": 610.375,
+                "chartCenterY": 628.375,
+                "tableCenterY": 628.375,
                 "barLeft": 1508,
                 "barRight": 1628,
                 "expectedBarLeft": 1508,
@@ -10728,17 +11023,37 @@
               {
                 "id": "t492",
                 "row": 498,
-                "chartCenterY": 634.375,
-                "tableCenterY": 634.375,
+                "chartCenterY": 652.375,
+                "tableCenterY": 652.375,
                 "barLeft": 428,
                 "barRight": 692,
                 "expectedBarLeft": 428,
                 "expectedBarRight": 692
+              },
+              {
+                "id": "t493",
+                "row": 499,
+                "chartCenterY": 676.375,
+                "tableCenterY": 676.375,
+                "barLeft": 1508,
+                "barRight": 1556,
+                "expectedBarLeft": 1508,
+                "expectedBarRight": 1556
+              },
+              {
+                "id": "t494",
+                "row": 500,
+                "chartCenterY": 700.375,
+                "tableCenterY": 700.375,
+                "barLeft": null,
+                "barRight": null,
+                "expectedBarLeft": null,
+                "expectedBarRight": null
               }
             ],
             "axisCoverage": {
               "top": 149.375,
-              "bottom": 526.375,
+              "bottom": 596.375,
               "left": 956,
               "right": 1004
             },
@@ -10754,7 +11069,7 @@
             "hitTest": {
               "id": "t480",
               "row": 486,
-              "clientY": 346.375,
+              "clientY": 364.375,
               "expectedContentY": 11676,
               "actualContentY": 11676
             }
@@ -10764,6 +11079,11 @@
             "maxAbsRowDeltaPx": 0,
             "maxAbsBarXDeltaPx": 0,
             "rowDeltas": [
+              {
+                "id": "t467",
+                "row": 472,
+                "deltaPx": 0
+              },
               {
                 "id": "t468",
                 "row": 473,
@@ -10892,6 +11212,16 @@
               {
                 "id": "t492",
                 "row": 498,
+                "deltaPx": 0
+              },
+              {
+                "id": "t493",
+                "row": 499,
+                "deltaPx": 0
+              },
+              {
+                "id": "t494",
+                "row": 500,
                 "deltaPx": 0
               }
             ],
@@ -10913,7 +11243,7 @@
       ],
       "stableReadBudgetFrames": 12,
       "coverage": {
-        "maxScrollTop": 11479,
+        "maxScrollTop": 11461,
         "maxScrollLeft": 5119,
         "horizontalCovered": true,
         "verticalCovered": true,
@@ -10924,7 +11254,7 @@
       "migration": {
         "observed": true,
         "deltaWidth": -256,
-        "deltaHeight": -210,
+        "deltaHeight": -175,
         "mechanisms": []
       },
       "summary": {
@@ -10935,7 +11265,7 @@
         "maxAbsBarXDeltaPx": 0,
         "mechanisms": [],
         "coverage": {
-          "maxScrollTop": 11479,
+          "maxScrollTop": 11461,
           "maxScrollLeft": 5119,
           "horizontalCovered": true,
           "verticalCovered": true,

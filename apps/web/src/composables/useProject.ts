@@ -23,6 +23,7 @@ import {
   createScheduleCalendar,
   createSession,
   noticeAfterDispatch,
+  previewDocumentFor,
   redoSession,
   restoreSession,
   undoSession,
@@ -109,6 +110,17 @@ export interface UseProject {
   /** 拖动期设锚点（替换式：会话里最后一次拖动才是用户意图）。 */
   setAnchors: (anchors: readonly SessionAnchor[]) => void;
   clearAnchors: () => void;
+  /**
+   * 拖动期设**未提交文档副本**的 `patch`（裁决 P-45；`null` = 清掉预览）。
+   *
+   * 它承载**工期**那一半（锚点只承载位置）：拖动期喂给 `compute`，于是**下游**也所见即所提交。
+   * **不进命令通道、不进撤销栈、不落盘**——任何一次真的落库（`commit` 的 `changed`）
+   * 都会把它清掉（"预览不得比它描述的事实活得更久"，与 P-30 的提示口径同源）。
+   * `patch` 一律取自 `GestureUpdate.dragOutcome`，应用层**不得**自己推第二份"这次拖动改了几天"。
+   *
+   * 单一入口（不是一对 set/clear）：少一条"忘了清"的路径。
+   */
+  setPreviewPatch: (next: { readonly taskId: string; readonly patch: Record<string, unknown> } | null) => void;
   ingestDocument: (document: ProjectDocument) => DispatchResult;
   undo: () => DispatchResult;
   redo: () => DispatchResult;
@@ -139,11 +151,35 @@ export function useProject(initial?: ProjectDocument): UseProject {
   const lastFailure = ref<{ code: string; message: string } | null>(null);
   const notice = ref<StatusNotice | null>(null);
   const anchors = shallowRef<readonly SessionAnchor[]>([]);
+  const previewPatch = shallowRef<{ readonly taskId: string; readonly patch: Record<string, unknown> } | null>(null);
 
+  /**
+   * **日历只由已提交文档派生**（不由副本）：`createScheduleCalendar` 扫全表的日期与工期总和来定
+   * `baseDay` / `horizonDays`（引擎侧口径），而 `baseDay` 决定**序号 ↔ 日期的映射**——
+   * 让一份每帧都在变的副本参与，会把"拖动期用锚点、松手后落库"的既有语义也一起改掉
+   * （拖动往左越过最早日期时，映射会当场整体平移）。副本只喂给 `compute`：
+   * 它读的是**任务字段**，与日历容量无关。
+   */
   const calendar = computed<Calendar>(() => markRaw(createScheduleCalendar(documentRef.value)));
+
+  /** 拖动期的未提交副本（`null` = 没有预览）。 */
+  const previewDocument = computed<ProjectDocument | null>(() => {
+    const pending = previewPatch.value;
+    if (pending === null) return null;
+    return previewDocumentFor({
+      document: documentRef.value,
+      taskId: pending.taskId,
+      patch: pending.patch,
+    });
+  });
+
+  /** 喂给 `compute` 的文档：有预览用副本，否则用已提交文档。 */
+  const effectiveDocument = computed<ProjectDocument>(() => previewDocument.value ?? documentRef.value);
+
   // 锚点是 `compute` 的**第三个入参**（唯一可选入参）：拖拽期间的跟手位置由此进入排程，文档一字不改。
+  // 副本是**第一个入参**的替身（P-45）：它承载工期那一半，于是拖动期的**下游**也所见即所提交。
   const scheduleResult = computed<ScheduleResult>(() =>
-    compute(documentRef.value, calendar.value, anchors.value),
+    compute(effectiveDocument.value, calendar.value, anchors.value),
   );
 
   function commit(result: ReturnType<typeof applyToSession>, touchedTaskIds: readonly string[]): DispatchResult {
@@ -167,6 +203,14 @@ export function useProject(initial?: ProjectDocument): UseProject {
     if (result.changed) {
       sessionRef.value = markRaw(result.session);
       documentRef.value = markRaw(result.session.document);
+      /**
+       * **一落库就作废预览**（P-45 的口径，与 P-30 的提示规则同源："预览不得比它描述的事实活得更久"）。
+       *
+       * 放在 `commit()` 里而不是手势那一侧：于是**所有**落库路径都覆盖到了
+       * （拖动松手、行内编辑、导入、撤销、重做、重置）。松手那一帧的顺序也由此天然正确——
+       * 命令先落地、预览后清，中间**不会**出现"锚点已清、工期还是旧的"那一帧回弹。
+       */
+      previewPatch.value = null;
     }
     return outcome;
   }
@@ -198,6 +242,7 @@ export function useProject(initial?: ProjectDocument): UseProject {
     lastFailure.value = null;
     notice.value = null;
     anchors.value = [];
+    previewPatch.value = null;
   }
 
   return {
@@ -233,6 +278,9 @@ export function useProject(initial?: ProjectDocument): UseProject {
     clearAnchors: () => {
       anchors.value = [];
     },
+    setPreviewPatch: (next) => {
+      previewPatch.value = next;
+    },
     ingestDocument: (document: ProjectDocument) =>
       commit(applyToSession(sessionRef.value, { kind: 'document.replace', document }), []),
     undo: () => commit(undoSession(sessionRef.value), []),
@@ -247,6 +295,7 @@ export function useProject(initial?: ProjectDocument): UseProject {
       notice.value = null;
       // 锚点不属于文档：重置时一并清空，避免"锚在一个已经不存在的任务上"。
       anchors.value = [];
+      previewPatch.value = null;
     },
   };
 }

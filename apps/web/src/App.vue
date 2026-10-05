@@ -108,6 +108,11 @@ const gesture = useGesture({
   dispatchLink: (link: DocumentLink) => project.dispatch({ kind: 'link.insert', link }),
   setAnchors: project.setAnchors,
   clearAnchors: project.clearAnchors,
+  /**
+   * P-45：拖动期的**未提交文档副本**。`patch` 的唯一来源是内核的 `GestureUpdate.dragOutcome`
+   * （本文件不推第二份"这次拖动改了几天"），落库仍然只有下面 `dispatch` 那条路。
+   */
+  setPreviewPatch: project.setPreviewPatch,
   notify: (commit) => {
     if (commit.kind === 'rejected') {
       // 两种预检拒绝的呈现不同：成环**高亮路径**；重复边**只提示**（它不改变图，高亮会误导）。
@@ -766,6 +771,19 @@ onMounted(() => {
       anchors: () => anchors.value.length,
       startDateOf: (taskId: string) =>
         document.value.tasks.find((task) => task.id === taskId)?.startDate ?? null,
+      /** P-45：`resize-duration` 轮的位移基准（工期，不是 `startDate`）。 */
+      durationOf: (taskId: string) =>
+        document.value.tasks.find((task) => task.id === taskId)?.durationDays ?? null,
+      /**
+       * P-45 的"预览不落库"判据：**已提交**修订号（命令/事务才前进）。
+       *
+       * 读 `session.revision` 而不是"文档对象是否变了"——副本每帧都是新对象，
+       * 而修订号只有真的落库才动（ADR 0003）。两者一个说"喂给 compute 的是什么"，
+       * 一个说"文档事实是什么"，判据要的正是这个区分。
+       */
+      revision: () => revision.value,
+      /** P-45：自证抓取点真的被判成了 `resize-duration`（否则探针会退化成整体移动）。 */
+      gestureMode: () => (gesture.state.value.kind === 'dragging' ? gesture.state.value.mode : null),
       };
 
       // G5 批次 D：两栏行对齐的**只读**采数入口（判读在 `render-core` 的 `diagnoseRowAlignment`）。

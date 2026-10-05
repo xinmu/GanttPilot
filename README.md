@@ -147,6 +147,8 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [存储占用证据](apps/web/evidence/persist-storage-2000-chrome154.md) | **2,000 任务**的存储占用与写入耗时（记录制）：由 `node scripts/measure-render.mjs --storage-metrics` 采集——整份文档体积/序列化耗时、增量记录体积、单条 `put` p50/p95、`estimate()` 用量 |
 | [`scroll` 敏感量盘点](apps/web/evidence/scroll-consumers-audit.md) | G6 开工前置的**只读**盘点（P-25/P-32）：13 处"消费者自己换算坐标"的位置逐条给出基准，结论"加法点恰好 1 个"，不变量落 [render-core 规范](packages/render-core/SPEC.md) §九 |
 | [拖动计时证据](apps/web/evidence/drag-timing-chrome152.md) | **打包产物**的拖动实测（记录制，不进 `pnpm gate`）：由 `node scripts/measure-render.mjs --drag` 采集——帧间隔 p50/p95、主线程同步工作量、松手 → 重算 + 冲突标记、下游跟随的 DOM 证据，以及**位移判据**（松手后 `startDate` = 按下时的开始序号 + 天数） |
+| [拖动计时证据（两种语义）](apps/web/evidence/drag-timing-chrome154.md) | **P-45 起的口径**：`--drag` 扩为**两种语义 × 两个滚动状态**（`move` / `resize-duration`）——改工期那一轮另加**抓取点自证 / 工期位移 / 下游跟随 / 预览不落库**四条判据 |
+| [拖动计时证据（2,000 任务）](apps/web/evidence/drag-timing-dense-2000-chrome154.md) | P-45 的**规模对照**（`--drag-dataset=dense-2000`）：预览副本是 O(n) 拷贝 ⇒ 帧预算必须换规模再量一次 |
 | [导入记录制证据](apps/web/evidence/import-cyclic-sample-chrome152.md) | **成环样本**的导入实测（记录制）：由 `node scripts/make-sample.mjs` + `node scripts/measure-render.mjs --import=<xlsx>` 采集——6 任务 / 5 依赖 / 恰 1 条 `XLSX_CYCLE_EDGE_DROPPED`（带成环路径）/ 无"不可排程" |
 | G4-S 准入定标实验 | `S4-a`…`S4-d` 判定、ADR §11 回填值、浏览器首屏与滚动实测、P-8 遗留 1/2 的 WPS 实测。**探针目录已随 G4 落地删除**（[裁决 P-18](docs/00-baseline/裁决记录.md)），复现入口见 [render-core 规范](packages/render-core/SPEC.md) 与 [`scripts/measure-render.mjs`](scripts/measure-render.mjs) |
 | [渲染计时证据](apps/web/evidence/render-timing-chrome152.md) | **打包产物**的首屏与 10× 滚动实测（记录制，不进 `pnpm gate`）：由 `node scripts/measure-render.mjs` 采集，环境与数字一起登记 |
@@ -281,11 +283,14 @@ pnpm preview    # 起一个本地静态服务器（Vite preview），按它打�
 - **G5 的界面边界与语义**：拖拽三语义是**改开始 / 改工期 / 整体移动**（条左端 / 右端 / 中部），
   `Esc` 取消；**拖动必须命中条体**（包围盒 ± 2 px，同一行的空白处按下不产生手势）；
   候选序号是**抓取点相对**的（按一下不动 ⇒ 文档一字不改、也不压撤销栈）；
-  **改工期拖动以预览轮廓表示结果**（会话锚点只有"开始序号"，因此拖动期条体本体不动、松手才生效）；
-  **拖动期文档不写**——位置经**会话内锚点**进 `compute`，
-  因此**锚点不落盘、重开后不保留**（[ADR 0004](docs/02-adr/0004-排程契约.md) §2 的既有口径）；
+  **改工期拖动以结果几何表示**（[P-24](docs/00-baseline/裁决R24-26.md)：条体本体即所见即所提交；
+  [P-45](docs/00-baseline/裁决R44.md)：**下游也与拖动同步**——工期那一半经应用层的**未提交文档副本**进 `compute`，
+  左表的「工期 / 完成日」仍是**文档值**、松手后更新）；
+  **拖动期文档不写**——位置经**会话内锚点**、工期经**未提交副本**进 `compute`，
+  两者都不落盘 ⇒ **重开后都不保留**（[ADR 0004](docs/02-adr/0004-排程契约.md) §2 的既有口径）；
   `吸附`（默认，夹到入边约束）与`允许`（原样放行、早于约束时标红）两种策略可切换；
   **拖动指针移出图表窗格时不做边缘自动滚动**（v0.1 不做）；
+  **拖动期只有图表跟随**（左表显示文档事实）；
   **诊断清单是"受控收口"**（三层拼接 + 计数 + 可展开列表——协议层为导入时的快照），列映射向导的完整形态仍待后续；
   **导出现已可用**（G7，见上文「导出」一节：SVG / PNG / PPTX 模板 A）；
   **同侧多线避让不做**（实测 70.7% 的边其竖向段穿过条形，是"日后另立 ADR"的量化触发依据）；

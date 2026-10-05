@@ -56,6 +56,14 @@
  * `resize-duration` 拖动期条体**本体不动**（会话锚点只有 `startOrdinal`，ADR 0004 §2 的形状不扩），
  * 用户看到的是 {@link dragPreviewFor} 给出的**预览轮廓**——预览与松手提交共用
  * {@link resolveDragOutcome}，所以"看到的"与"松手得到的"不可能分叉。
+ *
+ * ## 第四处：拖动期的**下游**也所见即所提交（裁决 P-45）
+ *
+ * 锚点只承载**位置**，所以 `resize-duration` 拖动期 `compute` 用的仍是文档里的**旧工期**：
+ * 条体本体（§14）与轮廓都对，但**下游要等松手才一次到位**。工期是**文档字段**（不是锚点字段），
+ * 因此唯一的零契约变更修法是"喂 `compute` 一份改了这一个字段的**未提交副本**"
+ * （{@link previewDocumentFor}，`patch` 取自 {@link GestureUpdate.dragOutcome}）。
+ * **契约面一字未改**：`SessionAnchor` 仍是 `{taskId, startOrdinal}`，副本不进命令通道、不进撤销栈、不落盘。
  */
 
 import {
@@ -249,6 +257,19 @@ export interface GestureUpdate {
   readonly cyclePath: readonly string[];
   /** 建线预览（`linking` 时非空）。 */
   readonly preview: LinkPreview | null;
+  /**
+   * **拖动结果**（凡由 {@link updateForDrag} 产出的更新都非空——`dragging` 与松手的 `released` 帧都带上，
+   * 其余状态一律 `null`；裁决 P-45）。
+   *
+   * 为什么它必须跟着 `GestureUpdate` 一起出来：拖动期的"所见"有两半——
+   * 几何那半由 {@link dragPreviewFor} / {@link drawnBarForRow} 画，
+   * **工期那半（下游跟随）只能经文档进 `compute`**。把结果本身放进产出，
+   * 应用层就能用**同一个** `patch` 去造未提交副本（{@link previewDocumentFor}），
+   * 而不是自己再推一遍"这次拖动改了几天"——那样"预览"与"松手提交"会分叉。
+   *
+   * `patch === null` = 零位移（按下不动）：没有要预览的东西，副本也不必造。
+   */
+  readonly dragOutcome: DragOutcome | null;
 }
 
 /** 空闲手势的产出。 */
@@ -263,6 +284,7 @@ export function idleGesture(): GestureUpdate {
     edges: [],
     cyclePath: [],
     preview: null,
+    dragOutcome: null,
   };
 }
 
@@ -869,6 +891,7 @@ function updateForDrag(
       edges,
       cyclePath: [],
       preview: null,
+      dragOutcome: outcome,
     };
   }
 
@@ -883,6 +906,7 @@ function updateForDrag(
     edges,
     cyclePath: [],
     preview: null,
+    dragOutcome: outcome,
   };
 }
 
@@ -1034,6 +1058,47 @@ export function drawnBarForRow(row: RowBox, preview: DragPreview | null): DrawnB
   };
 }
 
+/**
+ * 拖动期的**未提交文档副本**（裁决 P-45）：把"松手才会提交的 patch"提前应用到一份副本上。
+ *
+ * **它解决的是什么**：会话锚点只承载**位置**（ADR 0004 §2 的 `{taskId, startOrdinal}` 形状不扩），
+ * 因此 `resize-duration` 拖动期 `compute` 看到的仍是**文档里的旧工期**——条体本体已由
+ * {@link drawnBarForRow} 画成结果几何（ADR 0008 §14），但**下游**要等松手才一次到位。
+ * 想让下游也"所见即所提交"，只能让 `compute` 看见**新工期**；而工期是文档字段
+ * （不是锚点字段）⇒ 唯一的零契约变更做法就是"喂它一份改了这一个字段的副本"。
+ *
+ * **为什么不是扩锚点形状**：锚点不落盘（[ADR 0009 §6](../../../docs/02-adr/0009-持久化契约.md)），
+ * 扩它没有跨会话收益；而 [ADR 0004 §2](../../../docs/02-adr/0004-排程契约.md) 已写明 v0.5 会随
+ * `constraints`/`manual` **重做锚点解析** ⇒ 现在扩形状可能是一次注定被覆盖的契约变更
+ * （与 ADR 0004 §1 拒绝把 `constraints` 写进签名的理由同族）。
+ *
+ * **口径（三条，缺一条就会分叉）**：
+ * 1. `patch` **必须是** {@link resolveDragOutcome} 的产出（= 松手命令的同一个 `patch`）——
+ *    调用方从 {@link GestureUpdate.dragOutcome} 取，**不得自己再推一遍**；
+ * 2. 副本只用于 `compute` / `buildView`；**不得进命令通道、不得进撤销栈、不得落盘**。
+ *    落库仍然只有一条路：松手时 `task.update` 经命令层（ADR 0003）；
+ * 3. **只替换那一个任务对象**，其余任务与数组元素**按引用共享**（结构性共享，不深拷贝）——
+ *    1,000 任务的副本因此是 O(n) 的指针拷贝，不是 O(文档体积) 的克隆。
+ *
+ * 返回 `null` = **没有预览**（`patch` 为 `null`，即零位移；或该 id 不在文档里）——
+ * 调用方据此回落到已提交文档，而不是造一份"内容相同、身份不同"的副本。
+ */
+export function previewDocumentFor(args: {
+  readonly document: ProjectDocument;
+  readonly taskId: string;
+  readonly patch: Record<string, unknown> | null;
+}): ProjectDocument | null {
+  if (args.patch === null) return null;
+  const index = args.document.tasks.findIndex((task) => task.id === args.taskId);
+  if (index < 0) return null;
+  return {
+    ...args.document,
+    tasks: args.document.tasks.map((task, at) =>
+      at === index ? { ...task, ...(args.patch as Partial<ProjectDocument['tasks'][number]>) } : task,
+    ),
+  };
+}
+
 function updateForLink(
   state: Extract<GestureState, { kind: 'linking' }>,
   args: BeginGestureArgs,
@@ -1063,6 +1128,7 @@ function updateForLink(
       edges: [...edges].sort((left, right) => left - right),
       cyclePath: [],
       preview: null,
+      dragOutcome: null,
     };
   }
 
@@ -1099,6 +1165,7 @@ function updateForLink(
       edges: [...edges].sort((left, right) => left - right),
       cyclePath: [],
       preview: null,
+      dragOutcome: null,
     };
   }
 
@@ -1130,6 +1197,7 @@ function updateForLink(
       edges: [...edges].sort((left, right) => left - right),
       cyclePath: cycle.cyclic ? cycle.path : [],
       preview,
+      dragOutcome: null,
     };
   }
 
@@ -1145,6 +1213,7 @@ function updateForLink(
       edges: [...edges].sort((left, right) => left - right),
       cyclePath: cycle.path,
       preview,
+      dragOutcome: null,
     };
   }
 
@@ -1158,6 +1227,7 @@ function updateForLink(
     edges: [...edges].sort((left, right) => left - right),
     cyclePath: [],
     preview,
+    dragOutcome: null,
   };
 }
 

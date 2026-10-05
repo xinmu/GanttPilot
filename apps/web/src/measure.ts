@@ -586,6 +586,8 @@ export function exposeMeasurement(args: {
       readonly frames?: number;
       readonly scrollTop?: number;
       readonly scrollLeft?: number;
+      /** 采样的语义（P-45；缺省 = `move`）。 */
+      readonly mode?: string;
     }): Promise<DragMeasureResult> => {
       const spec = specOfDataset(options.dataset ?? PRIMARY_DATASET_KEY);
       const document = args.buildFixtureDocument(spec.key);
@@ -593,6 +595,7 @@ export function exposeMeasurement(args: {
       return runDragMeasurement({
         host: dragHost,
         fixtureSpec: spec,
+        mode: options.mode === 'resize-duration' ? 'resize-duration' : 'move',
         dayDelta: Number.isFinite(options.dayDelta) ? Math.trunc(options.dayDelta ?? 3) : 3,
         frames:
           Number.isFinite(options.frames) && (options.frames ?? 0) > 2
@@ -712,6 +715,25 @@ export function exposeMeasurement(args: {
 }
 // ---------------------------------------------------------------- G5：拖动测量（记录制，ADR 0008 §11）
 
+/**
+ * `resize-duration` 轮的抓取点：条右端**内** 4 px（裁决 P-45）。
+ *
+ * 为什么是 4 而不是 2：右端那一带有**两个**判定面，抓在哪一侧是两件事——
+ *
+ * | 面 | 区间（内容坐标） | 谁赢 |
+ * |---|---|---|
+ * | 连接点（建线） | `[xRight − CONNECT_INSET_PX, …]` = **`[xRight − 2, …]`** | **优先**（ADR 0008 §16.3） |
+ * | 端点判定区（改工期） | `[xRight − edgePx, xRight]` = `[xRight − 6, xRight]`（宽条） | 次之 |
+ *
+ * ⇒ 真正能起"改工期"的窗口是 `[xRight − 6, xRight − 2)`，取其中点 **4**。
+ * 取 2 会落进连接点、起的是**建线**手势（本轮实测：`按下后未进入拖动（实际 linking）`）——
+ * 所以判据另外用 `gestureMode` 自证真的判成了 `resize-duration`。
+ *
+ * 而"最后一个工作日格的中点"（= `move` 轮的抓法）离条右端有半个格子（日档 12 px），
+ * 落在 `move` 判定区里 ⇒ 量到的会是整体移动。
+ */
+const RESIZE_GRAB_INSET_PX = 4;
+
 /** 拖动测量的宿主：由 `App.vue` 提供的实时状态与真实指针入口。 */
 export interface DragMeasurementHost {
   /** 当前渲染的视图模型（含 `scrollTop` / `pxPerDay` / 行序），用于把任务换算成屏幕坐标。 */
@@ -748,6 +770,24 @@ export interface DragMeasurementHost {
   readonly anchors: () => number;
   /** 松手后落到文档里的 `startDate`（断言"命令真的落库了"）。 */
   readonly startDateOf: (taskId: string) => string | null;
+  /**
+   * 松手后落到文档里的**工期**（P-45：`resize-duration` 的位移判据是工期，不是 `startDate`）。
+   */
+  readonly durationOf: (taskId: string) => number | null;
+  /**
+   * 会话的**已提交修订号**（P-45 的"预览不落库"判据：拖动期它必须**一字不动**）。
+   *
+   * 它只随命令/事务前进（ADR 0003），因此"预览副本进 `compute`"与"文档被改"是两件
+   * 可区分的事——判据要的正是这个区分，而不是"看起来没变"。
+   */
+  readonly revision: () => number;
+  /**
+   * 手势内核**当前把这一帧判成了什么语义**（`move` / `resize-start` / `resize-duration`；非拖动为 `null`）。
+   *
+   * 记录制必须能自证"真的抓在右端"：否则"拖了但抓成了中部"会让 P-45 的采样
+   * 悄悄退化成整体移动（那种绿是**恒真式**）。
+   */
+  readonly gestureMode: () => string | null;
 }
 
 /** 拖动测量的结果（记录制：帧预算与松手耗时都不进 `pnpm gate`）。 */
@@ -780,6 +820,34 @@ export interface DragMeasureResult {
   readonly scrollLeft: number;
   /** 期望的松手后 `startDate`（= `isoOfOrdinal(anchorOrdinal + dayDelta)`）。 */
   readonly expectedStartAfter: string | null;
+  /** 本轮采样的语义：`move`（整体移动）或 `resize-duration`（改工期；P-45 的探针）。 */
+  readonly mode: 'move' | 'resize-duration';
+  /** 内核判定的语义（自证"抓对了地方"；`null` = 按下后没进拖动）。 */
+  readonly gestureMode: string | null;
+  /** 拖动前的工期（`resize-duration` 的位移基准）。 */
+  readonly durationBefore: number | null;
+  readonly durationAfter: number | null;
+  /** 期望的松手后工期（= `durationBefore + dayDelta`）。 */
+  readonly expectedDurationAfter: number | null;
+  /** 拖动前 / 拖动期 / 松手后的**已提交修订号**（P-45：拖动期必须相等）。 */
+  readonly revisionBefore: number;
+  readonly revisionDuringDrag: number;
+  readonly revisionAfterRelease: number;
+  /**
+   * **下游跟随的正面判据**（P-45，只在 `resize-duration` 轮有值）。
+   *
+   * 取一条**真正由被拖任务的有效完成日决定**的后继边（FS/FF/SF，且该边是它的**紧约束**），
+   * 记录它的开始序号在三个时刻的值：拖动前 / 拖动期（预览副本生效）/ 松手后（落库）。
+   * 判据 = `during === after`（预览 == 提交）**且** `after !== before`
+   *   （后者是**前提自证**：这条边真的会跟着动，否则"相等"是恒真式）。
+   */
+  readonly downstream: {
+    readonly taskId: string;
+    readonly linkType: string;
+    readonly before: number;
+    readonly during: number;
+    readonly after: number;
+  } | null;
   /** 批次 B 的记录制采样：手柄可见性、连接点起手、光标分类（ADR 0008 §16.2/§16.3）。 */
   readonly handles: {
     /** 渲染行组数（`data-task-id` 的 `<g>`）。 */
@@ -852,6 +920,9 @@ function dragScreenPoint(
  * - **松手耗时** = `mouseup` → 命令落库 + `compute` + 覆盖层清空 的墙钟；
  * - **位移判据（P-22 补上）**：松手后的文档 `startDate` 必须等于「拖动前的开始序号 + `dayDelta`
  *   个工作日」。旧证据只断言"非空"，因此"拖了但没有效位移"也会算通过（该恒真式已删除）。
+ * - **`mode = 'resize-duration'`**（P-45 的探针）：抓**条右端**改工期，位移判据换成
+ *   "松手后的 `durationDays` = 拖动前工期 + `dayDelta`"，并额外采**下游跟随**与**预览不落库**
+ *   两条这个模式独有的判据（见 {@link DragMeasureResult.downstream}）。
  */export async function runDragMeasurement(args: {
   readonly host: DragMeasurementHost;
   readonly fixtureSpec: FixtureSpec;
@@ -860,7 +931,10 @@ function dragScreenPoint(
   /** 先把窗格滚到这里再拖（P-25：R13/R14 都**只在滚动后**现形）。 */
   readonly scrollTop?: number;
   readonly scrollLeft?: number;
+  /** 采样的语义（默认整体移动；`resize-duration` 是 P-45 的探针）。 */
+  readonly mode?: 'move' | 'resize-duration';
 }): Promise<DragMeasureResult> {
+  const mode = args.mode ?? 'move';
   const errors: string[] = [];
   const pane = document.getElementById('chart-pane');
   if (pane === null) {
@@ -890,18 +964,48 @@ function dragScreenPoint(
     ]);
   }
 
-  const target = pickDragTarget(args.host);
-  if (target === null) {
-    return emptyDragResult(args, ['渲染窗口内没有可拖动的叶子任务']);
+  /**
+   * 目标行：两种语义的过滤条件**不同**（这也是为什么它不是一个函数）。
+   *
+   * - `move`：必须**无有效入边约束**——`snap` 会把候选夹到约束之下，否则"拖 N 天"这条
+   *   位移判据对有前置的行**必然**报错（P-25 踩过：判据选错了样本，不是应用错了）；
+   * - `resize-duration`：约束不影响它（该模式的候选不做吸附），但必须有一条**由它的完成日决定**
+   *   的后继边——否则"下游跟随"没有可判定的载体。
+   */
+  const picked = mode === 'move' ? pickDragTarget(args.host) : pickResizeTarget(args.host);
+  if (picked === null) {
+    return emptyDragResult(args, [
+      mode === 'move' ? '渲染窗口内没有可拖动的叶子任务' : '渲染窗口内没有"带有效后继边的叶子任务"（下游跟随判据的载体）',
+    ]);
   }
+  const target = picked;
 
   // **绝对基准**：拖动前该行的开始序号（拖动期视图会带着锚点重算，不能事后取）。
-  const anchorOrdinal = args.host.view()?.rows.find((item) => item.id === target.taskId)?.es ?? null;
+  const rowBefore = args.host.view()?.rows.find((item) => item.id === target.taskId) ?? null;
+  const anchorOrdinal = rowBefore?.es ?? null;
   if (anchorOrdinal === null) {
     return emptyDragResult(args, ['无法取到目标任务在拖动前的开始序号（位移判据需要它作基准）']);
   }
 
-  const start = dragScreenPoint(args.host, pane, target.taskId, anchorOrdinal, 0);
+  const durationBefore = args.host.durationOf(target.taskId);
+  /**
+   * 指针的序号基准：
+   * - `move`：开始序号本身（抓的是第一个工作日格的中点）；
+   * - `resize-duration`：**最后一个工作日**的序号 `origin + D − 1`（抓的是条右端）。
+   */
+  const pointerBaseOrdinal = mode === 'move' ? anchorOrdinal : anchorOrdinal + Math.max(1, durationBefore ?? 1) - 1;
+
+  /**
+   * 按下点：`move` 取第一个工作日格的中点；`resize-duration` 取**条右端内 2 px**
+   * （必须落在 `edgeR = [xRight − edgePx, xRight]` 里——宽条 `edgePx = 6`）。
+   * 右端由**视图自己的** `xRight` 给，不在这里重算几何。
+   */
+  const start =
+    mode === 'move'
+      ? dragScreenPoint(args.host, pane, target.taskId, pointerBaseOrdinal, 0)
+      : rowBefore === null
+        ? null
+        : contentPointToScreen(pane, args.host, rowBefore.xRight - RESIZE_GRAB_INSET_PX, rowBefore.y);
   if (start === null) {
     return emptyDragResult(args, ['无法把目标任务换算成屏幕坐标']);
   }
@@ -924,17 +1028,29 @@ function dragScreenPoint(
   let observedGeometryChanges = 0;
   let previousGeometry = collectBarGeometry();
 
+  const revisionBefore = args.host.revision();
   dispatch('down', start);
   await nextTick();
+  const gestureModeOnDown = args.host.gestureMode();
   if (args.host.gestureKind() !== 'dragging') {
     errors.push(`按下后未进入拖动（实际 ${args.host.gestureKind()}）`);
+  }
+  /**
+   * **自证抓对了地方**：`resize-duration` 轮里按下点必须真的被判成"改工期"。
+   * 否则探针会悄悄退化成整体移动，而"下游跟随"在这种退化下**换个理由**也能成立——那样的绿是恒真式。
+   */
+  if (mode === 'resize-duration' && gestureModeOnDown !== 'resize-duration') {
+    errors.push(`按下点未判成 resize-duration（实际 ${String(gestureModeOnDown)}）——条右端的抓取点没落在 edgeR 里`);
+  }
+  if (mode === 'move' && gestureModeOnDown !== 'move') {
+    errors.push(`按下点未判成 move（实际 ${String(gestureModeOnDown)}）`);
   }
 
   let lastFrameAt = performance.now();
   const frames = args.frames;
   for (let index = 1; index <= frames; index += 1) {
     const offset = Math.round((args.dayDelta * index) / frames);
-    const point = dragScreenPoint(args.host, pane, target.taskId, anchorOrdinal, offset) ?? start;    const started = performance.now();
+    const point = dragScreenPoint(args.host, pane, target.taskId, pointerBaseOrdinal, offset) ?? start;    const started = performance.now();
     dispatch('move', point);
     await nextTick();
     mainThreadMs.push(round(performance.now() - started));
@@ -954,20 +1070,79 @@ function dragScreenPoint(
     previousGeometry = geometry;
   }
 
+  /**
+   * **拖动期最后一眼**（P-45）：两条判据都在"命令落地之前"取——
+   * ① 已提交修订号（预览副本**不得**让它前进）；② 后继行的开始序号（它**应当**已经跟着预览走了）。
+   */
+  const revisionDuringDrag = args.host.revision();
+  const downstreamDuring = target.successorId === undefined ? null : esOf(args.host, target.successorId);
+
   const releaseStart = performance.now();
-  const endPoint = dragScreenPoint(args.host, pane, target.taskId, anchorOrdinal, args.dayDelta) ?? start;  dispatch('up', endPoint);
+  const endPoint = dragScreenPoint(args.host, pane, target.taskId, pointerBaseOrdinal, args.dayDelta) ?? start;  dispatch('up', endPoint);
   await nextTick();
   const releaseMs = round(performance.now() - releaseStart);
+  const revisionAfterRelease = args.host.revision();
 
-  // **位移判据**（P-22 补上）：松手后的 `startDate` 必须等于"拖动前的开始序号 + dayDelta"。
+  // **位移判据**（P-22 补上）：`move` 看开始日、`resize-duration` 看工期。
   // 旧证据只断言"非空"，于是 `2026-10-05`（与拖前相同的项目起点）也被算作通过 —— 那是恒真式。
   const documentStartAfter = args.host.startDateOf(target.taskId);
+  const durationAfter = args.host.durationOf(target.taskId);
+  const expectedDurationAfter = durationBefore === null ? null : durationBefore + args.dayDelta;
   const expectedStartAfter = args.host.calendar().isoOfOrdinal(anchorOrdinal + args.dayDelta) ?? null;
-  if (documentStartAfter !== expectedStartAfter) {
+  if (mode === 'move') {
+    if (documentStartAfter !== expectedStartAfter) {
+      errors.push(
+        `拖动位移与文档不符：startDate = ${String(documentStartAfter)}，期望 ${String(expectedStartAfter)}` +
+          `（拖动前开始序号 ${String(anchorOrdinal)} + ${String(args.dayDelta)} 个工作日）`,
+      );
+    }
+  } else if (durationAfter !== expectedDurationAfter) {
     errors.push(
-      `拖动位移与文档不符：startDate = ${String(documentStartAfter)}，期望 ${String(expectedStartAfter)}` +
-        `（拖动前开始序号 ${String(anchorOrdinal)} + ${String(args.dayDelta)} 个工作日）`,
+      `改工期的位移与文档不符：durationDays = ${String(durationAfter)}，期望 ${String(expectedDurationAfter)}` +
+        `（拖动前工期 ${String(durationBefore)} + ${String(args.dayDelta)} 个工作日）`,
     );
+  }
+
+  /**
+   * **P-45 的两条判据**（只在 `resize-duration` 轮）。
+   *
+   * ① **预览不落库**：拖动期已提交修订号必须与拖动前**逐位相等**——预览副本只进 `compute`，
+   *    落库仍然只有"松手 → `task.update` 经命令层"这一条路（ADR 0003）；
+   * ② **下游所见即所提交**：后继行的开始序号在"拖动期（预览生效）"与"松手后（已落库）"必须相等，
+   *    且**与拖动前不同**（前提自证：这条边真的会跟着动；否则相等是恒真式）。
+   */
+  const downstream =
+    target.successorId === undefined
+      ? null
+      : {
+          taskId: target.successorId,
+          linkType: target.linkType ?? '',
+          before: target.successorEsBefore ?? -1,
+          during: downstreamDuring ?? -1,
+          after: esOf(args.host, target.successorId) ?? -1,
+        };
+  if (mode === 'resize-duration') {
+    if (revisionDuringDrag !== revisionBefore) {
+      errors.push(
+        `拖动期文档被写了：revision ${String(revisionBefore)} → ${String(revisionDuringDrag)}（预览副本必须**不落库**）`,
+      );
+    }
+    if (revisionAfterRelease === revisionBefore) {
+      errors.push(`松手后 revision 未前进（${String(revisionAfterRelease)}）——命令没有落库`);
+    }
+    if (downstream === null) {
+      errors.push('没有采到下游后继行（判据没有载体）');
+    } else if (downstream.before === downstream.after) {
+      errors.push(
+        `下游跟随的前提不成立：后继 \`${downstream.taskId}\` 在拖动前后开始序号都是 ${String(downstream.after)}` +
+          `（这条 ${downstream.linkType} 边不是它的紧约束 ⇒ 该样本判不了"预览 == 提交"）`,
+      );
+    } else if (downstream.during !== downstream.after) {
+      errors.push(
+        `下游未跟随预览：后继 \`${downstream.taskId}\` 拖动期 es = ${String(downstream.during)}，` +
+          `松手后 = ${String(downstream.after)}（拖动期的下游仍按文档里的**旧工期**算）`,
+      );
+    }
   }
 
   let longTasks = 0;  if (typeof PerformanceObserver !== 'undefined') {
@@ -1044,10 +1219,32 @@ function dragScreenPoint(
     documentStartAfter,
     anchorOrdinal,
     expectedStartAfter,
+    mode,
+    gestureMode: gestureModeOnDown,
+    durationBefore,
+    durationAfter,
+    expectedDurationAfter,
+    revisionBefore,
+    revisionDuringDrag,
+    revisionAfterRelease,
+    downstream,
     scrollTop: pane.scrollTop,
     scrollLeft: pane.scrollLeft,
     handles,
   };}
+
+/**
+ * 记录制挑出来的目标行（`move` 与 `resize-duration` 共用这个形状）。
+ *
+ * `successor*` 只在 `resize-duration` 轮有值：那是"下游跟随"判据的载体
+ * （一条**由被拖任务的完成日决定**的后继边 + 它拖动前的开始序号）。
+ */
+interface DragTargetPick {
+  readonly taskId: string;
+  readonly successorId?: string;
+  readonly linkType?: string;
+  readonly successorEsBefore?: number;
+}
 
 /**
  * 挑一个可拖的目标行：渲染窗口内、**非里程碑、非汇总、且无有效入边约束**。
@@ -1056,7 +1253,7 @@ function dragScreenPoint(
  * 于是"拖 3 个工作日"这条位移判据对有前置约束的行**必然**报错——那是判据自己选错了样本，
  * 不是应用错了。`gesture.spec.ts` 的 `pickLeaf` 一直是这么过滤的，记录制这一侧必须同口径。
  */
-function pickDragTarget(host: DragMeasurementHost): { readonly taskId: string } | null {
+function pickDragTarget(host: DragMeasurementHost): DragTargetPick | null {
   const view = host.view();
   const document = host.document();
   const schedule = host.schedule();
@@ -1075,6 +1272,106 @@ function pickDragTarget(host: DragMeasurementHost): { readonly taskId: string } 
     return { taskId: bounded.id };
   }
   return null;
+}
+
+/**
+ * 挑一个「带**有效**后继边的叶子行」——`resize-duration` 轮的样本（裁决 P-45）。
+ *
+ * 三条前提，缺一条"下游跟随"就判不了：
+ * 1. 目标行在渲染窗口内、非里程碑/非汇总（要抓得住条右端）；
+ * 2. 它有一条出边 **`FS`/`FF`**——只有这两类关系的下游边界**含被拖任务的完成日**
+ *    （`FS`：`es后 = ef前 + lag`；`FF`：`ef后 = ef前 + lag`）。
+ *    `SS`（只看开始日）与 `SF`（`ef后 = es前 + lag`，**根本不含完成日**）在"改工期"下
+ *    本来就不该动——拿它们当载体是判据自己错了（本轮实测踩到：SF 的 `before === after`）；
+ * 3. 该边是那个后继的**紧约束**（后继确实顶在这条边上）——否则后继被别的入边顶住，
+ *    `before === after`，"预览 == 提交"就退化成恒真式。边界式与
+ *    `entryConstraintFor`（= SCHEDULE.md §九 不变量 2）逐字同式。
+ */
+function pickResizeTarget(host: DragMeasurementHost): DragTargetPick | null {
+  const view = host.view();
+  const document = host.document();
+  const schedule = host.schedule();
+  if (view === null || schedule === null) return null;
+  const indexOfId = new Map<string, number>();
+  for (let index = 0; index < document.tasks.length; index += 1) {
+    const task = document.tasks[index];
+    if (task !== undefined) indexOfId.set(task.id, index);
+  }
+  for (let row = view.renderFirst; row <= view.renderLast; row += 1) {
+    const bounded = view.rows.find((item) => item.row === row);
+    if (bounded === undefined) continue;
+    if (bounded.isMilestone || bounded.kind === 'summary') continue;
+    const durationDays = document.tasks.find((task) => task.id === bounded.id)?.durationDays ?? 0;
+    if (durationDays < 1) continue;
+    /**
+     * **必须无有效入边约束**（与 `move` 轮同一条前提，P-25 的教训在这一轮同样成立）：
+     * 有前置时引擎按"前置优先"算 `ES`，而拖动期是**锚点**定位置——
+     * 于是"松手前在锚点上、松手后被约束拉回去"这件事会被误读成"预览与提交分叉"。
+     * 那是判据选错了样本（实测踩到：`t35` 拖动期 10、松手后 9），不是应用错了。
+     */
+    if (
+      Number.isFinite(
+        entryConstraintFor({ document, schedule, taskId: bounded.id, durationDays }),
+      )
+    ) {
+      continue;
+    }
+    const fromIndex = indexOfId.get(bounded.id) ?? -1;
+    const fromEs = schedule.es[fromIndex] ?? -1;
+    const fromEf = schedule.ef[fromIndex] ?? -1;
+    if (fromEs < 0 || fromEf < 0) continue;
+    for (const link of document.links) {
+      if (link.from !== bounded.id) continue;
+      if (link.type !== 'FS' && link.type !== 'FF') continue;
+      const successorIndex = indexOfId.get(link.to);
+      if (successorIndex === undefined) continue;
+      const toEs = schedule.es[successorIndex] ?? -1;
+      const toEf = schedule.ef[successorIndex] ?? -1;
+      if (toEs < 0 || toEf < 0) continue; // 汇总端点在有效图里不存在（SCHEDULE.md §四.6）
+      // **紧约束**：后继确实顶在这条边上（`FS` 决定开始日、`FF` 决定完成日）。
+      const binding = link.type === 'FS' ? toEs === fromEf + link.lagDays : toEf === fromEf + link.lagDays;
+      if (!binding) continue;
+      return {
+        taskId: bounded.id,
+        successorId: link.to,
+        linkType: link.type,
+        successorEsBefore: toEs,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * 内容坐标 → 屏幕坐标（唯一的换算处；与 {@link dragScreenPoint} 同一个式子）。
+ *
+ * 为什么需要它：`resize-duration` 的抓取点是"条右端内 2 px"，它**不是**某个工作日格的
+ * 中点，因此不能复用"按序号取中点"的那条路径。
+ */
+function contentPointToScreen(
+  pane: HTMLElement,
+  host: DragMeasurementHost,
+  contentX: number,
+  contentY: number,
+): { readonly clientX: number; readonly clientY: number } | null {
+  const view = host.view();
+  if (view === null) return null;
+  const rect = pane.getBoundingClientRect();
+  return {
+    clientX: rect.left + contentX - view.scrollLeft,
+    clientY: rect.top + contentY - view.scrollTop,
+  };
+}
+
+/** 某个任务**当前排程**里的开始序号（`null` = 不在文档里 / 汇总行）。 */
+function esOf(host: DragMeasurementHost, taskId: string): number | null {
+  const schedule = host.schedule();
+  const document = host.document();
+  if (schedule === null) return null;
+  const index = document.tasks.findIndex((task) => task.id === taskId);
+  if (index < 0) return null;
+  const ordinal = schedule.es[index];
+  return ordinal === undefined || ordinal < 0 ? null : ordinal;
 }
 
 /**
@@ -1230,6 +1527,7 @@ function emptyDragResult(
     readonly frames: number;
     readonly scrollTop?: number;
     readonly scrollLeft?: number;
+    readonly mode?: 'move' | 'resize-duration';
   },
   errors: readonly string[],
 ): DragMeasureResult {
@@ -1253,6 +1551,15 @@ function emptyDragResult(
     documentStartAfter: null,
     anchorOrdinal: null,
     expectedStartAfter: null,
+    mode: args.mode ?? 'move',
+    gestureMode: null,
+    durationBefore: null,
+    durationAfter: null,
+    expectedDurationAfter: null,
+    revisionBefore: 0,
+    revisionDuringDrag: 0,
+    revisionAfterRelease: 0,
+    downstream: null,
     scrollTop: args.scrollTop ?? 0,
     scrollLeft: args.scrollLeft ?? 0,
     handles: null,

@@ -153,6 +153,7 @@ export {
   idleGesture,
   ordinalAtClamped,
   pointerFromClient,
+  previewDocumentFor,
   reduceGesture,
   resolveDragOutcome,
   resolvePointerTarget,

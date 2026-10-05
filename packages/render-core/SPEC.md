@@ -36,7 +36,7 @@
 | `count.ts` | 元素计数（两路互证）与预算判定；G5 的 **`c₄ = perRenderedRow·rows + overlay`**（ADR 0008 §16.4：每渲染行 6 + 每帧固定 12；`countOverlays` 只承担"每帧固定"那一半，不随文档总规模增长） |
 | `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出） |
 | `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19）；**行内编辑的基线文本与陈旧判定** `rawCellText` / `isEditStale`（P-21 批次 C 的 R5）；**提示条的迁移** `noticeAfterDispatch` / `rejectionNotice` / `StatusNotice`（P-30，唯一实现处） |
-| `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13** + §16.3/§16.8：连接点入口、建线四格表、**重复边预检拒绝**）：屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、位移与候选 `deltaFor` / `candidateOrdinalFor`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture`、结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor` |
+| `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13** + §16.3/§16.8 + **附录 §3**：连接点入口、建线四格表、**重复边预检拒绝**、**拖动期的未提交副本**）：屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、位移与候选 `deltaFor` / `candidateOrdinalFor`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture`、结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor`、**未提交副本 `previewDocumentFor`** |
 | `zones.ts` | **判定区的唯一公式**（ADR 0008 §16.1／[P-32](../../docs/00-baseline/裁决记录.md)；**行类型的例外见 [P-43](../../docs/00-baseline/裁决R42.md)**：**汇总条整条无判定区**、**里程碑整条 `move`**）：`zonesFor`（随条宽收缩）、`zoneAt` / `zoneContains` / `dragModeOfZones`、`cursorForZone`、`translateZone` / `translateZones`，以及建线四格表 `linkTypeFor` / `linkEnterSideFor` / `exitXFor` / `enterXFor`。**单独一层**：公式的消费者在环上（`gesture` 要语义、`interaction` 要手柄与光标） |
 | `interaction.ts` | **交互几何**（ADR 0008 §16.2/§16.3，**落点与可见性按 §16.7/§16.8 的人工复验返工**：建线期"指针所在行"一律显形连接点；**可见图形按 P-42 批次③ 改为圆**；**汇总条按 P-43 撤下全部交互面**）：`rowHandlesFor`（端点手柄 2×4 px + 两侧连接点，内缘贴条端、竖向居中、**圆点直径略小于条高且 ≤ 命中盒边长**）、`handleXFor`、`barHeightOf`、**`connectDiameterFor`**、`connectSideAt`（**显示区 ⊇ 命中区**）、`connectRevealFor` / `rowConnectVisibleAt`（按需显形）、`cursorForPointer`（光标枚举）、`linkEntryFor`（建线起手位置；**汇总行返回 `null`**）、`handleOffsetsFor`（记录制核对） |
 | `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
@@ -227,8 +227,14 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
   `resize-duration` 不夹取；`allow` 原样放行。**冲突判据只有 `compute` 的 `anchorConflict` 一处**——
   "晚于约束"不是冲突（`ES = max(约束, 锚点)`），"**早于**约束"才是（SCHEDULE.md §四.3 情形④）；
 - **预览与提交同源**（§13）：`resolveDragOutcome({state, document, calendar})` 是锚点/预览/松手 patch 的
-  **唯一**来源；覆盖层用 `dragPreviewFor(...)` 画**结果轮廓**（`resize-duration` 拖动期条体本体不动，
-  会话锚点形状不扩）；判据是"预览区间 == 落库 + `compute` + `taskBounds` 之后的区间"；
+  **唯一**来源；覆盖层用 `dragPreviewFor(...)` 画**结果轮廓**；判据是"预览区间 == 落库 + `compute` + `taskBounds`
+  之后的区间"；
+- **拖动期的下游也所见即所提交**（P-45）：`GestureUpdate.dragOutcome` 把**松手要提交的那个 `patch`** 一起交出来，
+  应用层据此造**未提交文档副本**（`previewDocumentFor({document, taskId, patch})`，结构性共享、只替换那一个任务）
+  再喂给 `compute` 的**第一个入参**——**锚点形状仍不扩**（`{taskId, startOrdinal}`），副本
+  **不进命令通道、不进撤销栈、不落盘**；**日历与文档诊断仍只由已提交文档派生**（`baseDay` 决定序号 ↔ 日期的映射）。
+  判据：`compute(副本, 锚点)` 与落库后重算**逐位一致**（负向对照：只喂锚点必然给出另一个值）。
+  口径与代价见 [ADR 0008 附录 §3](../../docs/02-adr/附录/0008-增补.md)；
 - **建线**：类型由相对位置反推（`to.xLeft ≥ from.xLeft ⇒ FS`，否则 `SS`）、`lagDays = 0`、
   id 由本包给确定性建议值；**成环预检即拒绝**并把 `path` 交给高亮层；
 - **高亮是独立覆盖层**（`highlight.ts`）：**不进 `ViewModel`**——几何真相源只由
@@ -267,6 +273,8 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | G5 ⑥ 两栏行对齐判读（P-23 / P-24 / **P-41**） | `align.ts` + `align.spec.ts`（**27 例**） | 正例"未变造时零检出" + **每条机制一条负向对照**（③双重偏移 / ②缺表头带 / ①测量过期 / R8 盒≠viewBox / R9 行外高 / 表体高 / 表头高 / 轴纵向或**横向**不覆盖 / **刻度侵入第一行** / **R11 滚动范围** / 单行漂移 / 滚动不同步 / 所见≠所点 / 空白带 / 空样本）+ **P-41 的六条**（覆盖度正例与"无横向/纵向行程"两条负向对照、覆盖度并进汇总 ⇒ 位置全绿仍整体失败、迁移前提自证 ⇒ `resize-not-observed`、以及"过期重算 / 滚动没跟上"由**现有机制表**抓住的两条） | **进** | [记录层](../../docs/01-roadmap/首版-记录-G5.md) / [ADR 0007 §14–§15](../../docs/02-adr/附录/0007-增补.md) |
 | G5 ⑥ 两栏行对齐（真实 DOM） | `scripts/measure-render.mjs --align[=<label>]`（**左表在场**） | **三档（`--align-zooms`）× 6 个按可滚动行程比例解析的位置**逐行 \|Δ\| ≤ 0.5 px；`pinned`/`svgBoxAligned`/`headerAligned`/`heightAligned`/`rowHeightAligned`/`scrollInSync`/`contentRangeAligned`/`labelsInHeader`/`hitTestOk` 全真；空白带 0；轴四边覆盖 + 刻度在表头带内；**覆盖度**（横向与纵向都必须真的取到行程）；**resize 迁移轮**（`--align-resize=WxH`，两条前提自证 + 滚动位置必须活下来） | **不进**（记录制，需本机 Chrome） | [P-23](../../docs/01-roadmap/首版-记录-G5.md) / [P-24](../../docs/01-roadmap/首版-记录-G5.md) / [P-41](../../docs/00-baseline/裁决R40.md) |
 | G5 ⑦ 拖动期画的是结果（P-24） | `gesture.spec.ts`（24 → 26 例） | 三语义下 `drawnBarForRow` == 落库重算后的 `taskBounds`；与**锚点视图**的对照（`resize-start` 的右端固定）；未被拖行不受影响 | **进** | [ADR 0008 §14](../../docs/02-adr/附录/0008-增补.md) |
+| G5 ⑫ 拖动期的**下游**也所见即所提交（P-45） | `gesture.spec.ts`（**+3 例**） | `previewDocumentFor`：只改那一个任务、其余**按引用共享**、原文档一字不动、两种 `null`；**下游同源**——`resize-duration` 拖动期 `compute(副本, 锚点)` 与落库后重算的后继行开始序号**逐位一致**（**负向对照写在同一条断言里**：只喂锚点必然给出另一个值；并以"至少一个样本"自证前提）；`GestureUpdate.dragOutcome.patch` 与松手命令的 `patch` **逐字段相等** | **进** | [ADR 0008 附录 §3](../../docs/02-adr/附录/0008-增补.md) |
+| G5 ⑫ 拖动期的下游（记录制） | `scripts/measure-render.mjs --drag`（**两种语义 × 两个滚动状态**；`--drag-dataset=` 可换规模） | **抓取点自证**（`gestureMode === 'resize-duration'`）、位移判据（**工期** = 拖动前 + N）、**下游跟随**（拖动期 == 松手后 **且** ≠ 拖动前）、**预览不落库**（拖动期 `revision` 不变、松手后 +1）；两族共用同一个聚合函数 ⇒ 数字可比 | **不进**（记录制，需本机 Chrome） | [P-45](../../docs/00-baseline/裁决R44.md) |
 | G5 ⑧ 滚动状态下的反算与命中（P-25） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** | [ADR 0007 §16](../../docs/02-adr/附录/0007-增补.md) / [ADR 0008 §15](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑧ 滚动状态下的拖动（记录制） | `scripts/measure-render.mjs --drag` | **两个滚动状态各一次**（`(0,0)` 与 `(480,600)`）：各自的"松手后 `startDate` = 按下时的开始序号 + 天数"都必须成立；目标行必须**无有效入边约束**（否则 `snap` 夹住候选 = 假红） | **不进**（记录制，需本机 Chrome） | [P-25](../../docs/01-roadmap/首版-记录-G5.md) |
 | G4/G5 ② 内容横向范围（P-24） | `viewModel.spec.ts`（16 → 19 例） | `contentWidth` 覆盖**全部任务最右缘** + 引出段 + 回绕走廊；随项目末端单调；空文档回落窗格宽；**负向对照**：旧式"按窗格宽推导"必须不满足 | **进** | [ADR 0007 §15](../../docs/02-adr/附录/0007-增补.md) |

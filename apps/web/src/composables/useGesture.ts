@@ -68,6 +68,14 @@ export interface UseGestureArgs {
   };
   readonly setAnchors: (anchors: readonly SessionAnchor[]) => void;
   readonly clearAnchors: () => void;
+  /**
+   * **拖动期的未提交文档副本**（裁决 P-45）：把本帧 `dragOutcome.patch` 交给会话。
+   *
+   * 为什么由本文件转手而不是组件：`patch` 的唯一来源是内核的 `GestureUpdate.dragOutcome`，
+   * 而"哪一帧该有预览、哪一帧该清"就是手势状态机的事（`dragging` 有、其余没有）。
+   * 传 `null` = 清预览（`useProject` 侧任何真实落库也会把它清掉）。
+   */
+  readonly setPreviewPatch: (next: { readonly taskId: string; readonly patch: Record<string, unknown> } | null) => void;
   /** 松手（或建线）之后的提示出口。 */
   readonly notify?: (commit: GestureCommit) => void;
 }
@@ -183,6 +191,20 @@ export function useGesture(args: UseGestureArgs): UseGesture {
     // 两种预检拒绝都要报（成环**有路径**、重复边**没有路径**，因此判据不能只看 `cyclePath.length`）。
     if (update.state.kind === 'rejected') {
       args.notify?.({ kind: 'rejected', cyclePath: update.cyclePath, reason: update.state.reason });
+    }
+
+    /**
+     * **预览副本最后更新**（裁决 P-45）：落库优先。
+     *
+     * 顺序是有意的：松手那一帧 `update.state` 已经是 `released`，命令已在上面落地
+     * （`useProject.commit` 也会清预览）⇒ 这里再清一次是幂等的，
+     * 而"预览先清、命令后落"那一帧回弹因此**不可能出现**。
+     * 零位移松手（没有命令）同样在这里清：图形回到与预览**相同**的几何。
+     */
+    if (update.state.kind === 'dragging' && update.dragOutcome !== null && update.dragOutcome.patch !== null) {
+      args.setPreviewPatch({ taskId: update.state.taskId, patch: update.dragOutcome.patch });
+    } else {
+      args.setPreviewPatch(null);
     }
   }
 
