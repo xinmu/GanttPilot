@@ -147,6 +147,12 @@
       "note": "P-40：首版待定清单批次①（承诺环境 / 应用层判据入口 / 复核口径 / G-7·G-8 UI 归属）"
     },
     {
+      "path": "docs/00-baseline/裁决R40.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-41：批次②（--align 档位与覆盖度 / resize 迁移 / 稳定读数）"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",

@@ -46,6 +46,18 @@ const ZOOM_KEYS = ['day', 'week', 'month'];
 const PRIMARY_DATASET = 'dense';
 const REFERENCE_DATASET = 'dense2200';
 
+/**
+ * 基视口（CSS 像素 / DPR 1）：**所有记录制测量共用**，也是 `--align` 迁移轮的起点。
+ *
+ * 为什么是 800（而不是 640）：产品界面在 640 的视口里只给得起约 570 px 的图表高度，
+ * 而 ADR 0007 §11 的预算常数按**约 640 px 的图表窗格**（27 可见行 + 缓冲 = 32 渲染行）标定；
+ * 取 800 后窗格正好约 640 px。
+ */
+const BASE_VIEWPORT = { width: 1280, height: 800 };
+
+/** 行对齐容差（**与 `THRESHOLDS.rowAlignTolerancePx` 同值**；证据里只是把它写出来）。 */
+const ALIGN_TOLERANCE_PX = 0.5;
+
 /** @param {string[]} argv */
 function parseArgs(argv) {
   const options = {
@@ -68,6 +80,18 @@ function parseArgs(argv) {
     align: false,
     /** `--align=<label>`：证据文件名后缀（诊断与复测互不覆盖）。 */
     alignLabel: '',
+    /**
+     * P-40 批次②：`--align` 覆盖的档位（默认全档）。
+     * 档位盲区是 P-25 遗留的那一处——`pxPerDay` 变小 ⇒ 条宽进入 3 px 区、命中容差到边界。
+     */
+    alignZooms: [...ZOOM_KEYS],
+    /**
+     * P-40 批次②：resize 迁移的目标视口（默认 `1024x640`；`off` = 不做迁移轮）。
+     *
+     * 迁移判据 = "尺寸变化后两栏仍自洽"：A 视口设滚动 → resize 到 B → **不重设滚动**再读。
+     * 这是 R6 家族（"几何来自一个被测量出来的尺寸"）里**唯一没有覆盖**的那一半。
+     */
+    alignResize: { width: 1024, height: 640 },
     /** G6：**开/关持久化两组同尺**的拖拽测量（出口条件①）。两组必须分别导航。 */
     persistDrag: false,
     /** G6：2,000 任务的存储占用与写入耗时（出口条件④）。 */
@@ -95,6 +119,19 @@ function parseArgs(argv) {
       options.persistDrag = true;
     } else if (arg === '--storage-metrics') {
       options.storageMetrics = true;
+    } else if (arg.startsWith('--align-zooms=')) {
+      const value = arg.slice('--align-zooms='.length);
+      options.alignZooms = value === 'all' ? [...ZOOM_KEYS] : value.split(',').filter((key) => ZOOM_KEYS.includes(key));
+      if (options.alignZooms.length === 0) throw new Error(`--align-zooms 没有可用档位：${value}`);
+    } else if (arg.startsWith('--align-resize=')) {
+      const value = arg.slice('--align-resize='.length);
+      if (value === 'off') {
+        options.alignResize = null;
+      } else {
+        const match = /^(\d+)x(\d+)$/.exec(value);
+        if (match === null) throw new Error(`--align-resize 需要 WxH 或 off：${value}`);
+        options.alignResize = { width: Number(match[1]), height: Number(match[2]) };
+      }
     } else if (arg === '--align' || arg.startsWith('--align=')) {
       // G5 批次 D：诊断与复测各留一份证据 ⇒ `--align=<label>` 只影响输出文件名。
       options.align = true;
@@ -709,19 +746,26 @@ function renderImportEvidence({ env, result }) {
 // ---------------------------------------------------------------- G5 批次 D：两栏行对齐（记录制，ADR 0007 §14 / 裁决 P-23）
 
 /**
- * 探测用的滚动位置：**必须含 0 与"尽量大"**。
+ * 探测位置（**比例**，P-40 批次②）：两个方向都必须含 **0 与 1**。
  *
- * P-22 遗留 1 的两条硬要求：① 双重偏移在 `scrollTop = 0` 处恒为 0（机制不可见）；
- * ② 最末那个大值由浏览器夹到 `maxScroll` ⇒"最末行能不能滚进绘制区"（"下方空白"）也在被测范围内。
+ * P-22 遗留 1 的两条硬要求仍然成立：① 双重偏移在 `scrollTop = 0` 处恒为 0（机制不可见）
+ * ⇒ 至少两个位置才判得出机制；② 最末位置要能摸到 `maxScroll`（"最下方/最右侧新区域空白"）。
+ * **为什么从绝对像素改成比例**：绝对像素 + 一个"超大值"在**内容整幅不滚动**的档位下会被浏览器
+ * 夹回 0（周/月档的小文档：`contentWidth ≤ 窗格宽`）⇒ `(0, max)` 与 `(0, 0)` 完全等价、
+ * 横向**静默没测**，而输出长得像"6 位置全绿"。比例在**钩子内**按真实可滚动行程解析，
+ * 覆盖度由 `diagnoseScrollCoverage` 显式判出（`no-horizontal-travel` / `no-vertical-travel`）。
  */
-const ALIGN_POSITIONS = [
+const ALIGN_FRACTIONS = [
   { top: 0, left: 0 },
-  { top: 120, left: 0 },
-  { top: 480, left: 600 },
-  { top: 9_999_999, left: 0 },
-  { top: 0, left: 9_999_999 },
-  { top: 9_999_999, left: 9_999_999 },
+  { top: 0.5, left: 0 },
+  { top: 1, left: 0 },
+  { top: 0, left: 0.5 },
+  { top: 0, left: 1 },
+  { top: 1, left: 1 },
 ];
+
+/** resize 迁移用"行程中点"：两个方向都非 0，才能同时观察横向与纵向在尺寸变化后的同步。 */
+const ALIGN_MIGRATION_FRACTION = [{ top: 0.5, left: 0.5 }];
 
 /** 数字格式化（证据表用；`null`/`undefined` 显示 `—`）。 */
 function num(value, digits = 2) {
@@ -731,11 +775,14 @@ function num(value, digits = 2) {
 /**
  * 对齐探测：**左表必须在场**（不带 `?table=0`），因此这里不改 `measureOne` 的 URL 口径。
  *
+ * `navigate: false` 复用**当前页面**（P-40 批次② 的 resize 迁移必须如此：迁移判的是
+ * "同一个会话经历尺寸变化后的自洽性"，重新导航会把会话换掉、也就把判据换掉了）。
+ *
  * 与 `--drag` / `--import` 的分层相同：**判读逻辑**在 `packages/render-core/src/align.ts`
  * （`align.spec.ts` 进 `pnpm gate`），本函数只负责驱动页面、取回数字。
  */
-async function alignProbe(cdp, origin, args) {
-  await cdp.navigate(`${origin}/?measure=1`);
+async function alignProbe(cdp, origin, args, { navigate = true } = {}) {
+  if (navigate) await cdp.navigate(`${origin}/?measure=1`);
   const deadline = Date.now() + 20_000;
   let ready = false;
   while (Date.now() < deadline) {
@@ -749,25 +796,19 @@ async function alignProbe(cdp, origin, args) {
     const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
     throw new Error(`对齐测量钩子未就绪：${String(captured)}`);
   }
-  return cdp.evaluate(
-    `window.__GANTTPILOT_MEASURE_ALIGN__(${JSON.stringify({
-      dataset: args.dataset ?? PRIMARY_DATASET,
-      positions: ALIGN_POSITIONS,
-    })})`,
-  );
+  return cdp.evaluate(`window.__GANTTPILOT_MEASURE_ALIGN__(${JSON.stringify(args)})`);
 }
 
-/** 对齐证据（记录制 Markdown）。 */
-function renderAlignEvidence({ env, result, options }) {
+/** 对齐证据（记录制 Markdown；**档位 × 覆盖度 + resize 迁移**，P-40 批次②）。 */
+function renderAlignEvidence({ env, runs, migration, options }) {
   const lines = [];
-  const summary = result?.summary ?? {};
-  const tolerated = 0.5;
-  lines.push('# G5 批次 D：两栏行对齐（记录制，不进 `pnpm gate`）');
+  lines.push('# 两栏行对齐 + resize 迁移（记录制，不进 `pnpm gate`）');
   lines.push('');
   lines.push('> 由 `node scripts/measure-render.mjs --align[=<label>]` 采集；**这是测量快照，不是门禁**');
-  lines.push('> （[ADR 0007 §14](../../../docs/02-adr/0007-渲染几何与裁剪契约.md)、[裁决 P-23](../../../docs/00-baseline/裁决记录.md)）。');
+  lines.push('> （[ADR 0007 §14](../../../docs/02-adr/0007-渲染几何与裁剪契约.md)、[裁决 P-23](../../../docs/00-baseline/裁决记录.md)、');
+  lines.push('> **批次②的档位/覆盖度/迁移**见 [裁决 R40](../../../docs/00-baseline/裁决R40.md)）。');
   lines.push('> **判读逻辑**在 `packages/render-core/src/align.ts`，它的判别力由 `align.spec.ts`');
-  lines.push('> （正例"未变造时零检出" + 每条机制一条负向对照）**在 `pnpm gate` 里**守住；');
+  lines.push('> （正例"未变造时零检出" + 每条机制一条负向对照 + 覆盖度/迁移的负向对照）**在 `pnpm gate` 里**守住；');
   lines.push('> 本文件守的是**应用层那一遍**：真实 DOM 的两栏行矩形、SVG 盒与滚动几何。');
   lines.push('');
   lines.push('## 环境（与数字一起登记）');
@@ -779,31 +820,122 @@ function renderAlignEvidence({ env, result, options }) {
   lines.push('## 口径');
   lines.push('');
   lines.push('- 页面 = `apps/web/dist` 的**打包产物**；**左表在场**（不带 `?table=0`，否则判据没有对手可比）；');
-  lines.push('- 每个位置：设 `pane.scrollTop` → `nextTick` + **两帧** → 读 `getBoundingClientRect()`；');
-  lines.push('- **只读**：不改文档、不派发指针事件、不进手势；采完把 `scrollTop` 复位 0；');
-  lines.push('- 行差 = `图表行顶 − 左表行顶`（**对齐时 = 0**；图表比左表高时为负）；');
+  lines.push(
+    `- **位置 = 可滚动行程的比例** ${ALIGN_FRACTIONS.map((item) => `(${String(item.top)},${String(item.left)})`).join(' ')}，` +
+      '在**钩子内**按真实 `maxScroll` 解析成像素（绝对像素在"整幅不滚动"的档位下会被夹回 0）；',
+  );
+  lines.push(
+    '- **读数 = 稳定即止**：设滚动 → `nextTick` → 每帧读一次**指纹**（DOM 真值 + `ViewModel.scroll` +' +
+      ' 前 3 行行中心 + spacer 尺寸），**连续两帧一致**即止；预算不够就**判红**（不是"等两帧"这种无人守的常量）；',
+  );
+  lines.push('- **档位**：`day` / `week` / `month` 各一轮（`--align-zooms=` 可裁）；**档位在同一次导航内切换**（它不是计时测量）；');
+  lines.push('- **覆盖度**（P-40）：整次测量必须真的**有横向与纵向行程**，否则报 `no-horizontal-travel` / `no-vertical-travel` 并判失败——"没测到"不能记成 ✅；');
+  lines.push(
+    `- **迁移**（P-40）：${migration === null ? '本轮**未做**（`--align-resize=off`）' : '基视口设滚动到行程中点（**不复位**）→ resize 到目标视口 → **不重设滚动**再读一次'}；` +
+      '两条前提自证 = 窗格尺寸**真的变了**（`resize-not-observed`）+ 滚动位置**活下来了**（读到 0 ⇒ 该轮不构成判据）；',
+  );
+  lines.push('- **只读**：不改文档、不派发指针事件、不进手势；每轮结束把滚动复位 0；');
+  lines.push('- 行差 = `图表行中心 − 左表行中心`（**对齐时 = 0**；图表比左表高时为负）；');
   lines.push('- 条形 x 判据 = DOM 条形左边 − (`paneLeft + xLeft − scrollLeft`)：守"所见 = 所点"的横向一半；');
-  lines.push(`- 容差 = \`THRESHOLDS.rowAlignTolerancePx\` = **${String(tolerated)} px**；`);
+  lines.push(`- 容差 = \`THRESHOLDS.rowAlignTolerancePx\` = **${String(ALIGN_TOLERANCE_PX)} px**；`);
   lines.push('- 轴覆盖优先用**色带矩形**（无描边误差），无色带时退到网格线（含 ±0.5 px 描边）；');
   lines.push('');
-  lines.push('## 判定汇总');
+  lines.push('## 汇总：档位 × 覆盖度');
   lines.push('');
-  lines.push('| 项 | 值 | 判据 | 判定 |');
-  lines.push('|---|---|---|---|');
-  lines.push(`| 探测位置数 | ${String(summary.probes ?? 0)} | ≥ 2（含 0 与非 0） | ${(summary.probes ?? 0) >= 2 ? '✅' : '❌'} |`);
-  lines.push(`| 失败位置数 | ${String(summary.failingProbes ?? 0)} | = 0 | ${(summary.failingProbes ?? 1) === 0 ? '✅' : '❌'} |`);
   lines.push(
-    `| 最大行差 | ${num(summary.maxAbsRowDeltaPx, 3)} px | ≤ ${String(tolerated)} | ${Number(summary.maxAbsRowDeltaPx ?? 1) <= tolerated ? '✅' : '❌'} |`,
+    '| 档位（实际） | 位置数 | 失败 | 最大行差 | 最大条形 x 偏差 | setttle 帧（max） | 横向行程 | 纵向行程 | 请求非 0 被夹回 0 | 机制 | 判定 |',
   );
-  lines.push(
-    `| 最大条形 x 偏差 | ${num(summary.maxAbsBarXDeltaPx, 3)} px | ≤ ${String(tolerated)} | ${Number(summary.maxAbsBarXDeltaPx ?? 1) <= tolerated ? '✅' : '❌'} |`,
-  );
-  const mechanisms = Array.isArray(summary.mechanisms) ? summary.mechanisms : [];
-  lines.push(`| 机制判读 | ${mechanisms.length === 0 ? '(无)' : mechanisms.join(' / ')} | 必须为空 | ${mechanisms.length === 0 ? '✅' : '❌'} |`);
-  lines.push(`| 总体 | ${result?.status === 'ok' ? '**通过**' : '**不通过**'} | — | — |`);
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|');
+  for (const run of runs) {
+    const summary = run.result?.summary ?? {};
+    const coverage = run.result?.coverage ?? null;
+    const settleFrames = (run.result?.probes ?? []).map((item) => Number(item.settleFrames ?? 0));
+    const mechanisms = mechanismList(run.result);
+    lines.push(
+      `| \`${String(run.zoom)}\`（\`${String(run.result?.zoom ?? '?')}\`） | ${String(summary.probes ?? 0)} | ` +
+        `${String(summary.failingProbes ?? 0)} | ${num(summary.maxAbsRowDeltaPx, 3)} px | ${num(summary.maxAbsBarXDeltaPx, 3)} px | ` +
+        `${settleFrames.length === 0 ? '—' : String(Math.max(...settleFrames))} | ` +
+        `${coverage === null ? '—' : coverage.horizontalCovered ? `✅ ${num(coverage.maxScrollLeft, 0)} px` : '❌ 无'} | ` +
+        `${coverage === null ? '—' : coverage.verticalCovered ? `✅ ${num(coverage.maxScrollTop, 0)} px` : '❌ 无'} | ` +
+        `${coverage === null ? '—' : String(coverage.clampedPositions)} | ` +
+        `${mechanisms.length === 0 ? '(无)' : mechanisms.join(' / ')} | ` +
+        `${run.result?.status === 'ok' ? '**通过**' : '**不通过**'} |`,
+    );
+  }
+  lines.push('');
+  lines.push('## 汇总：resize 迁移');
+  lines.push('');
+  if (migration === null) {
+    lines.push('- 本轮未做迁移（`--align-resize=off`）。');
+  } else {
+    const before = migration.before?.probes?.[0]?.probe ?? null;
+    const after = migration.after?.probes?.[0]?.probe ?? null;
+    const afterVerdict = migration.after?.probes?.[0]?.verdict ?? {};
+    const afterMechanisms = mechanismList(migration.after);
+    const migrationVerdict = migration.after?.migration ?? null;
+    lines.push('| 项 | 值 | 判据 | 判定 |');
+    lines.push('|---|---|---|---|');
+    lines.push(
+      `| 迁移前窗格 w×h | ${before === null ? '—' : `${num(before.paneWidth, 0)}×${num(before.paneHeight, 0)}`} | 记录（基视口） | — |`,
+    );
+    lines.push(
+      `| 迁移前滚动位置（**不复位**，留给迁移后观察） | ${before === null ? '—' : `${num(before.scrollTop, 0)}·${num(before.scrollLeft, 0)}`} | 非 0（否则机制不可见） | ${
+        before !== null && (before.scrollTop > 0 || before.scrollLeft > 0) ? '✅' : '❌'
+      } |`,
+    );
+    lines.push(
+      `| 迁移后窗格 w×h | ${after === null ? '—' : `${num(after.paneWidth, 0)}×${num(after.paneHeight, 0)}`} | 记录（目标视口） | — |`,
+    );
+    lines.push(
+      `| Δ（宽 × 高） | ${migrationVerdict === null ? '—' : `${num(migrationVerdict.deltaWidth, 0)} × ${num(migrationVerdict.deltaHeight, 0)}`} | **≠ 0**（前提自证） | ${migrationVerdict?.observed === true ? '✅' : '❌'} |`,
+    );
+    const afterCoverage = migration.after?.coverage ?? null;
+    lines.push(
+      `| 迁移后滚动位置（期望 vs 实际） | ${before === null || after === null ? '—' : `${num(before.scrollTop, 0)}·${num(before.scrollLeft, 0)} vs ${num(after.scrollTop, 0)}·${num(after.scrollLeft, 0)}`} | **位置活下来**（实际为 0 ⇒ 该轮不构成判据） | ${
+        afterCoverage === null ? '—' : afterCoverage.ok ? '✅' : '❌'
+      } |`,
+    );
+    lines.push(
+      `| 迁移后最大行差 / 条形 x 偏差 | ${num(afterVerdict.maxAbsRowDeltaPx, 3)} / ${num(afterVerdict.maxAbsBarXDeltaPx, 3)} px | ≤ ${String(ALIGN_TOLERANCE_PX)} | ${
+        Number(afterVerdict.maxAbsRowDeltaPx ?? 1) <= ALIGN_TOLERANCE_PX && Number(afterVerdict.maxAbsBarXDeltaPx ?? 1) <= ALIGN_TOLERANCE_PX ? '✅' : '❌'
+      } |`,
+    );
+    lines.push(
+      `| 迁移后 \`ViewModel\` 高 vs 绘制区高 | ${after === null ? '—' : `${num(after.viewHeight, 0)} vs ${num(after.paneHeight, 0)}`} | 相等（否则"过期重算"） | ${afterVerdict.heightAligned === true ? '✅' : '❌'} |`,
+    );
+    lines.push(
+      `| 迁移后滚动同步（DOM vs \`ViewModel\`） | ${after === null ? '—' : `${num(after.scrollTop, 0)}·${num(after.scrollLeft, 0)} vs ${num(after.viewScrollTop, 0)}·${num(after.viewScrollLeft, 0)}`} | 两个方向都相等 | ${afterVerdict.scrollInSync === true ? '✅' : '❌'} |`,
+    );
+    lines.push(
+      `| 迁移后机制 | ${afterMechanisms.length === 0 ? '(无)' : afterMechanisms.join(' / ')} | 空 | ${afterMechanisms.length === 0 ? '✅' : '❌'} |`,
+    );
+    lines.push(`| 迁移总体 | ${migration.after?.status === 'ok' ? '**通过**' : '**不通过**'} | — | — |`);
+  }
   lines.push('');
   lines.push('## 逐位置明细');
-  for (const item of result?.probes ?? []) {
+  for (const run of runs) {
+    lines.push('');
+    lines.push(`### 档位 \`${String(run.zoom)}\`（实际 \`${String(run.result?.zoom ?? '?')}\`）`);
+    for (const item of run.result?.probes ?? []) {
+      pushProbeDetail(lines, item, mechanismList(run.result));
+    }
+  }
+  if (migration !== null) {
+    lines.push('');
+    lines.push(`### resize 迁移（不重设滚动；目标视口见环境表）`);
+    for (const item of migration.after?.probes ?? []) {
+      pushProbeDetail(lines, item, mechanismList(migration.after));
+    }
+  }
+  pushFailures(lines, runs, migration);
+  lines.push('');
+  lines.push(`> 生成参数：${JSON.stringify(options)}`);
+  lines.push('');
+  return lines.join('\n');
+}
+
+/** 逐位置明细表（档位轮与迁移轮共用；`mechanisms` = 该轮汇总的机制集合）。 */
+function pushProbeDetail(lines, item, mechanisms) {
     const probe = item.probe ?? {};
     const verdict = item.verdict ?? {};
     lines.push('');
@@ -853,14 +985,14 @@ function renderAlignEvidence({ env, result, options }) {
       } | 落在**表头带**内（不压第一行；P-24 第 ③ 条） | ${verdict.labelsInHeader === true ? '✅' : '❌'} |`,
     );
     lines.push(
-      `| 空白带（顶 / 底） | ${verdict.coverage === null || verdict.coverage === undefined ? '（文档比绘制区短，不断言）' : `${num(verdict.coverage.topBandPx)} / ${num(verdict.coverage.bottomBandPx)}`} | = 0 | ${verdict.coverage === null || verdict.coverage === undefined || (verdict.coverage.topBandPx <= tolerated && verdict.coverage.bottomBandPx <= tolerated) ? '✅' : '❌'} |`,
+      `| 空白带（顶 / 底） | ${verdict.coverage === null || verdict.coverage === undefined ? '（文档比绘制区短，不断言）' : `${num(verdict.coverage.topBandPx)} / ${num(verdict.coverage.bottomBandPx)}`} | = 0 | ${verdict.coverage === null || verdict.coverage === undefined || (verdict.coverage.topBandPx <= ALIGN_TOLERANCE_PX && verdict.coverage.bottomBandPx <= ALIGN_TOLERANCE_PX) ? '✅' : '❌'} |`,
     );
     lines.push(
-      `| 最大行差 / 条形 x 偏差 | ${num(verdict.maxAbsRowDeltaPx, 3)} / ${num(verdict.maxAbsBarXDeltaPx, 3)} px | ≤ ${String(tolerated)} | ${Number(verdict.maxAbsRowDeltaPx ?? 1) <= tolerated && Number(verdict.maxAbsBarXDeltaPx ?? 1) <= tolerated ? '✅' : '❌'} |`,
+      `| 最大行差 / 条形 x 偏差 | ${num(verdict.maxAbsRowDeltaPx, 3)} / ${num(verdict.maxAbsBarXDeltaPx, 3)} px | ≤ ${String(ALIGN_TOLERANCE_PX)} | ${Number(verdict.maxAbsRowDeltaPx ?? 1) <= ALIGN_TOLERANCE_PX && Number(verdict.maxAbsBarXDeltaPx ?? 1) <= ALIGN_TOLERANCE_PX ? '✅' : '❌'} |`,
     );
     const hit = probe.hitTest;
     lines.push(
-      `| 所见 = 所点（内容 y） | ${hit === null || hit === undefined ? '—' : `${num(hit.expectedContentY)} vs ${num(hit.actualContentY)}`} | ≤ ${String(tolerated)} | ${mechanisms.includes('hit-test-mismatch') ? '❌' : '✅'} |`,
+      `| 所见 = 所点（内容 y） | ${hit === null || hit === undefined ? '—' : `${num(hit.expectedContentY)} vs ${num(hit.actualContentY)}`} | ≤ ${String(ALIGN_TOLERANCE_PX)} | ${mechanisms.includes('hit-test-mismatch') ? '❌' : '✅'} |`,
     );
     const probeMechanisms = Array.isArray(verdict.mechanisms) ? verdict.mechanisms : [];
     lines.push(`| 机制 | ${probeMechanisms.length === 0 ? '(无)' : probeMechanisms.join(' / ')} | 空 | ${probeMechanisms.length === 0 ? '✅' : '❌'} |`);
@@ -879,16 +1011,24 @@ function renderAlignEvidence({ env, result, options }) {
     if (shown.length !== deltas.length) {
       lines.push(`| … | （共 ${String(deltas.length)} 行；证据表只列首 10 + 末 4 行，逐行值见 raw JSON） | | | |`);
     }
-  }
-  if ((result?.errors ?? []).length > 0) {
-    lines.push('');
-    lines.push('**判定失败 / 采数失败**：');
-    for (const error of result.errors) lines.push(`- ${String(error)}`);
-  }
+}
+
+/** 机制列表（容错：钩子未回或字段缺失时给空数组，不抛）。 */
+function mechanismList(result) {
+  return Array.isArray(result?.summary?.mechanisms) ? result.summary.mechanisms : [];
+}
+
+/** 汇总"采数失败 / 判定失败"（档位轮 + 迁移轮；**不静默吞掉任何一条**）。 */
+function pushFailures(lines, runs, migration) {
+  const entries = [
+    ...runs.flatMap((run) => (run.result?.errors ?? []).map((error) => `[${String(run.zoom)}] ${String(error)}`)),
+    ...(migration?.before?.errors ?? []).map((error) => `[迁移·迁移前] ${String(error)}`),
+    ...(migration?.after?.errors ?? []).map((error) => `[迁移·迁移后] ${String(error)}`),
+  ];
+  if (entries.length === 0) return;
   lines.push('');
-  lines.push(`> 生成参数：${JSON.stringify(options)}`);
-  lines.push('');
-  return lines.join('\n');
+  lines.push('**判定失败 / 采数失败**：');
+  for (const entry of entries) lines.push(`- ${entry}`);
 }
 
 // ---------------------------------------------------------------- G6：持久化（记录制，ADR 0009 §5）
@@ -1169,14 +1309,11 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
      *
      * 为什么必须显式覆盖：测量的是**打包产物**，而图表窗格的高度取决于真实窗口尺寸；
      * 不固定的话"可见行数"会随窗口变化，元素预算与首屏数字就无法复现、也无法跨机器比较。
-     * **为什么是 800**：产品界面在 640 的视口里只给得起约 570 px 的图表高度
-     * （工具栏 + 状态栏占掉其余），而 ADR 0007 §11 的预算常数是按**约 640 px 的图表窗格**
-     * （27 可见行 + 缓冲 = 32 渲染行）标定的；取 800 后窗格正好约 640 px，渲染行数因此是 32。
+     * 取 `BASE_VIEWPORT`（1280×800）：理由与迁移轮的起点口径见该常量的注释。
      * 窗格真实的 `clientWidth/clientHeight` 会随结果一起登记（不假定它等于 1280×640）。
      */
     await cdp.call('Emulation.setDeviceMetricsOverride', {
-      width: 1280,
-      height: 800,
+      ...BASE_VIEWPORT,
       deviceScaleFactor: 1,
       mobile: false,
     });
@@ -1236,9 +1373,92 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
       return;
     }
 
-    // ---------------------------------------------------------------- G5 批次 D：两栏行对齐（记录制）
+    // ---------------------------------------------------------------- 两栏行对齐 + resize 迁移（记录制，P-23 / P-40 批次②）
     if (options.align) {
-      const result = await alignProbe(cdp, origin, { dataset: PRIMARY_DATASET });
+      const runs = [];
+      for (const [index, zoom] of options.alignZooms.entries()) {
+        // 第一轮导航；之后**复用同一页面**——`--align` 不是计时测量，档位可以就地切换。
+        const result = await alignProbe(
+          cdp,
+          origin,
+          { dataset: PRIMARY_DATASET, zoom, fractions: ALIGN_FRACTIONS },
+          { navigate: index === 0 },
+        );
+        runs.push({ zoom, result });
+        const summary = result?.summary ?? {};
+        const coverage = result?.coverage ?? null;
+        console.log(
+          `[align] ${zoom}：位置 ${String(summary.probes ?? 0)}（失败 ${String(summary.failingProbes ?? 0)}）、` +
+            `最大行差 ${Number(summary.maxAbsRowDeltaPx ?? 0).toFixed(3)} px、` +
+            `覆盖 横/纵 ${coverage?.horizontalCovered === true ? '✅' : '❌'}/${coverage?.verticalCovered === true ? '✅' : '❌'}、` +
+            `机制 ${(summary.mechanisms ?? []).join(' / ') || '(无)'}`,
+        );
+        if (result?.status === 'error') {
+          console.error(`[align] ${zoom} errors: ${(result.errors ?? []).join('；')}`);
+        }
+      }
+
+      /**
+       * resize 迁移（P-40 批次② 的 ②-C）：**同一个会话**里改视口，**不重设滚动**再读一次。
+       * 重新导航会把会话换掉 —— 那测的就不是"迁移"了（`navigate: false`）。
+       */
+      let migration = null;
+      if (options.alignResize !== null) {
+        await cdp.call('Emulation.setDeviceMetricsOverride', {
+          ...BASE_VIEWPORT,
+          deviceScaleFactor: 1,
+          mobile: false,
+        });
+        const before = await alignProbe(
+          cdp,
+          origin,
+          {
+            dataset: PRIMARY_DATASET,
+            zoom: options.alignZooms[0],
+            fractions: ALIGN_MIGRATION_FRACTION,
+            // **不复位**：复位会把"resize 前的滚动位置"抹掉，迁移后只能读到 0·0（机制恰在 0 处不可见）。
+            keepScroll: true,
+          },
+          { navigate: false },
+        );
+        const beforePane = before?.probes?.[0]?.probe ?? null;
+        await cdp.call('Emulation.setDeviceMetricsOverride', {
+          width: options.alignResize.width,
+          height: options.alignResize.height,
+          deviceScaleFactor: 1,
+          mobile: false,
+        });
+        const after = await alignProbe(
+          cdp,
+          origin,
+          {
+            mode: 'reread',
+            dataset: PRIMARY_DATASET,
+            previousPane:
+              beforePane === null ? null : { width: beforePane.paneWidth, height: beforePane.paneHeight },
+            expectedScroll:
+              beforePane === null ? null : { top: beforePane.scrollTop, left: beforePane.scrollLeft },
+          },
+          { navigate: false },
+        );
+        const afterPane = after?.probes?.[0]?.probe ?? null;
+        migration = { baseViewport: BASE_VIEWPORT, target: options.alignResize, before, after };
+        console.log(
+          `[align] 迁移 ${String(BASE_VIEWPORT.width)}×${String(BASE_VIEWPORT.height)} → ` +
+            `${String(options.alignResize.width)}×${String(options.alignResize.height)}：` +
+            `窗格 ${String(beforePane?.paneWidth ?? '?')}×${String(beforePane?.paneHeight ?? '?')} → ` +
+            `${String(afterPane?.paneWidth ?? '?')}×${String(afterPane?.paneHeight ?? '?')}、` +
+            `机制 ${(after?.summary?.mechanisms ?? []).join(' / ') || '(无)'}、` +
+            `前提自证 ${after?.migration?.observed === true ? '✅' : '❌'}`,
+        );
+        if (after?.status === 'error') {
+          console.error(`[align] 迁移 errors: ${(after.errors ?? []).join('；')}`);
+        }
+        // 复位基视口：不给同一次运行里的其它分支留一个被改过的视口。
+        await cdp.call('Emulation.setDeviceMetricsOverride', { ...BASE_VIEWPORT, deviceScaleFactor: 1, mobile: false });
+      }
+
+      const budget = runs[0]?.result?.stableReadBudgetFrames ?? 0;
       const env = {
         采集时刻: new Date().toISOString(),
         机器: process.env.COMPUTERNAME ?? 'local',
@@ -1247,29 +1467,26 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         Chrome: chromeVersion,
         'Chrome 模式': '--headless=new',
         DPR: 1,
-        视口: '1280×800（窗格尺寸随结果登记）',
+        基视口: `${String(BASE_VIEWPORT.width)}×${String(BASE_VIEWPORT.height)}（Emulation.setDeviceMetricsOverride；窗格尺寸随结果登记）`,
         数据集: PRIMARY_DATASET,
         左表: '在场（不带 ?table=0）',
-        探测位置: ALIGN_POSITIONS.map((item) => `top${String(item.top)}·left${String(item.left)}`).join(' / '),
+        档位: options.alignZooms.join(' / '),
+        探测位置: `比例 ${ALIGN_FRACTIONS.map((item) => `(${String(item.top)},${String(item.left)})`).join(' / ')}（钩子内按真实行程解析）`,
+        稳定读预算: `${String(budget)} 帧（连续两帧指纹一致即止；超预算判红）`,
+        迁移: options.alignResize === null
+          ? '未做（--align-resize=off）'
+          : `${String(BASE_VIEWPORT.width)}×${String(BASE_VIEWPORT.height)} → ${String(options.alignResize.width)}×${String(options.alignResize.height)}（不重设滚动）`,
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       const suffix = options.alignLabel === '' ? '' : `-${options.alignLabel}`;
       const alignPath = join(evidenceDir, `chart-align${suffix}-chrome${major}.md`);
-      writeFileSync(alignPath, renderAlignEvidence({ env, result, options }), 'utf8');
+      writeFileSync(alignPath, renderAlignEvidence({ env, runs, migration, options }), 'utf8');
       writeFileSync(
         join(evidenceDir, `chart-align${suffix}-raw.json`),
-        `${JSON.stringify({ env, result }, null, 2)}\n`,
+        `${JSON.stringify({ env, runs, migration }, null, 2)}\n`,
         'utf8',
       );
-      const summary = result?.summary ?? {};
-      console.log(
-        `[align] 位置 ${String(summary.probes ?? 0)}（失败 ${String(summary.failingProbes ?? 0)}）、` +
-          `最大行差 ${Number(summary.maxAbsRowDeltaPx ?? 0).toFixed(3)} px、` +
-          `最大条形 x 偏差 ${Number(summary.maxAbsBarXDeltaPx ?? 0).toFixed(3)} px、` +
-          `机制 ${(summary.mechanisms ?? []).join(' / ') || '(无)'}`,
-      );
-      if (result?.status === 'error') {
-        console.error(`[align] errors: ${(result.errors ?? []).join('；')}`);
+      if (runs.some((run) => run.result?.status === 'error') || (migration !== null && migration.after?.status === 'error')) {
         process.exitCode = 1;
       }
       console.log(`[measure] 对齐证据已写入 ${alignPath}`);

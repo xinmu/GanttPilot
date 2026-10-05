@@ -33,6 +33,16 @@
  *
  * **坐标系约定**：本文件收到的全部是**视口坐标**（`getBoundingClientRect()` 的原样值），
  * 不涉及内容坐标；`expectedBarLeft` 由调用方按 `paneLeft + xLeft − scrollLeft` 预先算好。
+ *
+ * ## P-40 批次② 新增的两条：判**判据的前提**
+ *
+ * 上面那些判据都假定"这次测量真的激活了机制"。本批次把这条假定也做成判据——
+ * 因为**覆盖静默消失时，输出长得像通过**（P-24 的 R12 就是先例）：
+ *
+ * | 判据 | 签名 |
+ * |---|---|
+ * | **滚动覆盖度**（{@link diagnoseScrollCoverage}） | 本次测量**没有任何位置**的 `scrollLeft > 0` ⇒ `no-horizontal-travel`；`scrollTop` 同理 ⇒ `no-vertical-travel`。**覆盖不足即判失败**（"这次测量不构成该方向的判据"，而不是 ✅） |
+ * | **迁移前提自证**（{@link diagnoseResizeMigration}） | 请求了 resize 但窗格尺寸没变 ⇒ `resize-not-observed`（"没变"不能与"变好了"共用一个绿） |
  */
 
 import { THRESHOLDS } from './manifest.js';
@@ -159,7 +169,13 @@ export type AlignMechanism =
   | 'coverage-gap'
   | 'axis-not-covering'
   | 'axis-labels-not-in-header'
-  | 'content-range-mismatch';
+  | 'content-range-mismatch'
+  /** P-40 批次②：本次测量**没有横向行程** ⇒ 横向机制（R12/R14）结构上不可见。 */
+  | 'no-horizontal-travel'
+  /** P-40 批次②：本次测量**没有纵向行程** ⇒ 纵向机制（R10/R13）结构上不可见。 */
+  | 'no-vertical-travel'
+  /** P-40 批次②：请求了 resize 但窗格尺寸没变 ⇒ 迁移判据的**前提不成立**，该轮无效。 */
+  | 'resize-not-observed';
 
 /** 一行的差值（`chartCenterY − tableCenterY`；对齐 = 0，图表比左表**高**时 < 0）。 */
 export interface RowAlignDelta {
@@ -358,22 +374,134 @@ export function diagnoseRowAlignment(probe: RowAlignProbe): RowAlignVerdict {
   };
 }
 
+/**
+ * 一次滚动位置的"**请求 vs 实际**"。
+ *
+ * 为什么不从 {@link RowAlignProbe} 派生：`RowAlignProbe` 是**判据的输入**（只含 DOM 真值与
+ * 应用状态），而"请求过什么"是**采数过程的事实**。分开之后，覆盖度判读可以独立于采数实现被检验
+ * （`align.spec.ts` 直接合成请求/实际对即可）。
+ */
+export interface ScrollPositionFact {
+  readonly requestedTop: number;
+  readonly requestedLeft: number;
+  /** 该位置读到的**真实** `scrollTop`（浏览器会把请求值夹进可表示范围）。 */
+  readonly actualTop: number;
+  readonly actualLeft: number;
+}
+
+/**
+ * 该次测量**覆盖到的滚动行程**（P-40 批次②）。
+ *
+ * ## 为什么这是一条判据而不是一句描述
+ *
+ * P-24 的教训是"**只探纵向的判据结构上抓不到横向机制**"（R12 在 `scrollLeft = 0` 处恒为 0）；
+ * P-40 批次②把它推到底：**判据必须覆盖"机制被激活"的那片区域，而且这件事本身要被判定**。
+ * 两种情况会让覆盖静默消失：
+ *
+ * 1. 内容**整幅不滚动**（周/月档的小文档：`contentWidth ≤ 窗格宽`）⇒ 浏览器把"超大值"位置
+ *    夹回 `0`，于是 `(0, max)` 与 `(0, 0)` 完全等价——探针输出"6 位置全绿"，**横向什么都没测**；
+ * 2. 反过来的极端（只探到横向、没有纵向行程）同理。
+ *
+ * 因此覆盖度**不足即判失败**（P-12 的"缺失即失败，不静默跳过"）：一次无法激活机制的测量
+ * 不能记成 ✅，只能记成"这次测量不构成该方向的判据"。
+ */
+export interface ScrollCoverage {
+  readonly maxScrollTop: number;
+  readonly maxScrollLeft: number;
+  /** 至少一个位置真的 `scrollLeft > 0`（否则横向机制不可见）。 */
+  readonly horizontalCovered: boolean;
+  readonly verticalCovered: boolean;
+  /** 请求了非 0 却被夹回**比请求值小得多**的位置数（"超大值被夹住"的显式计数）。 */
+  readonly clampedPositions: number;
+  readonly mechanisms: readonly AlignMechanism[];
+  readonly ok: boolean;
+}
+
+/** 判读滚动覆盖度（纯函数；输入是"请求 vs 实际"，见 {@link ScrollPositionFact}）。 */
+export function diagnoseScrollCoverage(facts: readonly ScrollPositionFact[]): ScrollCoverage {
+  const maxScrollTop = facts.length === 0 ? 0 : Math.max(...facts.map((fact) => fact.actualTop));
+  const maxScrollLeft = facts.length === 0 ? 0 : Math.max(...facts.map((fact) => fact.actualLeft));
+  // "被夹住"只统计**请求非 0 而实际为 0**的位置：这正是"位置退化成与 (0,0) 等价"的字面形式。
+  const clampedPositions = facts.filter(
+    (fact) => (fact.requestedTop > 0 && fact.actualTop === 0) || (fact.requestedLeft > 0 && fact.actualLeft === 0),
+  ).length;
+  const horizontalCovered = maxScrollLeft > 0;
+  const verticalCovered = maxScrollTop > 0;
+  const mechanisms: AlignMechanism[] = [];
+  if (!horizontalCovered) mechanisms.push('no-horizontal-travel');
+  if (!verticalCovered) mechanisms.push('no-vertical-travel');
+  return {
+    maxScrollTop,
+    maxScrollLeft,
+    horizontalCovered,
+    verticalCovered,
+    clampedPositions,
+    mechanisms,
+    ok: mechanisms.length === 0,
+  };
+}
+
+/** resize 迁移的前提与结论（P-40 批次② 的 ②-C）。 */
+export interface ResizeMigrationVerdict {
+  /** 窗格尺寸**真的变了**（否则这一轮测量不构成迁移判据）。 */
+  readonly observed: boolean;
+  readonly deltaWidth: number;
+  readonly deltaHeight: number;
+  readonly mechanisms: readonly AlignMechanism[];
+}
+
+/**
+ * 判读一次"resize 迁移"的**前提自证**：迁移前后的窗格尺寸必须真的不同。
+ *
+ * 为什么需要它：迁移判据（"尺寸变化后两栏仍自洽"）在**尺寸没变**时会退化成"又量了一次同一状态"，
+ * 于是"没变"与"变好了"给出同一个绿。同族的先例是 `textFixtures.spec.ts` 的**前提自证**
+ * （20089 vs 20731）——凡"对照"都要先证明对照真的发生了。
+ *
+ * 迁移**本身的**一致性判据不在这里：它复用 {@link diagnoseRowAlignment}（同一份机制表），
+ * 因为"过期重算"的签名就是 `pane-measure-stale` / `table-body-height-mismatch` /
+ * `svg-box-not-1to1` / `scroll-out-of-sync` 这几条。
+ */
+export function diagnoseResizeMigration(input: {
+  readonly beforeWidth: number;
+  readonly beforeHeight: number;
+  readonly afterWidth: number;
+  readonly afterHeight: number;
+}): ResizeMigrationVerdict {
+  const deltaWidth = round(input.afterWidth - input.beforeWidth);
+  const deltaHeight = round(input.afterHeight - input.beforeHeight);
+  const observed = Math.abs(deltaWidth) > 0 || Math.abs(deltaHeight) > 0;
+  return {
+    observed,
+    deltaWidth,
+    deltaHeight,
+    mechanisms: observed ? [] : ['resize-not-observed'],
+  };
+}
+
 /** 一次完整测量（多个滚动位置）的汇总判读。 */
-export function summarizeAlignment(verdicts: readonly RowAlignVerdict[]): {
+export function summarizeAlignment(
+  verdicts: readonly RowAlignVerdict[],
+  coverage?: ScrollCoverage,
+): {
   readonly ok: boolean;
   readonly probes: number;
   readonly failingProbes: number;
   readonly maxAbsRowDeltaPx: number;
   readonly maxAbsBarXDeltaPx: number;
   readonly mechanisms: readonly AlignMechanism[];
+  /** 未提供覆盖度输入时为 `null`（老调用点/诊断用）。 */
+  readonly coverage: ScrollCoverage | null;
 } {
-  const mechanisms = [...new Set(verdicts.flatMap((verdict) => [...verdict.mechanisms]))];
+  const mechanisms = [
+    ...new Set([...verdicts.flatMap((verdict) => [...verdict.mechanisms]), ...(coverage?.mechanisms ?? [])]),
+  ];
   return {
-    ok: verdicts.length > 0 && verdicts.every((verdict) => verdict.ok),
+    ok: verdicts.length > 0 && verdicts.every((verdict) => verdict.ok) && (coverage === undefined || coverage.ok),
     probes: verdicts.length,
     failingProbes: verdicts.filter((verdict) => !verdict.ok).length,
     maxAbsRowDeltaPx: verdicts.length === 0 ? 0 : Math.max(...verdicts.map((verdict) => verdict.maxAbsRowDeltaPx)),
     maxAbsBarXDeltaPx: verdicts.length === 0 ? 0 : Math.max(...verdicts.map((verdict) => verdict.maxAbsBarXDeltaPx)),
     mechanisms,
+    coverage: coverage ?? null,
   };
 }

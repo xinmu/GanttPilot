@@ -776,6 +776,13 @@ onMounted(() => {
       pane: () => paneRef.value,
       pointerFromClientOf: (clientX: number, clientY: number) =>
         pointerFromClientPoint(clientX, clientY, 1),
+      /**
+       * P-40 批次②：`--align` 必须能覆盖周/月档，而档位住在页面状态里 ⇒
+       * 记录制走**用户点工具栏的同一个** `chart.setZoom`（`onZoom` 也走它），不另开测试后门。
+       */
+      setZoom: (next: ZoomKey) => {
+        chart.setZoom(next);
+      },
       };
       exposeMeasurement({
         // G6：测量用的夹具解析必须与 `measure.ts` 的 `specOfDataset` 同源——

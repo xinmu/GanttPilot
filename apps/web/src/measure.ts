@@ -33,7 +33,9 @@ import {
   countElements,
   createScheduleCalendar,
   DATASETS,
+  diagnoseResizeMigration,
   diagnoseRowAlignment,
+  diagnoseScrollCoverage,
   entryConstraintFor,
   handleOffsetsFor,
   PRIMARY_DATASET_KEY,
@@ -48,10 +50,12 @@ import {
   type FixtureSpec,
   type PointerInput,
   type ProjectDocument,
+  type ResizeMigrationVerdict,
   type RowAlignProbe,
   type RowAlignSample,
   type RowAlignVerdict,
   type Schedule,
+  type ScrollCoverage,
   type ViewModel,
   type ZoomKey,
 } from '@ganttpilot/render-core';
@@ -169,6 +173,95 @@ function oneFrame(): Promise<void> {
   });
 }
 
+/**
+ * 稳定读数的帧预算（**记录制口径的一部分**，证据文件必须一起登记）。
+ *
+ * 取 12 帧的理由：正常路径 **2 帧**就稳定（见 {@link settleStableRead}），余量留给"一帧做不完"
+ * 的大夹具与首帧布局；超过它就不再是抖动，而是"应用没有收敛"。
+ */
+export const STABLE_READ_BUDGET_FRAMES = 12;
+
+export interface StableReadResult {
+  readonly frames: number;
+  readonly stable: boolean;
+  readonly elapsedMs: number;
+}
+
+/**
+ * 滚动后**读数的稳定判据**（P-40 批次② 的 ②-β/γ，**全仓唯一实现**）。
+ *
+ * ## 它取代了什么
+ *
+ * 此前是"设 `scrollTop` → `nextTick` + **两帧**"（P-23 遗留 6）。那个常量**没有任何判据守着**：
+ * rAF 被节流、或应用一帧做不完时，读到的可能是"状态已变、DOM 未变"的中间态 ⇒
+ * 判据给出**假红**（把"没画完"读成"没对齐"）或**假绿**（旧值恰好通过），而且**不会报警**。
+ *
+ * ## 现在的口径
+ *
+ * 每帧读一次**指纹**（{@link scrollFingerprint}：DOM 真值 + 应用状态 + 行中心 + spacer 尺寸），
+ * **连续两帧一致**即认为应用已处理完并返回；到 {@link STABLE_READ_BUDGET_FRAMES} 帧仍不一致 ⇒
+ * `stable: false`，调用方必须**判红**（P-12"缺失即失败，不静默跳过"）。
+ * 快路径仍是 2 帧 ⇒ 正常运行**没有额外开销**。
+ *
+ * ## 为什么指纹里要含 `view.scrollTop/scrollLeft`（②-γ 的安全子集）
+ *
+ * "应用已应用该滚动位置"的最强信号是应用自己的状态，但它**不能单独作为终止条件**——
+ * 那会让"应用真的不同步"被读成"还没轮到我"，从而**掩盖**真缺陷（而 `scroll-out-of-sync`
+ * 正在断言这件事）。所以它只作为指纹的一部分：既参与"稳没稳"，又不独占判定权。
+ */
+async function settleStableRead(args: {
+  readonly fingerprint: () => string;
+  readonly budgetFrames?: number;
+}): Promise<StableReadResult> {
+  const budget = args.budgetFrames ?? STABLE_READ_BUDGET_FRAMES;
+  const started = performance.now();
+  let previous: string | null = null;
+  for (let frame = 1; frame <= budget; frame += 1) {
+    await oneFrame();
+    const current = args.fingerprint();
+    if (previous !== null && current === previous) {
+      return { frames: frame, stable: true, elapsedMs: performance.now() - started };
+    }
+    previous = current;
+  }
+  return { frames: budget, stable: false, elapsedMs: performance.now() - started };
+}
+
+/**
+ * 图表行 `<g>` 的选择器：SVG 是滚动容器的**兄弟**（修后）或子元素（修前/负向对照）——
+ * 判据必须能在"坏结构"上照样采到数，否则负向对照无从谈起。
+ */
+const CHART_ROW_SELECTOR = '.chart-pane-wrap .rows > g[data-task-id], #chart-pane .rows > g[data-task-id]';
+
+/** 指纹里的"应用侧"输入（DOM 真值从 `pane` 与 DOM 直接读）。 */
+interface FingerprintExpectation {
+  readonly scrollTop: number;
+  readonly scrollLeft: number;
+  readonly contentWidth: number;
+}
+
+/** 稳定性指纹：把"应用状态 + DOM 真值 + 可见几何"压成一个字符串（相等即认为这一帧没有新变化）。 */
+function scrollFingerprint(pane: HTMLElement, expected: FingerprintExpectation): string {
+  const parts: (number | string)[] = [
+    pane.scrollTop,
+    pane.scrollLeft,
+    expected.scrollTop,
+    expected.scrollLeft,
+    expected.contentWidth,
+    pane.clientWidth,
+    pane.clientHeight,
+  ];
+  // 前 3 行的行中心：滚动/重算会让它整体平移，因此它对"DOM 还没跟上"最敏感。
+  for (const row of [...document.querySelectorAll(CHART_ROW_SELECTOR)].slice(0, 3)) {
+    const box = boxOf(row);
+    parts.push(box === null ? 'x' : Math.round(box.top * 100) / 100);
+  }
+  const spacer = boxOf(document.querySelector('#chart-pane .chart-spacer'));
+  parts.push(spacer === null ? 'x' : Math.round(spacer.width * 100) / 100);
+  parts.push(spacer === null ? 'x' : Math.round(spacer.height * 100) / 100);
+  return parts.join('|');
+}
+
 /** 渲染窗口是否覆盖了全部可见行（缓冲行的唯一作用）。 */
 function blankRowsOf(view: ViewModel): number {
   const rendered = new Set(view.rows.map((row) => row.row));
@@ -251,7 +344,19 @@ export async function runMeasurement(args: {
       // **不等帧**：`renderMs` 因此是"提交 + DOM 更新"的同步工作量。
       await args.controller.applyView(view, scrollTop, false);
       const t2 = performance.now();
-      // 帧等待在这里，单独计时，**不计入** `workMs`。
+      /**
+       * 帧等待在这里，单独计时，**不计入** `workMs`。
+       *
+       * **为什么主口径不用 {@link settleStableRead}**（P-41 §4 的例外，两个理由）：
+       * ① `frameMs` 的**口径定义**就是"提交 + DOM 更新 + **双 rAF 等待**"（"就绪 → 含依赖线首帧"），
+       *    换掉它等于改口径、历次首屏数字全不可比；
+       * ② 这条路**不把夹具装进应用**：`runMeasurement` 自己 `buildView` 再 `applyView`，
+       *    而页面自己的文档仍是演示计划 ⇒ 任何后台重算（`ResizeObserver → measure()`）都会
+       *    用"应用自己的视图"覆盖掉刚推上去的视图。**多等帧会把这条已知脆弱的窗口拉宽**
+       *    （P-41 落地时当场踩到：`DOM 行/边 = 15/14`（演示计划）vs `模型 = 30/41`）。
+       *    这里的一致性由**两路互证**守着（`errors` 非空即 `status: error`），
+       *    而它刚刚证明了判别力（P-23 §5 修的就是这条互证曾经失效）。
+       */
       await nextFrame();
       const t3 = performance.now();
       return {
@@ -367,7 +472,13 @@ export async function runMeasurement(args: {
     const visibleRows = Math.max(1, Math.ceil(viewport.height / viewport.rowHeight));
     const maxScrollTop = Math.max(0, (probeView.rowCount - visibleRows) * viewport.rowHeight);
     const pixelsPerStep = visibleRows * viewport.rowHeight;
-    const steps: { step: number; scrollTop: number; workMs: number; elements: number; blankRows: number }[] = [];
+    const steps: {
+      step: number;
+      scrollTop: number;
+      workMs: number;
+      elements: number;
+      blankRows: number;
+    }[] = [];
     let blankRowGaps = 0;
     const wallStart = performance.now();
     for (let step = 1; step <= args.scrollSteps; step += 1) {
@@ -497,22 +608,69 @@ export function exposeMeasurement(args: {
     const alignHost = args.align;
     host.__GANTTPILOT_MEASURE_ALIGN__ = async (options: {
       readonly dataset?: string;
+      /** 档位（`day`/`week`/`month`）：走**用户点工具栏的同一个** `setZoom`。 */
+      readonly zoom?: string;
+      /** `positions`（默认）= 重载夹具 + 逐位置设滚动；`reread` = 不重载、不设滚动（resize 迁移第二步）。 */
+      readonly mode?: 'positions' | 'reread';
+      /** 绝对像素位置（诊断用）。 */
       readonly positions?: readonly { readonly top: number; readonly left: number }[];
+      /** 比例位置（`0..1`；按真实可滚动行程解析）。 */
+      readonly fractions?: readonly { readonly top: number; readonly left: number }[];
+      /** "前一次"窗格尺寸 ⇒ 判 resize 迁移的前提自证。 */
+      readonly previousPane?: { readonly width: number; readonly height: number } | null;
+      /** 采完**不复位滚动**（迁移轮必须：复位会抹掉"resize 前的滚动位置"）。 */
+      readonly keepScroll?: boolean;
+      /** `reread` 下"应该还在"的滚动位置（位置存活性判读）。 */
+      readonly expectedScroll?: { readonly top: number; readonly left: number } | null;
     }): Promise<AlignMeasureResult> => {
-      const spec = specOfDataset(options.dataset ?? PRIMARY_DATASET_KEY);
-      const document = args.buildFixtureDocument(spec.key);
-      await args.loadDocument(document);
       const requested = Array.isArray(options.positions) ? options.positions : [];
+      const fractionSpecs = Array.isArray(options.fractions) ? options.fractions : [];
+      const absolute =
+        requested.length > 0
+          ? requested.map((item) => ({
+              top: Math.max(0, Math.trunc(Number(item.top) || 0)),
+              left: Math.max(0, Math.trunc(Number(item.left) || 0)),
+            }))
+          : undefined;
+      const fractions =
+        fractionSpecs.length > 0
+          ? fractionSpecs.map((item) => ({
+              top: Math.min(1, Math.max(0, Number(item.top) || 0)),
+              left: Math.min(1, Math.max(0, Number(item.left) || 0)),
+            }))
+          : undefined;
+      const mode = options.mode === 'reread' ? 'reread' : 'positions';
+      let dataset = options.dataset ?? PRIMARY_DATASET_KEY;
+
+      if (mode === 'positions') {
+        const spec = specOfDataset(dataset);
+        dataset = spec.key;
+        const document = args.buildFixtureDocument(spec.key);
+        await args.loadDocument(document);
+        // 档位：**没有静默回退**——请求了档位却没有接线就显式失败（否则会安静地用日档，判据变成假的）。
+        const zoom = options.zoom;
+        if (typeof zoom === 'string' && zoom !== '') {
+          if (!(ZOOM_ORDER as readonly string[]).includes(zoom)) {
+            throw new Error(`未知档位：${zoom}（可用：${ZOOM_ORDER.join(' / ')}）`);
+          }
+          if (alignHost.setZoom === undefined) {
+            throw new Error('对齐宿主没有 setZoom（App.vue 未接线）：无法切档位，拒绝静默用日档');
+          }
+          alignHost.setZoom(zoom as ZoomKey);
+          await nextTick();
+        }
+      }
+
       return runAlignMeasurement({
         host: alignHost,
-        dataset: spec.key,
-        positions:
-          requested.length > 0
-            ? requested.map((item) => ({
-                top: Math.max(0, Math.trunc(Number(item.top) || 0)),
-                left: Math.max(0, Math.trunc(Number(item.left) || 0)),
-              }))
-            : [...ALIGN_PROBES],
+        dataset,
+        mode,
+        previousPane: options.previousPane ?? null,
+        keepScroll: options.keepScroll === true,
+        expectedScroll: options.expectedScroll ?? null,
+        // `exactOptionalPropertyTypes`：只有真的给了才带这个键（`undefined` 不等于"没给"）。
+        ...(absolute === undefined ? {} : { positions: absolute }),
+        ...(fractions === undefined ? {} : { fractions }),
       });
     };
   }
@@ -705,13 +863,28 @@ function dragScreenPoint(
     return emptyDragResult(args, ['找不到图表窗格（#chart-pane）']);
   }
 
-  // 滚动到指定位置：**等两帧**（`scroll` 事件先于下一帧派发；不等帧就会在"状态已变、DOM 未变"的
-  // 中间态上挑目标行与换算坐标——那样判据测的是别的东西）。
+  // 滚动到指定位置：**等读数稳定**（P-40 批次②；旧口径是写死的"两帧"）。
+  // 不等就会在"状态已变、DOM 未变"的中间态上挑目标行与换算坐标——那样判据测的是别的东西；
+  // 不稳定则直接判红，不静默用一个中间态的数字（P-12"缺失即失败"）。
   pane.scrollTop = args.scrollTop ?? 0;
   pane.scrollLeft = args.scrollLeft ?? 0;
   await nextTick();
-  await oneFrame();
-  await oneFrame();
+  const settled = await settleStableRead({
+    fingerprint: () => {
+      const current = args.host.view();
+      return scrollFingerprint(pane, {
+        scrollTop: current?.scrollTop ?? -1,
+        scrollLeft: current?.scrollLeft ?? -1,
+        contentWidth: current?.contentWidth ?? -1,
+      });
+    },
+  });
+  if (!settled.stable) {
+    return emptyDragResult(args, [
+      `滚动到 (${String(args.scrollTop ?? 0)}, ${String(args.scrollLeft ?? 0)}) 后读数在 ` +
+        `${String(STABLE_READ_BUDGET_FRAMES)} 帧内未稳定（应用未在预算内处理完滚动）`,
+    ]);
+  }
 
   const target = pickDragTarget(args.host);
   if (target === null) {
@@ -1055,7 +1228,7 @@ function emptyDragResult(
 
 // ---------------------------------------------------------------- G5 批次 D：两栏行对齐（记录制，ADR 0007 §14 / 裁决 P-23）
 
-/** 对齐测量的宿主：由 `App.vue` 提供的**只读**入口。 */
+/** 对齐测量的宿主：由 `App.vue` 提供（除 `setZoom` 外全部**只读**）。 */
 export interface AlignMeasurementHost {
   /** 当前渲染的视图模型（提供行序、行高、条形的**内容坐标**）。 */
   readonly view: () => ViewModel | null;
@@ -1066,13 +1239,26 @@ export interface AlignMeasurementHost {
    * **只读**：不派发事件、不进入手势状态机。
    */
   readonly pointerFromClientOf: (clientX: number, clientY: number) => PointerInput | null;
+  /**
+   * 切档位（P-40 批次②）：`--align` 必须覆盖周/月档，而**档位住在页面状态里**——
+   * 记录制因此走**用户点工具栏的同一个** `chart.setZoom`，不另开测试后门。
+   */
+  readonly setZoom?: (zoom: ZoomKey) => void;
 }
 
-/** 一次探测（一个 `scrollTop` × `scrollLeft` 位置）的结果。 */
+/** 探测位置：**比例**（`0..1`，按真实可滚动行程解析）或绝对像素（诊断用）。 */
+export interface AlignPositionSpec {
+  readonly top: number;
+  readonly left: number;
+}
+
+/** 一次探测（一个滚动位置）的结果。 */
 export interface AlignProbeResult {
   /** 请求的 `scrollTop` / `scrollLeft`；浏览器会夹到可表示范围，**真值**见 `probe`。 */
   readonly requestedScrollTop: number;
   readonly requestedScrollLeft: number;
+  /** 该位置"等应用处理完"用掉的帧数（稳定判据的读数；证据里登记它）。 */
+  readonly settleFrames: number;
   readonly probe: RowAlignProbe;
   readonly verdict: RowAlignVerdict;
 }
@@ -1082,7 +1268,16 @@ export interface AlignMeasureResult {
   readonly status: 'ok' | 'error';
   readonly errors: readonly string[];
   readonly dataset: string;
+  /** **实际生效**的档位（从 `ViewModel` 读回，不信调用方传了什么）。 */
+  readonly zoom: string;
+  /** `positions` = 逐个位置设滚动后读；`reread` = **不设滚动**、只重读当前状态（resize 迁移的第二步）。 */
+  readonly mode: 'positions' | 'reread';
   readonly probes: readonly AlignProbeResult[];
+  /** 稳定读的帧预算（**从实现里读回**，证据要登记它，不在脚本里抄第二份）。 */
+  readonly stableReadBudgetFrames: number;
+  /** 滚动覆盖度（`reread` 模式为 `null`：单点无法证明"有行程"）。 */
+  readonly coverage: ScrollCoverage | null;
+  readonly migration: ResizeMigrationVerdict | null;
   readonly summary: {
     readonly ok: boolean;
     readonly probes: number;
@@ -1090,25 +1285,28 @@ export interface AlignMeasureResult {
     readonly maxAbsRowDeltaPx: number;
     readonly maxAbsBarXDeltaPx: number;
     readonly mechanisms: readonly string[];
+    readonly coverage: ScrollCoverage | null;
   };
 }
 
 /**
- * 默认探测位置：**横向与纵向都必须含 0 与"尽量大"**（`9_999_999` 由浏览器夹到 `maxScroll`）。
+ * 默认探测位置（**比例**，`0..1`）：横向与纵向都必须含 **0 与 1**。
  *
- * 三条硬要求：
+ * 四条硬要求：
  * ① 双重偏移在 `scrollTop = 0` 处恒为 0（机制**不可见**）⇒ 至少两个位置才判得出机制（P-22 遗留 1）；
- * ② 最末那个大值由浏览器夹到 `maxScroll` ⇒ 空白带（"下方/右侧新区域空白"）也在被测范围内；
- * ③ **横向同样要探**（P-24）：轴的横向双重偏移在 `scrollLeft = 0` 处同样不可见，
- *    只探纵向会漏掉"右侧新区域没有网格线/灰度带"。
+ * ② `1` 由**真实可滚动行程**解析 ⇒ 空白带（"下方/右侧新区域空白"）也在被测范围内；
+ * ③ **横向同样要探**（P-24）：轴的横向双重偏移在 `scrollLeft = 0` 处同样不可见；
+ * ④ **比例而非绝对像素**（P-40 批次②）：绝对像素在"内容整幅不滚动"的档位下会被夹回 0，
+ *    于是 `(0, max)` 与 `(0, 0)` 等价、横向**静默没测**——比例解析后这件事由
+ *    `diagnoseScrollCoverage` 显式判出（`no-horizontal-travel`），而不是记成 ✅。
  */
-const ALIGN_PROBES: readonly { readonly top: number; readonly left: number }[] = [
+const ALIGN_POSITION_FRACTIONS: readonly AlignPositionSpec[] = [
   { top: 0, left: 0 },
-  { top: 120, left: 0 },
-  { top: 480, left: 600 },
-  { top: 9_999_999, left: 0 },
-  { top: 0, left: 9_999_999 },
-  { top: 9_999_999, left: 9_999_999 },
+  { top: 0.5, left: 0 },
+  { top: 1, left: 0 },
+  { top: 0, left: 0.5 },
+  { top: 0, left: 1 },
+  { top: 1, left: 1 },
 ];
 
 /** 只读地取一个元素的外接矩形（`null` = 元素不存在）。 */
@@ -1119,20 +1317,42 @@ function boxOf(
 }
 
 /**
- * 跑一次两栏行对齐测量（G5 批次 D，**记录制**）。
+ * 跑一次两栏行对齐测量（G5 批次 D + P-40 批次②，**记录制**）。
  *
  * 口径（必须与数字一起引用）：
- * - **只读**：只设 `scrollTop` 并读矩形，**不改文档、不派发指针事件、不进手势**；结束把 `scrollTop` 复位 0；
- * - 每个位置读 DOM 后等 `nextTick` + **两帧**：`scroll` 事件先于下一帧派发，
- *   不等帧会读到"状态已变、DOM 未变"或反之的中间态（那正是会把结论判反的读法）；
+ * - **只读**：只设滚动位置并读矩形，**不改文档、不派发指针事件、不进手势**；结束把滚动复位 0；
+ * - 每个位置：设滚动 → `nextTick` → **等读数稳定**（{@link settleStableRead}：连续两帧指纹一致；
+ *   预算 `STABLE_READ_BUDGET_FRAMES` 帧内不稳定 ⇒ **判红**）。旧口径是写死的"两帧"、无人守；
+ * - **位置按比例解析**（`fractions`，`0..1` × 真实可滚动行程）：绝对像素在"整幅不滚动"的档位下会被夹回 0；
+ * - **覆盖度**由 `diagnoseScrollCoverage` 判：整次测量没有横向/纵向行程 ⇒ 判失败，不记 ✅；
+ * - `mode: 'reread'`（resize 迁移的第二步）：**不重载夹具、不设滚动**，只重读当前状态；
+ *   此模式下不判覆盖度（单点无法证明"有行程"）；
  * - 行按 `data-task-id` 配对（图表 `<g>` ↔ 左表 `.row`），**两侧计数必须与被渲染行数相等**；
- * - 判读全部交 `diagnoseRowAlignment`（纯函数、进门禁），本函数只负责采数。
+ * - 判读全部交 `diagnoseRowAlignment` / `diagnoseScrollCoverage` / `diagnoseResizeMigration`
+ *   （纯函数、进门禁），本函数只负责采数。
  */
 export async function runAlignMeasurement(args: {
   readonly host: AlignMeasurementHost;
   readonly dataset: string;
-  readonly positions: readonly { readonly top: number; readonly left: number }[];
+  readonly mode?: 'positions' | 'reread';
+  /** 绝对像素位置（诊断用；与 `fractions` 二者取一）。 */
+  readonly positions?: readonly AlignPositionSpec[];
+  /** 比例位置（`0..1`；默认 {@link ALIGN_POSITION_FRACTIONS}）。 */
+  readonly fractions?: readonly AlignPositionSpec[];
+  /** 迁移判据的**前一次**窗格尺寸（给了就判 `resize-not-observed`）。 */
+  readonly previousPane?: { readonly width: number; readonly height: number } | null;
+  /**
+   * 采完**不复位滚动**（P-40 批次② 的迁移轮必须这样：复位会把"resize 前的滚动位置"抹掉，
+   * 于是迁移后只能读到 `0·0`——而机制**恰在 0 处不可见**）。
+   */
+  readonly keepScroll?: boolean;
+  /**
+   * `reread` 模式下"应该还在"的滚动位置（迁移前设的那个）：
+   * 给了就用它做**位置存活性**判读（实际读到 0 ⇒ 覆盖度判失败 ⇒ 这一轮不构成迁移判据）。
+   */
+  readonly expectedScroll?: { readonly top: number; readonly left: number } | null;
 }): Promise<AlignMeasureResult> {
+  const mode = args.mode ?? 'positions';
   const emptySummary = {
     ok: false,
     probes: 0,
@@ -1140,12 +1360,18 @@ export async function runAlignMeasurement(args: {
     maxAbsRowDeltaPx: 0,
     maxAbsBarXDeltaPx: 0,
     mechanisms: [] as readonly string[],
+    coverage: null as ScrollCoverage | null,
   };
   const failed = (errors: readonly string[]): AlignMeasureResult => ({
     status: 'error',
     errors,
     dataset: args.dataset,
+    zoom: 'unknown',
+    mode,
     probes: [],
+    stableReadBudgetFrames: STABLE_READ_BUDGET_FRAMES,
+    coverage: null,
+    migration: null,
     summary: emptySummary,
   });
 
@@ -1160,13 +1386,42 @@ export async function runAlignMeasurement(args: {
   const errors: string[] = [];
   const probes: AlignProbeResult[] = [];
 
-  for (const requested of args.positions) {
-    // 先设纵向再设横向：两个方向都要等帧（`scroll` 事件先于下一帧派发）。
-    pane.scrollTop = requested.top;
-    pane.scrollLeft = requested.left;
-    await nextTick();
-    await oneFrame();
-    await oneFrame();
+  // 位置解析：`reread` 只读**当前**位置；否则 绝对像素优先，其次比例 × 真实可滚动行程。
+  const maxTop = Math.max(0, pane.scrollHeight - pane.clientHeight);
+  const maxLeft = Math.max(0, pane.scrollWidth - pane.clientWidth);
+  const requestedPositions: readonly AlignPositionSpec[] =
+    mode === 'reread'
+      ? [{ top: pane.scrollTop, left: pane.scrollLeft }]
+      : (args.positions ??
+        (args.fractions ?? ALIGN_POSITION_FRACTIONS).map((fraction) => ({
+          top: Math.round(fraction.top * maxTop),
+          left: Math.round(fraction.left * maxLeft),
+        })));
+  const applyScroll = mode === 'positions';
+
+  for (const requested of requestedPositions) {
+    if (applyScroll) {
+      pane.scrollTop = requested.top;
+      pane.scrollLeft = requested.left;
+      await nextTick();
+    }
+    // **等读数稳定**（不是"等两帧"）：连续两帧指纹一致才算应用处理完；预算耗尽 ⇒ 判红。
+    const settled = await settleStableRead({
+      fingerprint: () => {
+        const current = args.host.view();
+        return scrollFingerprint(pane, {
+          scrollTop: current?.scrollTop ?? -1,
+          scrollLeft: current?.scrollLeft ?? -1,
+          contentWidth: current?.contentWidth ?? -1,
+        });
+      },
+    });
+    if (!settled.stable) {
+      errors.push(
+        `top=${String(requested.top)}/left=${String(requested.left)}：读数在 ${String(STABLE_READ_BUDGET_FRAMES)} 帧内未稳定` +
+          `（应用未在预算内处理完滚动——判据此时取到的是中间态，故判红）`,
+      );
+    }
 
     const view = args.host.view();
     if (view === null) {
@@ -1180,13 +1435,7 @@ export async function runAlignMeasurement(args: {
       continue;
     }
 
-    // 选择器同时覆盖两种排布：SVG 是滚动容器的**兄弟**（修后）或子元素（修前/负向对照）——
-    // 判据必须能在"坏结构"上照样采到数，否则负向对照无从谈起。
-    const rowGroups = [
-      ...document.querySelectorAll(
-        '.chart-pane-wrap .rows > g[data-task-id], #chart-pane .rows > g[data-task-id]',
-      ),
-    ];
+    const rowGroups = [...document.querySelectorAll(CHART_ROW_SELECTOR)];
     const tableRows = [...document.querySelectorAll('.table-body .row-block .row[data-task-id]')];
     // 左表行的 **DOM 外高**（R9 的直接签名：它必须等于模型行高）。
     const tableRowHeight = tableRows.length === 0 ? 0 : (boxOf(tableRows[0] ?? null)?.height ?? 0);
@@ -1359,19 +1608,77 @@ export async function runAlignMeasurement(args: {
     probes.push({
       requestedScrollTop: requested.top,
       requestedScrollLeft: requested.left,
+      settleFrames: settled.frames,
       probe,
       verdict: diagnoseRowAlignment(probe),
     });
   }
 
-  // 复位（诊断是只读的：不给下一次测量留下滚动位置）。
-  pane.scrollTop = 0;
-  pane.scrollLeft = 0;
-
-  if (probes.length !== args.positions.length) {
-    errors.push(`有效探测 ${String(probes.length)} / 请求 ${String(args.positions.length)}`);
+  // 复位（诊断是只读的：不给下一次测量留下滚动位置）——迁移轮用 `keepScroll` 明确豁免。
+  if (args.keepScroll !== true) {
+    pane.scrollTop = 0;
+    pane.scrollLeft = 0;
   }
-  const summary = summarizeAlignment(probes.map((item) => item.verdict));
+
+  if (probes.length !== requestedPositions.length) {
+    errors.push(`有效探测 ${String(probes.length)} / 请求 ${String(requestedPositions.length)}`);
+  }
+
+  /**
+   * 覆盖度只在 `positions` 模式下按**本次采到的行程**判；
+   * `reread`（迁移第二步）用"期望位置 vs 实际位置"判**位置存活性**——
+   * 实际读到 0 时该轮不构成迁移判据（机制在 0 处不可见），而不是记成 ✅。
+   */
+  const coverage =
+    mode === 'positions'
+      ? diagnoseScrollCoverage(
+          probes.map((item) => ({
+            requestedTop: item.requestedScrollTop,
+            requestedLeft: item.requestedScrollLeft,
+            actualTop: item.probe.scrollTop,
+            actualLeft: item.probe.scrollLeft,
+          })),
+        )
+      : args.expectedScroll === undefined || args.expectedScroll === null || probes.length === 0
+        ? null
+        : diagnoseScrollCoverage([
+            {
+              requestedTop: args.expectedScroll.top,
+              requestedLeft: args.expectedScroll.left,
+              actualTop: probes[0]?.probe.scrollTop ?? 0,
+              actualLeft: probes[0]?.probe.scrollLeft ?? 0,
+            },
+          ]);
+  if (coverage !== null && !coverage.ok) {
+    errors.push(
+      `滚动覆盖度不足（这次测量不构成对应方向的判据）：机制 ${coverage.mechanisms.join(' / ')}；` +
+        `实测最大 scrollTop/scrollLeft = ${String(coverage.maxScrollTop)} / ${String(coverage.maxScrollLeft)}` +
+        `（请求非 0 却被夹回 0 的位置数 ${String(coverage.clampedPositions)}）`,
+    );
+  }
+
+  // 迁移判据：给了"前一次窗格尺寸"就判前提自证 + 复用同一份行对齐机制表。
+  const firstProbe = probes[0]?.probe ?? null;
+  const migration =
+    args.previousPane !== undefined && args.previousPane !== null && firstProbe !== null
+      ? diagnoseResizeMigration({
+          beforeWidth: args.previousPane.width,
+          beforeHeight: args.previousPane.height,
+          afterWidth: firstProbe.paneWidth,
+          afterHeight: firstProbe.paneHeight,
+        })
+      : null;
+  if (migration !== null && !migration.observed) {
+    errors.push(
+      `resize 迁移的前提不成立：窗格尺寸没有变化（Δ ${String(migration.deltaWidth)} × ${String(migration.deltaHeight)}）` +
+        `——"没变"不能与"变好了"共用一个绿`,
+    );
+  }
+
+  const summary = summarizeAlignment(
+    probes.map((item) => item.verdict),
+    coverage ?? undefined,
+  );
   if (!summary.ok) {
     errors.push(
       `两栏行对齐未通过：最大行差 ${summary.maxAbsRowDeltaPx.toFixed(3)} px、` +
@@ -1380,10 +1687,15 @@ export async function runAlignMeasurement(args: {
   }
 
   return {
-    status: errors.length === 0 && summary.ok ? 'ok' : 'error',
+    status: errors.length === 0 && summary.ok && (migration === null || migration.observed) ? 'ok' : 'error',
     errors,
     dataset: args.dataset,
+    zoom: firstProbe === null ? 'unknown' : args.host.view()?.zoom ?? 'unknown',
+    mode,
     probes,
+    stableReadBudgetFrames: STABLE_READ_BUDGET_FRAMES,
+    coverage,
+    migration,
     summary,
   };
 }

@@ -19,7 +19,14 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { diagnoseRowAlignment, summarizeAlignment, type RowAlignProbe, type RowAlignSample } from './align.js';
+import {
+  diagnoseResizeMigration,
+  diagnoseRowAlignment,
+  diagnoseScrollCoverage,
+  summarizeAlignment,
+  type RowAlignProbe,
+  type RowAlignSample,
+} from './align.js';
 import { HEADER_HEIGHT_PX, ROW_HEIGHT, THRESHOLDS } from './manifest.js';
 
 /**
@@ -308,5 +315,115 @@ describe('两栏行对齐判读（ADR 0007 §14，P-23）', () => {
     expect(summary.failingProbes).toBe(1);
     expect(summary.mechanisms).toStrictEqual(['pane-measure-stale']);
     expect(summarizeAlignment([]).ok).toBe(false);
+  });
+
+  // ---------------------------------------------------------------- P-40 批次②：判"判据的前提"
+
+  it('覆盖度正例：横向与纵向都真的滚过 ⇒ 零检出，且不把请求值当实际值', () => {
+    const coverage = diagnoseScrollCoverage([
+      { requestedTop: 0, requestedLeft: 0, actualTop: 0, actualLeft: 0 },
+      { requestedTop: 9_999_999, requestedLeft: 0, actualTop: 22_910, actualLeft: 0 },
+      { requestedTop: 0, requestedLeft: 9_999_999, actualTop: 0, actualLeft: 9_347 },
+      { requestedTop: 9_999_999, requestedLeft: 9_999_999, actualTop: 22_910, actualLeft: 9_347 },
+    ]);
+    expect(coverage.ok).toBe(true);
+    expect(coverage.horizontalCovered).toBe(true);
+    expect(coverage.verticalCovered).toBe(true);
+    expect(coverage.clampedPositions).toBe(0);
+    expect(coverage.mechanisms).toStrictEqual([]);
+    expect(coverage.maxScrollLeft).toBe(9_347);
+    expect(coverage.maxScrollTop).toBe(22_910);
+  });
+
+  it('覆盖度负向对照：内容整幅不滚动（请求被夹回 0）⇒ 必须报 `no-horizontal-travel`（**不是** ✅）', () => {
+    // 周/月档的小文档：`contentWidth ≤ 窗格宽` ⇒ 浏览器把"超大值"夹回 0，
+    // 于是 (0, max) 与 (0, 0) 完全等价。旧口径会输出"位置数 ≥ 2、机制为空"⇒ 假绿。
+    const coverage = diagnoseScrollCoverage([
+      { requestedTop: 0, requestedLeft: 0, actualTop: 0, actualLeft: 0 },
+      { requestedTop: 480, requestedLeft: 600, actualTop: 480, actualLeft: 0 },
+      { requestedTop: 0, requestedLeft: 9_999_999, actualTop: 0, actualLeft: 0 },
+      { requestedTop: 9_999_999, requestedLeft: 9_999_999, actualTop: 1_200, actualLeft: 0 },
+    ]);
+    expect(coverage.ok).toBe(false);
+    expect(coverage.horizontalCovered).toBe(false);
+    expect(coverage.verticalCovered).toBe(true);
+    // 三处"请求了非 0 横向却被夹回 0"必须被数出来（它是这条判据的可读证据）。
+    expect(coverage.clampedPositions).toBe(3);
+    expect(coverage.mechanisms).toStrictEqual(['no-horizontal-travel']);
+  });
+
+  it('覆盖度负向对照：完全没有纵向行程 ⇒ `no-vertical-travel`（两个方向各自独立判定）', () => {
+    const coverage = diagnoseScrollCoverage([
+      { requestedTop: 0, requestedLeft: 0, actualTop: 0, actualLeft: 0 },
+      { requestedTop: 0, requestedLeft: 9_999_999, actualTop: 0, actualLeft: 5_000 },
+    ]);
+    expect(coverage.mechanisms).toStrictEqual(['no-vertical-travel']);
+    expect(coverage.horizontalCovered).toBe(true);
+  });
+
+  it('汇总把覆盖度并进判定：位置全绿但**没有横向行程**时，整体必须判失败', () => {
+    const good = diagnoseRowAlignment(baselineProbe());
+    const noTravel = diagnoseScrollCoverage([
+      { requestedTop: 0, requestedLeft: 0, actualTop: 0, actualLeft: 0 },
+      { requestedTop: 480, requestedLeft: 600, actualTop: 480, actualLeft: 0 },
+    ]);
+    expect(noTravel.ok).toBe(false);
+    const summary = summarizeAlignment([good], noTravel);
+    expect(summary.ok).toBe(false);
+    expect(summary.failingProbes).toBe(0);
+    expect(summary.mechanisms).toStrictEqual(['no-horizontal-travel']);
+    expect(summary.coverage).toStrictEqual(noTravel);
+    // 不给覆盖度输入时是老的语义（`coverage: null`、`ok` 只看位置）。
+    const legacy = summarizeAlignment([good]);
+    expect(legacy.ok).toBe(true);
+    expect(legacy.coverage).toBeNull();
+  });
+
+  it('迁移前提自证：窗格尺寸真的变了 ⇒ 零检出；**没变** ⇒ `resize-not-observed`（"没变"不能与"变好了"共用一个绿）', () => {
+    const observed = diagnoseResizeMigration({
+      beforeWidth: 1_280,
+      beforeHeight: 640,
+      afterWidth: 1_024,
+      afterHeight: 520,
+    });
+    expect(observed.observed).toBe(true);
+    expect(observed.deltaWidth).toBe(-256);
+    expect(observed.deltaHeight).toBe(-120);
+    expect(observed.mechanisms).toStrictEqual([]);
+
+    const notObserved = diagnoseResizeMigration({
+      beforeWidth: 1_280,
+      beforeHeight: 640,
+      afterWidth: 1_280,
+      afterHeight: 640,
+    });
+    expect(notObserved.observed).toBe(false);
+    expect(notObserved.mechanisms).toStrictEqual(['resize-not-observed']);
+  });
+
+  it('迁移后"过期重算"的签名必须被**现有机制表**抓住（不新开机制码：`pane-measure-stale` / 表体高 / 盒≠viewBox）', () => {
+    // resize 到 1024×520 后应用没重算：`ViewModel` 还停在 1280×640 那一版。
+    const stale = diagnoseRowAlignment({
+      ...baselineProbe(),
+      paneHeight: 520,
+      paneWidth: 1_024,
+      svgHeight: 520 + HEADER_HEIGHT_PX,
+      svgWidth: 1_024,
+      tableBodyHeight: 640,
+      spacerHeight: 8_000,
+    });
+    expect(stale.mechanisms).toContain('pane-measure-stale');
+    expect(stale.mechanisms).toContain('table-body-height-mismatch');
+    expect(stale.ok).toBe(false);
+  });
+
+  it('迁移后"滚动位置没跟上"必须报 `scroll-out-of-sync`（resize 会在浏览器侧夹 scrollTop）', () => {
+    const verdict = diagnoseRowAlignment({
+      ...baselineProbe(),
+      scrollTop: 120,
+      viewScrollTop: 0,
+    });
+    expect(verdict.mechanisms).toContain('scroll-out-of-sync');
+    expect(verdict.scrollInSync).toBe(false);
   });
 });
