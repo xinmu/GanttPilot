@@ -546,52 +546,6 @@ try {
    */
   const layoutProblems = [];
   layoutProblems.push(...(await probeLayoutStability(cdp, '首屏')));
-  /**
-   * ⚠️ **临时诊断（P-43 抖动追查，跑完即删）**：扫视口尺寸找复现点。
-   *
-   * 报文的线索是"与**横向**滚动条是否出现有关" ⇒ 反馈环走"滚动条 ↔ 窗格客户区尺寸"
-   * （横向条占 clientHeight、纵向条占 clientWidth），而它只在**特定视口**才跨过临界值。
-   * 这里把若干尺寸逐个套上去，每个采 24 帧，只**打印**不判定。
-   */
-  if (process.env.SMOKE_LAYOUT_SWEEP === '1') {
-    const sizes = [];
-    for (const width of [1024, 1088, 1152, 1216, 1280, 1344, 1408, 1472]) sizes.push({ width, height: 800 });
-    for (const height of [620, 680, 740, 860, 920]) sizes.push({ width: 1280, height });
-    for (const size of sizes) {
-      await cdp.call('Emulation.setDeviceMetricsOverride', { ...size, deviceScaleFactor: 1, mobile: false });
-      await new Promise((settle) => setTimeout(settle, 400));
-      const jitter = await cdp.call('Runtime.evaluate', {
-        expression: `(async () => {
-          const pane = document.getElementById('chart-pane');
-          const table = document.querySelector('.table-body');
-          const samples = [];
-          for (let index = 0; index < 24; index += 1) {
-            await new Promise((resolve) => requestAnimationFrame(() => resolve()));
-            samples.push([
-              pane === null ? -1 : pane.clientWidth,
-              pane === null ? -1 : pane.clientHeight,
-              pane === null ? -1 : pane.scrollWidth,
-              pane === null ? -1 : pane.scrollHeight,
-              table === null ? -1 : table.clientWidth,
-              table === null ? -1 : table.scrollWidth,
-              table === null ? -1 : table.scrollHeight,
-            ].join('|'));
-          }
-          const distinct = [...new Set(samples)];
-          return JSON.stringify({ distinct, first: distinct[0] ?? null, last: distinct[distinct.length - 1] ?? null });
-        })()`,
-        awaitPromise: true,
-        returnByValue: true,
-      });
-      const snapshot = JSON.parse(jitter.result.value);
-      console.log(
-        `[布局扫描] ${String(size.width)}×${String(size.height)}：状态 ${String(snapshot.distinct.length)} 种` +
-          (snapshot.distinct.length === 1 ? '' : ` ⇒ 首 ${String(snapshot.first)} / 末 ${String(snapshot.last)}`),
-      );
-    }
-    await cdp.call('Emulation.clearDeviceMetricsOverride');
-    await new Promise((settle) => setTimeout(settle, 400));
-  }
   const resetClick = await cdp.call('Runtime.evaluate', {
     expression:
       "(() => { const btn = document.querySelector('[data-reset]'); if (!btn) return 'no-button'; btn.click(); return 'clicked'; })()",
