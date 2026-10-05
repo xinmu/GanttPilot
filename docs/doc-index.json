@@ -111,6 +111,18 @@
       "note": "P-34：演示口径＝小型手写演示计划（1,000 任务夹具退为规模口径）"
     },
     {
+      "path": "docs/00-baseline/裁决R34.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-35：G7 的开工前置（ADR 0010 冻结 + S-G7 四门禁判定）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R35.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-36：G7 的落地口径、实测数字与出口条件判定"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
@@ -214,6 +226,12 @@
       "note": "G6 持久化契约：记录形状、SnapshotStore、恢复语义、失败码闭集"
     },
     {
+      "path": "docs/02-adr/0010-导出契约.md",
+      "role": "contract",
+      "cap": "contract",
+      "note": "G7 导出契约：三层落点、全量渲染、适配公式、SVG 形态、PPTX 形状映射、降级序列、golden 口径"
+    },
+    {
       "path": "docs/02-adr/附录/0007-增补.md",
       "role": "record",
       "cap": "record",
@@ -255,6 +273,12 @@
       "path": "packages/xlsx-protocol/PROTOCOL.md",
       "role": "spec",
       "cap": "spec"
+    },
+    {
+      "path": "packages/pptx-renderer/PPTX.md",
+      "role": "spec",
+      "cap": "spec",
+      "note": "G7 模板 A：形状映射、吸附站点、补丁与归一化、验证矩阵"
     },
     {
       "path": "README.md",

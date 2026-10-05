@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@ganttpilot/engine": "workspace:*",
+    "@ganttpilot/pptx-renderer": "workspace:*",
     "@ganttpilot/render-core": "workspace:*",
     "@ganttpilot/xlsx-protocol": "workspace:*",
     "vue": "^3.5.43"

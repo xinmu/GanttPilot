@@ -3,15 +3,18 @@
  * 工具栏：档位切换（日/周/月，**离散切换**，ADR 0007 §3）、xlsx 导入、重置演示数据，
  * 以及 G5 的**撤销/重做**、`snap`/`allow` 策略切换与诊断清单开关。
  *
- * ## 范围（ADR 0008 §4/§10）
+ * ## 范围（ADR 0008 §4/§10 + ADR 0010）
  *
- * - **做**：撤销/重做按钮（与 `Ctrl+Z`/`Ctrl+Y` 等价）、`anchorMode` 切换、诊断清单开关；
- * - **不做**导出按钮（G7）。`allow` 模式那句提示必须留住：**"允许"的落点是会话锚点**，
- *   不写文档、不进撤销栈、重开后不保留（ADR 0004 §2）——不写清楚，用户会以为它改了文档。
+ * - **做**：撤销/重做按钮（与 `Ctrl+Z`/`Ctrl+Y` 等价）、`anchorMode` 切换、诊断清单开关、**导出**（G7）；
+ * - **导出**：格式（SVG / PNG / PPTX 模板 A）+ PNG 倍率 + 「含图例与摘要」开关。
+ *   该开关**只对 SVG/PNG 生效**——PPTX 模板 A 固定含图例与摘要（EX-06），因此对它置灰并说明，
+ *   而不是悄悄忽略（用户会以为开关坏了）。
  */
 
 import { ref } from 'vue';
 import { ZOOM_LABEL, ZOOM_ORDER, type AnchorMode, type ZoomKey } from '@ganttpilot/render-core';
+
+import { PNG_SCALES, type ExportFormat } from '../composables/useExport.js';
 
 const props = defineProps<{
   readonly zoom: ZoomKey;
@@ -23,6 +26,10 @@ const props = defineProps<{
   readonly diagnosticCount: number;
   readonly diagnosticsOpen: boolean;
   readonly dragActive: boolean;
+  readonly exportFormat: ExportFormat;
+  readonly exportPngScale: number;
+  readonly exportWithSidebar: boolean;
+  readonly exporting: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -34,6 +41,10 @@ const emit = defineEmits<{
   readonly redo: [];
   readonly setAnchorMode: [mode: AnchorMode];
   readonly toggleDiagnostics: [];
+  readonly setExportFormat: [format: ExportFormat];
+  readonly setExportPngScale: [scale: number];
+  readonly setExportWithSidebar: [value: boolean];
+  readonly exportNow: [];
 }>();
 
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -159,6 +170,72 @@ void props;
       诊断 {{ diagnosticCount }}{{ diagnosticsOpen ? ' ▴' : ' ▾' }}
     </button>
 
+    <!-- 导出（G7，ADR 0010）：格式 + PNG 倍率 + 图例/摘要开关 -->
+    <div
+      class="export"
+      data-export
+      title="导出（ADR 0010）：几何与屏幕同源（非截屏）；PPTX 为原生形状，永不为位图"
+    >
+      <span class="export-label">导出</span>
+      <select
+        data-export-format
+        :value="exportFormat"
+        @change="emit('setExportFormat', ($event.target as HTMLSelectElement).value as ExportFormat)"
+      >
+        <option value="svg">
+          SVG
+        </option>
+        <option value="png">
+          PNG
+        </option>
+        <option value="pptx">
+          PPTX（模板 A）
+        </option>
+      </select>
+      <select
+        v-if="exportFormat === 'png'"
+        data-export-scale
+        :value="String(exportPngScale)"
+        title="PNG 倍率（EX-02）：像素上限 32 MP"
+        @change="emit('setExportPngScale', Number(($event.target as HTMLSelectElement).value))"
+      >
+        <option
+          v-for="scale in PNG_SCALES"
+          :key="scale"
+          :value="String(scale)"
+        >
+          {{ scale }}×
+        </option>
+      </select>
+      <label
+        class="export-check"
+        :class="{ disabled: exportFormat === 'pptx' }"
+        :title="
+          exportFormat === 'pptx'
+            ? 'PPTX 模板 A 固定含图例与自动摘要（EX-06），该开关只对 SVG/PNG 生效'
+            : '导出物是否附「图例 + 自动摘要」侧栏'
+        "
+      >
+        <input
+          data-export-sidebar
+          type="checkbox"
+          :checked="exportWithSidebar"
+          :disabled="exportFormat === 'pptx'"
+          @change="emit('setExportWithSidebar', ($event.target as HTMLInputElement).checked)"
+        >
+        含图例与摘要
+      </label>
+      <button
+        type="button"
+        class="action"
+        data-export-run
+        :disabled="exporting"
+        @click="emit('exportNow')"
+      >
+        {{ exporting ? '导出中…' : '导出' }}
+      </button>
+    </div>
+
     <span class="spacer" />
 
     <span
@@ -169,7 +246,7 @@ void props;
     </span>
 
     <span class="note">
-      {{ dragActive ? '拖动中：下游实时跟随（Esc 取消）' : '拖动条体改开始/工期/整体移动；从条端外侧的连接点拖出建线；导出（SVG/PNG/PPTX）归 G7' }}
+      {{ dragActive ? '拖动中：下游实时跟随（Esc 取消）' : '拖动条体改开始/工期/整体移动；从条端外侧的连接点拖出建线；导出为 SVG / PNG / PPTX 模板 A' }}
     </span>
   </header>
 </template>
@@ -264,6 +341,37 @@ void props;
 
 .spacer {
   flex: 1;
+}
+
+.export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.export-label {
+  color: #667085;
+  font-size: 12px;
+}
+
+.export select {
+  padding: 0.15rem 0.3rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 4px;
+  background: #ffffff;
+  font: inherit;
+}
+
+.export-check {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  color: #475467;
+  font-size: 12px;
+}
+
+.export-check.disabled {
+  opacity: 0.5;
 }
 
 .stacks,

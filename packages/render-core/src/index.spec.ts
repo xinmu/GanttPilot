@@ -12,8 +12,8 @@ import * as renderCore from './index.js';
 describe('@ganttpilot/render-core 公共入口', () => {
   it('导出包标识与能力块', () => {
     expect(renderCore.RENDER_CORE_VERSION).toBe('0.0.0');
-    expect(renderCore.PLANNED_GATE).toBe('G4');
-    expect(renderCore.COMPLETED_GATES).toStrictEqual(['G4']);
+    expect(renderCore.PLANNED_GATE).toBe('G7');
+    expect(renderCore.COMPLETED_GATES).toStrictEqual(['G4', 'G7']);
   });
 
   it('导出 ADR 0007 §2 的几何 API（含 G4-S 记载的一处签名偏离）', () => {

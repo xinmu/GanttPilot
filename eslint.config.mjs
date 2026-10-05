@@ -89,6 +89,10 @@ export default [
         ResizeObserver: 'readonly',
         PerformanceObserver: 'readonly',
         URLSearchParams: 'readonly',
+        // G7 导出：PNG 光栅化（`Image` + `canvas`）与下载（`Blob` + `URL.createObjectURL`）。
+        // 这是"DOM 只允许出现在 apps/web"那半条铁律的合法落点，故在此显式登记。
+        Image: 'readonly',
+        URL: 'readonly',
         requestAnimationFrame: 'readonly',
         performance: 'readonly',
         setTimeout: 'readonly',
@@ -159,6 +163,8 @@ export default [
         Buffer: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
+        // G7 准入探针的确定性实验需要"跨秒边界"（pptxgenjs 的时间戳是秒精度），故显式登记计时器。
+        setTimeout: 'readonly',
       },
     },
   },

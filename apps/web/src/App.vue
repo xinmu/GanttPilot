@@ -46,6 +46,7 @@ import GanttChart from './components/GanttChart.vue';
 import TaskTable from './components/TaskTable.vue';
 import Toolbar from './components/Toolbar.vue';
 import { useChart } from './composables/useChart.js';
+import { useExport } from './composables/useExport.js';
 import { useGesture } from './composables/useGesture.js';
 import { usePersistence } from './composables/usePersistence.js';
 import { useProject, type DispatchResult } from './composables/useProject.js';
@@ -80,6 +81,18 @@ const {
   notice,
   setNotice,
 } = project;
+
+/**
+ * 导出接线（G7，ADR 0010）：几何与 SVG 来自 `render-core`，PPTX 来自 `pptx-renderer`（**动态导入**），
+ * DOM 只在本文件的 composable 里（PNG 光栅化、下载）。`zoom` 来自图表 composable ⇒ 导出跟随当前档位。
+ */
+const exporter = useExport({
+  document,
+  schedule,
+  calendar,
+  zoom,
+  notify: show,
+});
 
 /**
  * 手势接线（G5）：**DOM 只到这里为止**，其余交给 `render-core` 的纯内核。
@@ -845,6 +858,10 @@ onUnmounted(() => {
       :diagnostic-count="diagnosticCount"
       :diagnostics-open="diagnosticsOpen"
       :drag-active="gesture.state.value.kind === 'dragging'"
+      :export-format="exporter.format.value"
+      :export-png-scale="exporter.pngScale.value"
+      :export-with-sidebar="exporter.includeSidebar.value"
+      :exporting="exporter.busy.value"
       @zoom="onZoom"
       @import-file="onImportFile"
       @reset="resetToDemo"
@@ -853,6 +870,10 @@ onUnmounted(() => {
       @redo="redo"
       @set-anchor-mode="gesture.setAnchorMode"
       @toggle-diagnostics="diagnosticsOpen = !diagnosticsOpen"
+      @set-export-format="exporter.format.value = $event"
+      @set-export-png-scale="exporter.pngScale.value = $event"
+      @set-export-with-sidebar="exporter.includeSidebar.value = $event"
+      @export-now="exporter.exportNow"
     />
 
     <main class="split">
@@ -970,6 +991,11 @@ onUnmounted(() => {
       <span v-if="schedule !== null">
         首个汇总进度 {{ formatProgress(schedule.summaryProgress[0]) }}
       </span>
+      <span
+        v-if="exporter.advisory.value !== ''"
+        class="export-hint"
+        title="导出前的可读性提示（ADR 0010 §11）：按当前档位等比缩到单页后的**有效字号**；不阻断导出"
+      >{{ exporter.advisory.value }}</span>
       <span
         class="persist"
         title="命令级撤销/重做 + 低频检查点恢复（ADR 0009）；会话锚点、滚动位置与档位不跨会话恢复"

@@ -26,7 +26,7 @@
  */
 
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +56,45 @@ const MIME = new Map([
 if (!existsSync(join(distRoot, 'index.html'))) {
   console.error('[smoke] 找不到打包产物：apps/web/dist/index.html —— 先跑 `pnpm build`。');
   process.exit(1);
+}
+
+/**
+ * **首屏主 chunk 不得含 pptxgenjs**（G7，ADR 0010 §1）。
+ *
+ * 这与 `exceljs` 是同一条纪律（ADR 0006 §11）：导出库只准由用户动作触发时 `import()`。
+ * 判据有判别力：`pptxgenjs` 的 min 产物 **271 KB**，一旦被打进主 chunk，
+ * 首屏预算（G4 的 3–15 ms / G8 的分包）立刻被它吃掉——而"界面看起来正常"完全掩盖这件事。
+ *
+ * 同时断言"某个 chunk 里**确实**有它"：否则"主 chunk 干净"可能只是因为导出功能压根没被打进去。
+ */
+function checkExportChunking() {
+  const problems = [];
+  const assetsDir = join(distRoot, 'assets');
+  const html = readFileSync(join(distRoot, 'index.html'), 'utf8');
+  const entryMatch = /<script[^>]+type="module"[^>]+src="([^"]+)"/.exec(html);
+  if (entryMatch?.[1] === undefined) {
+    problems.push('index.html 里找不到 module 入口脚本');
+    return problems;
+  }
+  const entryPath = join(distRoot, entryMatch[1].replace(/^\.?\//, ''));
+  if (!existsSync(entryPath)) {
+    problems.push(`index.html 引用的入口不存在：${entryMatch[1]}`);
+    return problems;
+  }
+  const entry = readFileSync(entryPath, 'utf8');
+  if (/pptxgen/i.test(entry)) {
+    problems.push(`首屏主 chunk 含 pptxgenjs（${entryMatch[1]}）——导出库必须动态 import()`);
+  }
+  if (!existsSync(assetsDir)) {
+    problems.push('找不到 dist/assets（无法确认导出库被打进某个 chunk）');
+    return problems;
+  }
+  const chunks = readdirSync(assetsDir).filter((name) => name.endsWith('.js'));
+  const withPptx = chunks.filter((name) => /pptxgen/i.test(readFileSync(join(assetsDir, name), 'utf8')));
+  if (withPptx.length === 0) {
+    problems.push('没有任何 chunk 含 pptxgenjs —— PPTX 导出在产物里不可用');
+  }
+  return problems;
 }
 
 /** 静态服务器（只绑 127.0.0.1、临时端口、白名单范围内的路径）。 */
@@ -209,6 +248,8 @@ async function smoke(cdp, url) {
       '  brand: (document.querySelector(".brand") || {}).textContent || null,',
       '  pane: Boolean(document.getElementById("chart-pane")),',
       '  svg: Boolean(document.querySelector(".gantt-svg")),',
+      '  exportUi: Boolean(document.querySelector("[data-export]")),',
+      '  exportRun: Boolean(document.querySelector("[data-export-run]")),',
       '  status: (document.querySelector(".status") || {}).textContent || null,',
       '  persist: (document.querySelector(".status .persist") || {}).textContent || null,',
       '  error: window.__GANTTPILOT_ERROR__ ?? null,',
@@ -217,6 +258,105 @@ async function smoke(cdp, url) {
     returnByValue: true,
   });
   return { probe: JSON.parse(result.result.value), errors };
+}
+
+/**
+ * **真的点一次导出**（G7 端到端）：SVG / PNG / PPTX 三条路径各点一次，检查落盘文件。
+ *
+ * 为什么必须有这一条：几何与 OOXML 的判据都在 Node 侧（`render-core` / `pptx-renderer` 的 spec），
+ * 但"浏览器里点下去到底能不能出文件"是**另一件事**——PNG 要走 `Image`+`canvas` 光栅化，
+ * PPTX 要在浏览器里动态加载 `pptxgenjs`（Vite 的 `browser` 字段会把 `https`/`image-size` 替空）。
+ * 这两条路径在 Node 测试里结构上覆盖不到（P-9/P-17 的分层口径）。
+ */
+async function exerciseExports(cdp) {
+  const problems = [];
+  const dir = join(repoRoot, 'tmp', 'smoke-downloads', String(Date.now()));
+  mkdirSync(dir, { recursive: true });
+  await cdp.call('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: dir });
+
+  const setAndRun = async (format, scale) => {
+    // 直接驱动真实控件（与用户操作同一条路：改 select → 触发 change → 点导出按钮）
+    await cdp.call('Runtime.evaluate', {
+      expression: [
+        `(() => {`,
+        `  const select = document.querySelector('[data-export-format]');`,
+        `  if (!select) return 'no-select';`,
+        `  select.value = ${JSON.stringify(format)};`,
+        `  select.dispatchEvent(new Event('change', { bubbles: true }));`,
+        `  ${
+          format === 'png'
+            ? `const scale = document.querySelector('[data-export-scale]'); if (scale) { scale.value = ${JSON.stringify(String(scale ?? 1))}; scale.dispatchEvent(new Event('change', { bubbles: true })); }`
+            : ''
+        }`,
+        `  return 'ok';`,
+        `})()`,
+      ].join('\n'),
+      returnByValue: true,
+    });
+    await new Promise((settle) => setTimeout(settle, 400));
+    await cdp.call('Runtime.evaluate', {
+      expression: `(() => { const btn = document.querySelector('[data-export-run]'); if (!btn) return 'no-button'; btn.click(); return 'clicked'; })()`,
+      returnByValue: true,
+    });
+    await new Promise((settle) => setTimeout(settle, 3_500));
+  };
+
+  const files = () => (existsSync(dir) ? readdirSync(dir) : []);
+  /** 页面上的提示条：导出失败的原因就在那里（`notice` 是产品自己的失败通道）。 */
+  const noticeText = async () => {
+    const result = await cdp.call('Runtime.evaluate', {
+      expression: `(() => { const node = document.querySelector('.status .notice'); return node ? node.textContent : ''; })()`,
+      returnByValue: true,
+    });
+    return String(result.result.value ?? '');
+  };
+  const waitFor = async (extension, attempts = 8) => {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const hit = files().find((name) => name.toLowerCase().endsWith(extension));
+      if (hit !== undefined) return hit;
+      await new Promise((settle) => setTimeout(settle, 1_000));
+    }
+    return null;
+  };
+
+  // ① SVG
+  await setAndRun('svg', 1);
+  const svg = await waitFor('.svg');
+  if (svg === null) {
+    problems.push(`导出 SVG：没有落盘文件（页面提示：${await noticeText()}）`);
+  } else {
+    const text = readFileSync(join(dir, svg), 'utf8');
+    if (!text.includes('<svg')) problems.push('导出 SVG：内容里没有 <svg>');
+    if (text.length < 2_000) problems.push(`导出 SVG：内容过小（${String(text.length)} 字符）`);
+    if (/handle|connect-point|transparent/.test(text)) problems.push('导出 SVG：含交互图元（手柄/连接点/热区）');
+  }
+
+  // ② PNG（1× 就够：验的是"光栅化这条路通"）
+  await setAndRun('png', 1);
+  const png = await waitFor('.png');
+  if (png === null) {
+    problems.push(`导出 PNG：没有落盘文件（光栅化失败？页面提示：${await noticeText()}）`);
+  } else {
+    const buffer = readFileSync(join(dir, png));
+    const isPng = buffer.length > 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+    if (!isPng) problems.push('导出 PNG：文件不是 PNG（magic 不符）');
+    if (buffer.length < 1_000) problems.push(`导出 PNG：文件过小（${String(buffer.length)} 字节）`);
+  }
+
+  // ③ PPTX（浏览器里动态加载 pptxgenjs + 打补丁）
+  await setAndRun('pptx', 1);
+  const pptx = await waitFor('.pptx');
+  if (pptx === null) {
+    problems.push(`导出 PPTX：没有落盘文件（浏览器侧 pptxgenjs 路径失败？页面提示：${await noticeText()}）`);
+  } else {
+    const buffer = readFileSync(join(dir, pptx));
+    if (!(buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4b)) {
+      problems.push('导出 PPTX：文件不是 zip（magic 不符）');
+    }
+    if (buffer.length < 5_000) problems.push(`导出 PPTX：文件过小（${String(buffer.length)} 字节）`);
+  }
+
+  return { problems, dir };
 }
 
 let serverHandle = null;
@@ -229,15 +369,23 @@ try {
   const port = await readDevToolsPort(chromeHandle.profileDir);
   const cdp = await connect(port);
   const { probe, errors } = await smoke(cdp, url);
+  const exports = await exerciseExports(cdp);
   cdp.close();
 
   const problems = [];
+  // G7：导出库的分包纪律（首屏主 chunk 不得含 pptxgenjs；且某个 chunk 里必须真有它）
+  problems.push(...checkExportChunking());
+  // G7：三条导出路径端到端（真的点、真的落盘）
+  problems.push(...exports.problems);
   if (probe.error !== null) problems.push(`应用级错误：${String(probe.error)}`);
+  if (errors.length > 0) problems.push(`控制台/异常：${errors.slice(0, 3).join(' | ')}`);
   if (errors.length > 0) problems.push(`控制台/异常：${errors.slice(0, 3).join(' | ')}`);
   if (probe.title !== 'GanttPilot') problems.push(`标题不符：${String(probe.title)}`);
   if (probe.brand === null) problems.push('工具栏未渲染（找不到 .brand）');
   if (!probe.pane) problems.push('图表窗格未渲染（找不到 #chart-pane）');
   if (!probe.svg) problems.push('SVG 未渲染（找不到 .gantt-svg）');
+  if (!probe.exportUi) problems.push('导出面板未渲染（找不到 [data-export]）');
+  if (!probe.exportRun) problems.push('导出按钮未渲染（找不到 [data-export-run]）');
   if (typeof probe.persist !== 'string' || !probe.persist.startsWith('持久化：')) {
     problems.push(`状态栏缺少持久化那一栏：${String(probe.persist)}`);
   }
@@ -264,7 +412,8 @@ try {
     process.exitCode = 1;
   } else {
     console.log(`[smoke] 通过：${url}`);
-    console.log(`  ${String(probe.persist)}`);
+    console.log(`  持久化：${String(probe.persist)}`);
+    console.log(`  导出端到端：SVG / PNG / PPTX 三条路径均已落盘（目录 ${exports.dir}）`);
     console.log(`  演示口径：${counts?.[0] ?? '（未解析）'}`);
   }
 } catch (error) {

@@ -35,7 +35,15 @@ G4（纯 SVG 甘特渲染，含裁剪）与 **G5（编辑体验：拖拽三语�
 [P-18](docs/00-baseline/裁决记录.md) 与 [P-20](docs/00-baseline/裁决记录.md)，打包产物测量见
 [渲染计时证据](apps/web/evidence/render-timing-chrome152.md) 与
 [拖动计时证据](apps/web/evidence/drag-timing-chrome152.md)）。
-**下一步是 G6**（持久化：自动保存 + 命令回退栈）。
+**下一步是 G8**（v0.1 闭合与发布）。
+**G6（持久化：自动保存 + 命令回退栈）已完成**（[P-33](docs/00-baseline/裁决记录.md)）；
+**G7（导出：SVG → PNG → PPTX 模板 A）已落地**——
+契约见 [ADR 0010](docs/02-adr/0010-导出契约.md)，包级规范见 [PPTX.md](packages/pptx-renderer/PPTX.md)，
+开工前置与准入实验见 [P-35](docs/00-baseline/裁决R34.md)、落地与出口条件判定见 [P-36](docs/00-baseline/裁决R35.md)：
+**几何与屏幕同源（非截屏）**、PPTX 为**原生形状**（`roundRect` 条 / `diamond` 里程碑 / `p:cxnSp` 吸附 connector /
+一级 `p:grpSp`）、同一文档两次导出**逐字节一致**（字节级 golden）；
+WPS 自动化证据（无修复弹窗、另存后锚点 14/14 存活、拖动后端点重新走线）已通过，
+**人工真机拖动复验待做**。
 **G5 的人工复核（[P-21](docs/00-baseline/裁决记录.md)）的批次 A 已落地、第 13 条（导入与成环清单）已闭**
 （[P-22](docs/00-baseline/裁决记录.md)）；**批次 D 已收口**（[P-23](docs/00-baseline/裁决记录.md) →
 [P-24](docs/00-baseline/裁决记录.md) → [P-25](docs/00-baseline/裁决记录.md)，人工复验通过）、
@@ -123,6 +131,12 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [架构决策记录](docs/02-adr/0008-列身份所有权与拖拽交互契约.md) | ADR 0008（G5）：**列身份所有权的反转**（`engine ← render-core ← xlsx-protocol`，依据 P-19 §5 ② 的候选 A）+ **拖拽与撤销的交互契约**（三语义判定区与命令映射、吸附会话锚点与生命周期、`吸附`/`允许` 两模式与冲突判据、建线与检环、成环高亮、诊断清单的受控收口、撤销单元、`c₄` 与门禁/记录制分层） |
 | [架构决策记录](docs/02-adr/0009-持久化契约.md) | ADR 0009（G6 的开工前置，**冻结面**）：落盘的是"基线快照 + 其后的增量"（`rev` 与 `undoDepth` 双口径）、`SnapshotStore` 接口与失败码闭集、恢复优先级与三道守卫、多标签互斥停写、以及"杀进程能恢复到哪一刻"的诚实口径 |
 | [持久化规范](packages/engine/PERSISTENCE.md) | `@ganttpilot/engine` 的持久化落地说明：数值常量（5 min / 200 步 / 保留 3 份 / 配额降级 1 份）、公共 API、**实现不变量**与验证矩阵 |
+| [架构决策记录](docs/02-adr/0010-导出契约.md) | ADR 0010（G7 的开工前置，**冻结面**）：三层落点（几何/ OOXML / DOM）、**全量渲染**与适配公式、SVG 语义化形态、PPTX 形状映射与吸附站点、降级序列（不分组 / `custGeom` / 省连线）、golden 口径（字节级）、失败码闭集、明确不做 |
+| [PPTX 渲染规范](packages/pptx-renderer/PPTX.md) | `@ganttpilot/pptx-renderer` 的权威规范：形状映射与形状名、吸附站点、补丁与**归一化管线**、模板 A 布局、降级序列、验证矩阵（门禁 / 记录制 / 人工） |
+| [S-G7 准入实验（跨组吸附 / custGeom）](packages/pptx-renderer/evidence/g7-s7-a-b-wps.md) | G7 开工前置的第一批证据：跨组 connector 被 WPS 接受、拖动后端点跟随、`custGeom` 折线可用（S1 未覆盖的三个组合） |
+| [S-G7 字节确定性](packages/pptx-renderer/evidence/g7-s7-c-determinism.md) | G7 开工前置的第二批证据：未归一化时 20 个不稳定条目（zip 时间戳 + `docProps` 内容），归一化后**逐字节相等** ⇒ golden 取字节级 |
+| [S-G7 单页适配数值](packages/pptx-renderer/evidence/g7-s7-d-fit.md) | G7 开工前置的第三批证据：16:9 单页下的缩放比 / 行高 / 字号（回填 ADR §11 的常数与提示阈值） |
+| [模板 A 的 WPS 真机验证](packages/pptx-renderer/evidence/template-a-demo-wps.md) | **产品产物**的记录制证据：两次冷开无修复、另存后锚点 14/14 存活、拖动 `bar-t1` 后 `dep-l1`/`dep-l2` 重新走线 |
 | [持久化拖拽证据](apps/web/evidence/persist-drag-timing-chrome154.md) | **开/关自动保存两组同尺**的拖拽帧预算（记录制）：由 `node scripts/measure-render.mjs --persist-drag` 采集——帧间隔 p95、拖动期写入次数（期望 0）、松手 → 落盘 |
 | [存储占用证据](apps/web/evidence/persist-storage-2000-chrome154.md) | **2,000 任务**的存储占用与写入耗时（记录制）：由 `node scripts/measure-render.mjs --storage-metrics` 采集——整份文档体积/序列化耗时、增量记录体积、单条 `put` p50/p95、`estimate()` 用量 |
 | [`scroll` 敏感量盘点](apps/web/evidence/scroll-consumers-audit.md) | G6 开工前置的**只读**盘点（P-25/P-32）：13 处"消费者自己换算坐标"的位置逐条给出基准，结论"加法点恰好 1 个"，不变量落 [render-core 规范](packages/render-core/SPEC.md) §九 |
@@ -195,6 +209,27 @@ pnpm preview    # 起一个本地静态服务器（Vite preview），按它打�
 > **拒绝在 `file://` 下加载 ES module**（CORS）⇒ 页面会**空白**。产物没坏，是打开方式不对。
 > 这条口径有门禁兜底：`pnpm smoke:build` 就是"用 HTTP 打开产物并断言它真的起来了"。
 
+## 导出（G7）
+
+工具栏「导出」可选三种产物，**几何与屏幕同源**（同一份 `ViewModel`，不是截屏）：
+
+| 产物 | 内容 | 选项 |
+|---|---|---|
+| **SVG** | 语义化 SVG（`<title>`/`<desc>` + 分组 + `data-task-id`），**不含任何交互图元**（手柄/连接点/热区/覆盖层） | 「含图例与摘要」开关 |
+| **PNG** | 同一张 SVG 光栅化（白底），EX-02 的多倍率 | 倍率 1× / 2× / 3×（像素上限 32 MP） |
+| **PPTX 模板 A** | 单页总览 = 标题 + 甘特（含左列任务名）+ 图例 + 自动摘要（任务/依赖/里程碑/完成率/里程碑清单） | 固定含图例与摘要（EX-06） |
+
+- **原生形状，永不为位图**：任务条 = `roundRect`、阶段汇总 = `rect`（更矮）、里程碑 = **菱形 preset**、
+  依赖 = `p:cxnSp` + `a:stCxn/a:endCxn` **双端吸附**、父子 = **一级 `p:grpSp`**（显式 `chOff/chExt`、等比）；
+- **导出是全量渲染**（不分窗口，ADR 0007 §10）：内容按**等比**缩到单页并居中，折叠隐藏的行不导出；
+  大文档（如 1,000 行）会缩到不可读——界面在导出前给出**可读性提示**（"建议切档/先折叠"），**不阻断**；
+- **可重复生成**：`docProps` 时间字段与 zip 条目日期归一化后，同一文档两次导出**逐字节一致**；
+- **PPTX 走动态 `import()`**：`pptxgenjs` 单独成 chunk（272.6 kB / gzip 94.7 kB），**不进首屏**；
+  `smoke:build` 会在打包产物上**真的点三次导出**并校验落盘文件（SVG 内容 / PNG magic / PPTX zip magic）；
+- **WPS 复现**：`node scripts/export-pptx.mjs --zoom week` 生成产物，`pwsh -File scripts/wps-pptx-verify.ps1`
+  做冷开 / 另存 / 拖动取证（记录制、不进 `pnpm gate`；需本机 WPS）。
+  **人工复验提示**：模板 A 的任务条在真 `p:grpSp` 里，在 WPS 里要先点进 `grp-s1` 之类的组才能选中任务条。
+
 三条铁律中"三包零框架/零 DOM 依赖"已可执行化：`pnpm lint` 会拦下三包内的框架 import 与 DOM 全局，
 `pnpm test` 里的护栏自检会证明这些规则确实生效（见 `packages/engine/src/boundary.spec.ts`）。
 
@@ -233,9 +268,19 @@ pnpm preview    # 起一个本地静态服务器（Vite preview），按它打�
   `吸附`（默认，夹到入边约束）与`允许`（原样放行、早于约束时标红）两种策略可切换；
   **拖动指针移出图表窗格时不做边缘自动滚动**（v0.1 不做）；
   **诊断清单是"受控收口"**（三层拼接 + 计数 + 可展开列表——协议层为导入时的快照），列映射向导的完整形态仍待后续；
-  **不做导出**（G7）；
+  **导出现已可用**（G7，见上文「导出」一节：SVG / PNG / PPTX 模板 A）；
   **同侧多线避让不做**（实测 70.7% 的边其竖向段穿过条形，是"日后另立 ADR"的量化触发依据）；
   **季刻度、折叠展开动画、无障碍基础、主题跟随**归 v0.5。
+- **G7 导出的已知限制**：
+  ① **导出是全量渲染 + 等比缩到单页**：行数很多（如 1,000 行）时会被压到不可读，
+  界面只给**提示**（建议切档/折叠）而不阻断，**v0.1 不做分页/分节模板（模板 B/C 归 v0.5）**；
+  ② **PPTX 只有模板 A**，不含主题跟随与 A4 页面；
+  ③ **PPTX 的 connector 走线由渲染引擎按"两端吸附点"重算**，因此它与 SVG 的折点**不保证逐点相同**——
+  承诺的是"端点落在同一条边上"（几何同源），不是"折线一模一样"；
+  ④ **Microsoft PowerPoint / Keynote 未验证**（[验证环境口径](#验证环境口径裁决-p-4)）：只输出标准 OOXML、
+  未用私有扩展，但**不承诺**其下行为；**导出物的拖动跟随结论仅在 WPS 下成立**；
+  ⑤ **人工真机拖动复验待做**（见 [P-36](docs/00-baseline/裁决R35.md)）：门禁与 WPS 自动化证据已通过，
+  但在维护者亲手复验前，不对外声称"人工复验通过"。
 - **G5 的人工复核已知问题（[P-21](docs/00-baseline/裁决记录.md)；批次 A = [P-22](docs/00-baseline/裁决记录.md)、
   批次 D = [P-23](docs/00-baseline/裁决记录.md)/[P-24](docs/00-baseline/裁决记录.md)/[P-25](docs/00-baseline/裁决记录.md)、
   批次 C = [P-28](docs/00-baseline/裁决记录.md)）**：

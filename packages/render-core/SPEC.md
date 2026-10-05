@@ -44,6 +44,9 @@
 | `align.ts` | **两栏行对齐的判读内核**（ADR 0007 §14/§15 / [P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)）：`diagnoseRowAlignment`（一次探测）+ `summarizeAlignment`（多位置汇总）；判据含**轴的四边覆盖**与**滚动范围**（`content-range-mismatch`）。输入全是**视口坐标的数字**（DOM 采数在 `apps/web/src/measure.ts` 的记录制钩子里）。机制标签见 ADR §14.4 |
 | `fixtures.ts` | 确定性夹具生成（**规模口径**：测量 / 测试同源） |
 | `demoPlan.ts` | **演示口径的唯一定义处**（[P-34](../../docs/00-baseline/裁决R33.md)）：手写的 15 行演示计划（3 汇总 + 10 任务 + 2 里程碑、14 条依赖，四类关系齐备）；页面默认文档、重置与 G7 的导出演示/golden 都用它。与 `fixtures.ts` 的分工见该文件头部 |
+| `exportView.ts` | **导出投影与单页适配**（G7／[ADR 0010](../../docs/02-adr/0010-导出契约.md) §2/§3）：`buildExportView`（全量渲染、`contentWidth` **不被视口宽抬升**）、`fitScaleFor`（等比 + 居中）、`exportReadabilityOf` / `exportAdvisoryFor`（可读性提示的判据） |
+| `svgExport.ts` | **语义化 SVG 序列化**（ADR 0010 §4）：`svgString` / `svgInnerSizeOf`；整数坐标、**无交互图元**、含可选图例与摘要侧栏 |
+| `exportSummary.ts` | **模板 A 的自动摘要与图例数据**（ADR 0010 §7）：`exportSummaryOf`（完成率与引擎**同公式**）、`exportLegendItems`、`formatCompletionRatio` |
 
 **主入口**
 
@@ -249,6 +252,11 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | ④ 负向对照 | NC1（端点可见性必须丢边 314 条）、NC2（关裁剪必须增长 10.71×）、NC3 | 必须被检出 | **进** | — |
 | ⑤ 浏览器计时 | `scripts/measure-render.mjs`（零依赖 CDP，**打包产物**） | 1,000 任务首屏 ≤ 1s；10× 滚动与《评估报告》§5.4 同尺 | **不进**（记录制，P-17） | — |
 | ⑥ 人工目视 | 仅备查 | "吸附/走线类判断必须量化，不得目视" | **不进** | — |
+| G7 ① 导出投影与适配（ADR 0010 §2/§3） | `export.spec.ts` | 全量渲染（`rows.length === rowCount`、`unroutableEdges === 0`、`clipMode === 'none'`）；**`contentWidth` 不被视口宽抬升**（屏幕口径 5000 px 的对照）；适配**等比且至少一轴贴边**、居中、页边距；退化输入不抛错 | **进** | [P-36](../../docs/00-baseline/裁决记录.md) |
+| G7 ② SVG 与屏幕同源（ADR 0010 §4） | `export.spec.ts` | 逐行条形的 `x/width/height` == `ViewModel` 值；`data-task-id`/`data-link-id` 与模型**一一对应**；**一个交互图元都不导出**（handle/connect-point/transparent/drag-*/conflict/highlight/preview）；含 `<title>`/`<desc>`/分组、坐标全整数；**两次调用逐字符相等**（golden 前置）；图例/摘要侧栏让 `svgInnerSizeOf` 与实际画布同源 | **进** | [P-36](../../docs/00-baseline/裁决记录.md) |
+| G7 ③ 摘要与引擎同公式（ADR 0010 §7） | `export.spec.ts` | 完成率与"整篇叶子当作一棵树"的 `summaryProgress` **互证**（10 位小数）；`milestoneCount` 取自引擎；里程碑清单按日期升序且带 ISO；无工期权重 ⇒ `null`（显示「—」，不是 NaN/0） | **进** | [P-36](../../docs/00-baseline/裁决记录.md) |
+| G7 ④ 可读性阈值（ADR 0010 §11） | `export.spec.ts` | 演示计划：日档不可读（< 6 pt）、周/月可读 ⇒ `advice: 'switch-zoom'`；1,000 任务：三档都不可读 ⇒ `advice: 'collapse'` | **进** | [P-36](../../docs/00-baseline/裁决记录.md) |
+| G7 ⑤ 负向对照（导出投影） | `export.spec.ts` | 窗口裁剪下的渲染行数**必须少于**全量；非等比缩放公式**不满足**"等比 + 贴边" | **进** | [P-36](../../docs/00-baseline/裁决记录.md) |
 | G5 ① 日期口径（P-19） | `dateText.spec.ts` + `dateTextNegative.spec.ts` + `editCommand.spec.ts` + `textFixtures.spec.ts` | 开始 ≤ 完成、与 `Schedule` 同源、派生完成与显示的"开始"同源、编辑写回一致；**NC1/NC2 必须被检出** | **进** | [P-20](../../docs/01-roadmap/首版-记录-G5.md) |
 | G5 ② 手势与三语义（P-20） | `gesture.spec.ts` | 三语义判定区、拖动三情形与松手命令、`Esc` 取消、汇总不可拖、`snap`/`allow` 四象限与 `anchorConflict` 对齐、建线与检环、命中反算 × 三档位；**屏幕坐标 → 内容坐标与事件目标无关**（含 NC）、条体命中 ± `HIT_TOLERANCE_PX`（含里程碑包围盒）、三语义**零位移不产出命令**、`move` 中部抓取**不跳位**、`resize-start` 完成日不动、`resize-duration` 按下**不翻倍**、里程碑完成日 = 开始日、**预览与提交同源**、带**会话锚点**重算**不累积**（13 → 24 例；五组负向对照逐条验证过判别力） | **进** | [P-22](../../docs/01-roadmap/首版-记录-G5.md) / [ADR 0008 §13](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ③ 依赖方向护栏 | `boundary.spec.ts` | 本包发布源与**构建产物**都没有指向 `exceljs` 的模块边；本包铁律夹具被拦下 | **进** | — |

@@ -8,7 +8,7 @@
 
 > 这些依赖会被打包/分发，因此许可必须落在白名单内。
 
-共 96 个包。
+共 101 个包。
 
 - **@babel/helper-string-parser** `7.29.7` — MIT — https://babel.dev/docs/en/next/babel-helper-string-parser
 - **@babel/helper-validator-identifier** `7.29.7` — MIT — https://github.com/babel/babel#readme
@@ -17,7 +17,7 @@
 - **@fast-csv/format** `4.3.5` — MIT — http://c2fo.github.com/fast-csv/packages/format
 - **@fast-csv/parse** `4.3.6` — MIT — http://c2fo.github.com/fast-csv/packages/parse
 - **@jridgewell/sourcemap-codec** `1.6.0` — MIT — https://github.com/jridgewell/sourcemaps/tree/main/packages/sourcemap-codec
-- **@types/node** `14.18.63` — MIT — https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node
+- **@types/node** `14.18.63, 22.20.5` — MIT — https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/node
 - **@vue/compiler-core** `3.5.43` — MIT — https://github.com/vuejs/core/tree/main/packages/compiler-core#readme
 - **@vue/compiler-dom** `3.5.43` — MIT — https://github.com/vuejs/core/tree/main/packages/compiler-dom#readme
 - **@vue/compiler-sfc** `3.5.43` — MIT — https://github.com/vuejs/core/tree/main/packages/compiler-sfc#readme
@@ -55,7 +55,9 @@
 - **fs.realpath** `1.0.0` — ISC — https://github.com/isaacs/fs.realpath#readme
 - **glob** `7.2.3` — ISC — https://github.com/isaacs/node-glob#readme
 - **graceful-fs** `4.2.11` — ISC — https://github.com/isaacs/node-graceful-fs#readme
+- **https** `1.0.0` — ISC
 - **ieee754** `1.2.1` — BSD-3-Clause — https://github.com/feross/ieee754#readme
+- **image-size** `1.2.1` — MIT — https://github.com/image-size/image-size#readme
 - **immediate** `3.0.6` — MIT — https://github.com/calvinmetcalf/immediate#readme
 - **inflight** `1.0.6` — ISC — https://github.com/isaacs/inflight
 - **inherits** `2.0.4` — ISC — https://github.com/isaacs/inherits#readme
@@ -87,7 +89,9 @@
 - **path-is-absolute** `1.0.1` — MIT — https://github.com/sindresorhus/path-is-absolute#readme
 - **picocolors** `1.1.1` — ISC — https://github.com/alexeyraspopov/picocolors#readme
 - **postcss** `8.5.28` — MIT — https://postcss.org/
+- **pptxgenjs** `4.0.1` — MIT — https://gitbrent.github.io/PptxGenJS/
 - **process-nextick-args** `2.0.1` — MIT — https://github.com/calvinmetcalf/process-nextick-args
+- **queue** `6.0.2` — MIT — https://github.com/jessetane/queue#readme
 - **readable-stream** `2.3.8, 3.6.2` — MIT — https://github.com/nodejs/readable-stream#readme
 - **readdir-glob** `1.1.3` — Apache-2.0 — https://github.com/Yqnn/node-readdir-glob
 - **safe-buffer** `5.1.2, 5.2.1` — MIT — https://github.com/feross/safe-buffer
@@ -98,6 +102,7 @@
 - **tar-stream** `2.2.0` — MIT — https://github.com/mafintosh/tar-stream
 - **tmp** `0.2.7` — MIT — http://github.com/raszi/node-tmp
 - **typescript** `5.9.3` — Apache-2.0 — https://www.typescriptlang.org/
+- **undici-types** `6.21.0` — MIT — https://undici.nodejs.org
 - **universalify** `2.0.1` — MIT — https://github.com/RyanZim/universalify#readme
 - **unzipper** `0.12.5` — MIT — https://github.com/ZJONSSON/node-unzipper#readme
 - **util-deprecate** `1.0.2` — MIT — https://github.com/TooTallNate/util-deprecate
@@ -111,7 +116,7 @@
 
 > 列出它们是为了在 PR 阶段就暴露许可异常；其中 MPL-2.0 / BlueOak-1.0.0 属于已知例外，见脚本内注释。
 
-共 132 个包。
+共 131 个包。
 
 - **@cacheable/memory** `2.2.0` — MIT — https://github.com/jaredwray/cacheable#readme
 - **@cacheable/utils** `2.5.0` — MIT — https://github.com/jaredwray/cacheable#readme
@@ -233,7 +238,6 @@
 - **ts-api-utils** `2.5.0` — MIT — https://github.com/JoshuaKGoldberg/ts-api-utils#readme
 - **type-check** `0.4.0` — MIT — https://github.com/gkz/type-check
 - **typescript-eslint** `8.71.0` — MIT — https://typescript-eslint.io/packages/typescript-eslint
-- **undici-types** `7.24.6` — MIT — https://undici.nodejs.org
 - **uri-js** `4.4.1` — BSD-2-Clause — https://github.com/garycourt/uri-js
 - **vite** `8.3.2` — MIT — https://vite.dev
 - **vitest** `5.0.3` — MIT — https://vitest.dev

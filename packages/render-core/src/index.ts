@@ -19,10 +19,10 @@
 export const RENDER_CORE_VERSION = '0.0.0';
 
 /** 本包最新完成的能力块编号（完整清单见 `COMPLETED_GATES`）。 */
-export const PLANNED_GATE = 'G4' as const;
+export const PLANNED_GATE = 'G7' as const;
 
-/** 已落地能力块清单。 */
-export const COMPLETED_GATES = ['G4'] as const;
+/** 已落地能力块清单（G4 的几何与裁剪 + G7 的导出投影与 SVG 序列化）。 */
+export const COMPLETED_GATES = ['G4', 'G7'] as const;
 
 // ---------------------------------------------------------------- 常量与判据（ADR 0007 §11）
 export {
@@ -297,9 +297,51 @@ export {
   type RenderFixture,
 } from './fixtures.js';
 
-// ------------------------------------------------- 演示口径（页面默认文档 / 导出演示与 golden）
+// ---------------------------------------------------------------- 演示口径（页面默认文档 / 导出演示与 golden）
 // 与上面那块的**规模口径**分工（演示要单页可读、规模要 1,000+ 任务）见 `demoPlan.ts` 与裁决 P-34。
 export { createDemoPlanDocument } from './demoPlan.js';
+
+// ---------------------------------------------------------------- 导出投影与 SVG 序列化（ADR 0010，G7）
+export {
+  buildExportView,
+  exportAdvisoryFor,
+  exportReadabilityOf,
+  EXPORT_AXIS_FONT_PX,
+  EXPORT_LABEL_FONT_PX,
+  EXPORT_LABEL_WIDTH_PX,
+  EXPORT_MARGIN_PX,
+  EXPORT_MILESTONE_LIST_MAX,
+  EXPORT_MIN_FONT_PT,
+  EXPORT_PAGE_16_9,
+  EXPORT_PNG_MAX_PIXELS,
+  EXPORT_READABLE_FONT_PT,
+  fitScaleFor,
+  pxToPt,
+  type BuildExportViewArgs,
+  type ExportAdvisory,
+  type ExportAdvisoryArgs,
+  type ExportReadability,
+  type ExportView,
+  type FitTransform,
+} from './exportView.js';
+export {
+  exportLegendItems,
+  exportSummaryOf,
+  formatCompletionRatio,
+  type ExportLegendItem,
+  type ExportMilestone,
+  type ExportSummary,
+  type ExportSummaryArgs,
+} from './exportSummary.js';
+export {
+  EXPORT_SIDEBAR_GAP_PX,
+  EXPORT_SIDEBAR_WIDTH_PX,
+  svgInnerSizeOf,
+  svgString,
+  type SvgExportArgs,
+  type SvgExportOptions,
+  type SvgInnerSize,
+} from './svgExport.js';
 
 /**
  * 命令层、文档规范化与排程结果的**门面**（重导出）。
