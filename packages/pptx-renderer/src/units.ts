@@ -86,4 +86,5 @@ export const COLOR = {
   muted: '667085',
   band: 'F4F6F8',
   gridline: 'E4E7EC',
+  white: 'FFFFFF',
 } as const;

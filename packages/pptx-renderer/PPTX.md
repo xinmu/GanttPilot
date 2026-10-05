@@ -46,9 +46,26 @@ renderTemplateA({
 | 阶段汇总条 | `prstGeom prst="rect"` | `bar-<summaryId>` | 灰 `7A8699`、更矮（`SPACING.summaryBarHeightRatio`） |
 | 进度 | `prstGeom prst="rect"` | `prog-<taskId>` | 深蓝 `1F4E79`，左缘对齐、高内缩 2 px |
 | 里程碑 | `prstGeom prst="diamond"` | `ms-<taskId>` | 橙 `ED7D31` + 描边 |
-| 依赖线 | `<p:cxnSp>` + `bentConnector3` | `dep-<linkId>` | 双端吸附见下 |
+| 依赖线 | `<p:cxnSp>` + `bentConnector3` | `dep-<linkId>` | 双端吸附 + **`a:tailEnd` 箭头**（见下） |
 | 一级组 | `<p:grpSp>` | `grp-<summaryId>` | 汇总行 + 其**直接**子行形状 |
-| 容器文本 | pptxgenjs `addText` | `title` / `lbl-<taskId>` / `legend-N` / `summary-N` | 名称必须全容器唯一（`buildIdMap` 会拦） |
+| 周末/节假日**灰度带** | 无描边 `rect` | `band-<n>` | `F4F6F8`；与 SVG 的 `view.axis` 的 `band` 同源 |
+| 背景**网格线** | 无描边 1 px `rect` | `grid-<n>` | `E4E7EC`；同源（`gridline`） |
+| **日期刻度** | pptxgenjs 文本框 | `axis-<n>` | 9 pt `667085`，放在表头带内；文案同源（`label`） |
+| 图例**色块/箭头** | `rect` / `diamond` / `rect`+`triangle` | `legend-swatch-<styleKey>`（+`-head`） | 与 `exportLegendItems()` 一一对应，坐标与图例文本共用 `planTemplateA().legendRows` |
+| 容器文本 | pptxgenjs `addText` | `title` / `lbl-<taskId>` / `legend-<n>` / `summary-<n>` | 名称必须全容器唯一（`buildIdMap` 会拦） |
+
+**绘制顺序 = 注入顺序**：`背景（band → grid）` → `图例图元` → `组/条/进度/菱形` → `依赖线`
+（OOXML 按文档序绘制，因此"背景在条形之下"是结构性质，可由 spec 断言）。
+
+**箭头的强制口径**（人工复验第 ③ 条的根因）：每条依赖线的 `<a:ln>` **必须**写
+`<a:tailEnd type="triangle|arrow" w="med" len="med"/>`——`FS`/`FF` 实心（`triangle`）、
+`SS`/`SF` 空心（`arrow`），与 SVG 的 `ARROW_FILL` 同口径；**降级②的 `custGeom` 同样带箭头**。
+只写 `a:ln` 而不写 `tailEnd` 的产物在 WPS 里渲染为"只有线、没有箭头"。
+
+**左列标签样式与图例/摘要文案**：样式由 `render-core/exportLabels.ts` 决定
+（**汇总加粗**、子行按 **WBS 深度缩进** 12 px/级封顶 3 级、超宽截断加 `…`；**缩进不计入文本**）；
+文案由 `exportLegendItems()`（图例）与 `exportSummaryLines()`（摘要）**唯一生成**——
+本包**不得**自己再写一遍文案（人工复验第 ④ 条即此处的教训）。
 
 **吸附锚点与站点表**（唯一登记处仍是 [P-8](../../docs/00-baseline/裁决记录.md) 第 1 条的出/入侧表）：
 
@@ -117,8 +134,9 @@ pptxgenjs（版面/母版/主题 + 文本）→ write({outputType:'uint8array'})
 | ④ 负向对照 | `template.spec.ts` | 站点越界 / 引用不存在的形状 / 复用 id / 组非等比 —— **逐条必须被检出** | **进** |
 | ⑤ 降级 | `template.spec.ts` | `degradeConnectors: true` ⇒ 无 `cxnSp`、有 14 处 `custGeom` 与 28 处 `lnTo`、结构仍合法 | **进** |
 | ⑥ 可读性纪律 | `template.spec.ts` | 演示计划：行标签有效字号 ≥ 6 pt 且标签形状存在；1,000 行：< 6 pt 且**不生成**任何 `lbl-*` | **进** |
-| ⑦ WPS 证据链 | `scripts/wps-pptx-verify.ps1`（记录制） | 打开无修复弹窗、另存后 `stCxn/endCxn` 与形状 id 集合存活、移动任务条后 connector `xfrm` 重算 | **不进**（需本机 WPS，P-9/P-17 口径） |
-| ⑧ 人工复验 | 维护者在 WPS 真机拖动任务条 | 端点跟随（G7 出口条件③的签署项） | **不进**（人工） |
+| ⑦ 图面要素（P-37 增补） | `template.spec.ts` | **日期刻度**文本框数与文案 == `view.axis` 的 `label`；**灰度带/网格线**计数同源且**绘制顺序在条形之下**（`band` < `bar` < `cxnSp`）；**箭头** `triangle` 数 == FS/FF、`arrow` 数 == SS/SF；**图例**文案逐字取自 `exportLegendItems()`+`exportSummaryLines()`（旧手写文案不得出现）且 7 类图元 + 4 个箭头齐全；**标签**汇总加粗、子行缩进右移、与 SVG 文本**逐字相同** | **进** |
+| ⑧ WPS 证据链（含返工存活） | `scripts/wps-pptx-verify.ps1`（记录制） | 打开无修复弹窗、另存后 `stCxn/endCxn` 与形状 id 集合存活、移动任务条后 connector `xfrm` 重算；**返工四类图元**在三态逐类计数一致（[addendum](evidence/template-a-demo-roundtrip-addendum.md)） | **不进**（需本机 WPS，P-9/P-17 口径） |
+| ⑨ 人工复验 | 维护者按 A/B 清单走查 | 浏览器三格式导出 + WPS 真机拖动；**P-37 报文：主流程通过**，返工后待二次复验 | **不进**（人工） |
 
 ## 八、明确不做（v0.1 内）
 

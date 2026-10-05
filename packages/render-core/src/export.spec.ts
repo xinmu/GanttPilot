@@ -24,10 +24,16 @@ import {
   EXPORT_PAGE_16_9,
   pxToPt,
 } from './exportView.js';
-import { exportLegendItems, exportSummaryOf, formatCompletionRatio } from './exportSummary.js';
+import { exportLegendItems, exportSummaryLines, exportSummaryOf, formatCompletionRatio } from './exportSummary.js';
+import {
+  EXPORT_LABEL_INDENT_PX,
+  EXPORT_LABEL_MAX_DEPTH,
+  exportLabelStyleOf,
+  exportLabelTextOf,
+} from './exportLabels.js';
 import { DATASETS, PRIMARY_DATASET_KEY, generateDocument } from './fixtures.js';
 import { createScheduleCalendar, buildView } from './index.js';
-import { HEADER_HEIGHT_PX, ROW_HEIGHT } from './manifest.js';
+import { HEADER_HEIGHT_PX, LABEL_CHAR_PX, ROW_HEIGHT } from './manifest.js';
 import { svgInnerSizeOf, svgString } from './svgExport.js';
 
 function fixtureOfDemo(): {
@@ -232,6 +238,107 @@ describe('SVG 序列化（ADR 0010 §4）', () => {
     expect(svg).toContain('摘要');
     expect(svg).toContain(`width="${String(withSidebar.innerWidth)}"`);
     for (const item of exportLegendItems()) expect(svg).toContain(`data-style-key="${item.styleKey}"`);
+  });
+});
+
+describe('导出标签样式（人工复验第 3 条：父节点加粗、子节点缩进）', () => {
+  it('汇总加粗、子节点按 WBS 深度缩进、上限 3 级', () => {
+    const { document } = fixtureOfDemo();
+    const byId = (id: string) => document.tasks.find((task) => task.id === id);
+    expect(exportLabelStyleOf(undefined)).toStrictEqual({ indentPx: 0, bold: false });
+    // 阶段汇总：加粗、不缩进
+    expect(exportLabelStyleOf(byId('s1'))).toStrictEqual({ indentPx: 0, bold: true });
+    // 一级子任务与里程碑：缩进一级、不加粗
+    expect(exportLabelStyleOf(byId('t1'))).toStrictEqual({ indentPx: EXPORT_LABEL_INDENT_PX, bold: false });
+    expect(exportLabelStyleOf(byId('m1'))).toStrictEqual({ indentPx: EXPORT_LABEL_INDENT_PX, bold: false });
+    // 深层：按段数 − 1，封顶
+    expect(exportLabelStyleOf({ ...byId('t1'), outlineNumber: '1.2.3' }).indentPx).toBe(EXPORT_LABEL_INDENT_PX * 2);
+    expect(exportLabelStyleOf({ ...byId('t1'), outlineNumber: '1.2.3.4.5' }).indentPx).toBe(
+      EXPORT_LABEL_INDENT_PX * EXPORT_LABEL_MAX_DEPTH,
+    );
+  });
+
+  it('标签文本 = `编号 名称`，超宽截断加省略号；缩进不计入文本（SVG 与 PPTX 因此逐字相同）', () => {
+    const { document } = fixtureOfDemo();
+    const short = exportLabelTextOf({
+      task: document.tasks.find((task) => task.id === 't1'),
+      fallback: 't1',
+      availablePx: EXPORT_LABEL_WIDTH_PX,
+      charPx: LABEL_CHAR_PX,
+    });
+    expect(short).toBe('1.1 需求调研');
+    const long = exportLabelTextOf({
+      task: { ...document.tasks.find((task) => task.id === 't1'), name: '一个非常非常非常长的任务名称用于验证截断行为' },
+      fallback: 't1',
+      availablePx: 120,
+      charPx: LABEL_CHAR_PX,
+    });
+    expect(long.endsWith('…')).toBe(true);
+    expect(long.length).toBeLessThan('一个非常非常非常长的任务名称用于验证截断行为'.length);
+  });
+
+  it('SVG 里：汇总行的文字加粗、子行文字按缩进右移（与 PPTX 同源）', () => {
+    const { document, calendar, schedule } = fixtureOfDemo();
+    const projection = buildExportView({ document, schedule, calendar, zoom: 'week' });
+    const svg = svgString({ view: projection.view, document });
+    expect(svg).toContain('font-weight="bold"');
+    // 汇总 s1 在 x=8，子行 t1 在 x=8+12
+    expect(svg).toMatch(/data-task-id="s1"[\s\S]{0,300}?<text x="8"[^>]*font-weight="bold"/);
+    expect(svg).toMatch(/data-task-id="t1"[\s\S]{0,300}?<text x="20"/);
+    for (const row of projection.view.rows) {
+      const task = document.tasks[row.docIndex];
+      const text = exportLabelTextOf({ task, fallback: row.id, availablePx: EXPORT_LABEL_WIDTH_PX, charPx: LABEL_CHAR_PX });
+      expect(svg).toContain(`>${text}</text>`);
+    }
+  });
+
+  it('SVG 的背景与刻度**逐条同源**（灰度带 / 网格线 / 刻度文本的计数与 `view.axis` 一致）', () => {
+    const { document, calendar, schedule } = fixtureOfDemo();
+    const projection = buildExportView({ document, schedule, calendar, zoom: 'week' });
+    const svg = svgString({ view: projection.view, document });
+    const bands = projection.view.axis.filter((element) => element.kind === 'band').length;
+    const grids = projection.view.axis.filter((element) => element.kind === 'gridline').length;
+    const labels = projection.view.axis.filter((element) => element.kind === 'label').length;
+    expect(bands).toBeGreaterThan(0);
+    expect(svg.match(/fill="#f4f6f8"/g)).toHaveLength(bands);
+    expect(svg.match(/stroke="#e4e7ec"/g)).toHaveLength(grids);
+    expect(svg.match(/<g class="axis-labels">/g)).toHaveLength(1);
+    expect(labels).toBeGreaterThan(0);
+    for (const element of projection.view.axis) {
+      if (element.kind !== 'label') continue;
+      expect(svg).toContain(`>${element.text}</text>`);
+    }
+  });
+
+  it('图例里的依赖线画的是**真箭头**（FS/FF 实心、SS/SF 空心）', () => {
+    const { document, calendar, schedule } = fixtureOfDemo();
+    const projection = buildExportView({ document, schedule, calendar, zoom: 'week' });
+    const summary = exportSummaryOf({ document, schedule, calendar });
+    const svg = svgString({
+      view: projection.view,
+      document,
+      options: { includeLegend: true, includeSummary: true, summary },
+    });
+    const legendOf = (key: string): string =>
+      new RegExp(`data-style-key="${key}"[\\s\\S]*?</g>`).exec(svg)?.[0] ?? '';
+    expect(legendOf('edge-FS')).toContain('<polygon');
+    expect(legendOf('edge-SS')).toContain('fill="#ffffff"');
+    expect(legendOf('edge-FS')).not.toContain('fill="#ffffff"');
+  });
+});
+
+describe('导出摘要文本行（SVG 与 PPTX 同源，人工复验第 4 条）', () => {
+  it('两行统计 + 里程碑清单；超过上限时截断并注明总数', () => {
+    const { document, calendar, schedule } = fixtureOfDemo();
+    const summary = exportSummaryOf({ document, schedule, calendar });
+    const lines = exportSummaryLines(summary);
+    expect(lines.headline).toStrictEqual(['任务 15 · 依赖 14', '里程碑 2 个 · 完成率 36%']);
+    expect(lines.milestones).toStrictEqual([
+      '1.4 里程碑：方案评审通过 · 2026-10-20',
+      '2.5 里程碑：联调完成 · 2026-11-10',
+    ]);
+    const truncated = exportSummaryLines(summary, 1);
+    expect(truncated.milestones).toStrictEqual(['1.4 里程碑：方案评审通过 · 2026-10-20', '…共 2 个']);
   });
 });
 

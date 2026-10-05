@@ -13,12 +13,20 @@
 import { describe, expect, it } from 'vitest';
 import { compute } from '@ganttpilot/engine';
 import {
+  buildExportView,
   createDemoPlanDocument,
   createScheduleCalendar,
   DATASETS,
+  EXPORT_LABEL_WIDTH_PX,
+  exportLabelTextOf,
+  exportLegendItems,
+  exportSummaryLines,
+  exportSummaryOf,
   generateDocument,
+  LABEL_CHAR_PX,
   PRIMARY_DATASET_KEY,
   reindexDocument,
+  svgString,
 } from '@ganttpilot/render-core';
 
 import { bytesEqual, entryDigests, diffDigests } from './fingerprint.js';
@@ -188,6 +196,108 @@ describe('模板 A · 降级②（ADR 0010 §6）', () => {
     expect(slideXml.match(/<a:custGeom>/g)).toHaveLength(14);
     expect(slideXml.match(/<a:lnTo>/g)).toHaveLength(28); // 每条折线 3 点 ⇒ 2 段
     expect(structureViolations(slideXml)).toStrictEqual([]);
+  });
+});
+
+describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', () => {
+  it('① 日期刻度：刻度文本框数 == `view.axis` 的 label 数，且文案逐条相同', async () => {
+    const fixture = demoFixture();
+    const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
+    const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
+    const projection = buildExportView({ ...fixture, zoom: 'week' });
+    const expected = projection.view.axis.filter((element) => element.kind === 'label').map((element) => element.text);
+    expect(expected.length).toBeGreaterThan(0);
+    const actual = [...slideXml.matchAll(/name="axis-\d+"[\s\S]{0,1200}?<a:t>([^<]*)<\/a:t>/g)].map((match) => match[1]);
+    expect(actual).toStrictEqual(expected);
+  });
+
+  it('② 背景：周末/节假日灰度带与网格线与 SVG 同源，且**在条形之下**', async () => {
+    const fixture = demoFixture();
+    const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
+    const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
+    const projection = buildExportView({ ...fixture, zoom: 'week' });
+    const bands = projection.view.axis.filter((element) => element.kind === 'band').length;
+    const grids = projection.view.axis.filter((element) => element.kind === 'gridline').length;
+    expect(bands).toBeGreaterThan(0);
+    expect(grids).toBeGreaterThan(0);
+    expect(slideXml.match(/name="band-\d+"/g)).toHaveLength(bands);
+    expect(slideXml.match(/name="grid-\d+"/g)).toHaveLength(grids);
+    // 绘制顺序：背景 → 条形 → 依赖线（OOXML 按文档序绘制）
+    const order = ['name="band-0"', 'name="grid-0"', 'name="bar-s1"', '<p:cxnSp>'].map((needle) =>
+      slideXml.indexOf(needle),
+    );
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect(order).toStrictEqual([...order].sort((left, right) => left - right));
+  });
+
+  it('③ 箭头：每条依赖线都带 `a:tailEnd`，实心/空心与四类关系对应', async () => {
+    const fixture = demoFixture();
+    const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
+    const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
+    const types = fixture.document.links.map((link) => link.type);
+    const solid = types.filter((type) => type === 'FS' || type === 'FF').length;
+    const hollow = types.filter((type) => type === 'SS' || type === 'SF').length;
+    expect(slideXml.match(/<p:cxnSp>/g)).toHaveLength(types.length);
+    expect(slideXml.match(/<a:tailEnd type="triangle"/g)).toHaveLength(solid);
+    expect(slideXml.match(/<a:tailEnd type="arrow"/g)).toHaveLength(hollow);
+  });
+
+  it('④ 图例/摘要与 SVG 同源：条目文案取自 `exportLegendItems`/`exportSummaryLines`，且每条都有图元', async () => {
+    const fixture = demoFixture();
+    const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
+    const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
+    const summary = exportSummaryOf({ ...fixture });
+
+    // 文案：图例 7 条 + 摘要行，逐字与共享函数一致
+    const texts = [...slideXml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map((match) => match[1]);
+    for (const item of exportLegendItems()) expect(texts).toContain(item.label);
+    const lines = exportSummaryLines(summary);
+    for (const line of [...lines.headline, ...lines.milestones]) expect(texts).toContain(line);
+    expect(texts).not.toContain('任务：蓝条'); // 旧的"PPTX 自己写一套文案"必须消失
+
+    // 图元：条/汇总/里程碑 + 四类依赖（线 + 箭头）
+    for (const key of ['bar', 'bar-summary', 'milestone', 'edge-FS', 'edge-SS', 'edge-FF', 'edge-SF']) {
+      expect(slideXml).toContain(`name="legend-swatch-${key}"`);
+    }
+    for (const key of ['edge-FS', 'edge-SS', 'edge-FF', 'edge-SF']) {
+      expect(slideXml).toContain(`name="legend-swatch-${key}-head"`);
+    }
+    // 空心/实心：SS 的图例箭头填充为白、FS 为深灰（与画布里同口径）
+    const swatchFill = (key: string): string =>
+      new RegExp(`name="legend-swatch-${key}-head"[\\s\\S]{0,600}?<a:srgbClr val="([0-9A-F]{6})"`).exec(slideXml)?.[1] ??
+      '(未找到)';
+    expect(swatchFill('edge-FS')).toBe('475467');
+    expect(swatchFill('edge-SS')).toBe('FFFFFF');
+  });
+
+  it('⑤ 样式：汇总行标签加粗、子行按缩进右移，且标签文本与 SVG 逐字相同', async () => {
+    const fixture = demoFixture();
+    const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
+    const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
+    const runOf = (name: string): string =>
+      new RegExp(`name="${name}"[\\s\\S]{0,1200}?<a:rPr([^>]*)>`).exec(slideXml)?.[1] ?? '(未找到)';
+    expect(runOf('lbl-s1')).toContain('b="1"');
+    expect(runOf('lbl-t1')).not.toContain('b="1"');
+    const offXOf = (name: string): number =>
+      Number(new RegExp(`name="${name}"[\\s\\S]{0,900}?<a:off x="(\\d+)"`).exec(slideXml)?.[1] ?? '-1');
+    expect(offXOf('lbl-t1')).toBeGreaterThan(offXOf('lbl-s1'));
+
+    // 与 SVG 同源：每一行的标签文本逐字相同
+    const projection = buildExportView({ ...fixture, zoom: 'week' });
+    const svg = svgString({ view: projection.view, document: fixture.document });
+    const texts = [...slideXml.matchAll(/name="lbl-[^"]+"[\s\S]{0,1200}?<a:t>([^<]*)<\/a:t>/g)].map((match) => match[1]);
+    for (const row of projection.view.rows) {
+      const task = fixture.document.tasks.find((item) => item.id === row.id);
+      const text = exportLabelTextOf({
+        task,
+        fallback: row.id,
+        availablePx: EXPORT_LABEL_WIDTH_PX,
+        charPx: LABEL_CHAR_PX,
+      });
+      expect(texts).toContain(text);
+      expect(svg).toContain(`>${text}</text>`);
+    }
+    expect(texts).toHaveLength(projection.view.rows.length);
   });
 });
 

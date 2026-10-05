@@ -137,6 +137,7 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [S-G7 字节确定性](packages/pptx-renderer/evidence/g7-s7-c-determinism.md) | G7 开工前置的第二批证据：未归一化时 20 个不稳定条目（zip 时间戳 + `docProps` 内容），归一化后**逐字节相等** ⇒ golden 取字节级 |
 | [S-G7 单页适配数值](packages/pptx-renderer/evidence/g7-s7-d-fit.md) | G7 开工前置的第三批证据：16:9 单页下的缩放比 / 行高 / 字号（回填 ADR §11 的常数与提示阈值） |
 | [模板 A 的 WPS 真机验证](packages/pptx-renderer/evidence/template-a-demo-wps.md) | **产品产物**的记录制证据：两次冷开无修复、另存后锚点 14/14 存活、拖动 `bar-t1` 后 `dep-l1`/`dep-l2` 重新走线 |
+| [模板 A 的返工存活核实](packages/pptx-renderer/evidence/template-a-demo-roundtrip-addendum.md) | P-37 返工后的逐类计数（补丁 ⇒ WPS 另存 ⇒ 拖动后再另存）：`axis`/`band`/`grid` 各 9→9→9、`legend-swatch-*` 11→11→11、`tailEnd` triangle 10 / arrow 4、汇总标签仍加粗、z 序未变 |
 | [持久化拖拽证据](apps/web/evidence/persist-drag-timing-chrome154.md) | **开/关自动保存两组同尺**的拖拽帧预算（记录制）：由 `node scripts/measure-render.mjs --persist-drag` 采集——帧间隔 p95、拖动期写入次数（期望 0）、松手 → 落盘 |
 | [存储占用证据](apps/web/evidence/persist-storage-2000-chrome154.md) | **2,000 任务**的存储占用与写入耗时（记录制）：由 `node scripts/measure-render.mjs --storage-metrics` 采集——整份文档体积/序列化耗时、增量记录体积、单条 `put` p50/p95、`estimate()` 用量 |
 | [`scroll` 敏感量盘点](apps/web/evidence/scroll-consumers-audit.md) | G6 开工前置的**只读**盘点（P-25/P-32）：13 处"消费者自己换算坐标"的位置逐条给出基准，结论"加法点恰好 1 个"，不变量落 [render-core 规范](packages/render-core/SPEC.md) §九 |
@@ -220,7 +221,11 @@ pnpm preview    # 起一个本地静态服务器（Vite preview），按它打�
 | **PPTX 模板 A** | 单页总览 = 标题 + 甘特（含左列任务名）+ 图例 + 自动摘要（任务/依赖/里程碑/完成率/里程碑清单） | 固定含图例与摘要（EX-06） |
 
 - **原生形状，永不为位图**：任务条 = `roundRect`、阶段汇总 = `rect`（更矮）、里程碑 = **菱形 preset**、
-  依赖 = `p:cxnSp` + `a:stCxn/a:endCxn` **双端吸附**、父子 = **一级 `p:grpSp`**（显式 `chOff/chExt`、等比）；
+  依赖 = `p:cxnSp` + `a:stCxn/a:endCxn` **双端吸附** + **`a:tailEnd` 箭头**（FS/FF 实心、SS/SF 空心）、
+  父子 = **一级 `p:grpSp`**（显式 `chOff/chExt`、等比）；
+- **模板 A 是一张完整的甘特图**：**日期刻度**、**周末/节假日灰度带**（`F4F6F8`）、**背景网格线**（`E4E7EC`）、
+  左列任务名（**汇总加粗、子行按 WBS 缩进**）、**图例（含色块与箭头图元）**、自动摘要；
+  图例与摘要的文案与 SVG/PNG **同源**（`render-core` 的 `exportLegendItems()` / `exportSummaryLines()`）；
 - **导出是全量渲染**（不分窗口，ADR 0007 §10）：内容按**等比**缩到单页并居中，折叠隐藏的行不导出；
   大文档（如 1,000 行）会缩到不可读——界面在导出前给出**可读性提示**（"建议切档/先折叠"），**不阻断**；
 - **可重复生成**：`docProps` 时间字段与 zip 条目日期归一化后，同一文档两次导出**逐字节一致**；

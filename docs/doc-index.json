@@ -123,6 +123,12 @@
       "note": "P-36：G7 的落地口径、实测数字与出口条件判定"
     },
     {
+      "path": "docs/00-baseline/裁决R36.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-37：G7 人工复验报文与四项功能缺口 + 一项样式的返工"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
@@ -242,6 +248,12 @@
       "role": "record",
       "cap": "record",
       "note": "P-22/P-24/P-25 的增补节与落地段"
+    },
+    {
+      "path": "docs/02-adr/附录/0010-增补.md",
+      "role": "record",
+      "cap": "record",
+      "note": "P-37 的增补节：图面要素清单、箭头强制口径、标签样式与文案单一来源"
     },
     {
       "path": "packages/engine/SCHEMA.md",

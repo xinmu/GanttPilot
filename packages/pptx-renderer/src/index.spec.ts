@@ -34,6 +34,8 @@ describe('@ganttpilot/pptx-renderer 公共入口', () => {
     for (const name of [
       'barSpXml',
       'progressSpXml',
+      'plainRectSpXml',
+      'triangleSpXml',
       'milestoneSpXml',
       'connectorSpXml',
       'custGeomSpXml',
@@ -50,6 +52,11 @@ describe('@ganttpilot/pptx-renderer 公共入口', () => {
     expect(pptx.NAMES.milestone('m1')).toBe('ms-m1');
     expect(pptx.NAMES.edge('l1')).toBe('dep-l1');
     expect(pptx.NAMES.group('s1')).toBe('grp-s1');
+    // 返工新增的四类图元名（人工复验 §1–§4）
+    expect(pptx.NAMES.axis(3)).toBe('axis-3');
+    expect(pptx.NAMES.band(1)).toBe('band-1');
+    expect(pptx.NAMES.grid(2)).toBe('grid-2');
+    expect(pptx.NAMES.legendSwatch('edge-FS')).toBe('legend-swatch-edge-FS');
   });
 
   it('导出单位与页面常量（S1 教训 1：页面常量必须与容器实测一致）', () => {

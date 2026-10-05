@@ -25,14 +25,20 @@ import type { Calendar, DocumentTask, ProjectDocument, Schedule } from '@ganttpi
 import JSZip from 'jszip';
 import {
   buildExportView,
+  exportLabelStyleOf,
+  exportLabelTextOf,
+  exportLegendItems,
+  exportSummaryLines,
   exportSummaryOf,
+  EXPORT_LABEL_PADDING_PX,
   EXPORT_LABEL_WIDTH_PX,
   fitScaleFor,
-  formatCompletionRatio,
   HEADER_HEIGHT_PX,
+  LABEL_CHAR_PX,
   ROUTE_SIDES,
   ROW_HEIGHT,
   type EdgeGeom,
+  type ExportLegendItem,
   type ExportSummary,
   type ExportView,
   type FitTransform,
@@ -66,8 +72,10 @@ import {
   injectIntoSpTree,
   milestoneSpXml,
   parseShapeRefs,
+  plainRectSpXml,
   progressSpXml,
   siteForSide,
+  triangleSpXml,
   type EmuRect,
   type GroupChildXml,
 } from './ooxml.js';
@@ -170,6 +178,13 @@ export interface TemplateAPlan {
   readonly rowHeightPt: number;
   /** 行标签的**有效**字号（pt）；< 6 ⇒ 不画标签（避免 1,000 行生成上千个不可读文本框）。 */
   readonly labelFontPt: number;
+  /**
+   * 侧栏图例的**排版结果**（页面上每一条的 y 与色块 y）。
+   *
+   * 文本（pptxgenjs）与色块（补丁注入）必须用**同一份坐标**——否则就是人工复验第 4 条
+   * "图例摘要与 SVG/PNG 不一致"的翻版（两处各排一次版）。
+   */
+  readonly legendRows: readonly { readonly item: ExportLegendItem; readonly y: number }[];
 }
 
 /** 模板 A 的布局（纯函数；ADR 0010 §2/§3/§7/§11）。 */
@@ -217,7 +232,28 @@ export function planTemplateA(input: TemplateAInput): TemplateAPlan {
 
   const rowHeightPt = pxToPt(ROW_HEIGHT * fit.scale);
   const labelFontPt = Math.min(FONT.task, Math.max(0, rowHeightPt - 1.5));
-  return { projection, summary, fit, pageWidthPx, pageHeightPx, titleBox, ganttBox, sidebarBox, rowHeightPt, labelFontPt };
+
+  // 侧栏图例排版（文本与色块共用这些 y）
+  const legendRows: { item: ExportLegendItem; y: number }[] = [];
+  let legendY = sidebarBox.y + 16 + 16; // 「图例」标题 + 间距
+  for (const item of exportLegendItems()) {
+    legendRows.push({ item, y: legendY });
+    legendY += 14;
+  }
+
+  return {
+    projection,
+    summary,
+    fit,
+    pageWidthPx,
+    pageHeightPx,
+    titleBox,
+    ganttBox,
+    sidebarBox,
+    rowHeightPt,
+    labelFontPt,
+    legendRows,
+  };
 }
 
 /** 内部内容坐标 → 页面 px（`innerX` 含左侧标签列偏移，与 `svgString` 同一套口径）。 */
@@ -298,16 +334,21 @@ interface TextLine {
   readonly objectName: string;
 }
 
-/** 行标签文本（超出标签列宽则截断加省略号）。 */
-function labelTextOf(plan: TemplateAPlan, task: DocumentTask | undefined, fallback: string): string {
-  if (task === undefined) return fallback;
-  const prefix = task.outlineNumber === '' ? '' : `${task.outlineNumber} `;
-  const maxChars = Math.max(4, Math.floor((EXPORT_LABEL_WIDTH_PX * plan.fit.scale) / (plan.labelFontPt * 0.62)));
-  const full = `${prefix}${task.name}`;
-  return full.length <= maxChars ? full : `${full.slice(0, Math.max(3, maxChars - 1))}…`;
+/** 行标签文本（**与 SVG 同源**：共享 `exportLabels` 的缩进/加粗/截断口径）。 */
+function labelOf(task: DocumentTask | undefined, fallback: string): {
+  readonly text: string;
+  readonly indentPx: number;
+  readonly bold: boolean;
+} {
+  const style = exportLabelStyleOf(task);
+  return {
+    text: exportLabelTextOf({ task, fallback, availablePx: EXPORT_LABEL_WIDTH_PX, charPx: LABEL_CHAR_PX }),
+    indentPx: style.indentPx,
+    bold: style.bold,
+  };
 }
 
-/** 模板 A 的全部文本块（标题 + 行标签 + 图例 + 摘要）。 */
+/** 模板 A 的全部文本块（标题 + 日期刻度 + 行标签 + 图例 + 摘要）。 */
 function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: string): readonly TextLine[] {
   const lines: TextLine[] = [
     {
@@ -322,53 +363,67 @@ function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: stri
     },
   ];
 
+  // 日期刻度（人工复验第 1 条：PPTX 原先根本没有刻度）——文案与 SVG 取自**同一份** `view.axis`
+  for (const [index, element] of plan.projection.view.axis.entries()) {
+    if (element.kind !== 'label') continue;
+    const point = slidePointOf(plan, EXPORT_LABEL_WIDTH_PX + element.x + 2, 4);
+    lines.push({
+      text: element.text,
+      x: point.x,
+      y: point.y,
+      width: Math.max(14, plan.fit.scale * (plan.projection.view.pxPerDay * 4 + 16)),
+      fontSize: FONT.axis,
+      color: COLOR.muted,
+      bold: false,
+      objectName: NAMES.axis(index),
+    });
+  }
+
   // 左列任务名：**只在行高撑得下时**画（1,000 行会生成上千个不可读文本框，且必然糊）
   if (plan.labelFontPt >= 6) {
     for (const row of plan.projection.view.rows) {
-      const point = slidePointOf(plan, 6, HEADER_HEIGHT_PX + row.y);
+      const label = labelOf(document.tasks[row.docIndex], row.id);
+      const point = slidePointOf(plan, EXPORT_LABEL_PADDING_PX + label.indentPx, HEADER_HEIGHT_PX + row.y);
       lines.push({
-        text: labelTextOf(plan, document.tasks[row.docIndex], row.id),
+        text: label.text,
         x: point.x,
         y: point.y,
-        width: Math.max(8, EXPORT_LABEL_WIDTH_PX * plan.fit.scale),
+        width: Math.max(8, (EXPORT_LABEL_WIDTH_PX - label.indentPx - EXPORT_LABEL_PADDING_PX) * plan.fit.scale),
         fontSize: plan.labelFontPt,
         color: COLOR.text,
-        bold: false,
+        bold: label.bold,
         objectName: NAMES.label(row.id),
       });
     }
   }
 
-  // 侧栏：图例
-  let y = plan.sidebarBox.y;
+  // 侧栏：图例（标题 + 逐条标签；色块由补丁按同一份 `legendRows` 注入）
   lines.push({
     text: '图例',
     x: plan.sidebarBox.x,
-    y,
+    y: plan.sidebarBox.y,
     width: plan.sidebarBox.width,
     fontSize: FONT.legend + 1,
     color: COLOR.text,
     bold: true,
     objectName: NAMES.legend(0),
   });
-  y += 16;
-  const legend = ['任务：蓝条', '阶段汇总：灰条（更矮）', '里程碑：橙色菱形', '依赖：FS / SS / FF / SF', '被忽略的汇总端点边：浅灰'];
-  for (const [index, text] of legend.entries()) {
+  for (const [index, row] of plan.legendRows.entries()) {
     lines.push({
-      text,
-      x: plan.sidebarBox.x,
-      y,
-      width: plan.sidebarBox.width,
+      text: row.item.label,
+      x: plan.sidebarBox.x + 24,
+      y: row.y - 6,
+      width: plan.sidebarBox.width - 24,
       fontSize: FONT.legend,
-      color: COLOR.muted,
+      color: COLOR.text,
       bold: false,
       objectName: NAMES.legend(index + 1),
     });
-    y += 13;
   }
 
-  // 侧栏：摘要
-  y += 8;
+  // 侧栏：摘要（文案与 SVG 同源：`exportSummaryLines`）
+  const summaryLines = exportSummaryLines(plan.summary);
+  let y = plan.sidebarBox.y + 16 + plan.legendRows.length * 14 + 14;
   lines.push({
     text: '摘要',
     x: plan.sidebarBox.x,
@@ -380,11 +435,7 @@ function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: stri
     objectName: NAMES.summary(0),
   });
   y += 16;
-  const summaryLines = [
-    `任务 ${String(plan.summary.taskCount)} · 依赖 ${String(plan.summary.linkCount)}`,
-    `里程碑 ${String(plan.summary.milestoneCount)} 个 · 完成率 ${formatCompletionRatio(plan.summary.completionRatio)}`,
-  ];
-  for (const [index, text] of summaryLines.entries()) {
+  for (const [index, text] of [...summaryLines.headline, ...summaryLines.milestones].entries()) {
     lines.push({
       text,
       x: plan.sidebarBox.x,
@@ -394,21 +445,6 @@ function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: stri
       color: COLOR.text,
       bold: false,
       objectName: NAMES.summary(index + 1),
-    });
-    y += 13;
-  }
-  y += 4;
-  for (const [index, milestone] of plan.summary.milestones.entries()) {
-    lines.push({
-      text: `${milestone.outlineNumber} ${milestone.name} · ${milestone.dateIso}`,
-      x: plan.sidebarBox.x,
-      y,
-      width: plan.sidebarBox.width,
-      fontSize: FONT.summary,
-      color: COLOR.muted,
-      bold: false,
-      // 偏移 3：0=「摘要」标题、1..2=两行汇总统计 ⇒ 里程碑从 3 起（名字必须全容器唯一）
-      objectName: NAMES.summary(index + 3),
     });
     y += 13;
   }
@@ -470,6 +506,138 @@ function buildRowShapes(args: {
     });
   }
   return { fragments, barId, barName: NAMES.bar(row.id) };
+}
+
+/**
+ * 背景图元（人工复验第 2 条）：**周末/节假日灰度带 + 背景网格线**。
+ *
+ * 与 SVG 取自**同一份** `view.axis`（`band` / `gridline`），因此两边的"哪几天是休息日"逐格一致。
+ * 注入顺序在条形之前 ⇒ 天然在底层（OOXML 按文档序绘制）。
+ */
+function backgroundXmlOf(args: {
+  readonly plan: TemplateAPlan;
+  readonly allocator: IdAllocator;
+}): readonly string[] {
+  const { plan, allocator } = args;
+  const rowsHeight = plan.projection.view.rowCount * plan.projection.view.rowHeight * plan.fit.scale;
+  const top = slidePointOf(plan, 0, HEADER_HEIGHT_PX).y;
+  const left = slidePointOf(plan, EXPORT_LABEL_WIDTH_PX, 0).x;
+  const out: string[] = [];
+  let bandIndex = 0;
+  let gridIndex = 0;
+  for (const element of plan.projection.view.axis) {
+    if (element.kind === 'band') {
+      const x = plan.ganttBox.x + plan.fit.offsetX + (EXPORT_LABEL_WIDTH_PX + element.x) * plan.fit.scale;
+      // **裁到绘制区内**：`buildAxis` 允许色带越过右缘（SVG 里由侧栏底色盖住），
+      // PPTX 的侧栏是透明的 ⇒ 不裁就会在侧栏区里露出一条灰带。
+      // 注意：**计数必须与 `view.axis` 的 band 数一致**（判据断言"逐条同源"），因此夹到 ≥1 px 而不是跳过。
+      const widthPx = Math.max(1, Math.min(element.width, plan.projection.view.width - Math.max(0, element.x)));
+      out.push(
+        plainRectSpXml({
+          id: allocator.next(),
+          name: NAMES.band(bandIndex),
+          rect: {
+            x: pxToEmu(x),
+            y: pxToEmu(top),
+            cx: Math.max(1, pxToEmu(widthPx * plan.fit.scale)),
+            cy: Math.max(1, pxToEmu(rowsHeight)),
+          },
+          fill: COLOR.band,
+        }),
+      );
+      bandIndex += 1;
+      continue;
+    }
+    if (element.kind === 'gridline') {
+      const clamped = Math.min(Math.max(element.x, 0), plan.projection.view.width);
+      const x = plan.ganttBox.x + plan.fit.offsetX + (EXPORT_LABEL_WIDTH_PX + clamped) * plan.fit.scale;
+      out.push(
+        plainRectSpXml({
+          id: allocator.next(),
+          name: NAMES.grid(gridIndex),
+          rect: {
+            x: pxToEmu(x),
+            y: pxToEmu(top),
+            cx: Math.max(1, pxToEmu(1)),
+            cy: Math.max(1, pxToEmu(rowsHeight)),
+          },
+          fill: COLOR.gridline,
+        }),
+      );
+      gridIndex += 1;
+    }
+  }
+  void left;
+  return out;
+}
+
+/**
+ * 图例的**图元**（人工复验第 4 条）：与 `exportLegendItems()` 的条目一一对应，
+ * 坐标与文本取自同一份 `plan.legendRows`。
+ *
+ * 四类依赖的箭头形态必须与条形图里一致（FS/FF 实心三角、SS/SF 空心箭头）——
+ * 图例的职责就是"教会读者看图"，只画一条灰线等于没解释。
+ */
+function legendSwatchXmlOf(args: {
+  readonly plan: TemplateAPlan;
+  readonly allocator: IdAllocator;
+}): readonly string[] {
+  const { plan, allocator } = args;
+  const out: string[] = [];
+  for (const row of plan.legendRows) {
+    const styleKey = row.item.styleKey;
+    const x = plan.sidebarBox.x + 4;
+    if (styleKey === 'bar' || styleKey === 'bar-summary') {
+      const height = styleKey === 'bar' ? 10 : 6;
+      out.push(
+        plainRectSpXml({
+          id: allocator.next(),
+          name: NAMES.legendSwatch(styleKey),
+          rect: {
+            x: pxToEmu(x),
+            y: pxToEmu(row.y - 9),
+            cx: pxToEmu(18),
+            cy: pxToEmu(height),
+          },
+          fill: styleKey === 'bar' ? COLOR.bar : COLOR.barSummary,
+        }),
+      );
+      continue;
+    }
+    if (styleKey === 'milestone') {
+      out.push(
+        milestoneSpXml({
+          id: allocator.next(),
+          name: NAMES.legendSwatch(styleKey),
+          rect: { x: pxToEmu(x), y: pxToEmu(row.y - 15), cx: pxToEmu(12), cy: pxToEmu(12) },
+          fill: COLOR.milestone,
+          stroke: COLOR.milestoneStroke,
+        }),
+      );
+      continue;
+    }
+    const type = styleKey.replace('edge-', '');
+    const hollow = type === 'SS' || type === 'SF';
+    out.push(
+      plainRectSpXml({
+        id: allocator.next(),
+        name: NAMES.legendSwatch(styleKey),
+        rect: { x: pxToEmu(x), y: pxToEmu(row.y - 8), cx: pxToEmu(14), cy: pxToEmu(1.5) },
+        fill: COLOR.edge,
+      }),
+    );
+    out.push(
+      triangleSpXml({
+        id: allocator.next(),
+        name: `${NAMES.legendSwatch(styleKey)}-head`,
+        rect: { x: pxToEmu(x + 13), y: pxToEmu(row.y - 10), cx: pxToEmu(10), cy: pxToEmu(6) },
+        rotateDeg: 90,
+        fill: hollow ? COLOR.white : COLOR.edge,
+        stroke: COLOR.edge,
+      }),
+    );
+  }
+  return out;
 }
 
 /** 解包后的产物尺寸（`p:sldSz`）。 */
@@ -626,6 +794,8 @@ export async function renderTemplateA(input: TemplateAInput): Promise<Uint8Array
     const toPoint = slidePointOf(plan, sideInnerX(toRow, sides.enter), HEADER_HEIGHT_PX + barCenterInnerY(toRow));
     const id = allocator.next();
     const color = edge.ignored ? COLOR.edgeIgnored : COLOR.edge;
+    // 箭头形态与 SVG 的 `ARROW_FILL` 同口径：FS/FF 实心、SS/SF 空心
+    const arrow: 'solid' | 'hollow' = edge.type === 'SS' || edge.type === 'SF' ? 'hollow' : 'solid';
     if (input.degradeConnectors === true) {
       const left = Math.min(fromPoint.x, toPoint.x);
       const top = Math.min(fromPoint.y, toPoint.y);
@@ -645,6 +815,7 @@ export async function renderTemplateA(input: TemplateAInput): Promise<Uint8Array
             { x: pxToEmu(toPoint.x), y: pxToEmu(toPoint.y) },
           ],
           color,
+          arrow,
         }),
       );
       continue;
@@ -661,11 +832,18 @@ export async function renderTemplateA(input: TemplateAInput): Promise<Uint8Array
         toPoint: { x: pxToEmu(toPoint.x), y: pxToEmu(toPoint.y) },
         color,
         ignored: edge.ignored,
+        arrow,
       }),
     );
   }
 
-  const patched = injectIntoSpTree(slideXml, [...groupedXml, ...ungroupedXml, ...edgeXml].join(''));
+  // 注入顺序 = 绘制顺序：**背景（灰度带 + 网格线）→ 图例图元 → 组/条 → 依赖线**
+  const backgroundXml = backgroundXmlOf({ plan, allocator });
+  const legendSwatchXml = legendSwatchXmlOf({ plan, allocator });
+  const patched = injectIntoSpTree(
+    slideXml,
+    [...backgroundXml, ...legendSwatchXml, ...groupedXml, ...ungroupedXml, ...edgeXml].join(''),
+  );
   const bytes = await normalizePptx(written, patched);
 
   // ---------------------------------------------------------------- 读回断言（S1 教训 1）

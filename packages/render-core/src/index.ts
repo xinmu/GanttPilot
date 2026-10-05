@@ -326,13 +326,24 @@ export {
 } from './exportView.js';
 export {
   exportLegendItems,
+  exportSummaryLines,
   exportSummaryOf,
   formatCompletionRatio,
   type ExportLegendItem,
   type ExportMilestone,
   type ExportSummary,
   type ExportSummaryArgs,
+  type ExportSummaryLines,
 } from './exportSummary.js';
+export {
+  EXPORT_LABEL_INDENT_PX,
+  EXPORT_LABEL_MAX_DEPTH,
+  EXPORT_LABEL_PADDING_PX,
+  exportLabelStyleOf,
+  exportLabelTextOf,
+  type ExportLabelStyle,
+  type ExportLabelTextArgs,
+} from './exportLabels.js';
 export {
   EXPORT_SIDEBAR_GAP_PX,
   EXPORT_SIDEBAR_WIDTH_PX,

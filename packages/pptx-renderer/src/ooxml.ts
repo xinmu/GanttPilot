@@ -44,6 +44,14 @@ export const NAMES = {
   label: (taskId: string): string => `lbl-${taskId}`,
   legend: (index: number): string => `legend-${String(index)}`,
   summary: (index: number): string => `summary-${String(index)}`,
+  /** 日期刻度的文本框（第 N 个刻度）。 */
+  axis: (index: number): string => `axis-${String(index)}`,
+  /** 周末/节假日灰度带。 */
+  band: (index: number): string => `band-${String(index)}`,
+  /** 背景网格线。 */
+  grid: (index: number): string => `grid-${String(index)}`,
+  /** 图例色块/箭头（按 styleKey 命名）。 */
+  legendSwatch: (styleKey: string): string => `legend-swatch-${styleKey}`,
 } as const;
 
 /** XML 属性转义。 */
@@ -114,8 +122,23 @@ export function barSpXml(params: {
   );
 }
 
-/** 进度条（`rect`，无描边）。 */
+/** 进度条（`rect`，无描边）——即"纯色实心矩形"，与刻度线/周末灰度/图例色块同一条实现。 */
 export function progressSpXml(params: {
+  readonly id: number;
+  readonly name: string;
+  readonly rect: EmuRect;
+  readonly fill: string;
+}): string {
+  return plainRectSpXml(params);
+}
+
+/**
+ * 纯色矩形（无描边）：进度条、**周末/节假日灰度带**、**背景刻度线**、图例色块都用它。
+ *
+ * 单独成函数的原因：这四样都必须**零描边**——带上默认细线会让"背景灰度"变成"一堆框"，
+ * 也会让 1 px 的网格线渲成 2 px（人工复验回来的 PPTX 就少了这两种背景图元）。
+ */
+export function plainRectSpXml(params: {
   readonly id: number;
   readonly name: string;
   readonly rect: EmuRect;
@@ -132,6 +155,40 @@ export function progressSpXml(params: {
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
     `<a:solidFill><a:srgbClr val="${attr(params.fill)}"/></a:solidFill>` +
     `<a:ln><a:noFill/></a:ln>` +
+    `</p:spPr>` +
+    `</p:sp>`
+  );
+}
+
+/**
+ * 三角形（`prstGeom prst="triangle"`，默认朝上）——图例里的**箭头**用它，
+ * 靠 `rot`（60000 分之一度）转到朝右。
+ *
+ * 为什么不给图例用"自由 connector"：`<p:cxnSp>` 不带 `a:stCxn/endCxn` 的形态
+ * 在本仓库没有实测过（S1 与 S-G7 验的都是带锚点的）；图例只是装饰，
+ * 用**已验证过的 preset 形状**最省风险。
+ */
+export function triangleSpXml(params: {
+  readonly id: number;
+  readonly name: string;
+  readonly rect: EmuRect;
+  /** `rot`（度）。 */
+  readonly rotateDeg: number;
+  readonly fill: string;
+  readonly stroke: string;
+}): string {
+  const rot = Math.round(params.rotateDeg * 60_000);
+  return (
+    `<p:sp>` +
+    `<p:nvSpPr>` +
+    `<p:cNvPr id="${String(params.id)}" name="${attr(params.name)}"/>` +
+    `<p:cNvSpPr/><p:nvPr/>` +
+    `</p:nvSpPr>` +
+    `<p:spPr>` +
+    xfrmXml(params.rect, rot !== 0 ? ` rot="${String(rot)}"` : '') +
+    `<a:prstGeom prst="triangle"><a:avLst/></a:prstGeom>` +
+    `<a:solidFill><a:srgbClr val="${attr(params.fill)}"/></a:solidFill>` +
+    `<a:ln w="9525"><a:solidFill><a:srgbClr val="${attr(params.stroke)}"/></a:solidFill></a:ln>` +
     `</p:spPr>` +
     `</p:sp>`
   );
@@ -185,6 +242,9 @@ export function connectorFrame(from: EmuPoint, to: EmuPoint): { rect: EmuRect; f
  *
  * 两个端点都写在 `<a:stCxn id idx>` / `<a:endCxn id idx>` 上 ⇒ PowerPoint/WPS 会在**形状移动后**
  * 重算走线（S1 的 L4 与 S-G7 的 S7-a 都实测过）。
+ *
+ * `arrow`（人工复验的第 3 条）：**必须显式写 `a:tailEnd`**，否则渲染出来只有线没有箭头。
+ * 形态与 SVG 对齐——`FS`/`FF` 实心（`triangle`）、`SS`/`SF` 空心（`arrow`，即开放箭头）。
  */
 export function connectorSpXml(params: {
   readonly id: number;
@@ -197,9 +257,11 @@ export function connectorSpXml(params: {
   readonly toPoint: EmuPoint;
   readonly color: string;
   readonly ignored: boolean;
+  readonly arrow: 'solid' | 'hollow';
 }): string {
   const { rect, flipH, flipV } = connectorFrame(params.fromPoint, params.toPoint);
   const flags = (flipH ? ' flipH="1"' : '') + (flipV ? ' flipV="1"' : '');
+  const arrowType = params.arrow === 'hollow' ? 'arrow' : 'triangle';
   return (
     `<p:cxnSp>` +
     `<p:nvCxnSpPr>` +
@@ -213,7 +275,8 @@ export function connectorSpXml(params: {
     `<p:spPr>` +
     xfrmXml(rect, flags) +
     `<a:prstGeom prst="bentConnector3"><a:avLst/></a:prstGeom>` +
-    `<a:ln><a:solidFill><a:srgbClr val="${attr(params.color)}"/></a:solidFill></a:ln>` +
+    `<a:ln w="12700"><a:solidFill><a:srgbClr val="${attr(params.color)}"/></a:solidFill>` +
+    `<a:tailEnd type="${arrowType}" w="med" len="med"/></a:ln>` +
     `</p:spPr>` +
     styleXml() +
     `</p:cxnSp>`
@@ -232,6 +295,8 @@ export function custGeomSpXml(params: {
   readonly rect: EmuRect;
   readonly points: readonly EmuPoint[];
   readonly color: string;
+  /** 降级路径同样要带箭头（否则"降级"会悄悄丢掉四类关系的箭头形态）。 */
+  readonly arrow: 'solid' | 'hollow';
 }): string {
   const points = params.points;
   const first = points[0];
@@ -260,7 +325,8 @@ export function custGeomSpXml(params: {
     `<a:pathLst>${path}</a:pathLst>` +
     `</a:custGeom>` +
     `<a:noFill/>` +
-    `<a:ln w="12700"><a:solidFill><a:srgbClr val="${attr(params.color)}"/></a:solidFill></a:ln>` +
+    `<a:ln w="12700"><a:solidFill><a:srgbClr val="${attr(params.color)}"/></a:solidFill>` +
+    `<a:tailEnd type="${params.arrow === 'hollow' ? 'arrow' : 'triangle'}" w="med" len="med"/></a:ln>` +
     `</p:spPr>` +
     `</p:sp>`
   );

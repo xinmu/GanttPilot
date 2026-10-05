@@ -17,11 +17,12 @@
  * - **不含时间戳/随机 id**：同一份输入两次调用必须**逐字符相等**（进 gate 的判据）。
  */
 
-import type { ProjectDocument } from '@ganttpilot/engine';
+import type { DocumentTask, ProjectDocument } from '@ganttpilot/engine';
 
 import { EXPORT_LABEL_FONT_PX, EXPORT_LABEL_WIDTH_PX } from './exportView.js';
 import { EXPORT_AXIS_FONT_PX } from './exportView.js';
-import { exportLegendItems, formatCompletionRatio, type ExportSummary } from './exportSummary.js';
+import { exportLabelStyleOf, exportLabelTextOf } from './exportLabels.js';
+import { exportLegendItems, exportSummaryLines, type ExportSummary } from './exportSummary.js';
 import { HEADER_HEIGHT_PX, LABEL_CHAR_PX } from './manifest.js';
 import { arrowPolygons } from './route.js';
 import type { EdgeGeom, RowBox, ViewModel } from './viewModel.js';
@@ -94,13 +95,44 @@ function arrowForm(edge: EdgeGeom): 'solid' | 'hollow' {
   return edge.type === 'SS' || edge.type === 'SF' ? 'hollow' : 'solid';
 }
 
-/** 标签列内的显示名（超出则截断加省略号；用 `LABEL_CHAR_PX` 估宽，不引入字体度量依赖）。 */
-function labelText(outlineNumber: string, name: string, widthPx: number): string {
-  const prefix = outlineNumber === '' ? '' : `${outlineNumber} `;
-  const full = `${prefix}${name}`;
-  const maxChars = Math.max(4, Math.floor((widthPx - 12) / LABEL_CHAR_PX));
-  if (full.length <= maxChars) return full;
-  return `${full.slice(0, maxChars - 1)}…`;
+/** 标签列内的显示名（**与 PPTX 同源**：共享 `exportLabels` 的缩进/加粗/截断口径）。 */
+function labelOf(args: {
+  readonly task: DocumentTask | undefined;
+  readonly fallback: string;
+}): { readonly text: string; readonly indentPx: number; readonly bold: boolean } {
+  const style = exportLabelStyleOf(args.task);
+  return {
+    text: exportLabelTextOf({
+      task: args.task,
+      fallback: args.fallback,
+      availablePx: EXPORT_LABEL_WIDTH_PX,
+      charPx: LABEL_CHAR_PX,
+    }),
+    indentPx: style.indentPx,
+    bold: style.bold,
+  };
+}
+
+/**
+ * 图例里"依赖线"那一格的图元：短线 + **与真实箭头同形态的箭头**（FS/FF 实心、SS/SF 空心）。
+ *
+ * 为什么要在图例里画出箭头：图例的职责是"教会读者看图"。若图例只画一条灰线，
+ * 四类关系的实心/空心差别就没被解释（人工复验第 4 条"图例摘要与 SVG/PNG 内容不一致"的同类问题）。
+ */
+function legendEdgeSwatch(x: number, y: number, styleKey: string): string {
+  const type = styleKey.replace('edge-', '');
+  const fill = type === 'SS' || type === 'SF' ? 'hollow' : 'solid';
+  const tipX = x + 26;
+  const [origin, left, right] = arrowPolygons({ dir: 1, fill }).outer;
+  const arrow = pointsAttr([
+    [tipX + origin[0], y + origin[1]],
+    [tipX + left[0], y + left[1]],
+    [tipX + right[0], y + right[1]],
+  ]);
+  return (
+    `<line x1="${String(round(x))}" y1="${String(round(y))}" x2="${String(round(tipX - 8))}" y2="${String(round(y))}" stroke="${COLOR.edge}" stroke-width="1"/>` +
+    `<polygon points="${arrow}" fill="${fill === 'hollow' ? COLOR.hollowFill : COLOR.edge}" stroke="${COLOR.edge}" stroke-width="1"/>`
+  );
 }
 
 /** 里程碑菱形点串（中心与边长来自 `ViewModel`）。 */
@@ -151,7 +183,7 @@ function sidebarSvg(args: {
                   [args.x + 17, y],
                   [args.x + 11, y - 6],
                 ])}" fill="${COLOR.milestone}"/>`
-              : `<line x1="${String(round(args.x + 8))}" y1="${String(round(y - 4))}" x2="${String(round(args.x + 26))}" y2="${String(round(y - 4))}" stroke="${COLOR.edge}" stroke-width="1"/>`;
+              : legendEdgeSwatch(args.x + 8, y - 4, item.styleKey);
       parts.push(
         `<g class="legend-item" data-style-key="${escapeXml(item.styleKey)}">${swatch}` +
           `<text x="${String(round(args.x + 32))}" y="${String(round(y))}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.rowText}">${escapeXml(item.label)}</text>` +
@@ -165,26 +197,15 @@ function sidebarSvg(args: {
 
   if (options.includeSummary === true && options.summary !== undefined) {
     const summary = options.summary;
+    const lines = exportSummaryLines(summary);
     parts.push(
       `<g class="summary">` +
         `<text x="${String(round(args.x + 8))}" y="${String(round(y + 10))}" font-size="${String(EXPORT_LABEL_FONT_PX)}" fill="${COLOR.rowText}">摘要</text>`,
     );
     y += 24;
-    const lines = [
-      `任务 ${String(summary.taskCount)} · 依赖 ${String(summary.linkCount)}`,
-      `里程碑 ${String(summary.milestoneCount)} · 完成率 ${formatCompletionRatio(summary.completionRatio)}`,
-    ];
-    for (const line of lines) {
+    for (const line of [...lines.headline, ...lines.milestones]) {
       parts.push(
         `<text x="${String(round(args.x + 8))}" y="${String(round(y))}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.rowText}">${escapeXml(line)}</text>`,
-      );
-      y += 14;
-    }
-    y += 6;
-    for (const milestone of summary.milestones) {
-      parts.push(
-        `<text x="${String(round(args.x + 8))}" y="${String(round(y))}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.axisText}">` +
-          `${escapeXml(`${milestone.outlineNumber} ${milestone.name} · ${milestone.dateIso}`)}</text>`,
       );
       y += 14;
     }
@@ -251,12 +272,15 @@ export function svgString(args: SvgExportArgs): string {
   chunks.push(`<g class="axis">`);
   for (const element of view.axis) {
     if (element.kind === 'band') {
+      // 裁到绘制区右缘（不裁会露进侧栏/间隙）；**计数仍与 `view.axis` 一致**（夹到 ≥1 px，不跳过）
+      const width = Math.max(1, Math.min(element.width, chartWidth - Math.max(0, element.x)));
       chunks.push(
-        `<rect x="${String(round(offsetX + element.x))}" y="${String(offsetY)}" width="${String(round(element.width))}" height="${String(rowsHeight)}" fill="${COLOR.band}"/>`,
+        `<rect x="${String(round(offsetX + element.x))}" y="${String(offsetY)}" width="${String(round(width))}" height="${String(rowsHeight)}" fill="${COLOR.band}"/>`,
       );
     } else if (element.kind === 'gridline') {
+      const x = Math.min(Math.max(element.x, 0), chartWidth);
       chunks.push(
-        `<line x1="${String(round(offsetX + element.x))}" x2="${String(round(offsetX + element.x))}" y1="${String(offsetY)}" y2="${String(offsetY + rowsHeight)}" stroke="${COLOR.gridline}" stroke-width="1"/>`,
+        `<line x1="${String(round(offsetX + x))}" x2="${String(round(offsetX + x))}" y1="${String(offsetY)}" y2="${String(offsetY + rowsHeight)}" stroke="${COLOR.gridline}" stroke-width="1"/>`,
       );
     }
   }
@@ -276,12 +300,12 @@ export function svgString(args: SvgExportArgs): string {
   chunks.push(`<g class="rows">`);
   for (const row of view.rows) {
     const task = document.tasks[row.docIndex];
-    const name = task === undefined ? row.id : labelText(task.outlineNumber, task.name, EXPORT_LABEL_WIDTH_PX);
+    const label = labelOf({ task, fallback: row.id });
     const y = round(offsetY + row.y);
     chunks.push(
       `<g class="row" data-task-id="${escapeXml(row.id)}" data-kind="${row.kind}">` +
-        `<title>${escapeXml(name)}</title>` +
-        `<text x="8" y="${String(y + view.rowHeight - 8)}" font-size="${String(EXPORT_LABEL_FONT_PX)}" fill="${COLOR.rowText}">${escapeXml(name)}</text>`,
+        `<title>${escapeXml(label.text)}</title>` +
+        `<text x="${String(round(8 + label.indentPx))}" y="${String(y + view.rowHeight - 8)}" font-size="${String(EXPORT_LABEL_FONT_PX)}"${label.bold ? ' font-weight="bold"' : ''} fill="${COLOR.rowText}">${escapeXml(label.text)}</text>`,
     );
     if (row.isMilestone && row.milestone !== null) {
       chunks.push(

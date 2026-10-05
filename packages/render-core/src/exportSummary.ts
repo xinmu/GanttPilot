@@ -22,6 +22,7 @@
 
 import type { Calendar, ProjectDocument, Schedule } from '@ganttpilot/engine';
 
+import { EXPORT_MILESTONE_LIST_MAX } from './exportView.js';
 import { isoOfOrdinalSafe } from './viewText.js';
 
 /** 里程碑清单的一项。 */
@@ -132,4 +133,34 @@ export function exportLegendItems(): readonly ExportLegendItem[] {
 export function formatCompletionRatio(value: number | null): string {
   if (value === null || !Number.isFinite(value)) return '—';
   return `${String(Math.round(value * 100))}%`;
+}
+
+/** 摘要的**文本行**（SVG 与 PPTX 必须逐字相同 ⇒ 只在这里生成一次）。 */
+export interface ExportSummaryLines {
+  /** 两行统计：`任务 N · 依赖 N`、`里程碑 N 个 · 完成率 X%`。 */
+  readonly headline: readonly string[];
+  /** 里程碑清单（已按上限截断；超出时最后一行是 `…共 N 个`）。 */
+  readonly milestones: readonly string[];
+}
+
+/**
+ * 由摘要数据生成**文本行**（ADR 0010 §7）。
+ *
+ * 为什么单独抽出来：人工复验第 4 条指出"图例摘要和 SVG/PNG 内容不一致"——
+ * 根源是两处渲染器各写了一遍文案。文案属于**契约**，只准有一处。
+ */
+export function exportSummaryLines(
+  summary: ExportSummary,
+  maxMilestones = EXPORT_MILESTONE_LIST_MAX,
+): ExportSummaryLines {
+  const headline = [
+    `任务 ${String(summary.taskCount)} · 依赖 ${String(summary.linkCount)}`,
+    `里程碑 ${String(summary.milestoneCount)} 个 · 完成率 ${formatCompletionRatio(summary.completionRatio)}`,
+  ];
+  const shown = summary.milestones.slice(0, Math.max(0, maxMilestones));
+  const milestones = shown.map((item) => `${item.outlineNumber} ${item.name} · ${item.dateIso}`);
+  if (summary.milestones.length > shown.length) {
+    milestones.push(`…共 ${String(summary.milestones.length)} 个`);
+  }
+  return { headline, milestones };
 }
