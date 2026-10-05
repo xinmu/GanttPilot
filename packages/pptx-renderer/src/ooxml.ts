@@ -143,7 +143,10 @@ export function plainRectSpXml(params: {
   readonly name: string;
   readonly rect: EmuRect;
   readonly fill: string;
+  /** 可选旋转（度，顺时针）——开放箭头的两条臂用它拼尖角。 */
+  readonly rotateDeg?: number;
 }): string {
+  const rot = Math.round((params.rotateDeg ?? 0) * 60_000);
   return (
     `<p:sp>` +
     `<p:nvSpPr>` +
@@ -151,7 +154,7 @@ export function plainRectSpXml(params: {
     `<p:cNvSpPr/><p:nvPr/>` +
     `</p:nvSpPr>` +
     `<p:spPr>` +
-    xfrmXml(params.rect) +
+    xfrmXml(params.rect, rot !== 0 ? ` rot="${String(rot)}"` : '') +
     `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>` +
     `<a:solidFill><a:srgbClr val="${attr(params.fill)}"/></a:solidFill>` +
     `<a:ln><a:noFill/></a:ln>` +
@@ -257,11 +260,20 @@ export function connectorSpXml(params: {
   readonly toPoint: EmuPoint;
   readonly color: string;
   readonly ignored: boolean;
-  readonly arrow: 'solid' | 'hollow';
+  /**
+   * 箭头形态：`solid` = `triangle`（实心）、`open` = `arrow`（开放折线箭头，"→"）。
+   *
+   * **为什么不用"自绘空心三角"**（P-38 的实测结论）：OOXML 原生箭头没有空心三角，
+   * 自绘形状虽然与 SVG 同形，但它**没有 `stCxn/endCxn` 吸附锚点** ⇒ WPS **从不重算它的位置**，
+   * 拖动"入端"那条任务条时箭头会留在原地（而依赖线本身会重走线）。
+   * G7 的招牌行为是"**拖动后端点跟随**"，优先级高于箭头形状 ⇒ 用原生 `arrow`。
+   * 见 [ADR 0010 附录 §2](../../../docs/02-adr/附录/0010-增补.md)。
+   */
+  readonly arrow: 'solid' | 'open';
 }): string {
   const { rect, flipH, flipV } = connectorFrame(params.fromPoint, params.toPoint);
   const flags = (flipH ? ' flipH="1"' : '') + (flipV ? ' flipV="1"' : '');
-  const arrowType = params.arrow === 'hollow' ? 'arrow' : 'triangle';
+  const tail = `<a:tailEnd type="${params.arrow === 'open' ? 'arrow' : 'triangle'}" w="med" len="med"/>`;
   return (
     `<p:cxnSp>` +
     `<p:nvCxnSpPr>` +
@@ -275,8 +287,7 @@ export function connectorSpXml(params: {
     `<p:spPr>` +
     xfrmXml(rect, flags) +
     `<a:prstGeom prst="bentConnector3"><a:avLst/></a:prstGeom>` +
-    `<a:ln w="12700"><a:solidFill><a:srgbClr val="${attr(params.color)}"/></a:solidFill>` +
-    `<a:tailEnd type="${arrowType}" w="med" len="med"/></a:ln>` +
+    `<a:ln w="12700"><a:solidFill><a:srgbClr val="${attr(params.color)}"/></a:solidFill>${tail}</a:ln>` +
     `</p:spPr>` +
     styleXml() +
     `</p:cxnSp>`
@@ -296,7 +307,7 @@ export function custGeomSpXml(params: {
   readonly points: readonly EmuPoint[];
   readonly color: string;
   /** 降级路径同样要带箭头（否则"降级"会悄悄丢掉四类关系的箭头形态）。 */
-  readonly arrow: 'solid' | 'hollow';
+  readonly arrow: 'solid' | 'open';
 }): string {
   const points = params.points;
   const first = points[0];
@@ -326,7 +337,7 @@ export function custGeomSpXml(params: {
     `</a:custGeom>` +
     `<a:noFill/>` +
     `<a:ln w="12700"><a:solidFill><a:srgbClr val="${attr(params.color)}"/></a:solidFill>` +
-    `<a:tailEnd type="${params.arrow === 'hollow' ? 'arrow' : 'triangle'}" w="med" len="med"/></a:ln>` +
+    `<a:tailEnd type="${params.arrow === 'open' ? 'arrow' : 'triangle'}" w="med" len="med"/></a:ln>` +
     `</p:spPr>` +
     `</p:sp>`
   );

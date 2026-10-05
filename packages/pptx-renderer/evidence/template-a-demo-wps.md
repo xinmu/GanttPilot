@@ -23,14 +23,14 @@
 |---|---|---|
 | 1 | 打开无修复弹窗（COM 打开未抛错） | 通过（无异常） |
 | 2 | 幻灯片可读 | 通过（slides=1） |
-| 3 | `Slide.Export` 出 PNG（拖动前） | 通过（139715 bytes） |
-| 4 | `SaveAs` 另存 pptx（拖动前） | 通过（21074 bytes） |
+| 3 | `Slide.Export` 出 PNG（拖动前） | 通过（140100 bytes） |
+| 4 | `SaveAs` 另存 pptx（拖动前） | 通过（21155 bytes） |
 | 5 | 另存后 `a:stCxn`/`a:endCxn` 条数存活 | 通过（补丁 14 条：st=14 end=14 ⇒ WPS 后 st=14 end=14） |
 | 6 | 逐条 connector 端点（归一到形状名后）存活 | 通过（14 条全部一致） |
 | 7 | `cxnSp` 条数（另存前/后） | 补丁 14 条 ⇒ WPS 14 条（一致） |
 | 8 | 拖动任务条（COM 移动 `Left`/`Top`） | 通过（`bar-t1`：L=199.7 T=117.7 → L=319.7 T=177.7） |
-| 9 | `Slide.Export` 出 PNG（拖动后） | 通过（139546 bytes） |
-| 10 | `SaveAs` 另存 pptx（拖动后） | 通过（21310 bytes） |
+| 9 | `Slide.Export` 出 PNG（拖动后） | 通过（140416 bytes） |
+| 10 | `SaveAs` 另存 pptx（拖动后） | 通过（21381 bytes） |
 | 11 | **端点跟随**（相关 connector 的 `xfrm` 重算） | 通过（xfrm 随移动重算） |
 | 12 | `cxnSpLocks` | 补丁 0 处 ⇒ WPS 0 处 |
 
@@ -118,19 +118,19 @@
 补丁刚写出：
 
 ```
-#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, lbl-s1#12, lbl-t1#13, lbl-t2#14, lbl-t3#15, lbl-m1#16, lbl-s2#17, lbl-t4#18, lbl-t5#19, lbl-t6#20, lbl-t7#21, lbl-m2#22, lbl-s3#23, lbl-t8#24, lbl-t9#25, lbl-t10#26, legend-0#27, legend-1#28, legend-2#29, legend-3#30, legend-4#31, legend-5#32, legend-6#33, legend-7#34, summary-0#35, summary-1#36, summary-2#37, summary-3#38, summary-4#39, band-0#85, band-1#86, band-2#87, band-3#88, band-4#89, band-5#90, band-6#91, band-7#92, band-8#93, grid-0#94, grid-1#95, grid-2#96, grid-3#97, grid-4#98, grid-5#99, grid-6#100, grid-7#101, grid-8#102, legend-swatch-bar#103, legend-swatch-bar-summary#104, legend-swatch-milestone#105, legend-swatch-edge-FS#106, legend-swatch-edge-FS-head#107, legend-swatch-edge-SS#108, legend-swatch-edge-SS-head#109, legend-swatch-edge-FF#110, legend-swatch-edge-FF-head#111, legend-swatch-edge-SF#112, legend-swatch-edge-SF-head#113, grp-s1#68, bar-s1#40, prog-s1#41, bar-t1#42, prog-t1#43, bar-t2#44, prog-t2#45, bar-t3#46, prog-t3#47, ms-m1#48, grp-s2#69, bar-s2#49, prog-s2#50, bar-t4#51, prog-t4#52, bar-t5#53, prog-t5#54, bar-t6#55, prog-t6#56, bar-t7#57, prog-t7#58, ms-m2#59, grp-s3#70, bar-s3#60, prog-s3#61, bar-t8#62, prog-t8#63, bar-t9#64, prog-t9#65, bar-t10#66, prog-t10#67, dep-l1#71, dep-l2#72, dep-l3#73, dep-l4#74, dep-l5#75, dep-l6#76, dep-l7#77, dep-l8#78, dep-l9#79, dep-l10#80, dep-l11#81, dep-l12#82, dep-l13#83, dep-l14#84
+#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, lbl-s1#12, lbl-t1#13, lbl-t2#14, lbl-t3#15, lbl-m1#16, lbl-s2#17, lbl-t4#18, lbl-t5#19, lbl-t6#20, lbl-t7#21, lbl-m2#22, lbl-s3#23, lbl-t8#24, lbl-t9#25, lbl-t10#26, legend-0#27, legend-1#28, legend-2#29, legend-3#30, legend-4#31, legend-5#32, legend-6#33, legend-7#34, summary-0#35, summary-1#36, summary-2#37, summary-3#38, summary-4#39, band-0#85, band-1#86, band-2#87, band-3#88, band-4#89, band-5#90, band-6#91, band-7#92, band-8#93, grid-0#94, grid-1#95, grid-2#96, grid-3#97, grid-4#98, grid-5#99, grid-6#100, grid-7#101, grid-8#102, legend-swatch-bar#103, legend-swatch-bar-summary#104, legend-swatch-milestone#105, legend-swatch-edge-FS#106, legend-swatch-edge-FS-head#107, legend-swatch-edge-SS#108, legend-swatch-edge-SS-head-arm1#109, legend-swatch-edge-SS-head-arm2#110, legend-swatch-edge-FF#111, legend-swatch-edge-FF-head#112, legend-swatch-edge-SF#113, legend-swatch-edge-SF-head-arm1#114, legend-swatch-edge-SF-head-arm2#115, grp-s1#68, bar-s1#40, prog-s1#41, bar-t1#42, prog-t1#43, bar-t2#44, prog-t2#45, bar-t3#46, prog-t3#47, ms-m1#48, grp-s2#69, bar-s2#49, prog-s2#50, bar-t4#51, prog-t4#52, bar-t5#53, prog-t5#54, bar-t6#55, prog-t6#56, bar-t7#57, prog-t7#58, ms-m2#59, grp-s3#70, bar-s3#60, prog-s3#61, bar-t8#62, prog-t8#63, bar-t9#64, prog-t9#65, bar-t10#66, prog-t10#67, dep-l1#71, dep-l2#72, dep-l3#73, dep-l4#74, dep-l5#75, dep-l6#76, dep-l7#77, dep-l8#78, dep-l9#79, dep-l10#80, dep-l11#81, dep-l12#82, dep-l13#83, dep-l14#84
 ```
 
 WPS 另存后：
 
 ```
-#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, lbl-s1#12, lbl-t1#13, lbl-t2#14, lbl-t3#15, lbl-m1#16, lbl-s2#17, lbl-t4#18, lbl-t5#19, lbl-t6#20, lbl-t7#21, lbl-m2#22, lbl-s3#23, lbl-t8#24, lbl-t9#25, lbl-t10#26, legend-0#27, legend-1#28, legend-2#29, legend-3#30, legend-4#31, legend-5#32, legend-6#33, legend-7#34, summary-0#35, summary-1#36, summary-2#37, summary-3#38, summary-4#39, band-0#85, band-1#86, band-2#87, band-3#88, band-4#89, band-5#90, band-6#91, band-7#92, band-8#93, grid-0#94, grid-1#95, grid-2#96, grid-3#97, grid-4#98, grid-5#99, grid-6#100, grid-7#101, grid-8#102, legend-swatch-bar#103, legend-swatch-bar-summary#104, legend-swatch-milestone#105, legend-swatch-edge-FS#106, legend-swatch-edge-FS-head#107, legend-swatch-edge-SS#108, legend-swatch-edge-SS-head#109, legend-swatch-edge-FF#110, legend-swatch-edge-FF-head#111, legend-swatch-edge-SF#112, legend-swatch-edge-SF-head#113, grp-s1#68, bar-s1#40, prog-s1#41, bar-t1#42, prog-t1#43, bar-t2#44, prog-t2#45, bar-t3#46, prog-t3#47, ms-m1#48, grp-s2#69, bar-s2#49, prog-s2#50, bar-t4#51, prog-t4#52, bar-t5#53, prog-t5#54, bar-t6#55, prog-t6#56, bar-t7#57, prog-t7#58, ms-m2#59, grp-s3#70, bar-s3#60, prog-s3#61, bar-t8#62, prog-t8#63, bar-t9#64, prog-t9#65, bar-t10#66, prog-t10#67, dep-l1#71, dep-l2#72, dep-l3#73, dep-l4#74, dep-l5#75, dep-l6#76, dep-l7#77, dep-l8#78, dep-l9#79, dep-l10#80, dep-l11#81, dep-l12#82, dep-l13#83, dep-l14#84
+#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, lbl-s1#12, lbl-t1#13, lbl-t2#14, lbl-t3#15, lbl-m1#16, lbl-s2#17, lbl-t4#18, lbl-t5#19, lbl-t6#20, lbl-t7#21, lbl-m2#22, lbl-s3#23, lbl-t8#24, lbl-t9#25, lbl-t10#26, legend-0#27, legend-1#28, legend-2#29, legend-3#30, legend-4#31, legend-5#32, legend-6#33, legend-7#34, summary-0#35, summary-1#36, summary-2#37, summary-3#38, summary-4#39, band-0#85, band-1#86, band-2#87, band-3#88, band-4#89, band-5#90, band-6#91, band-7#92, band-8#93, grid-0#94, grid-1#95, grid-2#96, grid-3#97, grid-4#98, grid-5#99, grid-6#100, grid-7#101, grid-8#102, legend-swatch-bar#103, legend-swatch-bar-summary#104, legend-swatch-milestone#105, legend-swatch-edge-FS#106, legend-swatch-edge-FS-head#107, legend-swatch-edge-SS#108, legend-swatch-edge-SS-head-arm1#109, legend-swatch-edge-SS-head-arm2#110, legend-swatch-edge-FF#111, legend-swatch-edge-FF-head#112, legend-swatch-edge-SF#113, legend-swatch-edge-SF-head-arm1#114, legend-swatch-edge-SF-head-arm2#115, grp-s1#68, bar-s1#40, prog-s1#41, bar-t1#42, prog-t1#43, bar-t2#44, prog-t2#45, bar-t3#46, prog-t3#47, ms-m1#48, grp-s2#69, bar-s2#49, prog-s2#50, bar-t4#51, prog-t4#52, bar-t5#53, prog-t5#54, bar-t6#55, prog-t6#56, bar-t7#57, prog-t7#58, ms-m2#59, grp-s3#70, bar-s3#60, prog-s3#61, bar-t8#62, prog-t8#63, bar-t9#64, prog-t9#65, bar-t10#66, prog-t10#67, dep-l1#71, dep-l2#72, dep-l3#73, dep-l4#74, dep-l5#75, dep-l6#76, dep-l7#77, dep-l8#78, dep-l9#79, dep-l10#80, dep-l11#81, dep-l12#82, dep-l13#83, dep-l14#84
 ```
 
 拖动后再另存：
 
 ```
-#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, lbl-s1#12, lbl-t1#13, lbl-t2#14, lbl-t3#15, lbl-m1#16, lbl-s2#17, lbl-t4#18, lbl-t5#19, lbl-t6#20, lbl-t7#21, lbl-m2#22, lbl-s3#23, lbl-t8#24, lbl-t9#25, lbl-t10#26, legend-0#27, legend-1#28, legend-2#29, legend-3#30, legend-4#31, legend-5#32, legend-6#33, legend-7#34, summary-0#35, summary-1#36, summary-2#37, summary-3#38, summary-4#39, band-0#85, band-1#86, band-2#87, band-3#88, band-4#89, band-5#90, band-6#91, band-7#92, band-8#93, grid-0#94, grid-1#95, grid-2#96, grid-3#97, grid-4#98, grid-5#99, grid-6#100, grid-7#101, grid-8#102, legend-swatch-bar#103, legend-swatch-bar-summary#104, legend-swatch-milestone#105, legend-swatch-edge-FS#106, legend-swatch-edge-FS-head#107, legend-swatch-edge-SS#108, legend-swatch-edge-SS-head#109, legend-swatch-edge-FF#110, legend-swatch-edge-FF-head#111, legend-swatch-edge-SF#112, legend-swatch-edge-SF-head#113, grp-s1#68, bar-s1#40, prog-s1#41, bar-t1#42, prog-t1#43, bar-t2#44, prog-t2#45, bar-t3#46, prog-t3#47, ms-m1#48, grp-s2#69, bar-s2#49, prog-s2#50, bar-t4#51, prog-t4#52, bar-t5#53, prog-t5#54, bar-t6#55, prog-t6#56, bar-t7#57, prog-t7#58, ms-m2#59, grp-s3#70, bar-s3#60, prog-s3#61, bar-t8#62, prog-t8#63, bar-t9#64, prog-t9#65, bar-t10#66, prog-t10#67, dep-l1#71, dep-l2#72, dep-l3#73, dep-l4#74, dep-l5#75, dep-l6#76, dep-l7#77, dep-l8#78, dep-l9#79, dep-l10#80, dep-l11#81, dep-l12#82, dep-l13#83, dep-l14#84
+#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, lbl-s1#12, lbl-t1#13, lbl-t2#14, lbl-t3#15, lbl-m1#16, lbl-s2#17, lbl-t4#18, lbl-t5#19, lbl-t6#20, lbl-t7#21, lbl-m2#22, lbl-s3#23, lbl-t8#24, lbl-t9#25, lbl-t10#26, legend-0#27, legend-1#28, legend-2#29, legend-3#30, legend-4#31, legend-5#32, legend-6#33, legend-7#34, summary-0#35, summary-1#36, summary-2#37, summary-3#38, summary-4#39, band-0#85, band-1#86, band-2#87, band-3#88, band-4#89, band-5#90, band-6#91, band-7#92, band-8#93, grid-0#94, grid-1#95, grid-2#96, grid-3#97, grid-4#98, grid-5#99, grid-6#100, grid-7#101, grid-8#102, legend-swatch-bar#103, legend-swatch-bar-summary#104, legend-swatch-milestone#105, legend-swatch-edge-FS#106, legend-swatch-edge-FS-head#107, legend-swatch-edge-SS#108, legend-swatch-edge-SS-head-arm1#109, legend-swatch-edge-SS-head-arm2#110, legend-swatch-edge-FF#111, legend-swatch-edge-FF-head#112, legend-swatch-edge-SF#113, legend-swatch-edge-SF-head-arm1#114, legend-swatch-edge-SF-head-arm2#115, grp-s1#68, bar-s1#40, prog-s1#41, bar-t1#42, prog-t1#43, bar-t2#44, prog-t2#45, bar-t3#46, prog-t3#47, ms-m1#48, grp-s2#69, bar-s2#49, prog-s2#50, bar-t4#51, prog-t4#52, bar-t5#53, prog-t5#54, bar-t6#55, prog-t6#56, bar-t7#57, prog-t7#58, ms-m2#59, grp-s3#70, bar-s3#60, prog-s3#61, bar-t8#62, prog-t8#63, bar-t9#64, prog-t9#65, bar-t10#66, prog-t10#67, dep-l1#71, dep-l2#72, dep-l3#73, dep-l4#74, dep-l5#75, dep-l6#76, dep-l7#77, dep-l8#78, dep-l9#79, dep-l10#80, dep-l11#81, dep-l12#82, dep-l13#83, dep-l14#84
 ```
 
 WPS COM 侧形状树（会话 2 打开后，拖动之前；缩进 = `GroupItems` 层级）：
@@ -198,11 +198,13 @@ legend-swatch-milestone
 legend-swatch-edge-FS
 legend-swatch-edge-FS-head
 legend-swatch-edge-SS
-legend-swatch-edge-SS-head
+legend-swatch-edge-SS-head-arm1
+legend-swatch-edge-SS-head-arm2
 legend-swatch-edge-FF
 legend-swatch-edge-FF-head
 legend-swatch-edge-SF
-legend-swatch-edge-SF-head
+legend-swatch-edge-SF-head-arm1
+legend-swatch-edge-SF-head-arm2
 grp-s1
   bar-s1
   prog-s1
@@ -264,8 +266,8 @@ XML 里同样如此：它们是 `<p:grpSp>` 的子元素，而 connector 在**�
 
 ## WPS 打开/另存到底改了什么（字节层事实）
 
-- `slide1.xml` 字符数：as-written 58767 ⇒ WPS 56890（**字节不同**），
-  但**结构计数逐项一致**：`<p:sp>` 95 ⇒ 95、`<p:cxnSp>` 14 ⇒ 14、`<p:grpSp>` 3 ⇒ 3、`<a:stCxn>` 14 ⇒ 14、`<a:endCxn>` 14 ⇒ 14。
+- `slide1.xml` 字符数：as-written 59370 ⇒ WPS 57493（**字节不同**），
+  但**结构计数逐项一致**：`<p:sp>` 97 ⇒ 97、`<p:cxnSp>` 14 ⇒ 14、`<p:grpSp>` 3 ⇒ 3、`<a:stCxn>` 14 ⇒ 14、`<a:endCxn>` 14 ⇒ 14。
   已定位的重写：``<p:cSld name="Slide 1">`` 的 name 属性被丢掉，XML 声明/空白的写法被规范化（所以字节数变小）。
 - 包内条目（非目录项）：补丁 20 项 ⇒ WPS 22 项；新增的是 `docProps/custom.xml`、`ppt/theme/theme2.xml`。
 - **走线本身也被重算**（不只是平移）：拖动后 WPS 会按新的端点相对位置改写 connector 的

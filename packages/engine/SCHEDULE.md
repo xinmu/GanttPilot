@@ -293,7 +293,7 @@ function affectedClosure(
 | ① 不变量/性质 | `schedule.invariants.spec.ts` | ≥ 1,000 随机图全过 |
 | ② 手工推导用例 | `schedule.manual.spec.ts`（声明式期望值表，内核无权改基准） | 逐条声明式期望值 |
 | ③ 跨语言差分 | `schedule.differential.spec.ts` + [`tools/cpm-reference/cpm_reference.py`](../../tools/cpm-reference/cpm_reference.py) | ≥ 1,000 DAG + 200 成环图，**0 不一致** |
-| ④ 性能 | `schedule.performance.spec.ts`（批量计时 + median-of-suites） | 1,000 任务/1,500 依赖全量 `compute` **p99 ≤ 1 ms**（Node 24 参照机；EN-08 的 100 ms 保留为产品侧不回归天花板）。**实测**：p50 = 326 µs / p99 = 530 µs（最差 suite p99 = 644 µs）——注意 S3 的 52.1 µs 是**只测传播内核**的窄口径，本数字是产品口径（含日期解析、工期解析、诊断收集与结果分配） |
+| ④ 性能 | `schedule.performance.spec.ts`（批量计时 + median-of-suites） | 1,000 任务/1,500 依赖全量 `compute` **p50 ≤ 1 ms 且 p99 ≤ 2 ms**（Node 24 参照机；EN-08 的 100 ms 保留为产品侧不回归天花板）。**口径于 P-38 修订**：中位数管"实现退化"、尾部管"并行争用"，见 [ADR 0004 附录 §1](../../docs/02-adr/附录/0004-增补.md)。**实测**：空闲档 p50 = 326 µs / p99 = 530 µs（P-38 之后两次全量 `pnpm gate` 实测 p50 = 533 / 545 µs、p99 = 1.40 / 1.28 ms）（最差 suite p99 0.61–2.72 ms）——注意 S3 的 52.1 µs 是**只测传播内核**的窄口径，本数字是产品口径（含日期解析、工期解析、诊断收集与结果分配） |
 | ⑤ 负向对照 | 正确性侧（打坏期望值/改关系类型/篡改结果必须被检出）与性能侧（朴素对照必须被量出 ≥3×） | **必须有**，否则判据可能是恒真式 |
 
 **差分层怎么跑**（协议与 CLI 见 [`tools/cpm-reference/README.md`](../../tools/cpm-reference/README.md)）：

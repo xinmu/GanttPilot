@@ -32,6 +32,7 @@ import {
   exportSummaryOf,
   EXPORT_LABEL_PADDING_PX,
   EXPORT_LABEL_WIDTH_PX,
+  EXPORT_MILESTONE_LIST_MAX,
   fitScaleFor,
   HEADER_HEIGHT_PX,
   LABEL_CHAR_PX,
@@ -185,6 +186,11 @@ export interface TemplateAPlan {
    * "图例摘要与 SVG/PNG 不一致"的翻版（两处各排一次版）。
    */
   readonly legendRows: readonly { readonly item: ExportLegendItem; readonly y: number }[];
+  /** 摘要段的顶端（页 px）；由 {@link planTemplateA} 与文本/图元注入共用。 */
+  readonly summaryTop: number;
+  /** 侧栏内容块的顶端与总高（页 px）——**垂直居中的单一真相处**（判据与排版都读它）。 */
+  readonly sidebarContentTop: number;
+  readonly sidebarContentHeight: number;
 }
 
 /** 模板 A 的布局（纯函数；ADR 0010 §2/§3/§7/§11）。 */
@@ -233,13 +239,29 @@ export function planTemplateA(input: TemplateAInput): TemplateAPlan {
   const rowHeightPt = pxToPt(ROW_HEIGHT * fit.scale);
   const labelFontPt = Math.min(FONT.task, Math.max(0, rowHeightPt - 1.5));
 
-  // 侧栏图例排版（文本与色块共用这些 y）
+  /**
+   * 侧栏内容**垂直居中**（人工复验第 4 条：原先侧栏从顶端排版、而甘特内容在框内居中 ⇒
+   * 侧栏"浮在右上方"，既不对齐也不省空间）。
+   *
+   * 口径：算出侧栏内容总高，把它居中对齐到侧栏框——与甘特内容的居中基准同一个
+   * （`fit.offsetY` 也是居中），于是两块的视觉中心一致。
+   */
+  const legendCount = exportLegendItems().length;
+  const summaryLineCount = summaryLineCountOf(summary);
+  const sidebarContentHeight =
+    SIDEBAR_TITLE_PX +
+    legendCount * SIDEBAR_LEGEND_ROW_PX +
+    SIDEBAR_GAP_PX +
+    SIDEBAR_TITLE_PX +
+    summaryLineCount * SIDEBAR_SUMMARY_ROW_PX;
+  const sidebarContentTop = sidebarBox.y + Math.max(0, (sidebarBox.height - sidebarContentHeight) / 2);
+  let legendY = sidebarContentTop + SIDEBAR_TITLE_PX;
   const legendRows: { item: ExportLegendItem; y: number }[] = [];
-  let legendY = sidebarBox.y + 16 + 16; // 「图例」标题 + 间距
   for (const item of exportLegendItems()) {
     legendRows.push({ item, y: legendY });
-    legendY += 14;
+    legendY += SIDEBAR_LEGEND_ROW_PX;
   }
+  const summaryTop = legendY + SIDEBAR_GAP_PX;
 
   return {
     projection,
@@ -253,7 +275,22 @@ export function planTemplateA(input: TemplateAInput): TemplateAPlan {
     rowHeightPt,
     labelFontPt,
     legendRows,
+    summaryTop,
+    sidebarContentTop,
+    sidebarContentHeight,
   };
+}
+
+/** 侧栏各段的高度常量（px）——排版与图元注入共用，避免两处各排一次版。 */
+const SIDEBAR_TITLE_PX = 16;
+const SIDEBAR_LEGEND_ROW_PX = 14;
+const SIDEBAR_SUMMARY_ROW_PX = 13;
+const SIDEBAR_GAP_PX = 12;
+
+/** 摘要的**行数**（两行统计 + 里程碑清单，含"…共 N 个"那行）。 */
+function summaryLineCountOf(summary: ExportSummary): number {
+  const shown = Math.min(summary.milestones.length, EXPORT_MILESTONE_LIST_MAX);
+  return 2 + shown + (summary.milestones.length > shown ? 1 : 0);
 }
 
 /** 内部内容坐标 → 页面 px（`innerX` 含左侧标签列偏移，与 `svgString` 同一套口径）。 */
@@ -401,7 +438,7 @@ function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: stri
   lines.push({
     text: '图例',
     x: plan.sidebarBox.x,
-    y: plan.sidebarBox.y,
+    y: plan.legendRows[0] === undefined ? plan.sidebarBox.y : plan.legendRows[0].y - 20,
     width: plan.sidebarBox.width,
     fontSize: FONT.legend + 1,
     color: COLOR.text,
@@ -411,9 +448,10 @@ function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: stri
   for (const [index, row] of plan.legendRows.entries()) {
     lines.push({
       text: row.item.label,
-      x: plan.sidebarBox.x + 24,
+      // 左右间距：色块占 [x+6, x+24]，文本从 x+34 起 ⇒ 净间距 10 px（人工复验第 3 条）
+      x: plan.sidebarBox.x + 34,
       y: row.y - 6,
-      width: plan.sidebarBox.width - 24,
+      width: plan.sidebarBox.width - 34,
       fontSize: FONT.legend,
       color: COLOR.text,
       bold: false,
@@ -423,7 +461,7 @@ function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: stri
 
   // 侧栏：摘要（文案与 SVG 同源：`exportSummaryLines`）
   const summaryLines = exportSummaryLines(plan.summary);
-  let y = plan.sidebarBox.y + 16 + plan.legendRows.length * 14 + 14;
+  let y = plan.summaryTop;
   lines.push({
     text: '摘要',
     x: plan.sidebarBox.x,
@@ -434,7 +472,7 @@ function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: stri
     bold: true,
     objectName: NAMES.summary(0),
   });
-  y += 16;
+  y += SIDEBAR_TITLE_PX;
   for (const [index, text] of [...summaryLines.headline, ...summaryLines.milestones].entries()) {
     lines.push({
       text,
@@ -446,7 +484,7 @@ function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: stri
       bold: false,
       objectName: NAMES.summary(index + 1),
     });
-    y += 13;
+    y += SIDEBAR_SUMMARY_ROW_PX;
   }
   return lines;
 }
@@ -586,7 +624,12 @@ function legendSwatchXmlOf(args: {
   const out: string[] = [];
   for (const row of plan.legendRows) {
     const styleKey = row.item.styleKey;
-    const x = plan.sidebarBox.x + 4;
+    const x = plan.sidebarBox.x + 6;
+    /**
+     * **垂直居中**（人工复验第 3 条）：文本盒以 `row.y - 6` 起、字号 9 pt（≈12 px 行高），
+     * 因此文本的视觉中心 ≈ `row.y`；图元一律以 `row.y` 为中心摆放（而不是 `row.y - 9`）。
+     */
+    const centerY = row.y;
     if (styleKey === 'bar' || styleKey === 'bar-summary') {
       const height = styleKey === 'bar' ? 10 : 6;
       out.push(
@@ -595,7 +638,7 @@ function legendSwatchXmlOf(args: {
           name: NAMES.legendSwatch(styleKey),
           rect: {
             x: pxToEmu(x),
-            y: pxToEmu(row.y - 9),
+            y: pxToEmu(centerY - height / 2),
             cx: pxToEmu(18),
             cy: pxToEmu(height),
           },
@@ -609,7 +652,7 @@ function legendSwatchXmlOf(args: {
         milestoneSpXml({
           id: allocator.next(),
           name: NAMES.legendSwatch(styleKey),
-          rect: { x: pxToEmu(x), y: pxToEmu(row.y - 15), cx: pxToEmu(12), cy: pxToEmu(12) },
+          rect: { x: pxToEmu(x + 3), y: pxToEmu(centerY - 6), cx: pxToEmu(12), cy: pxToEmu(12) },
           fill: COLOR.milestone,
           stroke: COLOR.milestoneStroke,
         }),
@@ -622,22 +665,74 @@ function legendSwatchXmlOf(args: {
       plainRectSpXml({
         id: allocator.next(),
         name: NAMES.legendSwatch(styleKey),
-        rect: { x: pxToEmu(x), y: pxToEmu(row.y - 8), cx: pxToEmu(14), cy: pxToEmu(1.5) },
+        rect: { x: pxToEmu(x), y: pxToEmu(centerY - 0.75), cx: pxToEmu(14), cy: pxToEmu(1.5) },
         fill: COLOR.edge,
       }),
     );
+    if (hollow) {
+      // 与画布同形：`SS`/`SF` 在 PPT 里是 OOXML 原生 `type="arrow"`（"→"），图例照画
+      out.push(
+        ...openArrowXml({
+          allocator,
+          name: `${NAMES.legendSwatch(styleKey)}-head`,
+          tipX: x + 23,
+          tipY: centerY,
+          color: COLOR.edge,
+        }),
+      );
+      continue;
+    }
     out.push(
       triangleSpXml({
         id: allocator.next(),
         name: `${NAMES.legendSwatch(styleKey)}-head`,
-        rect: { x: pxToEmu(x + 13), y: pxToEmu(row.y - 10), cx: pxToEmu(10), cy: pxToEmu(6) },
+        rect: { x: pxToEmu(x + 13), y: pxToEmu(centerY - 3), cx: pxToEmu(10), cy: pxToEmu(6) },
         rotateDeg: 90,
-        fill: hollow ? COLOR.white : COLOR.edge,
+        fill: COLOR.edge,
         stroke: COLOR.edge,
       }),
     );
   }
   return out;
+}
+
+/**
+ * **开放箭头（"→"）**：两条细矩形各旋转 ±45°，拼成一个尖角，尖端落在 `tipX`。
+ *
+ * 用途：PPT 里 `SS`/`SF` 的**图例**swatch —— 画布上这两类用的是 OOXML 原生 `type="arrow"`，
+ * 图例必须画成**同一种形态**，否则"图例教不会读者看图"（人工复验第 3/4 条的同类问题）。
+ */
+function openArrowXml(args: {
+  readonly allocator: IdAllocator;
+  readonly name: string;
+  readonly tipX: number;
+  readonly tipY: number;
+  readonly color: string;
+}): readonly string[] {
+  const armLength = 7;
+  const armThickness = 1.5;
+  const half = armLength / 2;
+  const diag = half / Math.SQRT2;
+  const arms: string[] = [];
+  for (const [index, rotateDeg] of [-45, 45].entries()) {
+    const centerX = args.tipX - diag;
+    const centerY = args.tipY + (rotateDeg === -45 ? -diag : diag);
+    arms.push(
+      plainRectSpXml({
+        id: args.allocator.next(),
+        name: `${args.name}-arm${String(index + 1)}`,
+        rect: {
+          x: pxToEmu(centerX - half),
+          y: pxToEmu(centerY - armThickness / 2),
+          cx: pxToEmu(armLength),
+          cy: pxToEmu(armThickness),
+        },
+        fill: args.color,
+        rotateDeg,
+      }),
+    );
+  }
+  return arms;
 }
 
 /** 解包后的产物尺寸（`p:sldSz`）。 */
@@ -794,8 +889,15 @@ export async function renderTemplateA(input: TemplateAInput): Promise<Uint8Array
     const toPoint = slidePointOf(plan, sideInnerX(toRow, sides.enter), HEADER_HEIGHT_PX + barCenterInnerY(toRow));
     const id = allocator.next();
     const color = edge.ignored ? COLOR.edgeIgnored : COLOR.edge;
-    // 箭头形态与 SVG 的 `ARROW_FILL` 同口径：FS/FF 实心、SS/SF 空心
-    const arrow: 'solid' | 'hollow' = edge.type === 'SS' || edge.type === 'SF' ? 'hollow' : 'solid';
+    /**
+     * 箭头形态：`FS`/`FF` 实心三角、`SS`/`SF` 开放箭头（"→"）。
+     *
+     * **为什么 `SS`/`SF` 不用"自绘空心三角"**（P-38 的实测结论）：自绘形状没有 `stCxn/endCxn`
+     * 吸附锚点 ⇒ **WPS 从不重算它的位置**，拖动入端那条任务条时箭头会留在原地，
+     * 而依赖线本身会重走线。G7 的招牌行为是"拖动后端点跟随"，优先级高于形状一致
+     * （维护者亦认可该差异"不影响理解"）。见 [ADR 0010 附录 §2](../../../docs/02-adr/附录/0010-增补.md)。
+     */
+    const arrow: 'solid' | 'open' = edge.type === 'SS' || edge.type === 'SF' ? 'open' : 'solid';
     if (input.degradeConnectors === true) {
       const left = Math.min(fromPoint.x, toPoint.x);
       const top = Math.min(fromPoint.y, toPoint.y);

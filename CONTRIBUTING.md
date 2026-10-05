@@ -195,7 +195,9 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 **手工推导用例表**（`schedule.manual.spec.ts`，内核无权改基准）、
 **不变量/性质**（`schedule.invariants.spec.ts` + 独立检查器 `scheduleInvariants.spec.ts`）、
 **跨语言差分**（`schedule.differential.spec.ts` + `tools/cpm-reference/cpm_reference.py`，
-缺 Python 3 即失败）、**性能**（`schedule.performance.spec.ts`，1,000/1,500 全量 p99 ≤ 1 ms）。
+缺 Python 3 即失败）、**性能**（`schedule.performance.spec.ts`，1,000/1,500 全量
+**p50 ≤ 1 ms 且 p99 ≤ 2 ms**——口径见 [ADR 0004 附录 §1](docs/02-adr/附录/0004-增补.md)：
+中位数管"实现退化"、尾部管"并行争用"；**别再把它当单值 `p99 ≤ 1 ms` 去调**）。
 改语义前先看这些用例为什么那样写；`perfHarness.spec.ts` 里的朴素实现是**性能负向对照**，
 若它与快实现的差距量不出来（<1.5×），说明计时骨架失效。
 

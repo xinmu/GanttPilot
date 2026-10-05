@@ -230,16 +230,20 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
     expect(order).toStrictEqual([...order].sort((left, right) => left - right));
   });
 
-  it('③ 箭头：每条依赖线都带 `a:tailEnd`，实心/空心与四类关系对应', async () => {
+  it('③ 箭头：FS/FF 实心三角、SS/SF 开放箭头（原生 `type="arrow"`）——**都带 `tailEnd`，因此都会跟随端点**', async () => {
     const fixture = demoFixture();
     const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
     const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
     const types = fixture.document.links.map((link) => link.type);
     const solid = types.filter((type) => type === 'FS' || type === 'FF').length;
-    const hollow = types.filter((type) => type === 'SS' || type === 'SF').length;
+    const open = types.filter((type) => type === 'SS' || type === 'SF').length;
     expect(slideXml.match(/<p:cxnSp>/g)).toHaveLength(types.length);
     expect(slideXml.match(/<a:tailEnd type="triangle"/g)).toHaveLength(solid);
-    expect(slideXml.match(/<a:tailEnd type="arrow"/g)).toHaveLength(hollow);
+    expect(slideXml.match(/<a:tailEnd type="arrow"/g)).toHaveLength(open);
+    // **每条**依赖线都带 tailEnd（P-38：不接受"没有吸附锚点的自绘箭头"——它不会跟随端点）
+    expect(slideXml.match(/<a:tailEnd/g)).toHaveLength(types.length);
+    expect(slideXml.match(/name="dep-l\d+-head"/g)).toBeNull();
+    expect(slideXml.match(/<a:headEnd/g)).toBeNull();
   });
 
   it('④ 图例/摘要与 SVG 同源：条目文案取自 `exportLegendItems`/`exportSummaryLines`，且每条都有图元', async () => {
@@ -260,14 +264,19 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
       expect(slideXml).toContain(`name="legend-swatch-${key}"`);
     }
     for (const key of ['edge-FS', 'edge-SS', 'edge-FF', 'edge-SF']) {
-      expect(slideXml).toContain(`name="legend-swatch-${key}-head"`);
+      // 实心两类 = 三角；开放两类 = 两条臂（与画布的 `type="arrow"` 同形）
+      const head =
+        key === 'edge-SS' || key === 'edge-SF'
+          ? `name="legend-swatch-${key}-head-arm1"`
+          : `name="legend-swatch-${key}-head"`;
+      expect(slideXml).toContain(head);
     }
-    // 空心/实心：SS 的图例箭头填充为白、FS 为深灰（与画布里同口径）
+    // 箭头颜色：四种都是边色（深灰）——形态差别在"实心三角 vs 开放箭头"，不在颜色
     const swatchFill = (key: string): string =>
-      new RegExp(`name="legend-swatch-${key}-head"[\\s\\S]{0,600}?<a:srgbClr val="([0-9A-F]{6})"`).exec(slideXml)?.[1] ??
+      new RegExp(`name="legend-swatch-${key}-head[^"]*"[\\s\\S]{0,600}?<a:srgbClr val="([0-9A-F]{6})"`).exec(slideXml)?.[1] ??
       '(未找到)';
     expect(swatchFill('edge-FS')).toBe('475467');
-    expect(swatchFill('edge-SS')).toBe('FFFFFF');
+    expect(swatchFill('edge-SS')).toBe('475467');
   });
 
   it('⑤ 样式：汇总行标签加粗、子行按缩进右移，且标签文本与 SVG 逐字相同', async () => {
@@ -299,8 +308,50 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
     }
     expect(texts).toHaveLength(projection.view.rows.length);
   });
-});
+  it('⑦ 图例与侧栏排版：图元**垂直居中**于文本、左右间距 ≥ 8 px、侧栏内容与甘特**同基准居中**', async () => {
+    const fixture = demoFixture();
+    const plan = planTemplateA({ ...fixture, zoom: 'week' });
+    const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
+    const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
 
+    // ① 图元的垂直中心 == 文本行的中心（`legendRows[i].y`）——人工复验第 3 条
+    for (const row of plan.legendRows) {
+      const key = row.item.styleKey;
+      const rect = new RegExp(`name="legend-swatch-${key}"[\\s\\S]{0,500}?<a:off x="-?\\d+" y="(-?\\d+)"/><a:ext cx="\\d+" cy="(\\d+)"`).exec(slideXml);
+      expect(rect).not.toBeNull();
+      const topEmu = Number(rect?.[1]);
+      const heightEmu = Number(rect?.[2]);
+      const centerPx = (topEmu + heightEmu / 2) / (12700 * (72 / 96));
+      expect(Math.abs(centerPx - row.y)).toBeLessThan(1.5);
+    }
+
+    // ② 图元右缘到文本左缘的净间距 ≥ 8 px（色块占 [x+6, x+24]，文本从 x+34 起）
+    const textX = Number(/name="legend-1"[\s\S]{0,900}?<a:off x="(\d+)"/.exec(slideXml)?.[1] ?? '0') / (12700 * (72 / 96));
+    const swatchRight = plan.sidebarBox.x + 6 + 18;
+    expect(textX - swatchRight).toBeGreaterThanOrEqual(8);
+
+    // ③ 侧栏内容块与甘特内容块**同基准居中**（中心差 ≤ 2 px）——人工复验第 4 条
+    const sidebarCenter = plan.sidebarContentTop + plan.sidebarContentHeight / 2;
+    const ganttCenter = plan.ganttBox.y + plan.fit.offsetY + (plan.projection.innerHeight * plan.fit.scale) / 2;
+    expect(Math.abs(sidebarCenter - ganttCenter)).toBeLessThan(6);
+  });
+  it('⑧ 图例的箭头形态与画布**同形**：FS/FF 三角、SS/SF 开放箭头（两条臂拼尖角）', async () => {
+    const fixture = demoFixture();
+    const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
+    const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
+    // 实心两类：三角形 preset
+    for (const key of ['edge-FS', 'edge-FF']) {
+      expect(new RegExp(`name="legend-swatch-${key}-head"[\\s\\S]{0,600}?prst="triangle"`).test(slideXml)).toBe(true);
+    }
+    // 开放两类：两条臂（旋转的细矩形），不再用三角形
+    for (const key of ['edge-SS', 'edge-SF']) {
+      expect(slideXml).toContain(`name="legend-swatch-${key}-head-arm1"`);
+      expect(slideXml).toContain(`name="legend-swatch-${key}-head-arm2"`);
+      expect(new RegExp(`name="legend-swatch-${key}-head-arm1"[\\s\\S]{0,600}?rot="-?\\d+"`).test(slideXml)).toBe(true);
+      expect(new RegExp(`name="legend-swatch-${key}-head"[\\s\\S]{0,400}?prst="triangle"`).test(slideXml)).toBe(false);
+    }
+  });
+});
 describe('模板 A · 布局与可读性纪律（ADR 0010 §7/§11）', () => {
   it('甘特区与侧栏不重叠；适配等比', () => {
     const fixture = demoFixture();

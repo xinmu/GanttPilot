@@ -57,10 +57,27 @@ renderTemplateA({
 **绘制顺序 = 注入顺序**：`背景（band → grid）` → `图例图元` → `组/条/进度/菱形` → `依赖线`
 （OOXML 按文档序绘制，因此"背景在条形之下"是结构性质，可由 spec 断言）。
 
-**箭头的强制口径**（人工复验第 ③ 条的根因）：每条依赖线的 `<a:ln>` **必须**写
-`<a:tailEnd type="triangle|arrow" w="med" len="med"/>`——`FS`/`FF` 实心（`triangle`）、
-`SS`/`SF` 空心（`arrow`），与 SVG 的 `ARROW_FILL` 同口径；**降级②的 `custGeom` 同样带箭头**。
-只写 `a:ln` 而不写 `tailEnd` 的产物在 WPS 里渲染为"只有线、没有箭头"。
+**箭头的强制口径**（人工复验第 ③ 条的根因 + 二次复验第 ② 条的订正）：
+
+| 关系 | 形态 | 实现 |
+|---|---|---|
+| `FS` / `FF` | **实心三角** | 原生 `<a:tailEnd type="triangle" w="med" len="med"/>` |
+| `SS` / `SF` | **开放箭头**（"→"） | 原生 `<a:tailEnd type="arrow" w="med" len="med"/>` |
+
+> **为什么 `SS`/`SF` 不用"自绘空心三角"**（曾试过并被实测否掉）：自绘形状**没有 `stCxn/endCxn` 锚点**
+> ⇒ WPS **从不重算它的位置**，拖动"入端"那条任务条时**线走而箭头留在原地**。
+> G7 的招牌行为（拖动后端点跟随）优先级更高 ⇒ 用原生箭头（写在 `<a:ln>` 里，随线一起重算）。
+> 代价：PPT 的 `SS`/`SF` 与 SVG/屏幕的**空心三角**不同形（维护者认可"不影响理解"）。
+> **图例与画布同形**：PPT 图例里 `SS`/`SF` 画开放箭头（`legend-swatch-edge-*-head-arm1/arm2`，
+> 两条细矩形旋转 ±45°）、`FS`/`FF` 画实心三角。见 [ADR 0010 附录 §2](../../docs/02-adr/附录/0010-增补.md)。
+> **降级②的 `custGeom` 折线走同一套箭头规则。**
+
+**侧栏（图例 + 摘要）的排版**：
+
+- **图例图元以文本行的中心（`legendRows[i].y`）垂直居中**——不是"图元顶端对齐文本"；
+- 图元占 `[sidebarX+6, sidebarX+24]`、文本从 `sidebarX+34` 起 ⇒ **净间距 ≥ 8 px**；
+- **侧栏内容块按总高垂直居中**到侧栏框内：与甘特内容块（`fit.offsetY` 也是居中）**同基准**，
+  两块的视觉中心因此一致（此前侧栏从框顶排版，视觉上浮在右上方）。
 
 **左列标签样式与图例/摘要文案**：样式由 `render-core/exportLabels.ts` 决定
 （**汇总加粗**、子行按 **WBS 深度缩进** 12 px/级封顶 3 级、超宽截断加 `…`；**缩进不计入文本**）；
@@ -134,7 +151,8 @@ pptxgenjs（版面/母版/主题 + 文本）→ write({outputType:'uint8array'})
 | ④ 负向对照 | `template.spec.ts` | 站点越界 / 引用不存在的形状 / 复用 id / 组非等比 —— **逐条必须被检出** | **进** |
 | ⑤ 降级 | `template.spec.ts` | `degradeConnectors: true` ⇒ 无 `cxnSp`、有 14 处 `custGeom` 与 28 处 `lnTo`、结构仍合法 | **进** |
 | ⑥ 可读性纪律 | `template.spec.ts` | 演示计划：行标签有效字号 ≥ 6 pt 且标签形状存在；1,000 行：< 6 pt 且**不生成**任何 `lbl-*` | **进** |
-| ⑦ 图面要素（P-37 增补） | `template.spec.ts` | **日期刻度**文本框数与文案 == `view.axis` 的 `label`；**灰度带/网格线**计数同源且**绘制顺序在条形之下**（`band` < `bar` < `cxnSp`）；**箭头** `triangle` 数 == FS/FF、`arrow` 数 == SS/SF；**图例**文案逐字取自 `exportLegendItems()`+`exportSummaryLines()`（旧手写文案不得出现）且 7 类图元 + 4 个箭头齐全；**标签**汇总加粗、子行缩进右移、与 SVG 文本**逐字相同** | **进** |
+| ⑦ 图面要素（P-37 增补） | `template.spec.ts` | **日期刻度**文本框数与文案 == `view.axis` 的 `label`；**灰度带/网格线**计数同源且**绘制顺序在条形之下**（`band` < `bar` < `cxnSp`）；**箭头**：`triangle` 数 == FS/FF、`arrow` 数 == SS/SF，且 **`tailEnd` 合计 == 依赖线条数**（不允许"没有吸附锚点的自绘箭头"）；**图例**文案逐字取自 `exportLegendItems()`+`exportSummaryLines()`（旧手写文案不得出现）、7 类图元齐全且 `SS`/`SF` 的箭头与画布同形（两条臂）；**标签**汇总加粗、子行缩进右移、与 SVG 文本**逐字相同** | **进** |
+| ⑨ 侧栏排版（P-38 增补） | `template.spec.ts` | 图例图元的**垂直中心与文本行中心差 ≤ 1.5 px**；图元右缘到文本左缘 **≥ 8 px**；侧栏内容块与甘特内容块的**中心差 ≤ 20 px**（同基准居中） | **进** |
 | ⑧ WPS 证据链（含返工存活） | `scripts/wps-pptx-verify.ps1`（记录制） | 打开无修复弹窗、另存后 `stCxn/endCxn` 与形状 id 集合存活、移动任务条后 connector `xfrm` 重算；**返工四类图元**在三态逐类计数一致（[addendum](evidence/template-a-demo-roundtrip-addendum.md)） | **不进**（需本机 WPS，P-9/P-17 口径） |
 | ⑨ 人工复验 | 维护者按 A/B 清单走查 | 浏览器三格式导出 + WPS 真机拖动；**P-37 报文：主流程通过**，返工后待二次复验 | **不进**（人工） |
 
