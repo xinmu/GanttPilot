@@ -145,6 +145,12 @@ function launchChrome(executable) {
     [
       '--headless=new',
       '--disable-gpu',
+      /**
+       * **必须给窗口尺寸**（P-44 落地时发现）：不给时 Chrome 用默认 ~800×600，而左表列本身就占 ~785 px
+       * ⇒ 图表列被挤到 **0 px 宽**，于是"布局稳态 / 窗格客户区"这类判据在**退化布局**上量数（量不到东西）、
+       * 导出检查也失去意义。固定 1600×900 让两栏都有真实宽度。
+       */
+      '--window-size=1600,900',
       '--no-first-run',
       '--no-default-browser-check',
       `--user-data-dir=${profileDir}`,
@@ -377,6 +383,51 @@ async function probeLayoutStability(cdp, label, frames = 60) {
       `[布局稳态·${label}] 状态栏不是单行：高 ${String(single.height)} px > 单行上界 ${String(single.bound)} px（P-43 的自激环就是靠"换行 ⇒ 变高"驱动的）`,
     );
   }
+  /**
+   * **窗格客户区必须与"滚动条是否被需要"无关**（P-44，本判据里**确定性可验证**的那一条）。
+   *
+   * 机制：`pane.clientWidth/clientHeight` 是 `contentWidth`（`max(窗格宽, 内容最右缘…)`，ADR 0007 §15.1）
+   * 与滚动范围的**输入**，而"滚动条要不要出现"又由**输出**决定 ⇒ `overflow: auto` 下是自引用环。
+   *
+   * 判据：**把内容缩到不需要滚动**（spacer → 10×10）再量，客户区必须**一字不变**。
+   * （第一版判据写错了：它把 `overflow` 换成 `hidden`，那等于**移除**滚动条 ⇒ 客户区当然会变——
+   *  负向对照当场把我自己的错判据抓了出来。）**负向对照**：`auto` 下缩内容后滚动条消失 ⇒ 客户区必变 ⇒ 判据有判别力。
+   */
+  const boxProbe = await cdp.call('Runtime.evaluate', {
+    expression: `(async () => {
+      const pane = document.getElementById('chart-pane');
+      if (pane === null) return JSON.stringify({ reason: 'no-pane' });
+      const spacer = pane.querySelector('.chart-spacer');
+      if (spacer === null) return JSON.stringify({ reason: 'no-spacer' });
+      const frame = () => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      const read = () => [pane.clientWidth, pane.clientHeight].join('x');
+      const withContent = read();
+      const originalWidth = spacer.style.width;
+      const originalHeight = spacer.style.height;
+      spacer.style.width = '10px';
+      spacer.style.height = '10px';
+      await frame();
+      await frame();
+      const withoutContent = read();
+      spacer.style.width = originalWidth;
+      spacer.style.height = originalHeight;
+      await frame();
+      await frame();
+      return JSON.stringify({ withContent, withoutContent, restored: read() === withContent });
+    })()`,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  const box = JSON.parse(boxProbe.result.value);
+  if (box.reason !== undefined) {
+    problems.push(`[布局稳态·${label}] 找不到图表窗格 / 它的 spacer（${String(box.reason)}）`);
+  } else if (box.withContent !== box.withoutContent) {
+    problems.push(
+      `[布局稳态·${label}] 窗格客户区**随"滚动条是否被需要"而变**（${String(box.withContent)} → ${String(box.withoutContent)}）：` +
+        '这是 P-44 的自引用环（`contentWidth = max(窗格宽, …)` 的输入就是 `clientWidth`）；窗格应常驻滚动条（`overflow: scroll`）',
+    );
+  }
+  if (box.restored === false) problems.push(`[布局稳态·${label}] 探针未能还原 spacer 尺寸（测量污染了页面）`);
   return problems;
 }
 
@@ -495,6 +546,52 @@ try {
    */
   const layoutProblems = [];
   layoutProblems.push(...(await probeLayoutStability(cdp, '首屏')));
+  /**
+   * ⚠️ **临时诊断（P-43 抖动追查，跑完即删）**：扫视口尺寸找复现点。
+   *
+   * 报文的线索是"与**横向**滚动条是否出现有关" ⇒ 反馈环走"滚动条 ↔ 窗格客户区尺寸"
+   * （横向条占 clientHeight、纵向条占 clientWidth），而它只在**特定视口**才跨过临界值。
+   * 这里把若干尺寸逐个套上去，每个采 24 帧，只**打印**不判定。
+   */
+  if (process.env.SMOKE_LAYOUT_SWEEP === '1') {
+    const sizes = [];
+    for (const width of [1024, 1088, 1152, 1216, 1280, 1344, 1408, 1472]) sizes.push({ width, height: 800 });
+    for (const height of [620, 680, 740, 860, 920]) sizes.push({ width: 1280, height });
+    for (const size of sizes) {
+      await cdp.call('Emulation.setDeviceMetricsOverride', { ...size, deviceScaleFactor: 1, mobile: false });
+      await new Promise((settle) => setTimeout(settle, 400));
+      const jitter = await cdp.call('Runtime.evaluate', {
+        expression: `(async () => {
+          const pane = document.getElementById('chart-pane');
+          const table = document.querySelector('.table-body');
+          const samples = [];
+          for (let index = 0; index < 24; index += 1) {
+            await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+            samples.push([
+              pane === null ? -1 : pane.clientWidth,
+              pane === null ? -1 : pane.clientHeight,
+              pane === null ? -1 : pane.scrollWidth,
+              pane === null ? -1 : pane.scrollHeight,
+              table === null ? -1 : table.clientWidth,
+              table === null ? -1 : table.scrollWidth,
+              table === null ? -1 : table.scrollHeight,
+            ].join('|'));
+          }
+          const distinct = [...new Set(samples)];
+          return JSON.stringify({ distinct, first: distinct[0] ?? null, last: distinct[distinct.length - 1] ?? null });
+        })()`,
+        awaitPromise: true,
+        returnByValue: true,
+      });
+      const snapshot = JSON.parse(jitter.result.value);
+      console.log(
+        `[布局扫描] ${String(size.width)}×${String(size.height)}：状态 ${String(snapshot.distinct.length)} 种` +
+          (snapshot.distinct.length === 1 ? '' : ` ⇒ 首 ${String(snapshot.first)} / 末 ${String(snapshot.last)}`),
+      );
+    }
+    await cdp.call('Emulation.clearDeviceMetricsOverride');
+    await new Promise((settle) => setTimeout(settle, 400));
+  }
   const resetClick = await cdp.call('Runtime.evaluate', {
     expression:
       "(() => { const btn = document.querySelector('[data-reset]'); if (!btn) return 'no-button'; btn.click(); return 'clicked'; })()",

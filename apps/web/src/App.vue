@@ -1074,11 +1074,25 @@ body {
   min-height: 0;
 }
 
+/**
+ * 图表窗格的滚动容器（P-44）。
+ *
+ * **`overflow: scroll`（常驻两轴滚动条）是必须的，不是样式偏好**：`pane.clientWidth/clientHeight`
+ * 是 `contentWidth`（`ViewModel.contentWidth = max(窗格宽, 最末任务右缘 + …)`，ADR 0007 §15.1）
+ * 与滚动范围的**输入**，而"滚动条要不要出现"又由**输出**（内容宽/高）决定 ⇒ `overflow: auto` 下
+ * 这是一条**自引用环**（滚动条出现 ⇒ 客户区变小 ⇒ 内容/滚动范围变 ⇒ 滚动条又变）。
+ * `scroll` 让客户区**与滚动条无关**（两轴永久占用 15 px），环从构造上消失。
+ *
+ * 代价（明确接受）：**小文档也会看到灰掉的滚动条**；记录制的 `c₃` 与窗格尺寸随之刷新
+ * （ADR 0007 §11 的回填锚值定义在**合成视口 1280×640** 上、由 spec 断言，**不受影响**）。
+ * 判据在 `scripts/smoke-build.mjs` 的「布局稳态」：临时把 `overflow` 换成 `hidden`
+ * （等价于"永远没有滚动条"）再量，客户区必须**一字不变**——`auto` 下必然不同，判据因此可判定地有判别力。
+ */
 .chart-pane {
   position: relative;
   width: 100%;
   height: 100%;
-  overflow: auto;
+  overflow: scroll;
   background: #ffffff;
 }
 

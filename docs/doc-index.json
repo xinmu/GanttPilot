@@ -165,6 +165,12 @@
       "note": "P-43：人工复核的三个缺陷（汇总/里程碑的交互面 · 里程碑工期不变量 · 状态栏自激环）"
     },
     {
+      "path": "docs/00-baseline/裁决R43.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-44：抖动续查（滚动条 ⇄ 窗格客户区的自引用环 ⇒ 常驻滚动条）"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
