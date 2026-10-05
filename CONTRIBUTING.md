@@ -411,6 +411,20 @@ Vite 因此报一条 `INEFFECTIVE_DYNAMIC_IMPORT`；该静态边已随所有权�
    （包内没有 ESM 入口），这是引入它时唯一必须同时做的工程动作。
 4. **更新清单**：跑 `pnpm notices:write` 并把 `THIRD_PARTY_NOTICES.md` 一起提交。
 
+**应用层判据入口的口径（[P-40](docs/00-baseline/裁决R39.md)，方向已预先承诺）**：**v0.1 范围内不引入**
+`jsdom` / `happy-dom` / `@vue/test-utils` / Playwright 一类依赖，**`apps/web` 不新建判据入口**——
+应用层的判定由两条**既有**通道承担：
+
+1. **`pnpm smoke:build`（在 `pnpm gate` 内）**：HTTP 伺服 `dist/` → 无头 Chrome 打开 → 断言"无应用级错误 +
+   标题/工具栏/图表窗格/SVG/状态栏持久化那一栏都渲染了"，并真的点三次导出校验落盘；
+2. **`node scripts/measure-render.mjs`（记录制、打包产物）**：经 CDP 驱动本机 Chrome、采**真实指针**输入
+   （`--align` / `--drag` / `--import` / `--persist-drag` / `--storage-metrics` / 主口径）。
+
+**可测的纯函数继续一律落 `packages/*`**（见上文「列文本与日期口径」）。代价如实接受：**组件级**
+（Vue 模板 / 生命周期 / 事件绑定）仍只能靠 `smoke:build` 的端到端断言 + 人工复验，
+"某条 DOM 路径没被覆盖"这类缺口**不会**被自动发现。若未来版本要引入组件级框架，**仍走本节 1–4 的准入流程
+并需一条新裁决**（本节只承诺 **v0.1 范围内**不引入）。
+
 ## 文档约定
 
 > **分层的完整规范见 [docs/DOC-SPEC.md](docs/DOC-SPEC.md)**；导航入口是 [docs/README.md](docs/README.md)。
