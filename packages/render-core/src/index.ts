@@ -209,6 +209,7 @@ export {
 // ---------------------------------------------------------------- 交互几何：手柄与连接点（ADR 0008 §16.2）
 export {
   barHeightOf,
+  connectDiameterFor,
   connectLeftEdgeFor,
   connectRevealFor,
   connectSideAt,

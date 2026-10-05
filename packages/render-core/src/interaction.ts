@@ -39,8 +39,10 @@ import {
   type PointerInput,
 } from './gesture.js';
 import {
+  CONNECT_DIAMETER_GAP_PX,
   CONNECT_HIT_PAD_PX,
   CONNECT_INSET_PX,
+  CONNECT_MIN_DIAMETER_PX,
   CONNECT_REVEAL_FACTOR,
   CONNECT_SIZE_PX,
   HANDLE_HEIGHT_PX,
@@ -73,11 +75,17 @@ export interface Handle {
 /** 连接点的几何（内容坐标）。 */
 export interface ConnectPoint {
   readonly side: 'left' | 'right';
-  /** 连接点的**左缘** x。 */
+  /** **命中盒**的左缘 x（渲染层据此推圆心：`cx = x + size / 2`）。 */
   readonly x: number;
-  /** 连接点的竖向中心。 */
+  /** 连接点的竖向中心（= **条心**，见 {@link rowHandlesFor} 的 `barCenterY`）。 */
   readonly y: number;
+  /** **命中盒**边长（= `CONNECT_SIZE_PX`；命中区由 {@link connectSideAt} 按 x 判定）。 */
   readonly size: number;
+  /**
+   * **视觉直径**（圆；P-42 批次③）：`≤ size`，且随条高变化（见 {@link connectDiameterFor}）。
+   * 渲染层画 `<circle :cx="x + size / 2" :cy="y" :r="diameter / 2">`。
+   */
+  readonly diameter: number;
 }
 
 /** 一行要画的交互图元（ADR 0008 §16.2）。 */
@@ -111,6 +119,24 @@ export function handleXFor(zones: DragZones, bounds: TaskBounds, side: 'left' | 
 export function barHeightOf(bounds: TaskBounds, rowHeight: number): number {
   if (bounds.isMilestone) return rowHeight * SPACING.milestoneSizeRatio;
   return rowHeight * (bounds.kind === 'summary' ? SPACING.summaryBarHeightRatio : SPACING.barHeightRatio);
+}
+
+/**
+ * 连接点的**视觉直径**（圆；P-42 批次③的人工裁决）。
+ *
+ * `min(CONNECT_SIZE_PX, barHeight − 2 × CONNECT_DIAMETER_GAP_PX)`，下限 `CONNECT_MIN_DIAMETER_PX`：
+ * - **略小于条高**（标准条 `24 × 0.6 = 14.4` ⇒ 直径 **12**；汇总条 8.4 ⇒ **6.4**；里程碑菱形 12 ⇒ **10**）；
+ * - **≤ `CONNECT_SIZE_PX`** ⇒ 可见的圆**始终落在命中盒内**（"看得见的一定点得中"这条不变量
+ *   因此与形状无关地继续成立，见 {@link connectSideAt} 的 x-only 命中区）。
+ *
+ * 命中几何**不读本值**：它是纯视觉量，随条高变化；判定区与命中盒仍由 `CONNECT_SIZE_PX` 定
+ * （一个真相源管命中、一个管外观，二者的关系由上面的不变量断言守住）。
+ */
+export function connectDiameterFor(bounds: TaskBounds, rowHeight: number): number {
+  return Math.max(
+    CONNECT_MIN_DIAMETER_PX,
+    Math.min(CONNECT_SIZE_PX, barHeightOf(bounds, rowHeight) - 2 * CONNECT_DIAMETER_GAP_PX),
+  );
 }
 
 /**
@@ -156,11 +182,13 @@ export function rowHandlesFor(args: {
     if (rightX !== null) handles.push({ side: 'right', x: rightX, y1: y - half, y2: y + half });
   }
 
-  // 连接点**两侧对称**（§16.2）：内缘与条端对齐、整体向**外**伸（P-32 人工复验的订正）。
+  // 连接点**两侧对称**（§16.2）：命中盒内缘与条端对齐、整体向**外**伸（P-32 人工复验的订正）；
+  // **可见的是圆**（P-42 批次③）：直径略小于条高、且不超过命中盒（`visible ⊆ hit`）。
   // 汇总行只有连接点（可作建线端点、不可拖）；里程碑同理（菱形的"端"不是条形的端）。
+  const connectDiameter = connectDiameterFor(bounds, rowHeight);
   const connectPoints: ConnectPoint[] = [
-    { side: 'left', x: connectLeftEdgeFor(bounds, 'left'), y, size: CONNECT_SIZE_PX },
-    { side: 'right', x: connectLeftEdgeFor(bounds, 'right'), y, size: CONNECT_SIZE_PX },
+    { side: 'left', x: connectLeftEdgeFor(bounds, 'left'), y, size: CONNECT_SIZE_PX, diameter: connectDiameter },
+    { side: 'right', x: connectLeftEdgeFor(bounds, 'right'), y, size: CONNECT_SIZE_PX, diameter: connectDiameter },
   ];
 
   return {

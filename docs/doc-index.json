@@ -153,6 +153,12 @@
       "note": "P-41：批次②（--align 档位与覆盖度 / resize 迁移 / 稳定读数）"
     },
     {
+      "path": "docs/00-baseline/裁决R41.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-42：批次③（表头带内容口径 / 连接点圆点形状 / 键盘入口归 v0.5）"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",

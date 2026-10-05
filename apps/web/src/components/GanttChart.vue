@@ -366,19 +366,19 @@ const drawnRows = computed(() =>
           />
 
           <!--
-            连接点（§16.3 的建线起手位置）：**跨在条端上**——从条端内 2 px 起画、向外一个边长
-            （`CONNECT_INSET_PX` / `CONNECT_SIZE_PX`），命中区 ⊇ 可见方块 + 外侧 `CONNECT_HIT_PAD_PX`。
+            连接点（§16.3 的建线起手位置）：**跨在条端上的圆**——命中盒从条端内 2 px 起、向外一个边长
+            （`CONNECT_INSET_PX` / `CONNECT_SIZE_PX`），可见的圆**直径略小于条高**且 ≤ 命中盒边长
+            （P-42 批次③的人工裁决：原来的"与条体等高的正方形白框"改成圆圈）。
+            圆心 = 命中盒中点 + 条心 ⇒ 与 P-32 的三条不变量同源；命中区一字未改。
             只在指针靠近该行条端时发射（§16.7 第二次复验的第 3.2 条）。
           -->
-          <rect
+          <circle
             v-for="point in item.connectVisible ? item.handles.connectPoints : []"
             :key="`connect-${String(item.row.id)}-${point.side}`"
             class="connect-point"
-            :x="point.x"
-            :y="point.y - point.size / 2"
-            :width="point.size"
-            :height="point.size"
-            rx="2"
+            :cx="point.x + point.size / 2"
+            :cy="point.y"
+            :r="point.diameter / 2"
           />
           <polygon
             v-if="item.drawn.isMilestone"
@@ -587,7 +587,8 @@ const drawnRows = computed(() =>
 }
 
 /**
- * 连接点（ADR 0008 §16.3）：条两端**外侧** ≥ 10 px，与端点手柄不抢命中；
+ * 连接点（ADR 0008 §16.3／**P-42 批次③**）：**跨在条端上的圆**，直径略小于条高、且 ≤ 命中盒边长
+ * （`connectDiameterFor`）；白底 + 蓝描边，与端点手柄同色系但形状不同（圆 ↔ 短竖线）。
  * 光标由窗格承担（`App.vue` 的 `paneCursor` ⇒ `cursor: crosshair`）。
  */
 .connect-point {

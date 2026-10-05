@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |---|---|
-| 采集时刻 | 2026-10-04T19:52:56.942Z |
+| 采集时刻 | 2026-10-05T18:05:13.812Z |
 | 机器 | FAIRY |
 | 系统 | win32 x64 |
 | Node | v26.7.0 |
@@ -49,19 +49,23 @@
 
 | 量 | 值 | 判据 | 判定 |
 |---|---|---|---|
-| DOM 手柄条数 | 60 | = 模型（恒显） | ✅ |
-| 模型手柄条数 | 60 | 与 `rowHandlesFor` 同源 | — |
+| DOM 手柄条数 | 54 | = 模型（恒显） | ✅ |
+| 模型手柄条数 | 54 | 与 `rowHandlesFor` 同源 | — |
 | DOM 连接点条数（指针所在行） | 2 | = 2（**按需显形**） | ✅ |
-| 模型连接点条数（全部渲染行） | 66 | 与 `rowHandlesFor` 同源 | — |
+| 模型连接点条数（全部渲染行） | 60 | 与 `rowHandlesFor` 同源 | — |
 | 采样到的连接点左缘 | 254 | = 条右缘 − CONNECT_INSET_PX（**跨在条端上**） | ✅ |
 | 条体中部光标 | `move` | = `move` | ✅ |
 | 端点手柄处光标 | `col-resize` | = `col-resize` | ✅ |
 | 连接点处光标 | `crosshair` | = `crosshair` | ✅ |
 | 从连接点按下进入建线 | 是 | 必须为"是"（R4 的修法） | ✅ |
+| 连接点的 DOM 形状 | `<circle>` | = `circle`（**P-42 批次③ 的圆点口径**） | ✅ |
+| 连接点可见盒（宽 × 高） | 12 × 12 | **正方形**（圆的外接盒）且 ≤ `CONNECT_SIZE_PX`（可见 ⊆ 命中盒） | ✅ |
 
-> 采样点的 x **从 DOM 属性读**（不在这里重算公式）：端点手柄画在**判定区边界**上，
+> 采样点的 x **从 DOM 矩形反推**（不在这里重算公式）：端点手柄画在**判定区边界**上，
 > 与条形的端相差 `edgePx`（宽条 6 px）；连接点则**跨在条端上**（`[xRight − CONNECT_INSET_PX, xRight − CONNECT_INSET_PX + CONNECT_SIZE_PX]`）
-> ——"看得见的方块一定点得中"（P-32 第三次复验把命中区扩到"方块本身 + 外侧 `CONNECT_HIT_PAD_PX`"，实测可用宽度 14 → 20 px）。
+> ——"看得见的图形一定点得中"（P-32 第三次复验把命中区扩到"可见图形 + 外侧 `CONNECT_HIT_PAD_PX`"，实测可用宽度 14 → 20 px）。
+> **P-42 批次③**把连接点从"与条体等高的正方形白框"改成**圆圈**（直径略小于条高、且 ≤ 命中盒边长，
+> 圆心 = 命中盒中点 + 条心）：命中区与判定区**一字未改**，改的只是外观与 DOM 标签。
 > 这三条是**入口层**性质（手柄是否在、光标是否分三类、连接点是否真的起建线），
 > 纯函数判据在 `interaction.spec.ts`（进 `pnpm gate`），这里只采打包产物上的真实 DOM。
 
@@ -69,12 +73,12 @@
 
 | 量 | 值 | 判据 | 判定 |
 |---|---|---|---|
-| 主线程同步工作量 p50 | 2.10 ms | 记录 | — |
-| 主线程同步工作量 p95 | 3.50 ms | ≤ 16.7 ms（帧预算候选） | ✅ |
-| 帧间隔 p50 | 16.7 ms | 记录 | — |
-| 帧间隔 p95 | 17.0 ms | ≥30 fps ⇒ ≤ 33.3 ms | ✅ |
-| 松手 → 重算 + 冲突标记 | 12.7 ms | ≤ 200 ms（IX-04） | ✅ |
-| 拖动期 DOM 变化帧数 | 4 / 12 | > 0（下游跟随） | ✅ |
+| 主线程同步工作量 p50 | 4.30 ms | 记录 | — |
+| 主线程同步工作量 p95 | 6.50 ms | ≤ 16.7 ms（帧预算候选） | ✅ |
+| 帧间隔 p50 | 16.5 ms | 记录 | — |
+| 帧间隔 p95 | 37.6 ms | ≥30 fps ⇒ ≤ 33.3 ms | ⚠️ |
+| 松手 → 重算 + 冲突标记 | 11.7 ms | ≤ 200 ms（IX-04） | ✅ |
+| 拖动期 DOM 变化帧数 | 3 / 12 | > 0（下游跟随） | ✅ |
 | longtask 条目 | 0 | 记录 | — |
 | 松手后锚点数 | 0 | = 0（锚点不进文档、松手即清） | ✅ |
 | 拖动前开始序号 | 0 | 记录（位移的绝对基准） | — |
@@ -83,4 +87,4 @@
 
 > 拖动目标任务：`t1`；数据集 `dense`。
 
-> 生成参数：{"zooms":["day","week","month"],"rounds":5,"scrollSteps":10,"includeReference":true,"drag":true,"dayDelta":3,"dragFrames":12,"importPath":null,"align":false,"alignLabel":"","persistDrag":false,"storageMetrics":false}
+> 生成参数：{"zooms":["day","week","month"],"rounds":5,"scrollSteps":10,"includeReference":true,"drag":true,"dayDelta":3,"dragFrames":12,"importPath":null,"align":false,"alignLabel":"","alignZooms":["day","week","month"],"alignResize":{"width":1024,"height":640},"persistDrag":false,"storageMetrics":false}

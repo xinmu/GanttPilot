@@ -787,7 +787,7 @@ export interface DragMeasureResult {
     /** DOM 上手柄的条数（`line.handle`）。 */
     readonly domHandles: number;
     /**
-     * DOM 上连接点的条数（`rect.connect-point`）。
+     * DOM 上连接点的条数（`.connect-point`，**不限定标签**：批次③起它是 `<circle>`）。
      *
      * **只对"指针所在的那一行"计数**（连接点按需显形，P-32 复验第 3.2 条），
      * 因此判据是 `= 2`（该行的左右两点）而不是"等于全部渲染行的 2×n"。
@@ -807,6 +807,10 @@ export interface DragMeasureResult {
     readonly connectDownEntersLinking: boolean;
     /** 采样到的连接点**左缘**（内容坐标；`null` = 该行没发射连接点）。 */
     readonly connectLeftEdge: number | null;
+    /** 连接点的 DOM 标签（P-42 批次③：必须是 `circle`）。 */
+    readonly connectTag: string;
+    /** 连接点可见盒的宽 × 高（px；圆的外接盒必须**是正方形**）。 */
+    readonly connectBox: { readonly width: number; readonly height: number } | null;
   } | null;
 }
 /**
@@ -1002,6 +1006,23 @@ function dragScreenPoint(
     if (!handles.connectDownEntersLinking) {
       errors.push('从连接点按下未进入建线手势（linking）——R4 的修法未生效');
     }
+    /**
+     * P-42 批次③ 的**形状口径**（连接点从"与条体等高的正方形白框"改成"圆圈，直径略小于条高"）：
+     * 纯函数侧守"直径 ≤ 命中盒边长 ≤ …"（`interaction.spec.ts`），这里守"DOM 真的画成了圆"。
+     */
+    if (handles.connectTag !== 'circle') {
+      errors.push(`连接点应为 \`circle\`（P-42 批次③的圆点口径），实际 \`${handles.connectTag || '(缺)'}\``);
+    }
+    if (handles.connectBox !== null && Math.abs(handles.connectBox.width - handles.connectBox.height) > 0.5) {
+      errors.push(
+        `连接点的可见盒必须是**正方形**（圆的外接盒），实际 ${String(handles.connectBox.width)}×${String(handles.connectBox.height)}`,
+      );
+    }
+    if (handles.connectBox !== null && handles.connectBox.width > CONNECT_SIZE_PX + 0.5) {
+      errors.push(
+        `连接点的可见直径 ${String(handles.connectBox.width)} 超过命中盒边长 ${String(CONNECT_SIZE_PX)}（可见 ⊆ 命中盒）`,
+      );
+    }
   }
   return {
     status: errors.length === 0 ? 'ok' : 'error',
@@ -1133,14 +1154,23 @@ async function collectHandleSample(
   await nextTick();
   // **只数"指针所在那一行"的连接点**：连接点按需显形（复验第 3.2 条），
   // `domConnectPoints` 若沿用 hover 之前的全图计数，这条判据会恒红。
-  const domConnectPointsAfterHover =
-    rowGroup === null ? 0 : rowGroup.querySelectorAll('rect.connect-point').length;
+  // 选择器**不限定标签**（P-42 批次③起可见图形是 `<circle>`）——"可见盒"一律按 DOM 矩形量。
   const connectNodesAfterHover =
-    rowGroup === null ? [] : [...rowGroup.querySelectorAll('rect.connect-point')];
+    rowGroup === null ? [] : [...rowGroup.querySelectorAll('.connect-point')];
+  const domConnectPointsAfterHover = connectNodesAfterHover.length;
+  /** 连接点的**内容坐标**左缘：从 DOM 矩形反推（`x`/`cx` 两种标签都能量到，不在这里重算公式）。 */
+  const contentLeftOf = (node: Element): number => node.getBoundingClientRect().left - rect.left + view.scrollLeft;
   const connectContentX = connectNodesAfterHover
-    .map((node) => attrX(node))
+    .map((node) => contentLeftOf(node))
     .filter((value) => Number.isFinite(value))
     .sort((left, right) => left - right)[0];
+  const firstConnectBox =
+    connectNodesAfterHover.length === 0
+      ? null
+      : (() => {
+          const box = connectNodesAfterHover[0]?.getBoundingClientRect();
+          return box === undefined ? null : { width: round(box.width), height: round(box.height) };
+        })();
   host.clearHover?.();
 
   const entry = host.entryPointOf?.(connect.clientX, connect.clientY) ?? null;
@@ -1154,8 +1184,10 @@ async function collectHandleSample(
     cursorOnEdge: host.cursorAt?.(edge.clientX, edge.clientY) ?? '',
     cursorOnConnect: host.cursorAt?.(connect.clientX, connect.clientY) ?? '',
     connectDownEntersLinking: entry !== null && entry.taskId === taskId,
-    // 采样用的方块左缘（`null` 说明该行没发射连接点 —— 上面那条会报出来）。
+    // 采样用的连接点左缘（`null` 说明该行没发射连接点 —— 上面那条会报出来）。
     connectLeftEdge: connectContentX ?? null,
+    connectTag: connectNodesAfterHover[0]?.tagName.toLowerCase() ?? '',
+    connectBox: firstConnectBox,
   };
 }
 /**

@@ -262,6 +262,22 @@ export const CONNECT_INSET_PX = 2;
 export const CONNECT_HIT_PAD_PX = 4;
 
 /**
+ * 连接点的**视觉直径**相对条高的内缩（每侧，px）——P-42 批次③的人工裁决。
+ *
+ * `diameter = min(CONNECT_SIZE_PX, barHeight − 2 × 本值)`，下限见 {@link CONNECT_MIN_DIAMETER_PX}。
+ *
+ * **为什么改**：连接点原来是"与条体等高的**正方形白框**"，在 1,000 任务的画面里与条体抢注意力
+ * （P-32 的"常显杂乱"是同一条线索）；批次③把它改成**圆圈**、直径**略小于条高** ——
+ * 视觉上像挂在条端的一颗"铆钉"。三条不变量必须同时保住（否则会重演 P-32 的"看得见却点不中"）：
+ * ① 圆心仍在条端的**命中盒中点**上（跨在条端上）；② 圆心竖向 = **条心**；③ **可见 ⊆ 命中盒**
+ * （因此直径上限是 `CONNECT_SIZE_PX`）。命中区与判定区**一字未改**（它本来就只按 x 判定）。
+ */
+export const CONNECT_DIAMETER_GAP_PX = 1;
+
+/** 连接点视觉直径的下限（px）：汇总条（条高 8.4）与里程碑（菱形 12）上也不能小到看不见。 */
+export const CONNECT_MIN_DIAMETER_PX = 6;
+
+/**
  * 连接点的**显示时机**：指针与条端的距离在 `HIT_TOLERANCE_PX × N` 内才显示
  * （ADR 0008 §16.2 的可见性，由 P-32 的人工复验修订）。
  *

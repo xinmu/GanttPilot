@@ -27,8 +27,10 @@ import type { TaskBounds } from './domain.js';
 import { buildView, type ViewModel, type Viewport } from './viewModel.js';
 import { buildFixture, DATASETS } from './fixtures.js';
 import {
+  CONNECT_DIAMETER_GAP_PX,
   CONNECT_HIT_PAD_PX,
   CONNECT_INSET_PX,
+  CONNECT_MIN_DIAMETER_PX,
   CONNECT_SIZE_PX,
   DRAG_EDGE_PX,
   HANDLE_HEIGHT_PX,
@@ -40,6 +42,7 @@ import {
 } from './manifest.js';
 import {
   barHeightOf,
+  connectDiameterFor,
   connectLeftEdgeFor,
   connectRevealFor,
   connectSideAt,
@@ -266,6 +269,41 @@ describe('端点手柄与连接点（ADR 0008 §16.2／裁决 P-32 的 R3）', (
     expect(left.y).toBe(wideBar.y);
   });
 
+  it('**连接点是圆**（P-42 批次③）：直径略小于条高、且 ≤ 命中盒边长（可见 ⊆ 命中盒），圆心 = 命中盒中点 + 条心', () => {
+    const handles = rowHandlesFor({ taskId: 't', bounds: wideBar, rowHeight: ROW_HEIGHT });
+    const barHeight = barHeightOf(wideBar, ROW_HEIGHT);
+    for (const point of handles.connectPoints) {
+      // ① 略小于条高：直径 ≤ 条高 − 2 × `CONNECT_DIAMETER_GAP_PX`（标准条 14.4 ⇒ 直径 12）。
+      expect(point.diameter).toBeLessThanOrEqual(barHeight - 2 * CONNECT_DIAMETER_GAP_PX);
+      // ② 可见 ⊆ 命中盒（命中盒边长 `point.size`）——这条是"看得见的一定点得中"在换形状后的承重件。
+      expect(point.diameter).toBeLessThanOrEqual(point.size);
+      // ③ 圆心 = 命中盒的水平中点（渲染层的 `cx = x + size / 2`）。
+      expect(point.x + point.size / 2).toBeCloseTo(connectLeftEdgeFor(wideBar, point.side) + CONNECT_SIZE_PX / 2, 9);
+      // ④ 圆心竖向 = 条心（不是行顶）。
+      expect(point.y).toBe(wideBar.y);
+    }
+    // 标准叶子的直径就是上限 12（"略小于条高 14.4"）。
+    expect(connectDiameterFor(wideBar, ROW_HEIGHT)).toBe(CONNECT_SIZE_PX);
+  });
+
+  it('**负向对照**：把直径换回"与条体等高"（`diameter = barHeight`）⇒ 上面两条不变量必须同时变红', () => {
+    // 这正是本批次要改掉的**现状**（"与条体等高的正方形白框"）。
+    const wrong = barHeightOf(wideBar, ROW_HEIGHT);
+    const size = CONNECT_SIZE_PX;
+    expect(wrong).toBeGreaterThan(size); // ① 可见 ⊄ 命中盒（外接盒比命中盒宽）
+    expect(wrong > barHeightOf(wideBar, ROW_HEIGHT) - 2 * CONNECT_DIAMETER_GAP_PX).toBe(true); // ② 不再"略小于条高"
+    // 汇总条与里程碑也走同一条公式：直径随各自条高收缩，但永不越过命中盒。
+    const summary = { ...wideBar, kind: 'summary' as const };
+    const milestone = { ...wideBar, isMilestone: true };
+    for (const bounds of [summary, milestone]) {
+      const diameter = connectDiameterFor(bounds, ROW_HEIGHT);
+      expect(diameter).toBeLessThanOrEqual(barHeightOf(bounds, ROW_HEIGHT) - 2 * CONNECT_DIAMETER_GAP_PX);
+      expect(diameter).toBeLessThanOrEqual(CONNECT_SIZE_PX);
+      expect(diameter).toBeGreaterThanOrEqual(CONNECT_MIN_DIAMETER_PX);
+    }
+    expect(connectDiameterFor(summary, ROW_HEIGHT)).toBeCloseTo(ROW_HEIGHT * SPACING.summaryBarHeightRatio - 2, 9);
+  });
+
   it('`connectSideAt`：**可见方块的每一处都点得中**，且只向外多补 `CONNECT_HIT_PAD_PX`', () => {
     const size = CONNECT_SIZE_PX;
     const inset = CONNECT_INSET_PX;
@@ -318,6 +356,14 @@ describe('端点手柄与连接点（ADR 0008 §16.2／裁决 P-32 的 R3）', (
       for (const point of handles.connectPoints) {
         // 连接点**竖向中心 = 条心**（第二次复验第 3 条"仍偏上"的修法）。
         expect(point.y).toBeCloseTo(centerFromRow, 9);
+        /**
+         * **逐行**（含汇总行与里程碑）复核 P-42 批次③ 的圆点两条不变量：
+         * 直径 ≤ 条高 − 2（"略小于条高"）且 ≤ 命中盒边长（可见 ⊆ 命中盒）。
+         * 用**本行的条高**（`barHeightOf`）而不是 `row.barHeight`：里程碑行报的是条高而菱形另有尺寸。
+         */
+        const rowBarHeight = barHeightOf(bounds, ROW_HEIGHT);
+        expect(point.diameter).toBeLessThanOrEqual(rowBarHeight - 2 * CONNECT_DIAMETER_GAP_PX + 1e-9);
+        expect(point.diameter).toBeLessThanOrEqual(CONNECT_SIZE_PX);
       }
       checked += 1;
     }
