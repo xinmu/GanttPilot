@@ -177,6 +177,12 @@
       "note": "P-45：批次④（不扩锚点形状；拖动期下游跟随改由未提交文档副本承担 ⇒ 未决归零）"
     },
     {
+      "path": "docs/00-baseline/裁决R45.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-46：G8 收尾前的三项范围裁定（两级刻度 / 悬停行高亮 / 模板下载全部纳入 v0.1，同批一次复验）"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
@@ -289,7 +295,13 @@
       "path": "docs/02-adr/附录/0007-增补.md",
       "role": "record",
       "cap": "record",
-      "note": "P-23/P-24/P-25 的增补节与落地段"
+      "note": "P-23/P-24/P-25/P-41/P-46 的增补节与落地段"
+    },
+    {
+      "path": "docs/02-adr/附录/0006-增补.md",
+      "role": "record",
+      "cap": "record",
+      "note": "P-46 的增补节：模板文件的三页签形态（结构冻结、字面名实现轮定稿）"
     },
     {
       "path": "docs/02-adr/附录/0004-增补.md",
