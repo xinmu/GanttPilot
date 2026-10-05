@@ -19,13 +19,10 @@
 import { computed, markRaw, ref, shallowRef, type ComputedRef, type Ref, type ShallowRef } from 'vue';
 import {
   applyToSession,
+  createDemoPlanDocument,
   createScheduleCalendar,
   createSession,
-  DATASETS,
-  generateDocument,
   noticeAfterDispatch,
-  PRIMARY_DATASET_KEY,
-  reindexDocument,
   redoSession,
   restoreSession,
   undoSession,
@@ -55,15 +52,15 @@ export interface DispatchResult {
 }
 
 /**
- * 演示数据：与 spec、测量脚本**同源**的确定性夹具（`render-core/fixtures`）。
+ * 演示文档：**演示口径**的唯一定义处是 `render-core/demoPlan.ts`（裁决 P-34）——
+ * 手写的 15 行小型计划（单页可读、四类依赖齐备），**不再是** 1,000 任务的主口径夹具。
  *
- * `outlineNumber` 是派生值，落库前必须 `reindexDocument`（ADR 0002 ③）——
- * `generateDocument` 产出的是"待规范化"的文档，这里顺手补齐，因此演示数据直接可渲染。
+ * 1,000 任务夹具（`fixtures.ts`）仍是**规模口径**：记录制测量与各包 spec 用它；
+ * 页面只在 `?measure=` 下由 `measure.ts` 的 `specOfDataset` 显式装载它。
+ * 两条口径的分工见 `demoPlan.ts` 头部与 [P-34](../../../docs/00-baseline/裁决R33.md)。
  */
 export function createDemoDocument(): ProjectDocument {
-  const spec = DATASETS.find((item) => item.key === PRIMARY_DATASET_KEY) ?? DATASETS[0];
-  if (spec === undefined) throw new Error('缺少演示数据集');
-  return reindexDocument(generateDocument(spec).document);
+  return createDemoPlanDocument();
 }
 
 /** 应用级项目状态：会话 + 排程 + 诊断（**不含**任何渲染几何）。 */

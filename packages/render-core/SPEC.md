@@ -42,7 +42,8 @@
 | `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
 | `affected.ts` | `affectedRenderSet`：受影响行 + 受影响边（编辑重绘的判据） |
 | `align.ts` | **两栏行对齐的判读内核**（ADR 0007 §14/§15 / [P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)）：`diagnoseRowAlignment`（一次探测）+ `summarizeAlignment`（多位置汇总）；判据含**轴的四边覆盖**与**滚动范围**（`content-range-mismatch`）。输入全是**视口坐标的数字**（DOM 采数在 `apps/web/src/measure.ts` 的记录制钩子里）。机制标签见 ADR §14.4 |
-| `fixtures.ts` | 确定性夹具生成（演示 / 测量 / spec 同源） |
+| `fixtures.ts` | 确定性夹具生成（**规模口径**：测量 / 测试同源） |
+| `demoPlan.ts` | **演示口径的唯一定义处**（[P-34](../../docs/00-baseline/裁决R33.md)）：手写的 15 行演示计划（3 汇总 + 10 任务 + 2 里程碑、14 条依赖，四类关系齐备）；页面默认文档、重置与 G7 的导出演示/golden 都用它。与 `fixtures.ts` 的分工见该文件头部 |
 
 **主入口**
 
@@ -264,6 +265,7 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | G5 ⑩ 提示条的迁移（P-30，收口 P-29） | `editCommand.spec.ts`（**+5 例**）；**落点在 `useProject.commit()`**（`apps/web`，不进 gate） | 三档逐条：**失败**才产生提示（文案含 `code`/`message`，缺失用「未知」）；**成功且 `changed`** ⇒ 清掉失败提示、`info` 不动；**成功但 `changed === false`** ⇒ 原样保留。含一条**用真实会话栈**跑维护者报文序列：空栈回退 ⇒ 有提示；修改 ⇒ 提示消失；回退到栈底 ⇒ 不出现；栈底再回退 ⇒ 才重新给提示。**落点在命令通道**（P-31）：`dispatch`/`undo`/`redo`/`ingestDocument` 都经 `commit()`，任何调用点都绕不过 | **进**（规则本体） | [P-30](../../docs/00-baseline/裁决R29.md) / [P-31](../../docs/00-baseline/裁决R30.md) |
 | G5 ⑪ 判定区随条宽收缩、端点手柄与连接点（P-32＝P-21 批次 B） | `zones.ts` + `interaction.ts` + `interaction.spec.ts`（**新增 22 例**）+ `gesture.spec.ts`（**+6 例**） | `zonesFor` 的边界公式：宽条（≥18 px）与旧式 `DRAG_EDGE_PX = 6` **逐值一致**（前提自证）、9 px 条给出 6 px 的 `move` 区、3 px 条（月档 1 个工作日）的 `move` 区**非空**（**NC1**：固定 6 px ⇒ 空集）；手柄 x **= 判定区边界**（与判定区同源）、连接点**跨在条端上**（`[xRight − CONNECT_INSET_PX, … + CONNECT_SIZE_PX]`，12 px；竖向中心 = 条形中心；**命中区 ⊇ 可见方块 + 外侧 4 px**：方块的每一处都点得中，并含 `dx = −1..+2` 的回归断言）、`connectRevealFor` 只在指针靠近该行条端时显形、手柄高 4 < 条高 14.4（不越过条体上沿）；光标四分类（端点 `col-resize` / 中部 `move` / 连接点 `crosshair` / 其余 `default`，且**取非 0 滚动位置**）；`linkEntryFor` 的 `exitSide` = 所抓那一侧、`linkTypeFor` 四格与端点 x（**NC2**：连接点 x 换成手柄 x ⇒ 从"建线"退化成"改工期"）；`handleOffsetsFor` 与 `rowHandlesFor` 同源 | **进** | [ADR 0008 §16](../../docs/02-adr/附录/0008-增补.md) / [P-32](../../docs/00-baseline/裁决R31.md) |
 | G5 ⑪ 手柄/光标/连接点（记录制） | `scripts/measure-render.mjs --drag` | 打包产物上：DOM 手柄条数 **= 模型**（`handleOffsetsFor`）、**指针所在那一行的连接点 = 2**（按需显形）、条体中部/端点/连接点三处的光标分类正确、**从连接点按下认得出该侧入口**（R4 的可判定形式） | **不进**（记录制，需本机 Chrome） | [P-32](../../docs/01-roadmap/首版-记录-G5.md) |
+| G7 前置 演示口径（P-34） | `demoPlan.spec.ts`（**新增 8 例**） | 15 行 / 14 条依赖 / 3 汇总 / 2 里程碑；schema **error 0** 且良性 warning **恰 11 条同码**（码集合与条数都钉住）；四类关系齐备 + 至少一条负 lag；id 唯一、端点存在、边一律沿文档序向前；`compute` ok、**零排程诊断**、三个汇总进度 **49/60 · 5.5/23 · 0**；**跨度 ≤ 40 个工作日**（"单页 16:9 可容纳"的可判定形式）；两次调用逐字节一致（golden 前置） | **进** | [P-34](../../docs/00-baseline/裁决R33.md) |
 | **坐标基准不变量**（P-25/P-32 的常驻条目） | 盘点见 [`apps/web/evidence/scroll-consumers-audit.md`](../../apps/web/evidence/scroll-consumers-audit.md)（**只读**，13 处消费者逐条给出基准） | **只有 `pointerFromClient` 叠加 `scroll*`**（`x = clientX − paneLeft + scrollLeft`、`y = clientY − paneTop + scrollTop`，ADR 0008 §13.1）；它的下游至多做**平移 / 窗口换算 / 抵消负号**——`dayAtX` 与 `resolvePointerTarget` 收到的是**内容坐标**、轴窗口是**唯一**的减号点、手柄与连接点（批次 B）**一次算好、拖动期只 `translateZone`**。**新增任何"自己再换算一次坐标"的消费者，必须对照本行自证基准** | **进**（不变量由 `geometryExpectations.spec.ts` / `gesture.spec.ts` / `interaction.spec.ts` / `align.spec.ts` 承载，且一律**取非 0 滚动位置**） | [P-25](../../docs/00-baseline/裁决R24-26.md) / [P-32](../../docs/00-baseline/裁决R31.md) |
 **元素预算的常数与实测**（[`apps/web/evidence/render-timing-chrome152.md`](../../apps/web/evidence/render-timing-chrome152.md)）：
 
@@ -287,6 +289,11 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 **夹具口径**：1,000 任务 / 1,500 依赖（三种形态：宽而浅 / 深链 / 密集交叉），
 外加 2,200 边的"§5.4 同尺对照"数据集；全部由 `fixtures.ts` 的确定性生成器产出
 （零 `Math.random`、边一律沿文档序向前、精确命中声明的规模）。
+
+**演示口径另有一份**（[P-34](../../docs/00-baseline/裁决R33.md)）：`demoPlan.ts` 手写的 **15 行**演示计划
+（3 汇总 + 10 任务 + 2 里程碑、14 条依赖，四类关系齐备，序号跨度 ≤ 40 个工作日）——
+页面默认文档、重置与 G7 的导出演示/golden 用它。两者**不可互相替代**：演示要单页可读
+（现状 `dense` 日档 `contentWidth` **10,612 px**，同一视口口径），规模要 1,000+ 任务（"1,000 任务首屏 ≤ 1 s"的载体）。
 
 ## 十、明确不做（v0.1 内）
 

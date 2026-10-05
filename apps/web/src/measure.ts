@@ -528,8 +528,9 @@ export function exposeMeasurement(args: {
       readonly skipDrag?: boolean;
     }): Promise<PersistMeasureResult> => {
       const spec = specOfDataset(options.dataset ?? PRIMARY_DATASET_KEY);
-      // **必须**把夹具装进应用：页面按 `?dataset=` 建的默认是主口径（1,000 任务），
-      // 而 `dense-2000` 只在 `specOfDataset` 里认识 ⇒ 不装的话会**静默退回 1,000 任务**（实测踩到过）。
+      // **必须**把夹具装进应用：页面的初始文档是**演示口径**的小型计划（`demoPlan.ts`，裁决 P-34），
+      // 与测量口径无关；而 `dense-2000`（2,000 任务）只在 `specOfDataset` 里认识 ⇒
+      // 不装的话规模会**静默用错**（实测踩到过：存储测量落到 1,000 任务）。
       await args.loadDocument(args.buildFixtureDocument(spec.key));
       // 注意：`loadDocument` 走 `project.reset()`（换掉整份会话）——这里**正要**它这么做：
       // 存储测量要的是"干净起点 + 明确的规模"，因此先把夹具装进去、再清库、再落盘。

@@ -297,6 +297,10 @@ export {
   type RenderFixture,
 } from './fixtures.js';
 
+// ------------------------------------------------- 演示口径（页面默认文档 / 导出演示与 golden）
+// 与上面那块的**规模口径**分工（演示要单页可读、规模要 1,000+ 任务）见 `demoPlan.ts` 与裁决 P-34。
+export { createDemoPlanDocument } from './demoPlan.js';
+
 /**
  * 命令层、文档规范化与排程结果的**门面**（重导出）。
  *

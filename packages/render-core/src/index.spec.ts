@@ -60,7 +60,7 @@ describe('@ganttpilot/render-core 公共入口', () => {
     expect(renderCore.SPACING.milestoneSizeRatio).toBe(0.5);
   });
 
-  it('导出确定性夹具生成器（演示 / 测量 / 测试同源）', () => {
+  it('导出确定性夹具生成器（规模口径：测量 / 测试同源）', () => {
     expect(typeof renderCore.mulberry32).toBe('function');
     expect(typeof renderCore.generateDocument).toBe('function');
     expect(typeof renderCore.buildFixture).toBe('function');
@@ -69,6 +69,14 @@ describe('@ganttpilot/render-core 公共入口', () => {
     expect(renderCore.PRIMARY_DATASET_KEY).toBe('dense');
     expect(renderCore.REFERENCE_DATASET.links).toBe(2200);
     expect(renderCore.SCALE_GRADIENT_TASKS).toStrictEqual([200, 500, 1000, 2000]);
+  });
+
+  it('导出演示计划工厂（演示口径：页面默认文档 / 导出演示与 golden，P-34）', () => {
+    expect(typeof renderCore.createDemoPlanDocument).toBe('function');
+    const document = renderCore.createDemoPlanDocument();
+    expect(document.tasks.length).toBe(15);
+    expect(document.links.length).toBe(14);
+    expect(document.project.name).toBe('演示计划 · Pilot 项目');
   });
 
   it('ROUTE_SIDES 是 P-8 第 1 条的可执行副本（唯一登记处仍是 P-8）', () => {

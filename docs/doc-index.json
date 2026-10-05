@@ -105,6 +105,12 @@
       "note": "P-33：G6 的落地口径与两项待定的收口"
     },
     {
+      "path": "docs/00-baseline/裁决R33.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-34：演示口径＝小型手写演示计划（1,000 任务夹具退为规模口径）"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",

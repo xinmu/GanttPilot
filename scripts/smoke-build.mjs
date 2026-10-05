@@ -209,6 +209,7 @@ async function smoke(cdp, url) {
       '  brand: (document.querySelector(".brand") || {}).textContent || null,',
       '  pane: Boolean(document.getElementById("chart-pane")),',
       '  svg: Boolean(document.querySelector(".gantt-svg")),',
+      '  status: (document.querySelector(".status") || {}).textContent || null,',
       '  persist: (document.querySelector(".status .persist") || {}).textContent || null,',
       '  error: window.__GANTTPILOT_ERROR__ ?? null,',
       '})',
@@ -240,6 +241,22 @@ try {
   if (typeof probe.persist !== 'string' || !probe.persist.startsWith('持久化：')) {
     problems.push(`状态栏缺少持久化那一栏：${String(probe.persist)}`);
   }
+  // 演示口径（裁决 P-34）：默认文档必须是**小型演示计划**，而不是 1,000 任务夹具——
+  // 这是唯一能抓到"产物仍然开在大夹具上"的门禁。上界编码的是"单页 16:9 可读"这个口径本身，
+  // 具体数字（15 行 / 14 条依赖）的唯一权威陈述在 `render-core/src/demoPlan.spec.ts`。
+  const counts = /任务 (\d+) · 依赖 (\d+)/.exec(probe.status ?? '');
+  if (counts === null) {
+    problems.push(`状态栏缺少任务/依赖计数：${String(probe.status)}`);
+  } else {
+    const tasks = Number(counts[1]);
+    const links = Number(counts[2]);
+    if (tasks < 8 || tasks > 40) {
+      problems.push(`演示口径不是小型计划：任务 ${String(tasks)} 条（期望 8–40）`);
+    }
+    if (links < 1) {
+      problems.push(`演示计划没有依赖：${String(links)} 条`);
+    }
+  }
 
   if (problems.length > 0) {
     console.error(`[smoke] 打包产物冒烟未通过（${url}）：`);
@@ -248,6 +265,7 @@ try {
   } else {
     console.log(`[smoke] 通过：${url}`);
     console.log(`  ${String(probe.persist)}`);
+    console.log(`  演示口径：${counts?.[0] ?? '（未解析）'}`);
   }
 } catch (error) {
   console.error(`[smoke] 失败：${error instanceof Error ? error.message : String(error)}`);

@@ -49,7 +49,6 @@ import { useChart } from './composables/useChart.js';
 import { useGesture } from './composables/useGesture.js';
 import { usePersistence } from './composables/usePersistence.js';
 import { useProject, type DispatchResult } from './composables/useProject.js';
-import { createPrimaryDemoDocument } from './demo.js';
 
 const project = useProject();
 const chart = useChart({
@@ -645,10 +644,15 @@ async function onImportFile(file: File): Promise<void> {
 }
 
 function resetToDemo(): void {
-  project.reset(createPrimaryDemoDocument());
+  // 不带参数 ⇒ `useProject` 走**演示口径**（`render-core/demoPlan.ts` 的小型计划，裁决 P-34）。
+  project.reset();
   // 重置会换掉整份文档：上一次导入的协议层诊断随之作废（否则面板会显示别份文档的问题）。
   importDiagnostics.value = [];
-  show('info', '已重置为演示数据（1,000 任务 / 1,500 依赖的确定性夹具）');
+  // 数字一律从**实际文档**派生：写死的"1,000 任务 / 1,500 依赖"在演示口径变更后立刻变成假话。
+  show(
+    'info',
+    `已重置为演示计划：${String(document.value.tasks.length)} 个任务 / ${String(document.value.links.length)} 条依赖`,
+  );
 }
 
 /**
@@ -765,8 +769,8 @@ onMounted(() => {
         // 否则 `dense-2000`（2,000 任务）会静默退回主口径（**出口条件④就测错规模了**）。
         buildFixtureDocument: (key) => {
           const spec = specOfDataset(key);
-          // 由 spec 现场产文档：`specOfDataset` 认识 `dense-2000`（2,000 任务），
-          // 而 `demo.ts` 的解析不认识它——出口条件④要的就是那个规模。
+          // 由 spec 现场产文档：**规模口径**的键表只由 `specOfDataset` 认识（含 `dense-2000`）；
+          // 页面初始的**演示口径**文档（`demoPlan.ts`，P-34）是另一回事，不能拿来当 2,000 任务用。
           return reindexDocument(generateDocument(spec).document);
         },
         loadDocument: async (nextDocument) => {
