@@ -465,31 +465,40 @@ export function snapCandidate(args: {
   return Math.min(Math.max(args.candidate, lower), upper);
 }
 
-/** 在 `views` 的地平线内安全地取 `x` 处的工作日序号（越界时**夹回**边界，不抛错）。 */
-export function ordinalAtClamped(view: ViewModel, x: number, calendar: Calendar): number {
-  try {
-    return ordinalAtXSafe(view, x, calendar);
-  } catch {
-    // 落在地平线之外（视图比文档宽得多）：按 x 的方向取边界。
-    const atLeft = x <= 0;
-    const bound = atLeft ? 0 : Math.max(0, calendar.workdayCount - 1);
-    try {
-      return atLeft ? 0 : calendar.ordinalOfDay(calendar.dayOfOrdinal(bound));
-    } catch {
-      return 0;
-    }
-  }
-}
-
 /**
- * `render-core` 的反算（这里再包一层只是为了让 catch 有明确的落点）。
+ * 在日历的地平线内安全地取 `x` 处的工作日序号（越界时**夹回边界**，不抛错）。
  *
- * **必须委托给 `dayAtX`**：这里原来把同一个公式**抄了第二份**（且同样多加了 `view.scrollLeft`），
- * 于是"修了 `dayAtX` 却漏了这一处"是必然的（P-25 实测：向右滚 600 px 时候选偏约 19 个工作日）。
- * 反算公式**只有一处**（`viewModel.ts` 的 `dayAtX`）。
+ * ## 为什么必须先用 `dayAtX` 把 `x` 夹成**自然日**（白屏缺陷的根因，2026-10-05）
+ *
+ * 旧实现是"先算序号、抛错后按 `x <= 0` 猜方向"：
+ *
+ * ```ts
+ * try { return calendar.ordinalOfDay(Math.floor(dayAtX(view, x))); }   // ← 左侧越界时抛
+ * catch { return x <= 0 ? 0 : lastOrdinal; }                            // ← 猜方向
+ * ```
+ *
+ * 两处都错，且**只有向左拖动时才现形**：
+ * 1. `Calendar.ordinalOfDay(day)` 对 `day < baseDay` **抛错**（G1.1 冻结：负序号无定义），
+ *    而 `baseDay` 左侧在屏幕上**不是 `x <= 0`**——轴线起点 = `dayOfOrdinal(projectStart) − gutter`，
+ *    因此"条体左缘左边的正常位置"（`x` 仍是正数）已经落在 `baseDay` 左侧 ⇒ 抛错；
+ * 2. catch 于是把这种 x 判成"向右越界"，返回**最右序号**（日档下 = `workdayCount − 1`）。
+ *    ⇒ 向左拖动 96 px 会把候选**甩到约 130 个工作日之后**（实测 4 → 94），
+ *    patch 写成远期日期，`compute` 的完成序号随即超出调用方日历的容量，
+ *    渲染期 `buildView` 抛 `RangeError` ⇒ **Vue 整棵树卸载、页面全白**（人工报障 2026-10-05）。
+ *
+ * 新实现只做两件事：**先用唯一的反算式 `dayAtX` 得到自然日，把日夹进可表示域，再算序号**。
+ * 于是"越界"退化成一次钳制，不再需要猜方向，也不会返回地平线的另一端。
+ *
+ * **为什么在日这一层夹、而不是在序号那一层夹**：`ordinalOfDay` 是"自然日 → 序号"的唯一口径
+ * （含周末吸附：落在周末的日会吸附到下一个工作日）。先算序号再夹会丢掉这层语义，
+ * 并让"哪一天"与"哪个序号"两套边界各写一遍——那正是 R13/R14 的同族陷阱。
  */
-function ordinalAtXSafe(view: ViewModel, x: number, calendar: Calendar): number {
-  return calendar.ordinalOfDay(Math.floor(dayAtX(view, x)));
+export function ordinalAtClamped(view: ViewModel, x: number, calendar: Calendar): number {
+  const firstDay = calendar.baseDay;
+  const lastDay = calendar.dayOfOrdinal(Math.max(0, calendar.workdayCount - 1));
+  const day = Math.floor(dayAtX(view, x));
+  const clamped = Math.min(Math.max(day, firstDay), lastDay);
+  return Math.min(Math.max(calendar.ordinalOfDay(clamped), 0), Math.max(0, calendar.workdayCount - 1));
 }
 
 // ---------------------------------------------------------------- 手势推进

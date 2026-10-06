@@ -183,6 +183,12 @@
       "note": "P-46：G8 收尾前的三项范围裁定（两级刻度 / 悬停行高亮 / 模板下载全部纳入 v0.1，同批一次复验）"
     },
     {
+      "path": "docs/00-baseline/裁决R46.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-47：拖动预览越过渲染地平线 ⇒ 整页空白（夹取方向已修；日历容量缺口待契约面裁决）"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
