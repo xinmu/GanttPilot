@@ -32,8 +32,8 @@ import type { ViewModel } from './viewModel.js';
  * 与 `c₁`/`c₂`/`c₃` 的**根本区别**：这一组是**每帧的固定开销**，
  * 不随行数、边数或文档规模增长（ADR 0008 §11 的原文口径）。
  *
- * **注意（ADR 0008 §16.4／裁决 P-32）**：`c₄` 现在由**两部分**组成——
- * 本结构描述的是"**每帧固定**"那部分（`ELEMENT_MODEL_G5.overlay = 12`）；
+ * **注意（ADR 0008 §16.4／裁决 P-32；`overlay` 由 12 → 13 见 P-46）**：`c₄` 现在由**两部分**组成——
+ * 本结构描述的是"**每帧固定**"那部分（`ELEMENT_MODEL_G5.overlay = 13`，含 P-46 的悬停行带 1）；
  * 而"**每渲染行**"那部分（端点手柄 2 + 连接点 2 ≤ 3/行）是**结构性**的，
  * 由 {@link countElements} 直接按 `view.rows.length` 计入，**不在本结构的开关里**。
  * 后者仍与文档总规模无关——`rows ≤ 视口行数 + ROW_BUFFER`（ADR 0007 §6.1）。
@@ -48,6 +48,19 @@ export interface OverlayCounts {
   /** 高亮集合的描边条数（行 1 条 / 边 1 条）。 */
   readonly highlightRows?: number;
   readonly highlightEdges?: number;
+  /**
+   * 指针所在整行的**浅色行带**（P-46 §2.2；1 个元素）。
+   *
+   * 它**不在** `rows` 的逐行模板里（那样会进逐行 diff 路径），而是 `view.axis` 里的
+   * `hover-band`——即"每帧固定 1 个"。本开关的输入由调用方从 `view.axis` 推导
+   * （见 `hoverRowOf`），免得计数与实际发射出现两份真相源。
+   */
+  readonly hoverRow?: boolean;
+}
+
+/** `view.axis` 里是否存在悬停行带（`countOverlays` 的 `hoverRow` 输入的唯一来源）。 */
+export function hoverRowOf(view: ViewModel): boolean {
+  return view.axis.some((element) => element.kind === 'hover-band');
 }
 
 /** 覆盖层元素数（与 `apps/web` 的覆盖层模板**一一对应**，改模板必须改这里）。 */
@@ -58,6 +71,7 @@ export function countOverlays(overlays: OverlayCounts = {}): number {
   if (overlays.conflict === true) count += 1; // 冲突描边
   count += Math.max(0, overlays.highlightRows ?? 0);
   count += Math.max(0, overlays.highlightEdges ?? 0);
+  if (overlays.hoverRow === true) count += 1; // 悬停行带（P-46）
   return count;
 }
 
@@ -78,7 +92,19 @@ export interface ElementCounts {
   readonly edgeHitAreas: number;
   /** 轴元素总数（= `c₃`）。 */
   readonly axis: number;
-  readonly axisBreakdown: { readonly bands: number; readonly gridlines: number; readonly labels: number };
+  /**
+   * 轴元素的逐类明细（P-46 的两级刻度：`majorBands` / `majorLabels` 是新增的两类）。
+   *
+   * **`hover-band` 不在任何一类里**：它是覆盖层元素（计入 `overlays`），
+   * 若也算进 `axis` 就会**双重计数**（`total` / `bound` 同时虚高，预算变成恒真式）。
+   */
+  readonly axisBreakdown: {
+    readonly bands: number;
+    readonly gridlines: number;
+    readonly labels: number;
+    readonly majorBands: number;
+    readonly majorLabels: number;
+  };
   /** G5 覆盖层已发射的元素数（手势/高亮期，≤ `c₄` 的固定部分）。 */
   readonly overlays: number;
   readonly c1: number;
@@ -127,12 +153,32 @@ export function countElements(view: ViewModel, overlays: OverlayCounts = {}): El
   let bands = 0;
   let gridlines = 0;
   let labels = 0;
+  let majorBands = 0;
+  let majorLabels = 0;
   for (const element of view.axis) {
-    if (element.kind === 'band') bands += 1;
-    else if (element.kind === 'gridline') gridlines += 1;
-    else labels += 1;
+    switch (element.kind) {
+      case 'band':
+        bands += 1;
+        break;
+      case 'gridline':
+        gridlines += 1;
+        break;
+      case 'major-band':
+        majorBands += 1;
+        break;
+      // 两级刻度的文本：`level: 1` 是上级（P-46）、缺省/2 是下级。
+      case 'label':
+        if (element.level === 1) majorLabels += 1;
+        else labels += 1;
+        break;
+      // 悬停行带是覆盖层元素（计入 `overlays`），**不得**再计入 `c₃`。
+      case 'hover-band':
+        break;
+      default:
+        break;
+    }
   }
-  const axis = bands + gridlines + labels;
+  const axis = bands + gridlines + labels + majorBands + majorLabels;
   const overlayElements = countOverlays(overlays);
   const total =
     rowGroups +
@@ -167,7 +213,7 @@ export function countElements(view: ViewModel, overlays: OverlayCounts = {}): El
     edgeArrows,
     edgeHitAreas,
     axis,
-    axisBreakdown: { bands, gridlines, labels },
+    axisBreakdown: { bands, gridlines, labels, majorBands, majorLabels },
     overlays: overlayElements,
     c1: ELEMENT_MODEL.perRenderedRow,
     c2: ELEMENT_MODEL.perRenderedEdge,
@@ -216,7 +262,13 @@ export function countElementsByEnumeration(
     emitted.push('edge-arrow');
     emitted.push('edge-hit-area');
   }
-  for (const element of view.axis) emitted.push(`axis-${element.kind}`);
+  for (const element of view.axis) {
+    // 两级刻度：逐类枚举，名称必须与 `countElements` 的分类累加**逐项相等**
+    // （`hover-band` 在下面按覆盖层枚举，**不在这里**）。
+    if (element.kind === 'hover-band') continue;
+    if (element.kind === 'label' && element.level === 1) emitted.push('axis-label-major');
+    else emitted.push(`axis-${element.kind}`);
+  }
 
   // G5 覆盖层：**逐项枚举**，其条数必须与 `countOverlays` 的分类累加一致（两路互证）。
   if (overlays.dragOverlay === true) {
@@ -235,6 +287,9 @@ export function countElementsByEnumeration(
   for (let index = 0; index < Math.max(0, overlays.highlightEdges ?? 0); index += 1) {
     emitted.push('overlay-highlight-edge');
   }
+  // 悬停行带（P-46）：它**同时**是 `view.axis` 的一个元素与一个覆盖层元素——
+  // 这里按覆盖层枚举一次，`axis-` 那一侧由上面的循环跳过它（两路互证的判据见 count 的 spec）。
+  if (overlays.hoverRow === true) emitted.push('overlay-hover-row');
 
   const kinds: Record<string, number> = {};
   for (const item of emitted) kinds[item] = (kinds[item] ?? 0) + 1;

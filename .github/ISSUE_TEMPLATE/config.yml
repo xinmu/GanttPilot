@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+# 说明：`url` 必须是绝对地址（GitHub 的要求），而**本仓库当前还没有远端**
+# （见 README「在线 Demo / HTTP 托管」那一节）。因此下面三条指向的是**占位仓库名**，
+# 接入远端时请把 `ganttpilot/ganttpilot` 换成真实地址（`about` 里同时写了仓库内路径，便于对照）。
+contact_links:
+  - name: 先读用户手册（导入 / 依赖语法 / 导出与离线）
+    url: https://github.com/ganttpilot/ganttpilot/blob/main/docs/03-guide/导入与Excel准备.md
+    about: 三份手册在仓库的 docs/03-guide/ 下。「导入没反应」「依赖不生效」「导出打不开」这三类问题通常有现成答案与对应诊断码。
+  - name: 明确不做（非目标）与已知限制
+    url: https://github.com/ganttpilot/ganttpilot#明确不做非目标
+    about: 仓库根 README 的两节。协作编辑、资源均衡、.mpp、CPM 浮动与关键路径、基线、筛选分组、移动端/触屏入口都已明确归属。
+  - name: 贡献指南（环境、门禁、铁律、依赖准入）
+    url: https://github.com/ganttpilot/ganttpilot/blob/main/CONTRIBUTING.md
+    about: 想提 PR 或加依赖请先读它——重点是"计算层各包零 DOM/零框架"与"应用层两条判据通道"的口径。

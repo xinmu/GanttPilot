@@ -23,7 +23,7 @@ import { EXPORT_LABEL_FONT_PX, EXPORT_LABEL_WIDTH_PX } from './exportView.js';
 import { EXPORT_AXIS_FONT_PX } from './exportView.js';
 import { exportLabelStyleOf, exportLabelTextOf } from './exportLabels.js';
 import { exportLegendItems, exportSummaryLines, type ExportSummary } from './exportSummary.js';
-import { HEADER_HEIGHT_PX, LABEL_CHAR_PX } from './manifest.js';
+import { HEADER_HEIGHT_PX, LABEL_CHAR_PX, MAJOR_LABEL_BASELINE_PX, MINOR_LABEL_BASELINE_PX } from './manifest.js';
 import { arrowPolygons } from './route.js';
 import type { EdgeGeom, RowBox, ViewModel } from './viewModel.js';
 
@@ -32,6 +32,9 @@ const COLOR = {
   band: '#f4f6f8',
   gridline: '#e4e7ec',
   axisText: '#667085',
+  /** 上级分段带（P-46 的两级刻度；与 `manifest.ts` 的 `AXIS_MAJOR_FILL`/`AXIS_MAJOR_EDGE` 同值）。 */
+  majorBand: '#eef1f5',
+  majorEdge: '#d0d5dd',
   rowText: '#1f2933',
   bar: '#2e75b6',
   barSummary: '#7a8699',
@@ -268,7 +271,7 @@ export function svgString(args: SvgExportArgs): string {
     `<rect x="0" y="0" width="${String(width)}" height="${String(height)}" fill="#ffffff"/>`,
   );
 
-  // 轴：色带与网格线（只落在绘制区；与屏幕同一致）
+  // 轴：下级色带/网格线与**上级分段带**（P-46 的两级刻度）；只落在绘制区
   chunks.push(`<g class="axis">`);
   for (const element of view.axis) {
     if (element.kind === 'band') {
@@ -276,6 +279,18 @@ export function svgString(args: SvgExportArgs): string {
       const width = Math.max(1, Math.min(element.width, chartWidth - Math.max(0, element.x)));
       chunks.push(
         `<rect x="${String(round(offsetX + element.x))}" y="${String(offsetY)}" width="${String(round(width))}" height="${String(rowsHeight)}" fill="${COLOR.band}"/>`,
+      );
+    } else if (element.kind === 'major-band') {
+      /**
+       * **上级分段带**（ADR 0007 附录 §3）：底色比周末色带更深一档（两者必须可区分），
+       * 左边界画一条竖线——它已经取代了该处那条重复的网格线（`buildAxis` 不再发它）。
+       * 宽度同样裁到绘制区，避免露进侧栏。
+       */
+      const x = Math.min(Math.max(element.x, 0), chartWidth);
+      const width = Math.max(1, Math.min(element.width, chartWidth - x));
+      chunks.push(
+        `<rect x="${String(round(offsetX + x))}" y="${String(offsetY)}" width="${String(round(width))}" height="${String(rowsHeight)}" fill="${COLOR.majorBand}"/>`,
+        `<line x1="${String(round(offsetX + x))}" x2="${String(round(offsetX + x))}" y1="${String(offsetY)}" y2="${String(offsetY + rowsHeight)}" stroke="${COLOR.majorEdge}" stroke-width="1"/>`,
       );
     } else if (element.kind === 'gridline') {
       const x = Math.min(Math.max(element.x, 0), chartWidth);
@@ -286,12 +301,21 @@ export function svgString(args: SvgExportArgs): string {
   }
   chunks.push(`</g>`);
 
-  // 日期刻度（表头带内，与屏幕的 y=18 同口径）
+  /**
+   * 刻度文本（**两级**，都在表头带内）：
+   *
+   * - **下级**（`level` 缺省或 2）画在带的**上半**（基线 `MAJOR_LABEL_BASELINE_PX / 2 + 5` 量级）；
+   * - **上级**（`level: 1`）画在带的**下半**（基线 `MAJOR_LABEL_BASELINE_PX`），
+   *   段内由 `buildAxis` 保证只在左端发一次。
+   *
+   * 两者共用同一份 `view.axis`（与屏幕同源，铁律 #2）。
+   */
   chunks.push(`<g class="axis-labels">`);
   for (const element of view.axis) {
     if (element.kind !== 'label') continue;
+    const baseline = element.level === 1 ? MAJOR_LABEL_BASELINE_PX : MINOR_LABEL_BASELINE_PX;
     chunks.push(
-      `<text x="${String(round(offsetX + element.x + 2))}" y="18" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.axisText}">${escapeXml(element.text)}</text>`,
+      `<text x="${String(round(offsetX + element.x + 2))}" y="${String(baseline)}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.axisText}">${escapeXml(element.text)}</text>`,
     );
   }
   chunks.push(`</g>`);

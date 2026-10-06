@@ -1,6 +1,8 @@
 # 依赖与构建产物
 node_modules/
 dist/
+# 离线单文件产物（G8／P-49）：与在线产物分开的目录（`vite build --config bundle.config.ts`）
+dist-offline/
 build/
 out/
 *.tsbuildinfo

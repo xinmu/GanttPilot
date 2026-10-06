@@ -14,10 +14,10 @@
 export const PPTX_RENDERER_VERSION = '0.0.0';
 
 /** 本包能力落地的能力块编号。 */
-export const PLANNED_GATE = 'G7' as const;
+export const PLANNED_GATE = 'G8' as const;
 
 /** 已落地能力块清单（G0 的护栏不在本包内）。 */
-export const COMPLETED_GATES = ['G7'] as const;
+export const COMPLETED_GATES = ['G7', 'G8'] as const;
 
 export {
   FIXED_TIMESTAMP_ISO,

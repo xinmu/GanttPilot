@@ -49,12 +49,13 @@ renderTemplateA({
 | 依赖线 | `<p:cxnSp>` + `bentConnector3` | `dep-<linkId>` | 双端吸附 + **`a:tailEnd` 箭头**（见下） |
 | 一级组 | `<p:grpSp>` | `grp-<summaryId>` | 汇总行 + 其**直接**子行形状 |
 | 周末/节假日**灰度带** | 无描边 `rect` | `band-<n>` | `F4F6F8`；与 SVG 的 `view.axis` 的 `band` 同源 |
+| **上级刻度分段带** | 无描边 `rect` | `major-band-<n>` | `EEF1F5`（比灰度带深一档，**必须可区分**）；与 `view.axis` 的 `major-band` 同源（P-46 的两级刻度，[ADR 0007 附录 §3](../../docs/02-adr/附录/0007-增补.md)）。**命名刻意与 `band-*`/`grid-*` 分开**：那是既有判据的计数锚 |
 | 背景**网格线** | 无描边 1 px `rect` | `grid-<n>` | `E4E7EC`；同源（`gridline`） |
-| **日期刻度** | pptxgenjs 文本框 | `axis-<n>` | 9 pt `667085`，放在表头带内；文案同源（`label`） |
+| **日期刻度（两级）** | pptxgenjs 文本框 | `axis-<n>` | 9 pt `667085`，放在表头带内；文案同源（`label`）。**下级**（`level` 缺省）取 `MINOR_LABEL_BASELINE_PX`、**上级**（`level: 1`）取 `MAJOR_LABEL_BASELINE_PX`——两个基线与屏幕/导出 SVG **共用同值**（各写一个数字就是"所见 ≠ 所导出"） |
 | 图例**色块/箭头** | `rect` / `diamond` / `rect`+`triangle` | `legend-swatch-<styleKey>`（+`-head`） | 与 `exportLegendItems()` 一一对应，坐标与图例文本共用 `planTemplateA().legendRows` |
 | 容器文本 | pptxgenjs `addText` | `title` / `lbl-<taskId>` / `legend-<n>` / `summary-<n>` | 名称必须全容器唯一（`buildIdMap` 会拦） |
 
-**绘制顺序 = 注入顺序**：`背景（band → grid）` → `图例图元` → `组/条/进度/菱形` → `依赖线`
+**绘制顺序 = 注入顺序**：`背景（band → major-band → grid）` → `图例图元` → `组/条/进度/菱形` → `依赖线`
 （OOXML 按文档序绘制，因此"背景在条形之下"是结构性质，可由 spec 断言）。
 
 **箭头的强制口径**（人工复验第 ③ 条的根因 + 二次复验第 ② 条的订正）：
@@ -153,6 +154,7 @@ pptxgenjs（版面/母版/主题 + 文本）→ write({outputType:'uint8array'})
 | ⑥ 可读性纪律 | `template.spec.ts` | 演示计划：行标签有效字号 ≥ 6 pt 且标签形状存在；1,000 行：< 6 pt 且**不生成**任何 `lbl-*` | **进** |
 | ⑦ 图面要素（P-37 增补） | `template.spec.ts` | **日期刻度**文本框数与文案 == `view.axis` 的 `label`；**灰度带/网格线**计数同源且**绘制顺序在条形之下**（`band` < `bar` < `cxnSp`）；**箭头**：`triangle` 数 == FS/FF、`arrow` 数 == SS/SF，且 **`tailEnd` 合计 == 依赖线条数**（不允许"没有吸附锚点的自绘箭头"）；**图例**文案逐字取自 `exportLegendItems()`+`exportSummaryLines()`（旧手写文案不得出现）、7 类图元齐全且 `SS`/`SF` 的箭头与画布同形（两条臂）；**标签**汇总加粗、子行缩进右移、与 SVG 文本**逐字相同** | **进** |
 | ⑨ 侧栏排版（P-38 增补） | `template.spec.ts` | 图例图元的**垂直中心与文本行中心差 ≤ 1.5 px**；图元右缘到文本左缘 **≥ 8 px**；侧栏内容块与甘特内容块的**中心差 ≤ 20 px**（同基准居中） | **进** |
+| ⑩ **两级刻度同步**（G8／P-46） | `template.spec.ts` | **上级分段带**（`major-band-N`）数 == `view.axis` 的 `major-band` 数（与屏幕/导出 SVG 逐条同源）；**上级标签的 `y` 严格大于下级标签的 `y`**（"两行"这件事的可判定形式，且基线取自 `render-core` 的常量）；日档下上级标签数**严格少于**下级（"段内只写一次"的判别力） | **进** |
 | ⑧ WPS 证据链（含返工存活） | `scripts/wps-pptx-verify.ps1`（记录制） | 打开无修复弹窗、另存后 `stCxn/endCxn` 与形状 id 集合存活、移动任务条后 connector `xfrm` 重算；**返工四类图元**在三态逐类计数一致（[addendum](evidence/template-a-demo-roundtrip-addendum.md)） | **不进**（需本机 WPS，P-9/P-17 口径） |
 | ⑨ 人工复验 | 维护者按 A/B 清单走查 | 浏览器三格式导出 + WPS 真机拖动；**三轮复验全部通过**（[P-37](../../docs/00-baseline/裁决R36.md) → [P-38](../../docs/00-baseline/裁决R37.md) → [P-39](../../docs/00-baseline/裁决R38.md) **验证通过**） | **不进**（人工） |
 

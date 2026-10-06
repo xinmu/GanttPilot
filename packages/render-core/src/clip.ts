@@ -24,7 +24,7 @@
  *   G4-S 实测元素数在 10× 规模跨度上增长 **10.71×**——判据"与规模解耦"靠它才有判别力。
  */
 
-import type { DocumentLink } from '@ganttpilot/engine';
+import type { DayNumber, DocumentLink } from '@ganttpilot/engine';
 
 import type { ZoomKey } from './manifest.js';
 
@@ -161,11 +161,49 @@ export function selectEdges(args: {
 
 // ---------------------------------------------------------------- 轴（第三维裁剪）
 
-/** 轴元素：非工作日色带 / 网格线 / 刻度标签。 */
+/**
+ * 轴元素（ADR 0007 §11 第 6 项 + [附录 §3](../…/docs/02-adr/附录/0007-增补.md) 的两级刻度）。
+ *
+ * ## 两级结构（P-46 增补）
+ *
+ * 刻度从**一级**改为**两级**：
+ *
+ * - **下级**（`level: 2`，缺省即此）：既有语义一字未改——日档每天、周档周一、月档 1 日，
+ *   各发一对 `gridline` + `label`；
+ * - **上级**（`level: 1`）：按**分段带**表达——**段内只在左端**发一次文本（`label`）、
+ *   一条自带左竖线的 `major-band`。日/周档上级标签取 `YYYY-MM`、月档取 `YYYY`。
+ *   **段与下级刻度同 x 时不再重复发 `gridline`**（一次绘制画两条线没有意义，且会让
+ *   `c₃` 与 DOM 两路计数对不上）。
+ *
+ * 两级元素**共用同一处水平窗口裁剪**（§11.1 ③）——这是"`c₃` 仍与文档总规模无关"的前提。
+ *
+ * ## `hover-band`（P-46 §2.2：指针所在整行的浅色高亮）
+ *
+ * 它是**每帧固定开销**的那 1 个覆盖层元素（`c₄` 的 `overlay` 项），由 `buildAxis` 在最后追加
+ * （`row` 由调用方给出）。**画在窗口坐标**（`x = 0 .. width`）：行高亮是"当前可视行"的概念，
+ * 放进内容滚动组会随内容滚动、并再叠一次 `−scrollTop`（[ADR 0007 §14.3](../…/docs/02-adr/0007-渲染几何与裁剪契约.md) 的同源陷阱）。
+ */
 export type AxisElement =
-  | { readonly kind: 'band'; readonly x: number; readonly width: number }
+  /** 非工作日色带（极大连续段）；`level: 2` = 下级（缺省）。 */
+  | { readonly kind: 'band'; readonly x: number; readonly width: number; readonly level?: 2 }
   | { readonly kind: 'gridline'; readonly x: number }
-  | { readonly kind: 'label'; readonly x: number; readonly text: string };
+  /** 下级刻度文本（既有语义不变）。 */
+  | { readonly kind: 'label'; readonly x: number; readonly text: string; readonly level?: 2 }
+  /** 上级刻度文本（分段带的左端，段内只发一次）。 */
+  | { readonly kind: 'label'; readonly x: number; readonly text: string; readonly level: 1 }
+  /**
+   * 上级分段带：`x` = 段左边界、`width` = 段宽（**允许越过绘制区右缘**，由消费方裁剪——
+   * 与既有 `band` 同口径）。左边界即该段的竖线，因此**不再单独发 `gridline`**。
+   */
+  | { readonly kind: 'major-band'; readonly x: number; readonly width: number; readonly level: 1 }
+  /** 指针所在整行的浅色行带（覆盖层；**窗口坐标**，由视口宽给宽、由可视行高给高）。 */
+  | {
+      readonly kind: 'hover-band';
+      readonly x: number;
+      readonly width: number;
+      readonly y: number;
+      readonly height: number;
+    };
 
 /** 轴元素计算所需的日历面（`Calendar` 的结构子集，便于测试注入最小实现）。 */
 export interface AxisCalendarLike {
@@ -179,15 +217,36 @@ function weekdayOf(day: number): number {
 }
 
 /**
- * 轴与刻度（ADR 0007 §3 / §11 第 6 项）：自然日连续，非工作日照常占位并视觉区分。
+ * 上级分段的键（**纯字符串切分，不做第二套日期算术**）。
+ *
+ * 日/周档取 `YYYY-MM`、月档取 `YYYY`——即 [ADR 0007 附录 §3](../…/docs/02-adr/附录/0007-增补.md) 的定值。
+ */
+function majorKeyOf(iso: string, zoom: ZoomKey): string {
+  return zoom === 'month' ? iso.slice(0, 4) : iso.slice(0, 7);
+}
+
+/** 下级刻度的判据与标签（ADR 0007 §11 第 6 项：日档 `DD`、周档 `MM-DD`、月档 `YYYY-MM`）。 */
+function tickLabelOf(calendar: AxisCalendarLike, day: number, zoom: ZoomKey): string | null {
+  const iso = calendar.isoOfDay(day);
+  if (zoom === 'day') return iso.slice(8);
+  if (zoom === 'week') return weekdayOf(day) === 1 ? iso.slice(5) : null;
+  return iso.endsWith('-01') ? iso.slice(0, 7) : null;
+}
+
+/**
+ * 轴与刻度（ADR 0007 §3 / §11 第 6 项 + 附录 §3 的两级结构）：自然日连续，
+ * 非工作日照常占位并视觉区分。
  *
  * **水平裁剪在这里发生**（§11.1 ③）：
  * - 非工作日色带**合并成极大连续段**（一个 `<rect>` 代表一段，而不是一天一个）；
- * - 网格线与标签按档位步进（日档每天、周档周一、月档 1 日）；
+ * - 下级网格线与标签按档位步进（日档每天、周档周一、月档 1 日）；
+ * - 上级刻度按**分段带**表达（段内只在左端发一次文本）；
  * - 只发射落在视口 x 范围内的元素（色带的判据 `x + width >= 0 && x <= width`，
  *   刻度与标签的判据 `x >= -1 && x <= width + 1`）。
  *
- * 标签格式（§11 第 6 项）：日档 `DD`、周档 `MM-DD`（取周一）、月档 `YYYY-MM`（取 1 日）。
+ * **顺序即绘制顺序**（消费方按序发射）：下级色带 → 下级网格线 → 下级标签 → 上级分段带 → 上级标签；
+ * `hoverRow` 给定时**最后**追加一个 `hover-band`（覆盖层，画在各层之下还是要由消费方定序，
+ * 本函数只负责"它在轴元素里、计数为 1"）。
  */
 export function buildAxis(args: {
   readonly calendar: AxisCalendarLike;
@@ -196,6 +255,10 @@ export function buildAxis(args: {
   readonly scrollLeft: number;
   readonly width: number;
   readonly zoom: ZoomKey;
+  /** 指针所在的**渲染行序号**（`null` = 无高亮）。它决定 `hover-band` 的 `y`。 */
+  readonly hoverRow?: number | null;
+  /** 行高（`hover-band` 的 `height`；缺省 0 时**不发射**，避免零高元素混进计数）。 */
+  readonly rowHeight?: number;
 }): readonly AxisElement[] {
   const { calendar, axisOriginDay, pxPerDay, scrollLeft, width, zoom } = args;
   const elements: AxisElement[] = [];
@@ -217,17 +280,69 @@ export function buildAxis(args: {
     if (x + bandWidth >= 0 && x <= width) elements.push({ kind: 'band', x, width: bandWidth });
   }
 
+  // 下级刻度：网格线 + 文本（**先发**，上级分段带据此判重）。
+  const tickX = new Set<number>();
   for (let tick = dayFrom; tick <= dayTo; tick += 1) {
-    const isTick =
-      zoom === 'day' ? true : zoom === 'week' ? weekdayOf(tick) === 1 : calendar.isoOfDay(tick).endsWith('-01');
-    if (!isTick) continue;
+    const label = tickLabelOf(calendar, tick, zoom);
+    if (label === null) continue;
     const x = toX(tick);
     if (x < -1 || x > width + 1) continue; // 水平裁剪
-    const iso = calendar.isoOfDay(tick);
-    const label = zoom === 'day' ? iso.slice(8) : zoom === 'week' ? iso.slice(5) : iso.slice(0, 7);
+    tickX.add(x);
     elements.push({ kind: 'gridline', x });
-    elements.push({ kind: 'label', x, text: label });
+    elements.push({ kind: 'label', x, text: label, level: 2 });
   }
+
+  // 上级分段带（P-46）：段内只在左端发一次文本；段的左边界即竖线（与下级刻度同 x 则不重复发）。
+  let segmentStart: DayNumber | null = null;
+  let segmentKey = '';
+  let segmentLabel: string | null = null;
+  const pushSegment = (endDayExclusive: DayNumber): void => {
+    if (segmentStart === null || segmentLabel === null) return;
+    const x = toX(segmentStart);
+    const segmentWidth = (endDayExclusive - segmentStart) * pxPerDay;
+    if (x + segmentWidth >= 0 && x <= width) {
+      elements.push({ kind: 'major-band', x, width: segmentWidth, level: 1 });
+      if (x >= -1 && x <= width + 1) {
+        if (!tickX.has(x)) elements.push({ kind: 'gridline', x });
+        elements.push({ kind: 'label', x, text: segmentLabel, level: 1 });
+      }
+    }
+    segmentStart = null;
+    segmentLabel = null;
+  };
+  for (let tick = dayFrom; tick <= dayTo + 1; tick += 1) {
+    const iso = tick <= dayTo ? calendar.isoOfDay(tick) : null;
+    const key = iso === null ? null : majorKeyOf(iso, zoom);
+    if (segmentStart === null) {
+      if (key === null) continue;
+      segmentStart = tick;
+      segmentKey = key;
+      segmentLabel = key;
+      continue;
+    }
+    if (key === segmentKey) continue;
+    pushSegment(tick);
+    if (key !== null) {
+      segmentStart = tick;
+      segmentKey = key;
+      segmentLabel = key;
+    }
+  }
+  pushSegment(dayTo + 1);
+
+  // 指针所在整行的浅色行带（P-46 §2.2；窗口坐标、每帧 1 个元素）。
+  const hoverRow = args.hoverRow ?? null;
+  const rowHeight = args.rowHeight ?? 0;
+  if (hoverRow !== null && rowHeight > 0) {
+    elements.push({
+      kind: 'hover-band',
+      x: 0,
+      width,
+      y: hoverRow * rowHeight,
+      height: rowHeight,
+    });
+  }
+
   return elements;
 }
 

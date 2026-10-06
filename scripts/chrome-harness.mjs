@@ -32,6 +32,8 @@ export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** `tmp/` 下允许被用于无头 Chrome 的 profile 根（**白名单**：不是任意目录）。 */
 export const PROFILE_ROOT_NAMES = [
   'smoke-profile',
+  /** `smoke:build --file`（离线单文件，P-49）用的 profile 根；与在线产物分开，便于并行取证。 */
+  'offline-profile',
   'measure-chrome-profile',
   'ui-shot-profile',
   'batch-c-profile',

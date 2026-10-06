@@ -30,11 +30,15 @@ const props = defineProps<{
   readonly exportPngScale: number;
   readonly exportWithSidebar: boolean;
   readonly exporting: boolean;
+  /** 模板生成中（P-46 的「模板下载」）。 */
+  readonly templateBusy: boolean;
 }>();
 
 const emit = defineEmits<{
   readonly zoom: [zoom: ZoomKey];
   readonly importFile: [file: File];
+  /** 下载导入模板（P-46）：字节由协议层运行时生成。 */
+  readonly template: [];
   readonly reset: [];
   readonly toggleTable: [];
   readonly undo: [];
@@ -99,6 +103,17 @@ void props;
       accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
       @change="onFileChange"
     >
+
+    <button
+      type="button"
+      class="action"
+      data-template
+      :disabled="templateBusy"
+      title="下载导入模板（三个页签：任务 / 填写说明与约束 / 最小示例）：运行时由协议层生成，页签与列序与导入契约同源"
+      @click="emit('template')"
+    >
+      {{ templateBusy ? '生成中…' : '模板下载' }}
+    </button>
 
     <button
       type="button"

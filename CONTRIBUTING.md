@@ -79,7 +79,7 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 
 | 命令 | 作用 |
 |---|---|
-| `pnpm gate` | **本地合并门禁**：lint → typecheck → test → build → smoke:build → license:check → docs:check，任一步失败即阻断 |
+| `pnpm gate` | **本地合并门禁**：lint → typecheck → test → build → smoke:build → bundle:offline → smoke:build:file → license:check → docs:check，任一步失败即阻断 |
 | `pnpm lint` | ESLint（含三包零框架/零 DOM 铁律） |
 | `pnpm typecheck` | `tsc --noEmit`（包）与 `vue-tsc --noEmit`（应用） |
 | `pnpm test` | Vitest（纯函数测试）；缩小范围用 `pnpm vitest run packages/engine`（从仓库根执行） |
@@ -99,7 +99,10 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 | `pnpm notices:write` | 刷新 `THIRD_PARTY_NOTICES.md`（生成物，需一并提交） |
 | `pnpm dev` | 启动 `apps/web` 开发服务器（**开发用；数字不进证据**） |
 | `pnpm build` + `pnpm preview` | **预览打包产物**（人工复验口径）：先构建，再用 HTTP 服务器打开。**不要直接打开 `dist/index.html`**——`file://` 下浏览器拒绝加载 ES module（CORS）⇒ 页面空白 |
-| `pnpm smoke:build` | **打包产物冒烟**（**进 `pnpm gate`**）：HTTP 伺服 `dist/` + 无头 Chrome 断言"无应用级错误 + 标题/工具栏/图表窗格/SVG/状态栏那几处都渲染了" |
+| `pnpm smoke:build` | **打包产物冒烟**（**进 `pnpm gate`**）：HTTP 伺服 `dist/` + 无头 Chrome 断言"无应用级错误 + 标题/工具栏/图表窗格/SVG/状态栏那几处都渲染了"，**并且**真的点三次导出、校验落盘；**G8 起另加四组应用层判据**（两级刻度 / 悬停行高亮 / 模板下载→回导 / 向右拖远不白屏） |
+| `pnpm bundle:offline` | **离线单文件产物 + 形状判据**（**进 `pnpm gate`**）：`vite build --config bundle.config.ts` → 把外链 module 与样式**内联**成一个 HTML → 断言"目录里恰好一个文件、零外链、零 `assets/` 引用"（P-49 §2/§3） |
+| `pnpm smoke:build:file` | **`file://` 冒烟**（**进 `pnpm gate`**）：以 `file://` 打开单文件产物，断言"无应用级错误 + **导入/拖动/导出三条主链路各走一次**（含真实落盘）"，并如实登记 IndexedDB 可用性（P-49 §3 判据 2） |
+| `pnpm probe:offline` | **单文件产物的记录制探针**（**不进 `pnpm gate`**）：回答 P-49 §3 的四个问题（IndexedDB / 下载 / 体积与首屏 / 断网三链路），写 `apps/web/evidence/offline-single-file-<Chrome 主版本>.md` + `-raw.json` |
 | `node scripts/measure-render.mjs --persist-drag` | **G6 持久化拖拽测量**（记录制）：开/关自动保存**两组同尺**，写帧间隔 p95、拖动期写入次数（期望 0）、松手 → 落盘，写 `apps/web/evidence/persist-drag-timing-chrome<大版本>.md` |
 | `node scripts/measure-render.mjs --storage-metrics` | **G6 存储测量**（记录制，**2,000 任务**）：整份文档体积/序列化耗时、增量记录体积、单条 `put` p50/p95、`estimate()` 用量，写 `apps/web/evidence/persist-storage-2000-chrome<大版本>.md` |
 
@@ -198,6 +201,12 @@ pnpm gate             # 跑一次完整门禁，确认环境可用
 缺 Python 3 即失败）、**性能**（`schedule.performance.spec.ts`，1,000/1,500 全量
 **p50 ≤ 1 ms 且 p99 ≤ 2 ms**——口径见 [ADR 0004 附录 §1](docs/02-adr/附录/0004-增补.md)：
 中位数管"实现退化"、尾部管"并行争用"；**别再把它当单值 `p99 ≤ 1 ms` 去调**）。
+**若它红了，先分清两件事**（G8 落地时踩到并已收口）：
+① **实现退化** ⇒ p50 也会跟着涨（朴素实现慢 2.4–3.0×），那是真回归；
+② **并行争用** ⇒ 只有 p99 飘（安静态 p99 约 0.5 ms，满负载曾到 3.07 ms），
+那是环境而不是代码——判别方法是**单独跑该 spec**（`pnpm vitest run packages/engine/src/schedule.performance.spec.ts`）。
+这一条已经通过**配置层隔离**（`vitest.config.ts` 的 `maxWorkers: 2`，P-38 的候选①）压住；
+**动作永远是"隔离 / 限并行"，不是"放宽数值"**（P-38 的纪律）。
 改语义前先看这些用例为什么那样写；`perfHarness.spec.ts` 里的朴素实现是**性能负向对照**，
 若它与快实现的差距量不出来（<1.5×），说明计时骨架失效。
 
@@ -407,6 +416,42 @@ Vite 因此报一条 `INEFFECTIVE_DYNAMIC_IMPORT`；该静态边已随所有权�
 "不可排程"占位，写 `apps/web/evidence/import-cyclic-sample-chrome<大版本>.md`。
 成环边**丢弃**的语义由 `packages/xlsx-protocol/src/xlsxDependencies.spec.ts` 在门禁里覆盖；
 记录制守的是**应用层那一遍**（P-21 遗留 3 / P-22）。
+
+## G8 的发布面（两级刻度 / 悬停行带 / 模板 / 离线单文件）——必须遵守
+
+这一块的四件事都**跨投影或跨产物**，改动面比看起来大。改之前请先读
+[ADR 0007 附录 §3](docs/02-adr/附录/0007-增补.md)（两级刻度的结构口径）、
+[ADR 0006 附录 §1](docs/02-adr/附录/0006-增补.md)（模板的多页签形态）与
+[P-49](docs/00-baseline/裁决R47.md)（单文件分发的方案与判据）。最容易踩的七条：
+
+1. **两级刻度是"一个带子里的两行"，基线只有一个声明处**：
+   `packages/render-core/src/manifest.ts` 的 `MINOR_LABEL_BASELINE_PX` / `MAJOR_LABEL_BASELINE_PX`
+   与 `HEADER_HEIGHT_PX`。**屏幕 SVG、导出 SVG、PPTX 三处都从这里取**——
+   任何一处自己写死数字，就是"所见 ≠ 所导出"，而它**不会**被任何单测抓到（三处都"各自自洽"）；
+2. **上级分段带与下级刻度同 x 时不得重复发 `gridline`**：`buildAxis` 用真实的 `x` 值判重。
+   重复发会让 `c₃` 与 DOM 两路计数对不上（`countElements` vs `countElementsByEnumeration`），
+   而那个断言是"计数不是恒真式"的唯一保险；
+3. **`c₃` 的锚值是"实测值"不是"选的"**：两级刻度后逐档位为 **122 / 89 / 94**
+   （`clipping.spec.ts`）。改了轴元素就**重锚**它，并确认
+   `scaleInvariance.spec.ts` 的"同档位 `c₃` 恒定"仍成立（上级段共用同一处水平窗口裁剪）；
+4. **悬停行带是 `overlay` 项，不是 `c₃` 项**：它住在 `view.axis` 里（`kind: 'hover-band'`，窗口坐标），
+   **必须**在 `countElements` 里被**排除出** `c₃`、并被 `countOverlays` 计入一次
+   （`hoverRowOf(view)` 是它的唯一输入来源）。**两路计数都要同步**，否则会双重计数或漏计；
+   **不得**在 `GanttChart.vue` 的逐行模板里加 `rect`（那会进逐行 diff 路径、并与 `c₄` 的口径打架）；
+5. **模板的文件形态是契约**：页签集合与顺序由 `TEMPLATE_SHEET_ORDER` 单点声明，
+   `任务` 页**必须**由 `exportXlsx` 的产物搬运而来（**不得手抄表头/列序/依赖文本**——
+   那就是第二份真相源，而"模板与协议随时对齐"正是它的验收目标）；**不新增诊断码**；
+6. **离线单文件的内联必须保留 `type="module"`**：去掉它会让产物在 `file://` 下直接白屏
+   （`import.meta` 语法错误）。四组对照见 `scripts/bundle-offline.mjs` 的文件头；
+   **两套产物两张账**：单文件变体不适用"首屏主 chunk 不含 `exceljs`/`pptxgenjs`"那条断言
+   （它必须内联），而**在线产物的那条断言照旧**；
+7. **`file://` 的两条实测结论不得被"想当然"改写**：IndexedDB **可用**、下载**可落盘**；
+   若某个浏览器策略下不可用，**产品必须明示降级**（"本次会话不自动保存"/提示另存），
+   并且要**下一轮重跑探针重新登记**（`pnpm probe:offline`），不得静默假成功。
+
+**记录制实测**：`pnpm probe:offline`（先 `pnpm bundle:offline`；缺 Chrome 即失败）。
+它按 P-49 §3 的四个问题逐条给结论并写 `apps/web/evidence/offline-single-file-<Chrome 主版本>.md`；
+门禁侧对应的两条是 `pnpm bundle:offline`（形状）与 `pnpm smoke:build:file`（三链路）。
 
 ## 提交约定
 

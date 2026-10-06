@@ -317,9 +317,16 @@ describe('轴与刻度（ADR 0007 §3 + §11.1 ③ 水平窗口裁剪）', () =>
           zoom,
         });
         for (const element of axis) {
-          if (element.kind === 'band') {
+          // 色带与**上级分段带**（P-46）的判据不是"起点在视口内"，而是"**与视口相交**"：
+          // 它们的起点可以在视口左侧（段被左边界截断），宽度也可以越出右缘——这符合
+          // §11.1 ③ 的口径（"合并成极大连续段"必然跨边界），而"不发射视口外的元素"由这条相交判据承担。
+          if (element.kind === 'band' || element.kind === 'major-band') {
             expect(element.x).toBeLessThanOrEqual(width);
             expect(element.x + element.width).toBeGreaterThanOrEqual(0);
+          } else if (element.kind === 'hover-band') {
+            // 覆盖层：窗口坐标、整幅宽（P-46 §2.2），与水平裁剪无关。
+            expect(element.x).toBe(0);
+            expect(element.width).toBe(width);
           } else {
             expect(element.x).toBeGreaterThanOrEqual(-1);
             expect(element.x).toBeLessThanOrEqual(width + 1);

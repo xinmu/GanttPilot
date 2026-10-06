@@ -62,6 +62,8 @@ export interface UseChart {
   readonly contentHeight: ComputedRef<number>;
   /** 最近一次编辑的受影响行/边（ADR 0007 §8 的"不整表重建"通道）。 */
   readonly affected: Ref<{ readonly rows: readonly number[]; readonly edges: readonly number[] } | null>;
+  /** 指针所在的**可见行序号**（P-46 §2.2 的悬停行带；`null` = 不高亮）。 */
+  readonly hoverRow: Ref<number | null>;
   setZoom: (next: ZoomKey) => void;
   handleScroll: () => void;
   /** 标记一次编辑：计算受影响子图（纯函数），供重绘通道使用。 */
@@ -71,7 +73,16 @@ export interface UseChart {
 export function useChart(args: {
   readonly document: Ref<ProjectDocument>;
   readonly schedule: ComputedRef<Schedule | null>;
+  /** `compute` 的**入参**日历（`createScheduleCalendar(已提交文档)`）。 */
   readonly calendar: ComputedRef<Calendar>;
+  /**
+   * `compute` **交出的**日历（ADR 0005 附录 §1／裁决 P-48）：几何一律用它。
+   *
+   * 入参与结果必须分开传（而不是在内部二选一）：`ordinalAtX` 这类纯函数的公开签名收的是
+   * "能把序号翻译成日期的日历"，而拖动预览喂的文档与入参日历容量可能分叉——把选择写死在
+   * 调用方，才不会有第二个口径。
+   */
+  readonly renderCalendar: ComputedRef<Calendar>;
   readonly initialZoom?: ZoomKey;
 }): UseChart {
   const paneRef = ref<HTMLElement | null>(null);
@@ -80,6 +91,8 @@ export function useChart(args: {
   const scrollLeft = ref(0);
   const paneWidth = ref(1280);
   const paneHeight = ref(640);
+  /** 指针所在的**可见行序号**（P-46 的悬停行带；`null` = 不高亮）。 */
+  const hoverRow = ref<number | null>(null);
   const affected = shallowRef<{ rows: readonly number[]; edges: readonly number[] } | null>(null);
 
   const viewport = computed<Viewport>(() => ({
@@ -98,10 +111,14 @@ export function useChart(args: {
     return buildView({
       document: args.document.value,
       schedule,
-      calendar: args.calendar.value,
+      // **几何用 `compute` 交出的那份日历**（P-48）：拖动预览喂的是另一份文档，
+      // 用入参日历翻译它的完成序号会抛 `RangeError` ⇒ Vue 卸载整棵树 ⇒ 整页空白。
+      calendar: args.renderCalendar.value,
       viewport: viewport.value,
       zoom: zoom.value,
       clipMode: 'intersect',
+      // 悬停行带（P-46 §2.2）：交互态只影响 `view.axis` 里那 1 个覆盖层元素。
+      hoverRow: hoverRow.value,
     });
   });
 
@@ -175,6 +192,7 @@ export function useChart(args: {
     contentWidth,
     contentHeight,
     affected,
+    hoverRow,
     setZoom,
     handleScroll,
     markEdited,

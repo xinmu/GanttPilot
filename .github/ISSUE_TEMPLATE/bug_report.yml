@@ -1,0 +1,89 @@
+name: Bug 报告
+description: 报告一个可复现的缺陷（渲染 / 导入 / 拖动 / 导出 / 持久化）
+title: '[bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。为了能复现，请尽量把下面每一项都填上。
+
+        **两条硬要求**（[P-40](https://github.com/) 定的复核口径，缺了它们缺陷通常无法闭环）：
+
+        1. **请在打包产物上复现**（`pnpm build && pnpm preview`）——`pnpm dev` 下的现象必须在打包产物上重现才计入报文；
+        2. **附上你的 xlsx 样本**（或用工具栏「**模板下载**」生成的那份改成能复现的最小形态）。
+           没有样本时，"导入相关"的问题基本只能靠猜。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 实际发生了什么
+      description: 现象 + 你期望发生什么。有截图/录屏更好。
+      placeholder: 例如：拖动任务条向右之后，整个页面变成空白，刷新才恢复。
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 一步一步写。第 1 步请从"打开页面"开始。
+      placeholder: |
+        1. `pnpm build && pnpm preview`，打开打印出来的 URL
+        2. 点「导入 xlsx」选择附件里的样本
+        3. 把第 3 行的条体向右拖约 10 个格子
+        4. 松手 ⇒ 页面空白
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: `git rev-parse --short HEAD` 的输出，或你下的 release 标签
+      placeholder: 例如：6ee892f
+    validations:
+      required: true
+
+  - type: dropdown
+    id: artifact
+    attributes:
+      label: 你用的是哪份产物
+      options:
+        - 打包产物（`pnpm build && pnpm preview`）
+        - 离线单文件（`node scripts/bundle-offline.mjs` 产出、双击打开）
+        - `pnpm dev`（开发服务器；**请尽量改在打包产物上复现**）
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: 浏览器与操作系统
+      placeholder: 例如：Chrome 154 / Windows 11 24H2（DPR 1）
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 诊断清单里的条目（如果是导入/排程相关问题）
+      description: 工具栏点「诊断」→ 复制条目（`码 + 文案`）。这三层分别是协议层 / 文档校验层 / 排程层。
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: sample
+    attributes:
+      label: xlsx 样本
+      description: 直接把这个文件拖进输入框上传（**.xlsx 是二进制，请不要粘贴成文本**）。涉及隐私时请先删掉真实项目名。
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        > **已知限制不重复受理**：PowerPoint / Keynote / Microsoft Excel / Google Sheets **未验证、不承诺**；
+        > 触屏与移动端**不在 v0.1 范围**；`.mpp` 与 MS Project 互操作**永不做**。
+        > 完整清单见 README 的「明确不做（非目标）」与「已知限制」。

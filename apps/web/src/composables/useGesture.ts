@@ -53,7 +53,18 @@ export interface UseGestureArgs {
   readonly view: ComputedRef<ViewModel | null>;
   readonly document: Ref<ProjectDocument>;
   readonly schedule: ComputedRef<Schedule | null>;
+  /** `compute` 的**入参**日历（`createScheduleCalendar(已提交文档)`）。 */
   readonly calendar: ComputedRef<Calendar>;
+  /**
+   * `compute` **交出的**日历（ADR 0005 附录 §1／裁决 P-48）：手势内核一律用它。
+   *
+   * 为什么手势也要它：内核的入参里既有"文档"也有"日历"，而**拖动期的文档是未提交副本**
+   * （`previewPatch` ⇒ `compute` 用另一份文档重算）⇒ 那份文档的 `renderCalendar` 才是
+   * "这一帧的序号在哪份日历里可翻译"的答案。用已提交文档的日历会把候选夹早、并在
+   * `resolveDragOutcome` 的 ISO 翻译处越界（那两个函数都是有 `try` 的安全层，于是缺陷会
+   * 表现为"拖不动"而不是报错——更难查）。
+   */
+  readonly renderCalendar: ComputedRef<Calendar>;
   /** 落库（命令层唯一通道）。 */
   readonly dispatch: (command: {
     readonly kind: 'task.update';
@@ -142,7 +153,7 @@ export function useGesture(args: UseGestureArgs): UseGesture {
     const view = args.view.value;
     const schedule = args.schedule.value;
     if (view === null || schedule === null) return null;
-    return { view, document: args.document.value, schedule, calendar: args.calendar.value };
+    return { view, document: args.document.value, schedule, calendar: args.renderCalendar.value };
   }
 
   /** 把内核产出落到会话与高亮（唯一的"副作用"集中点）。 */

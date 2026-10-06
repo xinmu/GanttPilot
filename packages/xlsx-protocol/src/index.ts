@@ -18,14 +18,24 @@
 export const XLSX_PROTOCOL_VERSION = '0.0.0';
 
 /** 本包最新完成的能力块编号（与 engine 同语义：它是"最新一个"，完整清单见 `COMPLETED_GATES`）。 */
-export const PLANNED_GATE = 'G3' as const;
+export const PLANNED_GATE = 'G8' as const;
 
 /** 已落地能力块清单。 */
-export const COMPLETED_GATES = ['G3'] as const;
+export const COMPLETED_GATES = ['G3', 'G8'] as const;
 
 // ---------------------------------------------------------------- 公共 API
 export { detectColumns, importCsv, importXlsx, type ImportResult } from './import.js';
 export { exportXlsx, formatDependencyText, NUM_FMT_DATE, NUM_FMT_PROGRESS, type ExportOptions, type ExportResult } from './export.js';
+// 模板文件（多页签 xlsx；P-46／ADR 0006 附录 §1）：**运行时生成**，仓库内不放二进制。
+export {
+  buildTemplateXlsx,
+  TEMPLATE_GUIDE_LINES,
+  TEMPLATE_SHEET_GUIDE,
+  TEMPLATE_SHEET_ORDER,
+  TEMPLATE_SHEET_SAMPLE,
+  TEMPLATE_SHEET_TASK,
+  type TemplateResult,
+} from './template.js';
 
 // ---------------------------------------------------------------- 列契约
 export {

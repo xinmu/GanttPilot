@@ -67,20 +67,55 @@ export const ROW_BUFFER = 5;
 export const WHEEL_NOTCH_PX = 100;
 
 /**
- * 两栏**表头带**的外高（px）。ADR 0007 §14（裁决 P-23）。
+ * 两栏**表头带**的外高（px）。ADR 0007 §14（裁决 P-23）；**两级刻度起上调**（P-46 增补 §3）。
  *
  * 它不是"由判据推出的数值"——它的**判据是"两栏表头外高实测相等"**（左表表头与图表表头带同高），
  * 由 {@link diagnoseRowAlignment} 的 `headerAligned` 与
  * `node scripts/measure-render.mjs --align` 的记录制证据守住。
+ *
+ * **28 → 40 的来历**：刻度行按 [ADR 0007 附录 §3](../../docs/02-adr/附录/0007-增补.md) 改为**两级**，
+ * 带内因此要容下**两行文本**（下级刻度在上、上级分段带的标签在下）。40 px 的分配是
+ * "上 0–20 px 归下级标签、下 20–40 px 归上级标签（基线 33）"，两行各留出 10 px 字号的余量；
+ * 它是一个**视觉取值**（判据只要求两栏相等、且刻度文本整体落在带内）。
  *
  * 用途（**唯一来源**）：`TaskTable.vue` 的表头与表体高、`App.vue` 的图表表头带、`useChart` 的
  * `columnHeight`。两栏因此共享同一条行屏幕几何
  * `列顶 + HEADER_HEIGHT_PX + row × ROW_HEIGHT − scrollTop`（ADR 0007 §14）。
  *
  * **不进元素预算**：它是 HTML 布局的一部分，不产生任何 SVG 元素（`c₁`/`c₂`/`c₃`/`c₄` 都不动）。
- * 两栏都必须 `box-sizing: border-box`——否则"28 + 1 px 边框"与"−28"会差 1 px。
+ * 两栏都必须 `box-sizing: border-box`——否则"40 + 1 px 边框"与"−40"会差 1 px。
  */
-export const HEADER_HEIGHT_PX = 28;
+export const HEADER_HEIGHT_PX = 40;
+
+/**
+ * 上级刻度（分段带）与悬停行带的两条**颜色**常量（P-46 §2.2／§3）。
+ *
+ * 两条都必须与既有色系**区分开**，否则判据（与）目视都会失效：
+ *
+ * | 用途 | 值 | 为什么不是别的 |
+ * |---|---|---|
+ * | 上级分段带 | `#eef1f5` | 与**周末/假日色带** `#f4f6f8` 区分——否则"周末"与"上级段"混为一色（P-37 的"背景层先注入"同口径） |
+ * | 上级段边线 | `#d0d5dd` | 与**网格线** `#e4e7ec` 区分：上级段的边界是"月的边界"，比网格线更醒目 |
+ * | 悬停行带 | `#e8f1fb` | 浅蓝（与条体 `#2e75b6` 同色系、但远浅）；与上面两条灰/蓝灰**都**不同 |
+ *
+ * 三处一律从这里取值：屏幕 SVG（`GanttChart.vue`）、导出 SVG（`svgExport.ts`）、左表 CSS
+ * （`TaskTable.vue` 的 `.row:hover` 需要同值，写在 CSS 里但注释指向本常量）。
+ */
+export const AXIS_MAJOR_FILL = '#eef1f5';
+export const AXIS_MAJOR_EDGE = '#d0d5dd';
+export const HOVER_ROW_FILL = '#e8f1fb';
+
+/**
+ * 两级刻度的**文本基线**（表头带内的 y，px；**屏幕 SVG 与导出 SVG 共用同值**）。
+ *
+ * 两级刻度是"一个带子里的两行文本"，因此基线必须有单点声明——否则屏幕画在上半、
+ * 导出画在下半，"所见 = 所导出"当场破裂（三者同源是 ADR 0007 §2 的铁律）。
+ *
+ * 与 `HEADER_HEIGHT_PX = 40` 的关系：上级段是带内**下半**的主体（基线 33，字号 10），
+ * 下级标签在**上半**（基线 17）。两者间距 16 px > 字号，因此不重叠。
+ */
+export const MINOR_LABEL_BASELINE_PX = 17;
+export const MAJOR_LABEL_BASELINE_PX = 33;
 
 /**
  * 轴线左侧留白（**天数**，不是像素）——SS/SF"左出回绕"走线的空间（ADR 0007 §3）。
@@ -295,14 +330,20 @@ export const CONNECT_REVEAL_FACTOR = 2;
  * | 项 | 值 | 何时发射 |
  * |---|---|---|
  * | `perRenderedRow` | **6** | **每渲染行**：条/菱形 1 + 进度 1 + 端点手柄 2（仅非汇总、非里程碑）+ 连接点 2 |
- * | `overlay` | **12** | **每帧固定**：拖动轮廓（1）+ 起止标记（2）+ 建线预览（2）+ 冲突描边（1）+ 成环/选中高亮（≤ 6） |
+ * | `overlay` | **13** | **每帧固定**：拖动轮廓（1）+ 起止标记（2）+ 建线预览（2）+ 冲突描边（1）+ 成环/选中高亮（≤ 6）+ **悬停行带（1，P-46）** |
  *
  * 于是预算写成（与 `count.ts` 同式）：
  *
  * ```
  * #elements ≤ (c₁ + perRenderedRow)·rows + c₂·edges + c₃ + overlay
- * c₄(rows)  = perRenderedRow · rows + overlay = 6 · rows + 12
+ * c₄(rows)  = perRenderedRow · rows + overlay = 6 · rows + 13
  * ```
+ *
+ * **`overlay = 13` 的来历**（P-46 §2.2 的预算登记）：指针所在整行的**浅色行带是 1 个覆盖层元素**
+ * （`buildAxis` 的 `hover-band`，画在窗口坐标、不随内容滚动）。它是**每帧固定开销**，
+ * 因此进的是 `overlay` 而不是 `perRenderedRow`——**不得**在 `drawnRows` 的逐行模板里加 `rect`
+ * （那会把它塞进逐行 diff 路径，并与"每帧固定开销"的口径打架）。左表那半是**纯 CSS `:hover`**，
+ * 零 SVG 元素、不进预算。
  *
  * **`perRenderedRow = 6` 的来历**（不是估的，是逐类点位相加的上界）：最"胖"的行是**有进度的叶子**——
  * 条 `<rect>` 1 + 进度 `<rect>` 1 + 端点手柄 `<line>` 2 + 连接点 `<rect>` 2 = **6**；
@@ -314,9 +355,10 @@ export const CONNECT_REVEAL_FACTOR = 2;
  * **维护纪律**：改 `GanttChart.vue` 的覆盖层/手柄模板必须同步这里的常数，
  * 并让 `countElements` 与 `countElementsByEnumeration` 继续逐项相等；
  * **负向对照**：把 `perRenderedRow` 改回 `0` 时，`apps/web` 的 DOM 互证必须报
- * 「实际 DOM 与元素模型不一致」（这正是"计数不是恒真式"的证据）。
+ * 「实际 DOM 与元素模型不一致」（这正是"计数不是恒真式"的证据）；把 `overlay` 改回 `12`
+ * 时，两路计数必须报"悬停行带没有被计入"（P-46 的 `hoverRow` 项）。
  */
-export const ELEMENT_MODEL_G5 = { perRenderedRow: 6, overlay: 12 } as const;
+export const ELEMENT_MODEL_G5 = { perRenderedRow: 6, overlay: 13 } as const;
 
 /** 视口默认值（测量口径的一部分：换视口必须重新登记数字）。 */
 export const VIEWPORT_DEFAULT = {
@@ -333,8 +375,9 @@ export const VIEWPORT_DEFAULT = {
 /**
  * 判据阈值。**单点声明**：任何"让测试变绿"的调整都必须改这里，因而必然留下 diff。
  *
- * `c₃` 的逐档位锚值（116 / 70 / 89）不在这里——它是**视口与夹具的函数**，
- * 由 spec 断言（与 G4-S 的 `clipping-report.md` 对齐），不是手选常量。
+ * `c₃` 的逐档位锚值（116 / 70 / 89，两级刻度前的单级口径）不在这里——它是**视口与夹具的函数**，
+ * 由 spec 断言（与 `clipping.spec.ts` 的实测锚对齐），不是手选常量。
+ * **两级刻度（P-46）后 `c₃` 同轮重锚**：见 `clipping.spec.ts` 的 `expectedC3`（本节不重复登记数值）。
  */
 export const THRESHOLDS = {
   /** S4-d：4 类箭头两两光栅化 Jaccard 距离的下限。 */

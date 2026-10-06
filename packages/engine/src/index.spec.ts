@@ -5,8 +5,8 @@ import * as engine from './index.js';
 describe('@ganttpilot/engine 公共入口', () => {
   it('导出 G1.1 的日历与日期算术 API 与包标识', () => {
     expect(engine.ENGINE_VERSION).toBe('0.0.0');
-    expect(engine.PLANNED_GATE).toBe('G6');
-    expect(engine.COMPLETED_GATES).toStrictEqual(['G1.1', 'G1.2', 'G1.3', 'G2', 'G6']);
+    expect(engine.PLANNED_GATE).toBe('G8');
+    expect(engine.COMPLETED_GATES).toStrictEqual(['G1.1', 'G1.2', 'G1.3', 'G2', 'G6', 'G8']);
 
     // G0 的兼容面必须保持可用。
     expect(typeof engine.countWorkdays).toBe('function');

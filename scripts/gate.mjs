@@ -35,7 +35,13 @@ const STEPS = [
   { name: 'build', args: ['build'] },
   // 打包产物冒烟：用 HTTP 伺服 dist/ 并用无头 Chrome 断言"没有应用级错误、界面真的渲染了"。
   // 放在 build 之后（它测的就是产物）；缺 Chrome 时**失败而不是跳过**（P-12 口径）。
+  // G8 起它同时承载 P-46/P-48 的四组应用层判据：两级刻度 + 悬停行高亮 + 模板下载→回导 +
+  // 向右拖远不白屏（这几件事都是 DOM 事实，按 P-40 的两条通道口径落在这里）。
   { name: 'smoke:build', args: ['smoke:build'] },
+  // **离线单文件分发**（P-49）：先出单文件产物（含形状判据），再以 `file://` 打开它跑三条主链路。
+  // 两步都在 `build` 之后；缺 Chrome 同样失败而不是跳过。
+  { name: 'bundle:offline', args: ['bundle:offline'] },
+  { name: 'smoke:build:file', args: ['smoke:build:file'] },
   { name: 'license:check', args: ['license:check'] },
   // 文档结构检查放最后：它最便宜，但只有在工作区内容确定之后判定才有意义
   // （检查的是磁盘上的链接、锚点、台账与体量，规范见 docs/DOC-SPEC.md）。
@@ -67,5 +73,5 @@ for (const [index, step] of STEPS.entries()) {
 }
 
 console.log(
-    '\n[gate] 全部通过：lint / typecheck / test / build / smoke:build / license:check / docs:check。',
+    '\n[gate] 全部通过：lint / typecheck / test / build / smoke:build / bundle:offline / smoke:build:file / license:check / docs:check。',
   );

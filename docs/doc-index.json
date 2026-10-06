@@ -9,7 +9,8 @@
     "baseline": 80,
     "evidence": 80,
     "spec": 60,
-    "root": 80
+    "root": 80,
+    "guide": 60
   },
   "archivePrefix": "裁决R",
   "register": "docs/00-baseline/裁决记录.md",
@@ -250,6 +251,24 @@
       "path": "docs/01-roadmap/首版-记录-G6-G8.md",
       "role": "record",
       "cap": "record"
+    },
+    {
+      "path": "docs/03-guide/导入与Excel准备.md",
+      "role": "guide",
+      "cap": "guide",
+      "note": "用户手册①：怎么准备 Excel、导入会给什么反馈（G8）"
+    },
+    {
+      "path": "docs/03-guide/依赖列语法与排程规则.md",
+      "role": "guide",
+      "cap": "guide",
+      "note": "用户手册②：前置任务列语法、四类关系、拖拽语义（G8）"
+    },
+    {
+      "path": "docs/03-guide/导出与离线单文件.md",
+      "role": "guide",
+      "cap": "guide",
+      "note": "用户手册③：三种导出物、兼容性承诺边界、离线单文件（G8）"
     },
     {
       "path": "docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md",

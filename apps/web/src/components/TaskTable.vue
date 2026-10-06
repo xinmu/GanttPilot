@@ -178,6 +178,18 @@ void emit;
       >
         {{ column.header }}
       </div>
+      <!--
+        **表头第二行：留白**（P-46 §3 的当场定值）。
+        它只保高度与分隔线——**不放任何文字**：表头带的内容集合仍是"时间刻度"
+        （[ADR 0007 附录 §2](../docs/02-adr/附录/0007-增补.md)），放"档位提示"一类文字须先改附录。
+        高度由 `.table-header` 的两行网格 + `--header-h` 承担，因此两栏外高仍严格相等。
+      -->
+      <div
+        v-for="column in columns"
+        :key="`blank-${column.key}`"
+        class="cell cell-blank"
+        aria-hidden="true"
+      />
     </div>
 
     <div
@@ -260,17 +272,32 @@ void emit;
 }
 
 .table-header {
+  /**
+   * **两行网格**（P-46 的两级刻度）：第一行 9 列列名、第二行**留白**（只保高度与分隔线）。
+   *
+   * `grid-auto-flow: column` + `grid-template-rows: 1fr 1fr` ⇒ 两个 9 项 `v-for` 自然落成
+   * "先横排一行、再横排第二行"，不需要写死行号；`align-content: center` 让文本在中线附近。
+   *
+   * 表头高由 `HEADER_HEIGHT_PX` 经 `--header-h` 喂进来（**两栏同源**，ADR 0007 §14）；
+   * `border-box` 让"40 px"是**外高**（含 1 px 下边框），否则与表体高差 1 px。
+   */
   display: grid;
   grid-template-columns: 28px 200px 92px 92px 56px 150px 56px 56px 160px;
-  /* 表头高由 `HEADER_HEIGHT_PX` 经 `--header-h` 喂进来（**两栏同源**，ADR 0007 §14）；
-     `border-box` 让"28 px"是**外高**（含 1 px 下边框），否则与表体高差 1 px。 */
+  grid-template-rows: 1fr 1fr;
+  grid-auto-flow: column;
+  align-content: center;
   box-sizing: border-box;
   height: var(--header-h);
-  line-height: var(--header-h);
   background: #f9fafb;
+  /* 右边界：两栏之间本有 1 px 竖线（`.table-pane` 的 border-right），这里只做**行间**分隔线。 */
   border-bottom: 1px solid #e4e7ec;
   font-weight: 600;
   color: #475467;
+}
+
+/* 第二行留白（P-46 §3）：高度由网格 `1fr` 给出，只画一条行间分隔线，**不放任何文字**。 */
+.cell-blank {
+  border-top: 1px solid #e4e7ec;
 }
 
 .table-body {
@@ -303,6 +330,30 @@ void emit;
 .row.summary {
   font-weight: 600;
   background: #fbfcfd;
+}
+
+/**
+ * **悬停行高亮（左表侧）**：**纯 CSS `:hover`**（P-46 §2.2 的口径——零 SVG 元素、零预算）。
+ *
+ * 颜色与图表侧那 1 个 `hover-band` 覆盖层**同值**（`render-core` 的 `HOVER_ROW_FILL`），
+ * 因此"条体 ↔ 左表"的对照成立；两侧**不共享判据**（图表侧由元素预算与计数两路互证，
+ * 左表侧不进任何判据）。
+ *
+ * **必须排在 `.row.conflict` 之后**（CSS 同优先级下后者胜出）：冲突行是"事实"，
+ * 悬停是"临时视图状态"，事实不该被悬停盖住。
+ */
+.row:hover {
+  background: #e8f1fb;
+}
+
+/* 汇总行的底色更具体（`.row.summary`）⇒ 悬停要**同等具体**才生效，否则汇总行不响应悬停
+   （两条规则的优先级必须写清，否则表现为"阶段行不高亮、任务行高亮"这类看起来像 bug 的差异）。 */
+.row.summary:hover {
+  background: #e8f1fb;
+}
+
+.row.conflict:hover {
+  background: #fef3f2;
 }
 
 /* 冲突行（`anchorConflict`）：与图表覆盖层的 `.conflict-outline` 同色，两处一眼对得上 */

@@ -10,8 +10,8 @@ import * as pptx from './index.js';
 describe('@ganttpilot/pptx-renderer 公共入口', () => {
   it('导出包标识与能力块', () => {
     expect(pptx.PPTX_RENDERER_VERSION).toBe('0.0.0');
-    expect(pptx.PLANNED_GATE).toBe('G7');
-    expect(pptx.COMPLETED_GATES).toStrictEqual(['G7']);
+    expect(pptx.PLANNED_GATE).toBe('G8');
+    expect(pptx.COMPLETED_GATES).toStrictEqual(['G7', 'G8']);
   });
 
   it('导出模板 A 的渲染面与布局面（ADR 0010）', () => {

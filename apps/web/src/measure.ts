@@ -544,12 +544,16 @@ export function exposeMeasurement(args: {
   readonly align?: AlignMeasurementHost;
   /** G6：持久化所需的只读入口（不传则 `__GANTTPILOT_MEASURE_PERSIST__` 不存在）。 */
   readonly persist?: PersistenceMeasurementHost;
+  /** G8：两级刻度与悬停行带的读数入口（不传则 `__GANTTPILOT_MEASURE_G8__` 不存在）。 */
+  readonly g8?: G8MeasurementHost;
 }): void {
   const host = window as unknown as {
     __GANTTPILOT_MEASURE__?: unknown;
     __GANTTPILOT_MEASURE_DRAG__?: unknown;
     __GANTTPILOT_MEASURE_ALIGN__?: unknown;
     __GANTTPILOT_MEASURE_PERSIST__?: unknown;
+    __GANTTPILOT_MEASURE_G8__?: unknown;
+    __GANTTPILOT_MEASURE_G8_META__?: unknown;
   };
   host.__GANTTPILOT_MEASURE__ = async (options: {
     readonly dataset?: string;
@@ -609,8 +613,7 @@ export function exposeMeasurement(args: {
 
   if (args.align !== undefined) {
     const alignHost = args.align;
-    host.__GANTTPILOT_MEASURE_ALIGN__ = async (options: {
-      readonly dataset?: string;
+    host.__GANTTPILOT_MEASURE_ALIGN__ = async (options: {      readonly dataset?: string;
       /** 档位（`day`/`week`/`month`）：走**用户点工具栏的同一个** `setZoom`。 */
       readonly zoom?: string;
       /** `positions`（默认）= 重载夹具 + 逐位置设滚动；`reread` = 不重载、不设滚动（resize 迁移第二步）。 */
@@ -710,6 +713,74 @@ export function exposeMeasurement(args: {
             : 3,
         skipDrag: options.skipDrag === true,
       });
+    };
+  }
+
+  if (args.g8 !== undefined) {
+    const g8Host = args.g8;
+    /**
+     * **G8 的只读元读数**（当前档位 + 已提交修订号）——**无副作用**，因此可以在任意时刻读。
+     *
+     * 为什么与下面那个"读一次两级刻度与悬停"的入口分开：下面那个会**切档位、挪指针**，
+     * 而"松手真的落了库"这类判据需要的是一个**随手可读、不改动任何状态**的读数
+     * （与 `--drag`/`--persist-drag` 的"预览不落库"判据同源，P-45 的口径）。
+     */
+    host.__GANTTPILOT_MEASURE_G8_META__ = (): { readonly zoom: string; readonly revision: number } => ({
+      zoom: g8Host.zoom(),
+      revision: g8Host.revision(),
+    });
+    /**
+     * **G8 的两级刻度与悬停行带**（P-46）。
+     *
+     * 一次调用读三组对照：**未悬停** / 指针在第 1 个可见行 / 指针在第 3 个可见行——
+     * 三条一起读才说明"高亮**跟着指针走**"（只有一个读数无法区分"跟着指针"与"画了一条固定带"）。
+     * 档位可切（上级标签随档位变化是 §3 的定值），左右表表头高与"第二行留白"一并登记。
+     */
+    host.__GANTTPILOT_MEASURE_G8__ = async (options: {
+      /** 以哪个档位读刻度（默认 `day`）。 */
+      readonly zoom?: string;
+    } = {}): Promise<G8MeasureResult> => {
+      const requested = (options.zoom ?? 'day') as ZoomKey;
+      const zoom: ZoomKey = ZOOM_ORDER.includes(requested) ? requested : 'day';
+      /** 等应用把这一帧处理完（**全仓唯一**的稳定读实现；不稳定则判红，不静默用中间态）。 */
+      const settle = async (): Promise<string[]> => {
+        const pane = document.getElementById('chart-pane');
+        if (pane === null) return ['找不到图表窗格（#chart-pane）'];
+        const settled = await settleStableRead({
+          fingerprint: () => {
+            const current = g8Host.view();
+            return scrollFingerprint(pane, {
+              scrollTop: current?.scrollTop ?? -1,
+              scrollLeft: current?.scrollLeft ?? -1,
+              contentWidth: current?.contentWidth ?? -1,
+            });
+          },
+        });
+        return settled.stable
+          ? []
+          : [`读数在 ${String(STABLE_READ_BUDGET_FRAMES)} 帧内未稳定（应用未在预算内处理完）`];
+      };
+      const errors: string[] = [];
+      if (g8Host.zoom() !== zoom) {
+        g8Host.setZoom(zoom);
+        errors.push(...(await settle()));
+      }
+      g8Host.clearHover();
+      errors.push(...(await settle()));
+      const idle = readHoverFacts(1);
+      g8Host.hoverRowAt(1);
+      errors.push(...(await settle()));
+      const onRow = readHoverFacts(1);
+      g8Host.hoverRowAt(3);
+      errors.push(...(await settle()));
+      const onThirdRow = readHoverFacts(3);
+      g8Host.clearHover();
+      if (errors.length > 0) {
+        // 读数不稳定 ⇒ 把失败原因原样带出去（调用方判红），不在这里抛。
+        (window as unknown as { __GANTTPILOT_MEASURE_G8_ERRORS__?: readonly string[] }).__GANTTPILOT_MEASURE_G8_ERRORS__ =
+          errors;
+      }
+      return { zoom: g8Host.zoom(), revision: g8Host.revision(), axis: readAxisFacts(), hover: { idle, onRow, onThirdRow } };
     };
   }
 }
@@ -1565,6 +1636,145 @@ function emptyDragResult(
     handles: null,
   };}
 
+// ---------------------------------------------------------------- G8：两级刻度与悬停行带（记录制 + 打包产物冒烟）
+
+/**
+ * **G8 的可判定读数**（P-46 的「刻度行两级」与「指针所在整行高亮」）。
+ *
+ * ## 为什么这两条需要入口
+ *
+ * 它们的判据侧写不进 `packages/*`：**刻度是否画成了两行**、**指针所在行有没有浅色底**
+ * 都是 DOM 事实（一个在 SVG 的 `<text y>`、一个在 `getComputedStyle`）。
+ * 按 [P-40](../../docs/00-baseline/裁决R39.md) 的两条通道口径，这类事实走
+ * **`smoke:build`（门禁）+ 记录制（打包产物）**——本接口就是那两条通道共用的读数口。
+ *
+ * ## 口径（一次读完，不做增量）
+ *
+ * - `axis`：**从 DOM 读回**两行刻度的证据（不是从 `ViewModel` 复述一遍——那样判据会变成恒真式）；
+ * - `hover.at`：把指针放到第 N 个**可见行**的条体上（走用户同一条 `hoverAt`），再读三件事：
+ *   ① SVG 里有没有 `.hover-row`、② 它的纵向范围是否落在那一行、③ 左表对应行是否真的变了底色。
+ */
+export interface G8MeasurementHost {
+  /** 指针挪到第 N 个可见行的竖向中心（走 `App.vue` 与用户同一条 hover 入口）。 */
+  readonly hoverRowAt: (rowIndex: number) => void;
+  /** 清掉指针（读"没有高亮"的对照）。 */
+  readonly clearHover: () => void;
+  /** 当前档位（判"上级标签随档位变化"的前提）。 */
+  readonly zoom: () => ZoomKey;
+  /** 切档位（与用户点工具栏同一条 `chart.setZoom`）。 */
+  readonly setZoom: (zoom: ZoomKey) => void;
+  /** 当前视图模型（稳定读的指纹要它，与 `--drag`/`--align` 同源）。 */
+  readonly view: () => ViewModel | null;
+  /**
+   * **已提交的会话修订号**（`session.revision`）。
+   *
+   * 为什么读它而不是从状态栏文案里正则解析：文案是**给人看的**（格式随文案调整而变），
+   * 而"插桩要证明『松手真的落了库』"必须有一个**结构性**的读数。与 `--drag`/`--persist-drag`
+   * 的"预览不落库"判据同源（P-45 的口径：修订号只有真的落库才前进）。
+   */
+  readonly revision: () => number;
+}
+
+/** `__GANTTPILOT_MEASURE_G8__` 的产出（**全是 DOM 真值 + 一个结构性读数**）。 */
+export interface G8MeasureResult {
+  readonly zoom: string;
+  /** 读这几个读数时**已提交**的会话修订号（松手前后各读一次即可证明"真的落库了"）。 */
+  readonly revision: number;
+  readonly axis: {
+    /** 表头带内 `<text>` 的总数（两级之和）。 */
+    readonly texts: number;
+    /** `y` 较小那一行的文本样本（下级刻度）。 */
+    readonly minorY: number | null;
+    readonly minorSamples: readonly string[];
+    /** `y` 较大那一行的文本样本（上级刻度）。 */
+    readonly majorY: number | null;
+    readonly majorSamples: readonly string[];
+    /** 上级分段带（`.axis-major-band`）的元素数。 */
+    readonly majorBands: number;
+    /** 左表表头的外高与图表表头带的外高（必须相等）。 */
+    readonly headerTable: number;
+    readonly headerChart: number;
+    /** 左表表头第二行的**文本**（P-46 定值：必须是空串）。 */
+    readonly tableHeaderSecondRowText: string;
+  };
+  readonly hover: {
+    /** 未悬停时的读法（对照）。 */
+    readonly idle: HoverReading;
+    /** 指针落在第 1 个可见行时的读法。 */
+    readonly onRow: HoverReading;
+    /** 指针落在第 3 个可见行时的读法（证明它**跟着指针走**，不是一个固定的带）。 */
+    readonly onThirdRow: HoverReading;
+  };
+}
+
+/** 一次悬停读数。 */
+export interface HoverReading {
+  /** SVG 里 `.hover-row` 的个数（期望 0 或 1）。 */
+  readonly svgHoverRows: number;
+  /** 该 `<rect>` 的屏幕矩形（`null` = 不存在）。 */
+  readonly svgRect: { readonly top: number; readonly bottom: number; readonly left: number; readonly right: number } | null;
+  /** 左表第 N 行的 `background-color`（`getComputedStyle`；空串 = 找不到那一行）。 */
+  readonly tableBackground: string;
+  /** 读的是左表哪一行（`data-task-id`；空串 = 没有行）。 */
+  readonly tableTaskId: string;
+}
+
+function roundRect(box: { top: number; bottom: number; left: number; right: number } | null): HoverReading['svgRect'] {
+  if (box === null) return null;
+  return {
+    top: Math.round(box.top * 10) / 10,
+    bottom: Math.round(box.bottom * 10) / 10,
+    left: Math.round(box.left * 10) / 10,
+    right: Math.round(box.right * 10) / 10,
+  };
+}
+
+/** 从 DOM 读一次"两级刻度"的证据（**判据要的是 DOM 真值**）。 */
+function readAxisFacts(): G8MeasureResult['axis'] {
+  /**
+   * 两行刻度的证据取自**文本盒的竖向中心**（不是 `y` 属性）：文字盒反映的是"屏幕上真的分了两行"
+   * 这件事本身，而 `y` 只是它的因；两者取其一就够，取盒更接近判据要回答的问题。
+   */
+  const texts = [...document.querySelectorAll('.chart-pane-wrap .axis-labels text, #chart-pane .axis-labels text')];
+  const measured = texts.map((element) => {
+    const rect = element.getBoundingClientRect();
+    return { text: element.textContent ?? '', centerY: Math.round((rect.top + rect.bottom) / 2) };
+  });
+  const ys = [...new Set(measured.map((item) => item.centerY))].sort((left, right) => left - right);
+  const minorY = ys[0] ?? null;
+  const majorY = ys.length > 1 ? (ys[ys.length - 1] ?? null) : null;
+  const headerTable = document.querySelector('.table-header')?.getBoundingClientRect().height ?? 0;
+  const headerChart = document.querySelector('.chart-header')?.getBoundingClientRect().height ?? 0;
+  const blank = document.querySelector('.table-header .cell-blank');
+  return {
+    texts: texts.length,
+    minorY,
+    minorSamples: minorY === null ? [] : measured.filter((item) => item.centerY === minorY).map((item) => item.text).slice(0, 6),
+    majorY,
+    majorSamples: majorY === null ? [] : measured.filter((item) => item.centerY === majorY).map((item) => item.text).slice(0, 6),
+    majorBands: document.querySelectorAll('.axis .axis-major-band').length,
+    headerTable: Math.round(headerTable * 10) / 10,
+    headerChart: Math.round(headerChart * 10) / 10,
+    tableHeaderSecondRowText: (blank?.textContent ?? '').trim(),
+  };
+}
+
+/** 从 DOM 读一次"悬停行带"的证据（三处：SVG 元素、它的矩形、左表那一行的底色）。 */
+function readHoverFacts(rowIndex: number): HoverReading {
+  const rows = [...document.querySelectorAll('.table-body .row-block .row[data-task-id]')];
+  const row = rows[rowIndex] ?? null;
+  const background = row === null ? '' : getComputedStyle(row).backgroundColor;
+  const hoverNodes = [...document.querySelectorAll('.chart-pane-wrap .hover-row, #chart-pane .hover-row')];
+  const first = hoverNodes[0] ?? null;
+  const box = first === null ? null : first.getBoundingClientRect();
+  return {
+    svgHoverRows: hoverNodes.length,
+    svgRect: roundRect(box === null ? null : { top: box.top, bottom: box.bottom, left: box.left, right: box.right }),
+    tableBackground: background,
+    tableTaskId: row?.getAttribute('data-task-id') ?? '',
+  };
+}
+
 // ---------------------------------------------------------------- G5 批次 D：两栏行对齐（记录制，ADR 0007 §14 / 裁决 P-23）
 
 /** 对齐测量的宿主：由 `App.vue` 提供（除 `setZoom` 外全部**只读**）。 */
@@ -1860,8 +2070,15 @@ export async function runAlignMeasurement(args: {
     // 轴覆盖：优先用色带（矩形，无描边误差），没有色带时退到网格线（±0.5 px 描边）。
     // **四边都要量**（P-24）：轴的横向双重偏移在 `scrollLeft = 0` 处不可见，
     // 只看纵向会让"右侧新区域空白"从判据下溜走。
+    //
+    // **P-46 的口径订正**：悬停行带（`.hover-row`）也是 `.axis` 族里的一个 `<rect>`，
+    // 但它是**内容滚动的覆盖层**（跟着指针走、可落在绘制区中间），
+    // 若混进来，`axisCoverage.top` 会变成"那一行"的顶 ⇒ 纵向覆盖判据无意义地变红/变绿。
+    // 因此这里**显式排除**它（`--align` 的两个 selector 都改）。
     const bandBoxes = [
-      ...document.querySelectorAll('.chart-pane-wrap .axis rect, #chart-pane .axis rect'),
+      ...document.querySelectorAll(
+        '.chart-pane-wrap .axis rect:not(.hover-row), #chart-pane .axis rect:not(.hover-row)',
+      ),
     ]
       .map((element) => boxOf(element))
       .filter((box) => box !== null);

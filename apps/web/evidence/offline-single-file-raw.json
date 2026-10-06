@@ -1,0 +1,91 @@
+{
+  "chromeMajor": "154",
+  "artifact": {
+    "path": "D:\\workspace\\GanttPilot\\apps\\web\\dist-offline\\index.html",
+    "bytes": 1627486,
+    "kb": 1589.3
+  },
+  "firstScreen": {
+    "ready": true,
+    "readyMs": 150,
+    "fcpMs": null,
+    "domContentLoadedMs": 114
+  },
+  "indexedDb": {
+    "open": true,
+    "write": true,
+    "read": "ok"
+  },
+  "flowsOnline": {
+    "import": "ok: 任务 15 / 依赖 14",
+    "drag": "ok: t2 开始 2026-10-05 → 2026-12-14",
+    "export": "ok: gantt-day.svg",
+    "notes": [],
+    "dragTarget": {
+      "ok": true,
+      "id": "t2",
+      "text": "2026-10-05",
+      "x": 1089,
+      "y": 183
+    },
+    "dragDiagnostics": {
+      "error": null,
+      "notice": "已导入 GanttPilot-导入模板.xlsx：15 个任务、14 条依赖；问题 0 条",
+      "revision": 2,
+      "unsaved": null,
+      "atHover": {
+        "cursor": "col-resize",
+        "hoverRows": 1,
+        "taskId": "t2",
+        "barX": 192,
+        "barWidth": 120,
+        "scrollLeft": 0,
+        "scrollTop": 0
+      },
+      "atDown": {
+        "cursor": "col-resize",
+        "dragOutline": 1
+      }
+    }
+  },
+  "flowsOffline": {
+    "skipped": false,
+    "ready": true,
+    "firstScreenMs": 6351,
+    "import": "ok: 任务 15 / 依赖 14",
+    "drag": "ok: t2 开始 2026-10-05 → 2026-12-14",
+    "export": "ok: gantt-day.svg",
+    "notes": [],
+    "dragTarget": {
+      "ok": true,
+      "id": "t2",
+      "text": "2026-10-05",
+      "x": 1089,
+      "y": 183
+    },
+    "dragDiagnostics": {
+      "error": null,
+      "notice": "已导入 GanttPilot-导入模板.xlsx：15 个任务、14 条依赖；问题 0 条",
+      "revision": 4,
+      "unsaved": null,
+      "atHover": {
+        "cursor": "col-resize",
+        "hoverRows": 1,
+        "taskId": "t2",
+        "barX": 192,
+        "barWidth": 120,
+        "scrollLeft": 0,
+        "scrollTop": 0
+      },
+      "atDown": {
+        "cursor": "col-resize",
+        "dragOutline": 1
+      }
+    }
+  },
+  "downloaded": [
+    "gantt-day.svg",
+    "GanttPilot-导入模板.xlsx"
+  ],
+  "url": "file:///D:/workspace/GanttPilot/apps/web/dist-offline/index.html?measure=1"
+}

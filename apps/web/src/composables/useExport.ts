@@ -43,7 +43,15 @@ export const PNG_SCALES = [1, 2, 3] as const;
 export interface UseExportArgs {
   readonly document: Ref<ProjectDocument>;
   readonly schedule: ComputedRef<Schedule | null>;
+  /** `compute` 的入参日历（`createScheduleCalendar(已提交文档)`）。 */
   readonly calendar: ComputedRef<Calendar>;
+  /**
+   * `compute` 交出的日历（ADR 0005 附录 §1／裁决 P-48）：**导出投影用它**。
+   *
+   * 全量导出要翻译每一个 `es`/`ef`，而入参日历的容量按"规划那一刻的文档"算——
+   * 文档被导入/编辑过之后两者可能分叉（那次白屏的同一个根因）。
+   */
+  readonly renderCalendar: ComputedRef<Calendar>;
   readonly zoom: Ref<ZoomKey>;
   /** 提示通道（沿用既有 `notice`，P-30/P-31 的落点）。 */
   readonly notify: (level: 'info' | 'error', text: string) => void;
@@ -126,7 +134,7 @@ export function useExport(args: UseExportArgs): ExportController {
     const advisory = exportAdvisoryFor({
       document: args.document.value,
       schedule,
-      calendar: args.calendar.value,
+      calendar: args.renderCalendar.value,
       zoom: args.zoom.value,
     });
     const font = advisory.current.labelFontPt.toFixed(1);
@@ -147,7 +155,7 @@ export function useExport(args: UseExportArgs): ExportController {
     const projection = buildExportView({
       document: args.document.value,
       schedule,
-      calendar: args.calendar.value,
+      calendar: args.renderCalendar.value,
       zoom: args.zoom.value,
     });
     if (projection.rowCount === 0) {
@@ -161,7 +169,7 @@ export function useExport(args: UseExportArgs): ExportController {
       summary: exportSummaryOf({
         document: args.document.value,
         schedule,
-        calendar: args.calendar.value,
+        calendar: args.renderCalendar.value,
       }),
     };
     const svg = svgString({ view: projection.view, document: args.document.value, options });
@@ -209,7 +217,7 @@ export function useExport(args: UseExportArgs): ExportController {
     const bytes = await renderTemplateA({
       document: args.document.value,
       schedule,
-      calendar: args.calendar.value,
+      calendar: args.renderCalendar.value,
       zoom: args.zoom.value,
     });
     // `Blob` 只出现在这里：`pptx-renderer` 只准产出 `Uint8Array`（零 DOM 的硬约束）。

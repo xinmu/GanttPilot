@@ -243,6 +243,100 @@ describe('G2 契约：纯函数与确定性', () => {
   });
 });
 
+/**
+ * **`compute` 交出真正用到的日历**（ADR 0005 附录 §1／裁决 `P-48`）。
+ *
+ * 背景：渲染层原先用"按**已提交文档**规划的那份日历"翻译序号，而拖动预览喂给 `compute` 的是
+ * **另一份文档**（应用层的未提交副本）⇒ 向右拖远时完成序号越过那份日历容量 ⇒ `buildView` 抛
+ * `RangeError` ⇒ Vue 卸载整棵树、**整页空白**。修法不是"给规划加一个猜的余量"，而是让
+ * `compute` 把**它内部已经构造出来的那份扩容日历**交出来（零额外计算、结构性而非余量）。
+ */
+describe('P-48：`renderCalendar`（compute 交出的可翻译日历）', () => {
+  it('ok:true 时覆盖本次调用的全部文档日期与全部 es/ef（**入参日历明显偏小**也要成立）', () => {
+    for (const seed of [3, 11, 27]) {
+      const project = buildProject({ seed, taskCount: 50, linkCount: 80 });
+      const document_ = project.document;
+      // 故意给一份"远不够用"的入参日历（容量 40 天）：它按 ADR 0005 §7 不影响任何序号，
+      // 只是无法翻译 —— 正是产品里那次白屏的形态。
+      const tiny = new Calendar(document_.calendars[0]!, {
+        baseDay: project.earliestDay ?? SCHEDULE_BASE_DAY,
+        spanDays: 40,
+      });
+      const result = compute(document_, tiny, project.anchors);
+      expect(result.ok).toBe(true);
+      if (!result.ok) {
+        return;
+      }
+
+      // ① 前提自证：这条判据**只有当入参真的不够用时**才有判别力。
+      expect(result.schedule.projectFinish).toBeGreaterThan(tiny.workdayCount);
+      // ② 交出的日历严格更大（不是把入参原样返回）。
+      expect(result.renderCalendar.spanDays).toBeGreaterThan(tiny.spanDays);
+      expect(result.renderCalendar.workdayCount).toBeGreaterThan(tiny.workdayCount);
+
+      // ③ **逐任务**：每个 es/ef 都能在这份日历里翻译成日期（这正是渲染层要做的事）。
+      const finishOrdinal = result.schedule.projectFinish - 1;
+      expect(() => result.renderCalendar.dayOfOrdinal(finishOrdinal)).not.toThrow();
+      for (let i = 0; i < result.schedule.taskCount; i += 1) {
+        if (result.schedule.es[i] === LEAF_SENTINEL) {
+          continue;
+        }
+        expect(() => result.renderCalendar.dayOfOrdinal(result.schedule.es[i]!)).not.toThrow();
+        expect(() => result.renderCalendar.dayOfOrdinal(result.schedule.ef[i]!)).not.toThrow();
+      }
+
+      // ④ 覆盖**文档日期**：每个非空日期都能被翻译回序号（含 startDate 与 endDate）。
+      const latestDocumentDay = document_.tasks.reduce((max, item) => {
+        let value = max;
+        for (const iso of [item.startDate, item.endDate]) {
+          if (iso === null) continue;
+          const day = isoToDayNumber(iso);
+          if (day > value) value = day;
+        }
+        return value;
+      }, isoToDayNumber(document_.project.startDate ?? document_.tasks[0]!.startDate ?? '2000-01-03'));
+      const coveredDays = result.renderCalendar.workdayCount;
+      expect(latestDocumentDay - result.renderCalendar.baseDay + 1).toBeLessThanOrEqual(coveredDays);
+    }
+  });
+
+  it('`ok:false`（成环）时**不产出** `renderCalendar`（照 ADR 0005 §1：失败结果不产出半成品）', () => {
+    const project = buildProject({ seed: 31, taskCount: 12, linkCount: 14, cyclic: true });
+    const result = compute(project.document, makeCalendar(project));
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect('renderCalendar' in result).toBe(false);
+  });
+
+  it('容量无关性不受影响：`renderCalendar` 只是派生量，`Schedule` 仍逐项相同', () => {
+    const project = buildProject({ seed: 777, taskCount: 40, linkCount: 60 });
+    const base = project.earliestDay ?? SCHEDULE_BASE_DAY;
+    const tiny = new Calendar(project.document.calendars[0]!, { baseDay: base, spanDays: 40 });
+    const huge = new Calendar(project.document.calendars[0]!, { baseDay: base, spanDays: 20_000 });
+    const small = compute(project.document, tiny, project.anchors);
+    const big = compute(project.document, huge, project.anchors);
+    expect(small.ok).toBe(true);
+    expect(big.ok).toBe(true);
+    if (!small.ok || !big.ok) {
+      return;
+    }
+    // ① `Schedule` 逐项相同（既有不变量，一字未改）。
+    expect(small.schedule).toStrictEqual(big.schedule);
+    // ② 派生量：同一文档 + 同一入参日历 ⇒ 逐值相同（两次调用可复核）。
+    const again = compute(project.document, tiny, project.anchors);
+    expect(again.ok).toBe(true);
+    if (!again.ok) {
+      return;
+    }
+    expect(again.renderCalendar.spanDays).toBe(small.renderCalendar.spanDays);
+    expect(again.renderCalendar.baseDay).toBe(small.renderCalendar.baseDay);
+    // ③ 大日历不必扩容（`expandToCoverDates` 的"够用就原样返回"分支）。
+    expect(big.renderCalendar.spanDays).toBe(huge.spanDays);
+  });
+});
+
 describe('G2 契约：成环的失败形状与建边预检', () => {
   it('成环 ⇒ ok:false、code=cycle、cyclePath 首尾同一 id、只带一条 error 诊断', () => {
     const project = buildProject({ seed: 31, taskCount: 12, linkCount: 14, cyclic: true });

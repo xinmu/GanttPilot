@@ -36,6 +36,8 @@ import {
   fitScaleFor,
   HEADER_HEIGHT_PX,
   LABEL_CHAR_PX,
+  MAJOR_LABEL_BASELINE_PX,
+  MINOR_LABEL_BASELINE_PX,
   ROUTE_SIDES,
   ROW_HEIGHT,
   type EdgeGeom,
@@ -401,9 +403,14 @@ function textLinesOf(plan: TemplateAPlan, document: ProjectDocument, title: stri
   ];
 
   // 日期刻度（人工复验第 1 条：PPTX 原先根本没有刻度）——文案与 SVG 取自**同一份** `view.axis`
+  //
+  // **两级刻度**（P-46，ADR 0007 附录 §3）：下级标签（`level` 缺省/2）画在表头带**上半**、
+  // 上级标签（`level: 1`）画在**下半**，基线与屏幕/SVG 同源（`MINOR_LABEL_BASELINE_PX` /
+  // `MAJOR_LABEL_BASELINE_PX`）——三处不许各写一个数字，否则"所见 = 所导出"当场破裂。
   for (const [index, element] of plan.projection.view.axis.entries()) {
     if (element.kind !== 'label') continue;
-    const point = slidePointOf(plan, EXPORT_LABEL_WIDTH_PX + element.x + 2, 4);
+    const baseline = element.level === 1 ? MAJOR_LABEL_BASELINE_PX : MINOR_LABEL_BASELINE_PX;
+    const point = slidePointOf(plan, EXPORT_LABEL_WIDTH_PX + element.x + 2, baseline);
     lines.push({
       text: element.text,
       x: point.x,
@@ -563,6 +570,7 @@ function backgroundXmlOf(args: {
   const out: string[] = [];
   let bandIndex = 0;
   let gridIndex = 0;
+  let majorIndex = 0;
   for (const element of plan.projection.view.axis) {
     if (element.kind === 'band') {
       const x = plan.ganttBox.x + plan.fit.offsetX + (EXPORT_LABEL_WIDTH_PX + element.x) * plan.fit.scale;
@@ -584,6 +592,34 @@ function backgroundXmlOf(args: {
         }),
       );
       bandIndex += 1;
+      continue;
+    }
+    if (element.kind === 'major-band') {
+      /**
+       * **上级分段带**（P-46 的两级刻度，ADR 0007 附录 §3）：与屏幕/SVG 同源的那一份元素。
+       *
+       * 它画的是带内**下半**那条带的底色（与周末色带可区分的更浅一档灰），
+       * 左边界即该段的竖线——`buildAxis` 因此不再为它重复发 `gridline`。
+       * 宽高同样夹到 ≥1 px（计数必须与 `view.axis` 一致）。
+       */
+      const clampedX = Math.min(Math.max(element.x, 0), plan.projection.view.width);
+      const widthPx = Math.max(1, Math.min(element.width, plan.projection.view.width - clampedX));
+      const bandHeight = (HEADER_HEIGHT_PX / 2) * plan.fit.scale;
+      const x = plan.ganttBox.x + plan.fit.offsetX + (EXPORT_LABEL_WIDTH_PX + clampedX) * plan.fit.scale;
+      out.push(
+        plainRectSpXml({
+          id: allocator.next(),
+          name: NAMES.majorBand(majorIndex),
+          rect: {
+            x: pxToEmu(x),
+            y: pxToEmu(top - bandHeight),
+            cx: Math.max(1, pxToEmu(widthPx * plan.fit.scale)),
+            cy: Math.max(1, pxToEmu(bandHeight)),
+          },
+          fill: COLOR.majorBand,
+        }),
+      );
+      majorIndex += 1;
       continue;
     }
     if (element.kind === 'gridline') {

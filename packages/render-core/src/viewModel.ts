@@ -132,6 +132,17 @@ export interface ViewModel {
   readonly rows: readonly RowBox[];
   readonly edges: readonly EdgeGeom[];
   readonly axis: readonly AxisElement[];
+  /**
+   * 指针所在的**渲染行序号**（`null` = 无高亮；P-46 §2.2）。
+   *
+   * 它是"**当前可视行**"的概念，因此 `view.axis` 里多发的那 1 个 `hover-band`（覆盖层）
+   * 与它同源；渲染层据此定位（`y = row × rowHeight`，**内容坐标、由滚动组抵消滚动**——
+   * 不得在应用层自己再减一次 `scrollTop`，ADR 0007 §14.3 的同源陷阱）。
+   *
+   * 为什么不是"从 `axis` 里的 `hover-band` 反推"：那份几何同时驱动
+   * `buildAxis` 的发射与调用方的定位判断，两处必须读**同一个事实**。
+   */
+  readonly hoverBand: { readonly row: number } | null;
   /** 「跨屏长边」的 `links` 下标（判据与负向对照用）。 */
   readonly spanningEdges: readonly number[];
   /** 结构上不可画的边（端点悬空 / 被折叠隐藏）——与 `clipMode` 无关。 */
@@ -186,6 +197,14 @@ export interface BuildViewArgs {
   readonly zoom: ZoomKey;
   /** 默认 `'intersect'`；`'endpoints'` / `'none'` 是**负向对照**路径（见 `clip.ts` 文件头）。 */
   readonly clipMode?: ClipMode;
+  /**
+   * 指针所在的**可见行序号**（`null`/缺省 = 不高亮；P-46 §2.2）。
+   *
+   * 它是交互态，**不进 `Viewport`**：`Viewport` 是"尺寸与滚动位置"的唯一真相源，
+   * 把交互态塞进去会让几何期望值表跟着手势漂移（G5 的既有纪律，ADR 0008 §8）。
+   * 本项只影响**一件**事：`view.axis` 里多发 1 个 `hover-band`（并据此记入 `c₄` 的 `overlay`）。
+   */
+  readonly hoverRow?: number | null;
 }
 
 /**
@@ -336,6 +355,8 @@ export function buildView(args: BuildViewArgs): ViewModel {
     });
   }
 
+  const hoverBand = visibleHoverRow(args.hoverRow, win);
+
   const axis = buildAxis({
     calendar,
     axisOriginDay,
@@ -343,6 +364,8 @@ export function buildView(args: BuildViewArgs): ViewModel {
     scrollLeft: viewport.scrollLeft,
     width: viewport.width,
     zoom,
+    hoverRow: hoverBand === null ? null : hoverBand.row,
+    rowHeight: viewport.rowHeight,
   });
 
   return {
@@ -372,6 +395,7 @@ export function buildView(args: BuildViewArgs): ViewModel {
     rows,
     edges,
     axis,
+    hoverBand,
     spanningEdges: selection.spanning,
     hiddenEdges: selection.hidden,
     unroutableEdges: unroutable,
@@ -381,6 +405,22 @@ export function buildView(args: BuildViewArgs): ViewModel {
 /** 渲染出的行（**文档序索引**；ADR 0007 §2 的 `visibleRows`）。 */
 export function visibleRows(view: ViewModel): readonly number[] {
   return view.rows.map((row) => row.docIndex);
+}
+
+/**
+ * **指针所在行的归一化**（P-46 §2.2）：只认**渲染窗口内**的行。
+ *
+ * 为什么要夹：`hoverRow` 由应用层从指针位置解析，而指针可能划过**缓冲行**或落在
+ * `rows` 之外（拖出窗格、折叠瞬间）。高亮一个"没有条体的行"会变成幽灵行带——
+ * 而"能否高亮"必须与"能否交互"同一个行集合（与 `resolvePointerTarget` 同口径）。
+ */
+function visibleHoverRow(
+  hoverRow: number | null | undefined,
+  win: RowWindow,
+): { readonly row: number } | null {
+  if (hoverRow === null || hoverRow === undefined || !Number.isInteger(hoverRow)) return null;
+  if (hoverRow < win.renderFirst || hoverRow > win.renderLast) return null;
+  return { row: hoverRow };
 }
 
 /** 渲染出的边（**`links` 数组索引**；ADR 0007 §2 的 `visibleEdges`）。 */

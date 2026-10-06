@@ -42,6 +42,8 @@ import {
   drawnBarForRow,
   emptyHighlight,
   HEADER_HEIGHT_PX,
+  MAJOR_LABEL_BASELINE_PX,
+  MINOR_LABEL_BASELINE_PX,
   rowHandlesFor,
   rowConnectVisibleAt,
   type AxisElement,
@@ -233,12 +235,48 @@ const scrollTransform = computed(() => {
  *    日期标签要落在**表头带**里 ⇒ 标签组不偏移（`y` 取带内基线）。
  */
 const axisBandsTransform = `translate(0 ${String(HEADER_HEIGHT_PX)})`;
-const axisBands = computed<readonly AxisElement[]>(() =>
-  props.view === null ? [] : props.view.axis.filter((element) => element.kind !== 'label'),
+/**
+ * 轴元素按**两级刻度**拆成四组（P-46 §3／ADR 0007 附录 §3）：
+ *
+ * | 组 | 元素 | 画在哪 |
+ * |---|---|---|
+ * | `axisLower` | `band`（周末色带）+ `gridline` | 绘制区（下移一个表头带） |
+ * | `axisMajorBands` | `major-band`（上级分段带） | 绘制区（同上）；**段左边界自带竖线** |
+ * | `axisMinorLabels` | `label`（`level` 缺省/2，下级刻度） | 表头带的**上半** |
+ * | `axisMajorLabels` | `label`（`level: 1`，上级刻度） | 表头带的**下半** |
+ *
+ * 悬停行带（`hover-band`）**不在这里**：它是覆盖层元素，画在内容滚动组里（与行同一坐标系），
+ * 见下面的 `.hover-row`——放进轴组会与"轴的窗口坐标"口径打架（P-46 §2.2 的落点决定）。
+ */
+const axisLower = computed<readonly AxisElement[]>(() =>
+  props.view === null ? [] : props.view.axis.filter((element) => element.kind === 'band' || element.kind === 'gridline'),
 );
-const axisLabels = computed<readonly Extract<AxisElement, { kind: 'label' }>[]>(() =>
-  props.view === null ? [] : props.view.axis.filter((element): element is Extract<AxisElement, { kind: 'label' }> => element.kind === 'label'),
+const axisMajorBands = computed<readonly AxisElement[]>(() =>
+  props.view === null ? [] : props.view.axis.filter((element) => element.kind === 'major-band'),
 );
+const axisMinorLabels = computed<readonly Extract<AxisElement, { kind: 'label' }>[]>(() =>
+  props.view === null
+    ? []
+    : props.view.axis.filter((element): element is Extract<AxisElement, { kind: 'label' }> => element.kind === 'label' && element.level !== 1),
+);
+const axisMajorLabels = computed<readonly Extract<AxisElement, { kind: 'label' }>[]>(() =>
+  props.view === null
+    ? []
+    : props.view.axis.filter((element): element is Extract<AxisElement, { kind: 'label' }> => element.kind === 'label' && element.level === 1),
+);
+/**
+ * **悬停行带**（P-46 §2.2）：指针所在整行的浅色底。
+ *
+ * 位置取 `view.hoverBand.row`（**可见行序号**），竖向用 `row × 行高` 与 `row.y` **同式**——
+ * 二者都是**内容坐标**，由 `scrollTransform` 抵消滚动，因此这里**绝不再减 `scrollTop`**
+ * （P-23 的同源陷阱：双重偏移会让高亮带与行错开一个滚动量）。
+ */
+const hoverBandRect = computed(() => {
+  const view = props.view;
+  const band = view?.hoverBand ?? null;
+  if (view === null || band === null) return null;
+  return { y: band.row * view.rowHeight, height: view.rowHeight };
+});
 
 /**
  * 每行**要画的条**与**交互图元**（ADR 0008 §14/§16）：
@@ -296,17 +334,18 @@ const drawnRows = computed(() =>
     :viewBox="`0 0 ${view.width} ${svgHeight}`"
     shape-rendering="crispEdges"
   >
-    <!-- 轴（窗口坐标）：色带 + 网格线落在**绘制区**（下移一个表头带） -->
+    <!-- 轴（窗口坐标）：下级色带 + 网格线落在**绘制区**（下移一个表头带）；上级分段带同组 -->
     <g
       class="axis"
       :transform="axisBandsTransform"
     >
       <template
-        v-for="element in axisBands"
-        :key="`axis-band-${String(element.x)}`"
+        v-for="element in axisLower"
+        :key="`axis-${element.kind}-${String(element.x)}`"
       >
         <rect
           v-if="element.kind === 'band'"
+          class="axis-band"
           :x="element.x"
           y="0"
           :width="element.width"
@@ -323,22 +362,79 @@ const drawnRows = computed(() =>
           stroke-width="1"
         />
       </template>
+      <!--
+        上级分段带（P-46 的两级刻度）：底色与周末色带**必须可区分**（`#eef1f5` vs `#f4f6f8`），
+        左边界画一条竖线——它取代了该处那条重复的网格线（`buildAxis` 不再发它）。
+        宽度允许越过右缘（与周末色带同口径），SVG 的 `overflow: hidden` 负责裁掉。
+      -->
+      <template
+        v-for="element in axisMajorBands"
+        :key="`axis-major-${String(element.x)}`"
+      >
+        <rect
+          v-if="element.kind === 'major-band'"
+          class="axis-major-band"
+          :x="element.x"
+          y="0"
+          :width="element.width"
+          :height="view.height"
+          fill="#eef1f5"
+        />
+        <line
+          v-if="element.kind === 'major-band'"
+          :x1="element.x"
+          :x2="element.x"
+          y1="0"
+          :y2="view.height"
+          stroke="#d0d5dd"
+          stroke-width="1"
+        />
+      </template>
     </g>
 
-    <!-- 日期刻度：画在**表头带**内（0 .. HEADER_HEIGHT_PX），不侵入第一行的条形区 -->
+    <!--
+      日期刻度：**两级**（P-46 §3），都画在表头带内（0 .. HEADER_HEIGHT_PX）。
+      下级在上半、上级在下半；基线取自 `render-core` 的常量（**与导出 SVG/PPTX 同源**，
+      三处各写一个数字就是"所见 ≠ 所导出"）。
+    -->
     <g class="axis-labels">
       <text
-        v-for="element in axisLabels"
-        :key="`axis-label-${String(element.x)}`"
+        v-for="element in axisMinorLabels"
+        :key="`axis-label-minor-${String(element.x)}`"
         :x="element.x + 2"
-        y="18"
+        :y="MINOR_LABEL_BASELINE_PX"
+        class="axis-label"
         font-size="10"
         fill="#667085"
+      >{{ element.text }}</text>
+      <text
+        v-for="element in axisMajorLabels"
+        :key="`axis-label-major-${String(element.x)}`"
+        :x="element.x + 2"
+        :y="MAJOR_LABEL_BASELINE_PX"
+        class="axis-label axis-label-major"
+        font-size="10"
+        fill="#475467"
       >{{ element.text }}</text>
     </g>
 
     <!-- 内容坐标系（行 / 边 / 覆盖层）：抵消滚动，绘制区起点 = HEADER_HEIGHT_PX -->
     <g :transform="scrollTransform">
+      <!--
+        **悬停行带**（P-46 §2.2）：指针所在整行的浅色底，**1 个元素**（计入 `c₄` 的 `overlay`）。
+        画在 `.rows` **之前**（条体之下）——否则它会压住条形，那正是 P-37"背景层先注入"的同一条口径。
+        坐标是**内容坐标**（与 `row.y` 同式），由上面的 `translate(0 −scrollTop)` 抵消滚动。
+      -->
+      <rect
+        v-if="hoverBandRect !== null"
+        class="hover-row"
+        x="0"
+        y="0"
+        :transform="`translate(0 ${String(hoverBandRect.y)})`"
+        :width="view.width"
+        :height="hoverBandRect.height"
+        fill="#e8f1fb"
+      />
       <!-- 行：条 / 进度 / 里程碑菱形（被拖行画的是**预览结果几何**，ADR 0008 §14） -->
       <g class="rows">
         <g
@@ -604,6 +700,19 @@ const drawnRows = computed(() =>
   pointer-events: none;
   user-select: none;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* 上级刻度文本比下级略深一档：同行不同层级要能一眼分开（P-46 §3 的两级结构） */
+.axis-labels .axis-label-major {
+  font-weight: 600;
+}
+
+/**
+ * 悬停行带（P-46 §2.2）：**覆盖层**，`pointer-events: none` 与 `.overlays` 同一条纪律
+ * （它若参与命中，就会抢走条体/边的交互热区）。颜色与左表 `.row:hover` 同值。
+ */
+.hover-row {
+  pointer-events: none;
 }
 
 /**

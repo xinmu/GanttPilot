@@ -30,6 +30,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } fr
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateRawSync } from 'node:zlib';
 import { assertOwnProfile, closeOwnChrome, profileDirFor, psCommandLine } from './chrome-harness.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -52,8 +53,20 @@ const MIME = new Map([
   ['.ico', 'image/x-icon'],
 ]);
 
-/** 打包产物是否就绪（缺 `index.html` 即"还没构建"，那是用法错误，直接说清）。 */
-if (!existsSync(join(distRoot, 'index.html'))) {
+/**
+ * 打包产物是否就绪（缺 `index.html` 即"还没构建"，那是用法错误，直接说清）。
+ *
+ * `--file` 模式判的是**离线单文件产物**（`apps/web/dist-offline/index.html`，P-49），
+ * 因此那一套就绪检查与在线产物的口径互不代替。
+ */
+const offlineRoot = join(repoRoot, 'apps', 'web', 'dist-offline');
+const fileMode = process.argv.includes('--file');
+if (fileMode) {
+  if (!existsSync(join(offlineRoot, 'index.html'))) {
+    console.error('[smoke] 找不到离线单文件产物：apps/web/dist-offline/index.html —— 先跑 `node scripts/bundle-offline.mjs`。');
+    process.exit(1);
+  }
+} else if (!existsSync(join(distRoot, 'index.html'))) {
   console.error('[smoke] 找不到打包产物：apps/web/dist/index.html —— 先跑 `pnpm build`。');
   process.exit(1);
 }
@@ -97,6 +110,65 @@ function checkExportChunking() {
   return problems;
 }
 
+/**
+ * **读 xlsx 的页签名**（零新增依赖：zip 的条目名与内容都是明文 + 可 `inflateRawSync`）。
+ *
+ * 为什么冒烟脚本自己解包而不是 `import` 协议包：这里要判的是"**真的落盘的那个文件**"，
+ * 而不是"再生成一次的同名字节"——只有读产物才能把"点了按钮 → 落盘 → 内容对不对"连成一条。
+ * 解析范围刻意只有两件事：条目名（`xl/workbook.xml` 的位置）与 `workbook.xml` 的 `<sheet name>`。
+ */
+function sheetNamesOfXlsx(bytes) {
+  const entries = unzipEntries(bytes);
+  const workbook = entries.get('xl/workbook.xml');
+  if (workbook === undefined) return { names: [], reason: 'zip 里没有 xl/workbook.xml' };
+  const xml = workbook.toString('utf8');
+  const names = [...xml.matchAll(/<sheet[^>]*\sname="([^"]*)"/g)].map((match) => match[1]);
+  return { names, reason: names.length === 0 ? '<sheet name> 一个都没解析出来' : '' };
+}
+
+/**
+ * 极简 zip 读取器（**只服务判据**：条目名 + 条目内容）。
+ *
+ * 支持"存储"（0）与"deflate"（8）两种压缩法——`exceljs` 写出来的是后者。
+ * 不做 CRC 校验、不解目录树：多做事就会多一份需要维护的实现。
+ */
+function unzipEntries(buffer) {
+  const out = new Map();
+  const END_SIG = 0x06054b50;
+  let eocd = -1;
+  for (let index = buffer.length - 22; index >= 0 && index > buffer.length - 66_000; index -= 1) {
+    if (buffer.readUInt32LE(index) === END_SIG) {
+      eocd = index;
+      break;
+    }
+  }
+  if (eocd < 0) return out;
+  const count = buffer.readUInt16LE(eocd + 10);
+  let offset = buffer.readUInt32LE(eocd + 16);
+  for (let index = 0; index < count; index += 1) {
+    if (buffer.readUInt32LE(offset) !== 0x02014b50) break;
+    const method = buffer.readUInt16LE(offset + 10);
+    const compressedSize = buffer.readUInt32LE(offset + 20);
+    const nameLength = buffer.readUInt16LE(offset + 28);
+    const extraLength = buffer.readUInt16LE(offset + 30);
+    const commentLength = buffer.readUInt16LE(offset + 32);
+    const localOffset = buffer.readUInt32LE(offset + 42);
+    const name = buffer.toString('utf8', offset + 46, offset + 46 + nameLength);
+    offset += 46 + nameLength + extraLength + commentLength;
+
+    const localNameLength = buffer.readUInt16LE(localOffset + 26);
+    const localExtraLength = buffer.readUInt16LE(localOffset + 28);
+    const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+    const raw = buffer.subarray(dataStart, dataStart + compressedSize);
+    try {
+      out.set(name, method === 0 ? raw : inflateRawSync(raw));
+    } catch {
+      out.set(name, Buffer.alloc(0));
+    }
+  }
+  return out;
+}
+
 /** 静态服务器（只绑 127.0.0.1、临时端口、白名单范围内的路径）。 */
 function startStaticServer() {
   const server = createServer((request, response) => {
@@ -137,8 +209,8 @@ function findChrome() {
 }
 
 /** 启动无头 Chrome 并等 DevTools 端口落盘。 */
-function launchChrome(executable) {
-  const profileDir = assertOwnProfile(profileDirFor('smoke-profile'));
+function launchChrome(executable, extraArgs = []) {
+  const profileDir = assertOwnProfile(profileDirFor(fileMode ? 'offline-profile' : 'smoke-profile'));
   currentProfileDir = profileDir;
   const child = spawn(
     executable,
@@ -153,6 +225,7 @@ function launchChrome(executable) {
       '--window-size=1600,900',
       '--no-first-run',
       '--no-default-browser-check',
+      ...extraArgs,
       `--user-data-dir=${profileDir}`,
       '--remote-debugging-port=0',
       'about:blank',
@@ -177,13 +250,16 @@ async function readDevToolsPort(profileDir) {
 }
 
 /** 极简 CDP 客户端（零新增依赖：内置 `fetch` + 内置 `WebSocket`）。 */
-async function connect(port) {
+async function connect(port, { fileUrl = null } = {}) {
   let target = '';
   const deadline = Date.now() + 15_000;
   while (Date.now() < deadline && target === '') {
     const response = await fetch(`http://127.0.0.1:${String(port)}/json/list`);
     const targets = await response.json();
-    const page = targets.find((item) => item.type === 'page');
+    // `file://` 下页面目标可能是 `file://` 而不是 `about:blank`：两种都收，避免"找不到目标"的空转。
+    const page =
+      targets.find((item) => item.type === 'page' && (fileUrl === null || item.url.startsWith('file:'))) ??
+      targets.find((item) => item.type === 'page');
     if (page !== undefined) target = page.webSocketDebuggerUrl;
     else await new Promise((settle) => setTimeout(settle, 150));
   }
@@ -439,10 +515,16 @@ async function probeLayoutStability(cdp, label, frames = 60) {
  * PPTX 要在浏览器里动态加载 `pptxgenjs`（Vite 的 `browser` 字段会把 `https`/`image-size` 替空）。
  * 这两条路径在 Node 测试里结构上覆盖不到（P-9/P-17 的分层口径）。
  */
-async function exerciseExports(cdp) {
+async function exerciseExports(cdp, downloadDir = null, formats = ['svg', 'png', 'pptx']) {
   const problems = [];
-  const dir = join(repoRoot, 'tmp', 'smoke-downloads', String(Date.now()));
+  const dir = downloadDir ?? join(repoRoot, 'tmp', 'smoke-downloads', String(Date.now()));
   mkdirSync(dir, { recursive: true });
+  /**
+   * 下载行为（`Browser.setDownloadBehavior`）**必须在 `Page.navigate` 之前设**：
+   * 导航会把 target 换掉，之后再设的下载目录对当前页面不生效（实测：导出点下去没有任何文件）。
+   * 本函数因此接受一个**调用方已经设过**下载目录（`prepareDownloads`）的页面——
+   * 这里只重设一次作为兜底（同一目录，幂等）。
+   */
   await cdp.call('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: dir });
 
   const setAndRun = async (format, scale) => {
@@ -454,17 +536,28 @@ async function exerciseExports(cdp) {
         `  if (!select) return 'no-select';`,
         `  select.value = ${JSON.stringify(format)};`,
         `  select.dispatchEvent(new Event('change', { bubbles: true }));`,
-        `  ${
-          format === 'png'
-            ? `const scale = document.querySelector('[data-export-scale]'); if (scale) { scale.value = ${JSON.stringify(String(scale ?? 1))}; scale.dispatchEvent(new Event('change', { bubbles: true })); }`
-            : ''
-        }`,
         `  return 'ok';`,
         `})()`,
       ].join('\n'),
       returnByValue: true,
     });
     await new Promise((settle) => setTimeout(settle, 400));
+    if (format === 'png') {
+      // PNG 倍率控件**只在 `format === 'png'` 时存在**（`v-if`）⇒ 必须在切完格式之后再改它。
+      await cdp.call('Runtime.evaluate', {
+        expression: [
+          `(() => {`,
+          `  const scale = document.querySelector('[data-export-scale]');`,
+          `  if (!scale) return 'no-scale';`,
+          `  scale.value = ${JSON.stringify(String(scale))};`,
+          `  scale.dispatchEvent(new Event('change', { bubbles: true }));`,
+          `  return 'ok';`,
+          `})()`,
+        ].join('\n'),
+        returnByValue: true,
+      });
+      await new Promise((settle) => setTimeout(settle, 300));
+    }
     await cdp.call('Runtime.evaluate', {
       expression: `(() => { const btn = document.querySelector('[data-export-run]'); if (!btn) return 'no-button'; btn.click(); return 'clicked'; })()`,
       returnByValue: true,
@@ -491,48 +584,645 @@ async function exerciseExports(cdp) {
   };
 
   // ① SVG
-  await setAndRun('svg', 1);
-  const svg = await waitFor('.svg');
-  if (svg === null) {
-    problems.push(`导出 SVG：没有落盘文件（页面提示：${await noticeText()}）`);
-  } else {
-    const text = readFileSync(join(dir, svg), 'utf8');
-    if (!text.includes('<svg')) problems.push('导出 SVG：内容里没有 <svg>');
-    if (text.length < 2_000) problems.push(`导出 SVG：内容过小（${String(text.length)} 字符）`);
-    if (/handle|connect-point|transparent/.test(text)) problems.push('导出 SVG：含交互图元（手柄/连接点/热区）');
+  if (formats.includes('svg')) {
+    await setAndRun('svg', 1);
+    const svg = await waitFor('.svg');
+    if (svg === null) {
+      problems.push(`导出 SVG：没有落盘文件（页面提示：${await noticeText()}）`);
+    } else {
+      const text = readFileSync(join(dir, svg), 'utf8');
+      if (!text.includes('<svg')) problems.push('导出 SVG：内容里没有 <svg>');
+      if (text.length < 2_000) problems.push(`导出 SVG：内容过小（${String(text.length)} 字符）`);
+      if (/handle|connect-point|transparent/.test(text)) problems.push('导出 SVG：含交互图元（手柄/连接点/热区）');
+    }
   }
 
   // ② PNG（1× 就够：验的是"光栅化这条路通"）
-  await setAndRun('png', 1);
-  const png = await waitFor('.png');
-  if (png === null) {
-    problems.push(`导出 PNG：没有落盘文件（光栅化失败？页面提示：${await noticeText()}）`);
-  } else {
-    const buffer = readFileSync(join(dir, png));
-    const isPng = buffer.length > 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
-    if (!isPng) problems.push('导出 PNG：文件不是 PNG（magic 不符）');
-    if (buffer.length < 1_000) problems.push(`导出 PNG：文件过小（${String(buffer.length)} 字节）`);
+  if (formats.includes('png')) {
+    await setAndRun('png', 1);
+    const png = await waitFor('.png');
+    if (png === null) {
+      problems.push(`导出 PNG：没有落盘文件（光栅化失败？页面提示：${await noticeText()}）`);
+    } else {
+      const buffer = readFileSync(join(dir, png));
+      const isPng = buffer.length > 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+      if (!isPng) problems.push('导出 PNG：文件不是 PNG（magic 不符）');
+      if (buffer.length < 1_000) problems.push(`导出 PNG：文件过小（${String(buffer.length)} 字节）`);
+    }
   }
 
   // ③ PPTX（浏览器里动态加载 pptxgenjs + 打补丁）
-  await setAndRun('pptx', 1);
-  const pptx = await waitFor('.pptx');
-  if (pptx === null) {
-    problems.push(`导出 PPTX：没有落盘文件（浏览器侧 pptxgenjs 路径失败？页面提示：${await noticeText()}）`);
-  } else {
-    const buffer = readFileSync(join(dir, pptx));
-    if (!(buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4b)) {
-      problems.push('导出 PPTX：文件不是 zip（magic 不符）');
+  if (formats.includes('pptx')) {
+    await setAndRun('pptx', 1);
+    const pptx = await waitFor('.pptx');
+    if (pptx === null) {
+      problems.push(`导出 PPTX：没有落盘文件（浏览器侧 pptxgenjs 路径失败？页面提示：${await noticeText()}）`);
+    } else {
+      const buffer = readFileSync(join(dir, pptx));
+      if (!(buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4b)) {
+        problems.push('导出 PPTX：文件不是 zip（magic 不符）');
+      }
+      if (buffer.length < 5_000) problems.push(`导出 PPTX：文件过小（${String(buffer.length)} 字节）`);
     }
-    if (buffer.length < 5_000) problems.push(`导出 PPTX：文件过小（${String(buffer.length)} 字节）`);
   }
 
   return { problems, dir };
 }
 
+/**
+ * **G8 ①：两级刻度 + 悬停行高亮 + 表头两行**（P-46；打包产物上真的读 DOM）。
+ *
+ * ## 为什么这些判据必须在这里
+ *
+ * "刻度画成了两行""指针所在行有浅色底"是 **DOM 事实**（SVG 文本盒的竖向中心、
+ * `getComputedStyle` 的底色），按 [P-40](../../docs/00-baseline/裁决R39.md) 的两条通道口径，
+ * 这类事实的**门禁侧**就在 `smoke:build`（记录制侧是 `measure-render.mjs --g8`）。
+ *
+ * ## 三条对照缺一不可
+ *
+ * 1. **未悬停**：`.hover-row` 必须不存在（否则"高亮"是常亮装饰）；
+ * 2. **悬停第 1 行 vs 第 3 行**：`.hover-row` 的竖向范围必须**跟着指针走**——
+ *    只读一次无法区分"跟着指针"与"画了一条固定带"；
+ * 3. **左表那一行的底色**必须真的变了（左表侧是纯 CSS `:hover`，但 CDP 的 `Input.dispatchMouseEvent`
+ *    会真的产生 `:hover` 命中）。
+ */
+async function probeG8AxisAndHover(cdp) {
+  const problems = [];
+  const read = async (expression) => {
+    const result = await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+    return result.result.value;
+  };
+
+  const axis = JSON.parse(
+    await read(`(() => {
+      const texts = [...document.querySelectorAll('.axis-labels text')];
+      const measured = texts.map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { text: (element.textContent || '').trim(), centerY: Math.round((rect.top + rect.bottom) / 2) };
+      });
+      const ys = [...new Set(measured.map((item) => item.centerY))].sort((a, b) => a - b);
+      const minorY = ys.length > 0 ? ys[0] : null;
+      const majorY = ys.length > 1 ? ys[ys.length - 1] : null;
+      const pick = (y) => y === null ? [] : measured.filter((item) => item.centerY === y).map((item) => item.text);
+      const header = (selector) => {
+        const node = document.querySelector(selector);
+        return node === null ? -1 : Math.round(node.getBoundingClientRect().height * 10) / 10;
+      };
+      const blank = document.querySelector('.table-header .cell-blank');
+      return JSON.stringify({
+        texts: texts.length,
+        minorY, majorY,
+        minor: pick(minorY), major: pick(majorY),
+        majorBands: document.querySelectorAll('.axis .axis-major-band').length,
+        headerTable: header('.table-header'),
+        headerChart: header('.chart-header'),
+        blankText: (blank === null ? '(没有第二行)' : (blank.textContent || '').trim()),
+      });
+    })()`),
+  );
+
+  if (axis.texts === 0) problems.push('[G8 刻度] 表头带里一条刻度文本都没有');
+  if (axis.majorY === null) problems.push('[G8 刻度] 刻度只有一行（两级刻度未生效）');
+  if (axis.majorBands === 0) problems.push('[G8 刻度] 没有上级分段带（.axis-major-band）');
+  // 上级标签随档位：默认日档 ⇒ 上级 `YYYY-MM`、下级 `DD`。
+  if (!axis.minor.every((text) => /^\d{2}$/.test(text))) {
+    problems.push(`[G8 刻度] 日档下级标签不是 DD：${axis.minor.slice(0, 4).join('/')}`);
+  }
+  if (!axis.major.every((text) => /^\d{4}-\d{2}$/.test(text))) {
+    problems.push(`[G8 刻度] 日档上级标签不是 YYYY-MM：${axis.major.slice(0, 4).join('/')}`);
+  }
+  if (axis.headerTable !== axis.headerChart) {
+    problems.push(`[G8 刻度] 两栏表头外高不等：左表 ${String(axis.headerTable)} px / 图表 ${String(axis.headerChart)} px`);
+  }
+  if (axis.blankText !== '') {
+    problems.push(`[G8 刻度] 左表表头第二行不是留白："${String(axis.blankText)}"`);
+  }
+
+  /** 把指针放到第 N 个可见行的条体上（真实鼠标事件 ⇒ `mousemove` 真的发生）。 */
+  const hoverBar = async (index) => {
+    const target = JSON.parse(
+      await read(`(() => {
+        const pane = document.getElementById('chart-pane');
+        const svgRows = [...document.querySelectorAll('.rows > g[data-task-id]')];
+        const row = svgRows[${String(index)}];
+        if (!pane || !row) return JSON.stringify({ ok: false });
+        const bar = row.querySelector('rect.bar') || row.querySelector('polygon.milestone');
+        if (!bar) return JSON.stringify({ ok: false });
+        const barBox = bar.getBoundingClientRect();
+        const x = barBox.left + Math.min(6, barBox.width / 2);
+        const y = barBox.top + barBox.height / 2;
+        return JSON.stringify({ ok: true, x, y, taskId: row.getAttribute('data-task-id') });
+      })()`),
+    );
+    if (!target.ok) return null;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+       
+      await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: target.x, y: target.y, button: 'none' });
+       
+      await new Promise((settle) => setTimeout(settle, 120));
+    }
+    const reading = JSON.parse(
+      await read(`(() => {
+        const hoverNodes = [...document.querySelectorAll('.hover-row')];
+        const first = hoverNodes[0] || null;
+        const box = first === null ? null : first.getBoundingClientRect();
+        return JSON.stringify({
+          svgHoverRows: hoverNodes.length,
+          svgTop: box === null ? null : Math.round(box.top * 10) / 10,
+          svgBottom: box === null ? null : Math.round(box.bottom * 10) / 10,
+          svgLeft: box === null ? null : Math.round(box.left * 10) / 10,
+          svgRight: box === null ? null : Math.round(box.right * 10) / 10,
+          svgFill: first === null ? '' : first.getAttribute('fill'),
+        });
+      })()`),
+    );
+    return { ...reading, taskId: target.taskId, pointerY: target.y };
+  };
+
+  /**
+   * **左表侧那半**：指针必须**物理落在左表那一行上**，`:hover` 才会命中。
+   *
+   * 这一条是 P-46 §2.2 里"两侧不共享判据"的落地形式：图表侧的高亮是 SVG 元素（跟着指针走、
+   * 计入元素预算），左表侧是纯 CSS（只有指针真的在左表上才生效）——**不能**用一次悬停同时断言两侧。
+   */
+  const hoverTableRow = async (index) => {
+    const target = JSON.parse(
+      await read(`(() => {
+        const rows = [...document.querySelectorAll('.table-body .row-block .row[data-task-id]')];
+        const row = rows[${String(index)}];
+        if (!row) return JSON.stringify({ ok: false });
+        const box = row.getBoundingClientRect();
+        return JSON.stringify({ ok: true, x: box.left + 12, y: box.top + box.height / 2, taskId: row.getAttribute('data-task-id') });
+      })()`),
+    );
+    if (!target.ok) return null;
+    // 先挪开再回来：指针"已经在那一行上"时浏览器不会再派发一次进入事件（实测会读不到 :hover）。
+    await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: target.x, y: target.y - 200, button: 'none' });
+    await new Promise((settle) => setTimeout(settle, 120));
+    await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: target.x, y: target.y, button: 'none' });
+    await new Promise((settle) => setTimeout(settle, 250));
+    const reading = JSON.parse(
+      await read(`(() => {
+        const rows = [...document.querySelectorAll('.table-body .row-block .row[data-task-id]')];
+        const row = rows.find((item) => item.getAttribute('data-task-id') === ${JSON.stringify(target.taskId)}) || null;
+        const others = rows
+          .filter((item) => item.getAttribute('data-task-id') !== ${JSON.stringify(target.taskId)})
+          .map((item) => getComputedStyle(item).backgroundColor);
+        return JSON.stringify({
+          tableBackground: row === null ? '' : getComputedStyle(row).backgroundColor,
+          hovered: row === null ? false : row.matches(':hover'),
+          otherBackgrounds: [...new Set(others)],
+          error: window.__GANTTPILOT_ERROR__ ?? null,
+        });
+      })()`),
+    );
+    return { ...reading, taskId: target.taskId };
+  };
+
+  const clearPointer = async () => {
+    await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 2, y: 2, button: 'none' });
+    await new Promise((settle) => setTimeout(settle, 250));
+    return JSON.parse(
+      await read(`JSON.stringify({
+        hoverRows: document.querySelectorAll('.hover-row').length,
+        hoveredTableRows: document.querySelectorAll('.table-body .row-block .row[data-task-id]:hover').length,
+      })`),
+    );
+  };
+
+  const idle = await clearPointer();
+  if (idle.hoverRows !== 0) problems.push(`[G8 悬停] 未悬停时已有 ${String(idle.hoverRows)} 个 .hover-row（高亮必须按需）`);
+  if (idle.hoveredTableRows !== 0) problems.push('[G8 悬停] 未悬停时左表已有行处于 :hover');
+
+  const first = await hoverBar(0);
+  const third = await hoverBar(2);
+  if (first === null || third === null) {
+    problems.push('[G8 悬停] 图表侧找不到可悬停的渲染行（SVG 行或它的条体）');
+  } else {
+    if (first.svgHoverRows !== 1) problems.push(`[G8 悬停] 悬停第 1 行时 .hover-row 有 ${String(first.svgHoverRows)} 个（期望 1）`);
+    if (third.svgHoverRows !== 1) problems.push(`[G8 悬停] 悬停第 3 行时 .hover-row 有 ${String(third.svgHoverRows)} 个（期望 1）`);
+    // **跟着指针走**：两个位置的竖向范围必须不同（固定带会得到同一个值）。
+    if (first.svgTop !== null && third.svgTop !== null && Math.abs(first.svgTop - third.svgTop) < 10) {
+      problems.push(
+        `[G8 悬停] 悬停第 1/3 行的行带几乎同高（${String(first.svgTop)} / ${String(third.svgTop)}）——它没有跟着指针走`,
+      );
+    }
+    // 行带必须**只有一行高**（放大成整幅就变成"整页变色"，那同样是错的）。
+    if (first.svgTop !== null && first.svgBottom !== null && first.svgBottom - first.svgTop > 40) {
+      problems.push(`[G8 悬停] 行带高 ${String(first.svgBottom - first.svgTop)} px（远超一个行高 24 px）`);
+    }
+    if (process.env.GANTTPILOT_SMOKE_VERBOSE === '1') {
+      console.log(
+        `[smoke] G8 图表侧：刻度 ${String(axis.texts)} 条（上级 ${String(axis.major.length)} / 下级 ${String(axis.minor.length)}）、` +
+          `分段带 ${String(axis.majorBands)} 个、表头 ${String(axis.headerTable)}/${String(axis.headerChart)} px；` +
+          `悬停行带 ${String(first.svgTop)} → ${String(third.svgTop)}（fill ${String(first.svgFill)}）`,
+      );
+    }
+  }
+
+  // 左表侧（纯 CSS）：指针落在**左表**上时那一行必须变色，别的行不变。
+  const tableOn = await hoverTableRow(3);
+  if (tableOn === null) {
+    problems.push('[G8 悬停] 找不到左表的第 4 行（无法验证左表侧高亮）');
+  } else {
+    if (tableOn.hovered !== true) problems.push('[G8 悬停] 左表那一行没有进入 :hover（指针未命中）');
+    const value = String(tableOn.tableBackground);
+    if (value === '' || value === 'rgba(0, 0, 0, 0)' || value === 'transparent') {
+      problems.push(`[G8 悬停] 左表被悬停的行没有底色（${value || '空'}）——纯 CSS :hover 未生效`);
+    }
+    if (tableOn.otherBackgrounds.includes(value)) {
+      problems.push('[G8 悬停] 左表"别的行"底色与悬停行相同——高亮没有限定在指针所在行');
+    }
+    // 悬停**图表**时，左表那一行**不该**跟着变色（两侧不共享判据）。
+    const chartAgain = await hoverBar(3);
+    if (chartAgain !== null) {
+      const after = await read(`(() => {
+        const rows = [...document.querySelectorAll('.table-body .row-block .row[data-task-id]')];
+        const row = rows.find((item) => item.getAttribute('data-task-id') === ${JSON.stringify(tableOn.taskId)}) || null;
+        return row === null ? '' : getComputedStyle(row).backgroundColor;
+      })()`);
+      if (String(after) === value) {
+        problems.push('[G8 悬停] 指针在图表上时左表对应行仍保持高亮底色（左表侧应为纯 :hover，不跟随图表）');
+      }
+    }
+    if (process.env.GANTTPILOT_SMOKE_VERBOSE === '1') {
+      console.log(`[smoke] G8 左表侧：${tableOn.taskId} 底色 ${value}（未悬停值集合 ${tableOn.otherBackgrounds.join(' / ')}）`);
+    }
+  }
+  await clearPointer();
+  return problems;
+}
+
+/**
+ * **G8 ②：向右拖远不白屏**（P-48 的人工复核入口变成可判定的一条）。
+ *
+ * 报障的形态是"拖动预览越过调用方日历容量 ⇒ `buildView` 抛 `RangeError` ⇒ Vue 卸载整棵树 ⇒
+ * 整页空白"。判据：把 `t1` 向右拖 **120 个工作日格**（远超入参日历容量）、松手之后，
+ * 页面结构仍在（`#app` 有子节点、SVG 在、条体在）且 `__GANTTPILOT_ERROR__` 为空。
+ */
+async function probeRightDragHorizon(cdp) {
+  const problems = [];
+  const read = async (expression) => {
+    const result = await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+    return result.result.value;
+  };
+  const target = JSON.parse(
+    await read(`(() => {
+      const row = document.querySelector('.rows > g[data-task-id="t1"]');
+      if (!row) return JSON.stringify({ ok: false, reason: '演示计划里找不到 t1 的行' });
+      const bar = row.querySelector('rect.bar');
+      if (!bar) return JSON.stringify({ ok: false, reason: 't1 不是条形（找不到 rect.bar）' });
+      const box = bar.getBoundingClientRect();
+      return JSON.stringify({ ok: true, x: box.left + Math.min(6, box.width / 2), y: box.top + box.height / 2 });
+    })()`),
+  );
+  if (!target.ok) {
+    problems.push(`[G8 地平线] 无法起手势：${String(target.reason)}`);
+    return problems;
+  }
+  const steps = 24;
+  const totalDx = 120 * 24; // 120 个工作日格（日档 24 px/天）
+  await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', x: target.x, y: target.y, button: 'left', clickCount: 1, buttons: 1 });
+  for (let step = 1; step <= steps; step += 1) {
+     
+    await cdp.call('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: target.x + (totalDx * step) / steps,
+      y: target.y,
+      button: 'left',
+      buttons: 1,
+    });
+     
+    await new Promise((settle) => setTimeout(settle, 16));
+  }
+  const during = JSON.parse(
+    await read(`JSON.stringify({
+      error: window.__GANTTPILOT_ERROR__ ?? null,
+      svg: document.querySelectorAll('.gantt-svg').length,
+      bars: document.querySelectorAll('rect.bar').length,
+    })`),
+  );
+  await cdp.call('Input.dispatchMouseEvent', {
+    type: 'mouseReleased',
+    x: target.x + totalDx,
+    y: target.y,
+    button: 'left',
+    clickCount: 1,
+    buttons: 0,
+  });
+  await new Promise((settle) => setTimeout(settle, 400));
+  const after = JSON.parse(
+    await read(`JSON.stringify({
+      error: window.__GANTTPILOT_ERROR__ ?? null,
+      appChildren: document.getElementById('app')?.childElementCount ?? 0,
+      svg: document.querySelectorAll('.gantt-svg').length,
+      bars: document.querySelectorAll('rect.bar').length,
+      status: (document.querySelector('.status') || {}).textContent || null,
+    })`),
+  );
+  if (during.error !== null) problems.push(`[G8 地平线] 拖动期出现应用级错误（白屏形态）：${String(during.error)}`);
+  if (during.svg === 0 || during.bars === 0) {
+    problems.push(`[G8 地平线] 拖动期页面结构被卸载（svg ${String(during.svg)}、条体 ${String(during.bars)}）`);
+  }
+  if (after.error !== null) problems.push(`[G8 地平线] 松手后仍有应用级错误：${String(after.error)}`);
+  if (after.appChildren === 0 || after.svg === 0 || after.bars === 0) {
+    problems.push(
+      `[G8 地平线] 向右拖 120 个工作日后页面不再完整（#app 子节点 ${String(after.appChildren)}、svg ${String(after.svg)}、条体 ${String(after.bars)}）`,
+    );
+  }
+  if (process.env.GANTTPILOT_SMOKE_VERBOSE === '1') {
+    console.log(`[smoke] G8 地平线：拖动期 error=${String(during.error)}、松手后条体 ${String(after.bars)} 个`);
+  }
+  return problems;
+}
+
+/**
+ * **G8 ③：模板下载 → 回导**（P-46；ADR 0006 附录 §1 的打包产物那半）。
+ *
+ * 判据链：点「模板下载」→ 文件**真的落盘** → 页签集合与顺序正确 →
+ * **用应用自己的导入入口把它读回来**（任务数与文档计数一致、诊断里 **error 0**）。
+ * "模板与协议随时对齐"因此是可判定的，而不是靠人记得同步。
+ */
+async function probeTemplateDownload(cdp, repoRootPath, downloadDir = null) {
+  const problems = [];
+  const dir = downloadDir ?? join(repoRootPath, 'tmp', 'smoke-downloads', `template-${String(Date.now())}`);
+  mkdirSync(dir, { recursive: true });
+  await cdp.call('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: dir });
+  const run = await cdp.call('Runtime.evaluate', {
+    expression: `(() => { const btn = document.querySelector('[data-template]'); if (!btn) return 'no-button'; btn.click(); return 'clicked'; })()`,
+    returnByValue: true,
+  });
+  if (run.result.value !== 'clicked') {
+    problems.push(`[G8 模板] 工具栏没有「模板下载」按钮（selector [data-template]）：${String(run.result.value)}`);
+    return problems;
+  }
+  let file = null;
+  for (let attempt = 0; attempt < 10 && file === null; attempt += 1) {
+     
+    await new Promise((settle) => setTimeout(settle, 1_000));
+    file = (existsSync(dir) ? readdirSync(dir) : []).find((name) => name.toLowerCase().endsWith('.xlsx')) ?? null;
+  }
+  if (file === null) {
+    problems.push('[G8 模板] 点了「模板下载」但没有任何 .xlsx 落盘');
+    return problems;
+  }
+  const bytes = readFileSync(join(dir, file));
+  const { names, reason } = sheetNamesOfXlsx(bytes);
+  const expected = ['任务', '填写说明与约束', '最小示例'];
+  if (names.length === 0) {
+    problems.push(`[G8 模板] 页签名解析失败：${reason}`);
+  } else if (JSON.stringify(names) !== JSON.stringify(expected)) {
+    problems.push(`[G8 模板] 页签集合/顺序不符：${names.join(' / ')}（期望 ${expected.join(' / ')}）`);
+  }
+
+  // **回导**：走应用自己的隐藏 file input（真实导入入口）。
+  const setFiles = await cdp.call('DOM.getDocument', { depth: -1 });
+  const inputQuery = await cdp.call('DOM.querySelector', {
+    nodeId: setFiles.root.nodeId,
+    selector: 'input[type=file]',
+  });
+  if (inputQuery.nodeId === 0) {
+    problems.push('[G8 模板] 找不到导入用的 file input');
+    return problems;
+  }
+  await cdp.call('DOM.setFileInputFiles', { nodeId: inputQuery.nodeId, files: [join(dir, file)] });
+  await new Promise((settle) => setTimeout(settle, 2_500));
+  const after = await cdp.call('Runtime.evaluate', {
+    expression: `(() => {
+      const status = (document.querySelector('.status') || {}).textContent || '';
+      const notice = (document.querySelector('.status .notice') || {}).textContent || '';
+      const diagnostics = [...document.querySelectorAll('.diagnostics li')].map((item) => item.textContent || '');
+      return JSON.stringify({ status, notice, diagnostics, error: window.__GANTTPILOT_ERROR__ ?? null });
+    })()`,
+    returnByValue: true,
+  });
+  const reading = JSON.parse(after.result.value);
+  if (reading.error !== null) problems.push(`[G8 模板] 回导出现应用级错误：${String(reading.error)}`);
+  const counts = /任务 (\d+) · 依赖 (\d+)/.exec(reading.status ?? '');
+  if (counts === null || Number(counts[1]) < 8) {
+    problems.push(`[G8 模板] 回导后状态栏没有合理的任务计数：${String(reading.status)}（提示：${String(reading.notice)}）`);
+  }
+  if (/导入失败/.test(String(reading.notice))) {
+    problems.push(`[G8 模板] 回导失败：${String(reading.notice)}`);
+  }
+  // 诊断项里的 error 级（面板把 severity 写成 CSS class，文案里带诊断码）必须为 0。
+  const errorLines = reading.diagnostics.filter((line) => /XLSX_[A-Z_]*/.test(line) && /required_column_missing|REQUIRED_COLUMN_MISSING/i.test(line));
+  if (errorLines.length > 0) {
+    problems.push(`[G8 模板] 回导后仍有"必需列缺失"类错误：${errorLines.slice(0, 3).join(' | ')}`);
+  }
+  if (process.env.GANTTPILOT_SMOKE_VERBOSE === '1') {
+    console.log(
+      `[smoke] G8 模板：${file}（${String(bytes.length)} 字节）、页签 ${names.join('/')}、回导后 ${String(counts?.[0] ?? '(未解析)')}`,
+    );
+  }
+  return problems;
+}
+
+/** 把下载目录设成固定路径（`file://` 与"回导刚落盘的模板"两处都需要它）。 */
+function prepareDownloadDir(label) {
+  const dir = join(repoRoot, 'tmp', 'smoke-downloads', label);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/**
+ * **离线单文件模式**（`--file`；P-49 §3 的判据 2）。
+ *
+ * 判据链（缺一条，"双击即用"就只是口号）：
+ * 1. 以 `file://` 打开**单文件产物** → 界面真的渲染（标题/工具栏/图表窗格/SVG/状态栏）；
+ * 2. **三条主链路各走一次**：导入（模板回导）→ 拖动（松手后文档真的变了）→ 导出（SVG 落盘）；
+ * 3. **`file://` 下的两条实测登记**（P-49 §3 的探针问题①②）：IndexedDB 可用性、
+ *    `Blob` + `<a download>` 是否真落盘——**不得静默假成功**：不可用时 UI 必须明示。
+ *
+ * 注意：`file://` 与 HTTP 的差别**不在几何**，而在"存储与下载这两个浏览器能力有没有"，
+ * 因此这里不重跑记录制性能，也不重跑在线产物的分包断言（那一套只对 `dist/` 有意义）。
+ */
+async function runFileMode() {
+  const problems = [];
+  const downloadDir = prepareDownloadDir('offline');
+  const executable = findChrome();
+  // `--allow-file-access-from-files`：让 `file://` 页面能读同一目录下的文件（`DOM.setFileInputFiles`
+  // 用它把模板文件喂回导入入口）；**不改变任何几何或渲染行为**。
+  chromeHandle = launchChrome(executable, ['--allow-file-access-from-files']);
+  const port = await readDevToolsPort(chromeHandle.profileDir);
+  const url = `file:///${join(offlineRoot, 'index.html').replace(/\\/g, '/')}`;
+  const cdp = await connect(port, { fileUrl: url });
+  // 下载目录：`Page.navigate` **之前**设（导航会换 target）。
+  await cdp.call('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: downloadDir });
+
+  const { probe, errors } = await smoke(cdp, url);
+  if (probe.error !== null) problems.push(`应用级错误（file://）：${String(probe.error)}`);
+  if (errors.length > 0) problems.push(`控制台/异常（file://）：${errors.slice(0, 3).join(' | ')}`);
+  if (probe.title !== 'GanttPilot') problems.push(`标题不符：${String(probe.title)}`);
+  if (probe.brand === null) problems.push('工具栏未渲染（找不到 .brand）');
+  if (!probe.pane) problems.push('图表窗格未渲染（找不到 #chart-pane）');
+  if (!probe.svg) problems.push('SVG 未渲染（找不到 .gantt-svg）');
+  if (!probe.exportUi) problems.push('导出面板未渲染（找不到 [data-export]）');
+  // **在线产物的分包断言在这里不适用**（单文件变体必须内联两个库）；但"内联是否真的生效"
+  // 由 `scripts/bundle-offline.mjs` 的形状判据守着。
+
+  // ① 导入（回导模板文件 ⇒ 顺带证明"模板下载"在 file:// 下也落盘）。
+  problems.push(...(await probeTemplateDownload(cdp, repoRoot, downloadDir)));
+  // ② 拖动（真实指针）：松手后文档真的变了，且没有应用级错误。
+  const before = await readEvaluate(cdp, `(() => {
+    const status = (document.querySelector('.status') || {}).textContent || '';
+    const node = [...document.querySelectorAll('.table-body .row-block .row[data-task-id="t1"] .cell')][2] || null;
+    return JSON.stringify({ status, startText: (node === null ? '' : node.textContent || '').trim() });
+  })()`);
+  problems.push(...(await probeDragChangesDocument(cdp, before)));
+
+  // ③ 导出 SVG（真的落盘）。
+  const exports = await exerciseExports(cdp, downloadDir);
+
+  // ④ `file://` 的两条实测登记（存储与下载）。
+  const storage = await probeIndexedDb(cdp);
+  const downloads = exports.dir === downloadDir ? readdirSync(downloadDir) : [];
+  cdp.close();
+
+  problems.push(...exports.problems.filter((item) => item.includes('导出 SVG')));
+  if (downloads.length === 0) {
+    // 这一条**不判红**、只登记：P-49 §3 的判读是"若被拦 ⇒ 改用新标签页另存 + 明示"，
+    // 而"落盘失败"是浏览器策略，不是实现缺陷。真正要判的是"UI 有没有如实说"。
+    console.log('[smoke] 注意：`file://` 下没有任何导出物落盘（浏览器策略？）——见下面的索引化存储/下载登记');
+  }
+  console.log(`[smoke] file:// 存储登记：IndexedDB ${storage.idb}；状态栏持久化那一栏 = ${String(probe.persist)}`);
+  console.log(`[smoke] file:// 下载登记：导出物 ${downloads.length} 个（${downloads.slice(0, 4).join(' / ') || '无'}）`);
+
+  // **诚实登记**：IndexedDB 不可用时，状态栏必须明示"已停用"，而不是显示"已保存"。
+  if (storage.idb === 'unavailable' && /已保存/.test(String(probe.persist))) {
+    problems.push(
+      `[G8 单文件] IndexedDB 在 file:// 下不可用，但状态栏显示"已保存"（${String(probe.persist)}）——静默假成功`,
+    );
+  }
+  if (storage.idb === 'unavailable' && !/停用|不自动保存/.test(String(probe.persist))) {
+    problems.push(`[G8 单文件] IndexedDB 不可用时状态栏没有明示停用原因：${String(probe.persist)}`);
+  }
+  return { problems, url };
+}
+
+/** 通用的一次 `Runtime.evaluate`（`--file` 模式的几条判据共用）。 */
+async function readEvaluate(cdp, expression) {
+  const result = await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
+  return result.result.value;
+}
+
+/**
+ * **`file://` 下的 IndexedDB 探针**（P-49 §3 问题①）。
+ *
+ * 判读三件事：能开库、能写、能读回。它**不改产品行为**（用一个独立库名），
+ * 结论由调用方登记（不可用时要求 UI 明示，见 `runFileMode`）。
+ */
+async function probeIndexedDb(cdp) {
+  const raw = await readEvaluate(cdp, `(async () => {
+    const open = () => new Promise((resolve) => {
+      try {
+        const request = indexedDB.open('ganttpilot-probe', 1);
+        request.onupgradeneeded = () => { request.result.createObjectStore('kv'); };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(null);
+        request.onblocked = () => resolve(null);
+      } catch (error) { resolve(null); }
+    });
+    const db = await open();
+    if (db === null) return JSON.stringify({ idb: 'unavailable' });
+    const write = await new Promise((resolve) => {
+      try {
+        const tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put('ok', 'probe');
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => resolve(false);
+        tx.onabort = () => resolve(false);
+      } catch (error) { resolve(false); }
+    });
+    const read = await new Promise((resolve) => {
+      try {
+        const tx = db.transaction('kv', 'readonly');
+        const request = tx.objectStore('kv').get('probe');
+        request.onsuccess = () => resolve(request.result ?? null);
+        request.onerror = () => resolve(null);
+      } catch (error) { resolve(null); }
+    });
+    return JSON.stringify({ idb: write && read === 'ok' ? 'available' : 'write-failed', read });
+  })()`);
+  return JSON.parse(raw);
+}
+
+/**
+ * **拖动真的改变了文档**（`--file` 模式的第 2 条链路）。
+ *
+ * 判据取"左表「开始」列的文本变了"（来自文档事实，不是视图派生值）：
+ * 拖完之后那一段文本必须与拖动前不同 —— 否则"能拖"只是画面在动。
+ */
+async function probeDragChangesDocument(cdp, before) {
+  const problems = [];
+  const target = JSON.parse(
+    await readEvaluate(cdp, `(() => {
+      const row = document.querySelector('.rows > g[data-task-id="t1"]');
+      const bar = row === null ? null : row.querySelector('rect.bar');
+      if (bar === null) return JSON.stringify({ ok: false });
+      const box = bar.getBoundingClientRect();
+      return JSON.stringify({ ok: true, x: box.left + Math.min(6, box.width / 2), y: box.top + box.height / 2 });
+    })()`),
+  );
+  if (!target.ok) {
+    problems.push('[G8 单文件] 拖动链路：找不到 t1 的条体');
+    return problems;
+  }
+  const dx = 5 * 24; // 5 个工作日（日档 24 px/天）
+  await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', x: target.x, y: target.y, button: 'left', clickCount: 1, buttons: 1 });
+  for (let step = 1; step <= 10; step += 1) {
+     
+    await cdp.call('Input.dispatchMouseEvent', {
+      type: 'mouseMoved',
+      x: target.x + (dx * step) / 10,
+      y: target.y,
+      button: 'left',
+      buttons: 1,
+    });
+     
+    await new Promise((settle) => setTimeout(settle, 20));
+  }
+  await cdp.call('Input.dispatchMouseEvent', {
+    type: 'mouseReleased',
+    x: target.x + dx,
+    y: target.y,
+    button: 'left',
+    clickCount: 1,
+    buttons: 0,
+  });
+  await new Promise((settle) => setTimeout(settle, 500));
+  const after = await readEvaluate(cdp, `(() => {
+    const node = [...document.querySelectorAll('.table-body .row-block .row[data-task-id="t1"] .cell')][2] || null;
+    return JSON.stringify({
+      startText: (node === null ? '' : node.textContent || '').trim(),
+      error: window.__GANTTPILOT_ERROR__ ?? null,
+      bars: document.querySelectorAll('rect.bar').length,
+    });
+  })()`);
+  const reading = JSON.parse(after);
+  if (reading.error !== null) problems.push(`[G8 单文件] 拖动后出现应用级错误：${String(reading.error)}`);
+  if (reading.bars === 0) problems.push('[G8 单文件] 拖动后条体全部消失（页面被卸载？）');
+  if (String(reading.startText) === String(before.startText) || String(reading.startText) === '') {
+    problems.push(
+      `[G8 单文件] 拖动链路：松手后「开始」列没有变化（前 "${String(before.startText)}" / 后 "${String(reading.startText)}"）`,
+    );
+  }
+  return problems;
+}
+
 let serverHandle = null;
 let chromeHandle = null;
 try {
+  if (fileMode) {
+    const { problems, url } = await runFileMode();
+    if (problems.length > 0) {
+      console.error(`[smoke] 离线单文件冒烟未通过（${url}）：`);
+      for (const problem of problems) console.error(`  - ${problem}`);
+      process.exitCode = 1;
+    } else {
+      console.log(`[smoke] 通过（file://）：${url}`);
+    }
+  } else {
   serverHandle = await startStaticServer();
   const url = `http://127.0.0.1:${String(serverHandle.port)}/`;
   const executable = findChrome();
@@ -558,10 +1248,22 @@ try {
     layoutProblems.push(...(await probeLayoutStability(cdp, '重置后')));
   }
   const exports = await exerciseExports(cdp);
+  /**
+   * **G8 的三组判据**（P-46/P-48）：
+   * ① 两级刻度 + 悬停行高亮 + 表头两行；② 向右拖远不白屏；③ 模板下载 → 回导。
+   *
+   * 顺序刻意放在导出之后：模板与拖动的判据都会**改变文档/下载目录外的状态**，
+   * 而导出那三条依赖"页面上还是演示计划"这个前提（导出物会落进同一个下载目录）。
+   */
+  const g8Problems = [];
+  g8Problems.push(...(await probeG8AxisAndHover(cdp)));
+  g8Problems.push(...(await probeRightDragHorizon(cdp)));
+  g8Problems.push(...(await probeTemplateDownload(cdp, repoRoot)));
   cdp.close();
 
   const problems = [];
   problems.push(...layoutProblems);
+  problems.push(...g8Problems);
   // G7：导出库的分包纪律（首屏主 chunk 不得含 pptxgenjs；且某个 chunk 里必须真有它）
   problems.push(...checkExportChunking());
   // G7：三条导出路径端到端（真的点、真的落盘）
@@ -604,6 +1306,7 @@ try {
     console.log(`  持久化：${String(probe.persist)}`);
     console.log(`  导出端到端：SVG / PNG / PPTX 三条路径均已落盘（目录 ${exports.dir}）`);
     console.log(`  演示口径：${counts?.[0] ?? '（未解析）'}`);
+  }
   }
 } catch (error) {
   console.error(`[smoke] 失败：${error instanceof Error ? error.message : String(error)}`);

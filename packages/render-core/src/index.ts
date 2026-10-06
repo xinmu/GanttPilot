@@ -19,16 +19,18 @@
 export const RENDER_CORE_VERSION = '0.0.0';
 
 /** 本包最新完成的能力块编号（完整清单见 `COMPLETED_GATES`）。 */
-export const PLANNED_GATE = 'G7' as const;
+export const PLANNED_GATE = 'G8' as const;
 
 /** 已落地能力块清单（G4 的几何与裁剪 + G7 的导出投影与 SVG 序列化）。 */
-export const COMPLETED_GATES = ['G4', 'G7'] as const;
+export const COMPLETED_GATES = ['G4', 'G7', 'G8'] as const;
 
 // ---------------------------------------------------------------- 常量与判据（ADR 0007 §11）
 export {
   ARROW_FILL,
   ARROW_RASTER,
   AXIS_LEFT_GUTTER_DAYS,
+  AXIS_MAJOR_EDGE,
+  AXIS_MAJOR_FILL,
   CONNECT_HIT_PAD_PX,
   CONNECT_INSET_PX,
   CONNECT_REVEAL_FACTOR,
@@ -44,9 +46,12 @@ export {
   HANDLE_WIDTH_PX,
   HEADER_HEIGHT_PX,
   HIT_TOLERANCE_PX,
+  HOVER_ROW_FILL,
   MIN_MOVE_ZONE_PX,
   LABEL_CHAR_PX,
   LABEL_PADDING_PX,
+  MAJOR_LABEL_BASELINE_PX,
+  MINOR_LABEL_BASELINE_PX,
   MIN_VISIBLE_ROWS,
   ROW_BUFFER,
   ROW_BUFFER_CANDIDATES,
@@ -135,6 +140,7 @@ export {
   countElements,
   countElementsByEnumeration,
   countOverlays,
+  hoverRowOf,
   type ElementCounts,
   type OverlayCounts,
 } from './count.js';

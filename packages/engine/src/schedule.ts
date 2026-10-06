@@ -103,6 +103,21 @@ export interface Schedule {
 export interface ScheduleSuccess {
   readonly ok: true;
   readonly schedule: Schedule;
+  /**
+   * `compute` 本次调用**真正用到**的日历（ADR 0005 附录 §1，裁决 P-48）。
+   *
+   * = 入参日历按 `expandToCoverDates` 覆盖到"本次调用里出现过的全部文档日期（含项目开始日）"
+   * 之后的那一份。**凡把本结果的序号翻译成日期（或把日期翻译成序号），一律用它**——
+   * 它是"这次计算可翻译"的载体，与 `schedule` 同源同次。
+   *
+   * 三条边界（与形状同等重要）：
+   * - **`Schedule` 一字不改**：索引约定、哨兵、`es/ef`、汇总派生值、"序号与容量无关"全部不变，
+   *   本字段只是"可翻译性"的载体；
+   * - **不是第二真相源**：它是**派生量**（同一 `document` + 同一入参日历 ⇒ 逐值相同），
+   *   **不落盘、不进文档、不进 xlsx/PPTX 导出物**；
+   * - **`ok: false`（成环）时不产出**（照 ADR 0005 §1："失败结果不产出半成品"）。
+   */
+  readonly renderCalendar: Calendar;
 }
 
 export interface ScheduleFailure {
@@ -398,10 +413,48 @@ function ordinalOfDocumentDay(calendar: Calendar, day: DayNumber): { readonly or
  * **序号与容量无关**是本节承诺的不变量。
  */
 function expandToCoverDates(calendar: Calendar, maxDocumentDay: DayNumber | null): Calendar {
-  if (maxDocumentDay === null) {
+  return expandToCoverDay(calendar, maxDocumentDay);
+}
+
+/**
+ * 把日历扩容到"能翻译序号 `maxOrdinal`"为止（P-48／ADR 0005 附录 §1 的第二半）。
+ *
+ * ## 为什么 `expandToCoverDates` 不够
+ *
+ * 文档日期只能定住"**日期 → 序号**"这一步的容量，而**计算出来的完成序号可以超出它**：
+ * 一旦有依赖链把任务推到远期，`projectFinish` 就落在文档日期之外。渲染层要画这张图，
+ * 就必须能翻译 `projectFinish − 1`（`contentWidthFor` 的公式），否则 `buildView` 抛
+ * `RangeError` ⇒ Vue 卸载整棵树 ⇒ **整页空白**（人工报障 2026-10-05 的原始形态）。
+ *
+ * ## 为什么用"工作日数上界"而不是 `dayOfOrdinal` 反推
+ *
+ * 反推（`dayOfOrdinal(k + 1)`）在容量不足时**自己就会抛**——那正是要修的状态。
+ * 这里改用一条**不依赖日历容量**的上界：一周只有一个"休息日集合"周的**工作日数 ≤ 7**，
+ * 因此 `k + 1` 个工作日最多跨 `ceil((k + 1) × 7 / 5) + 14` 个自然日
+ * （`7 / 5` 来自"一轮 7 天至少 5 个工作日"这一日历结构约束；`+ 14` 兜住例外把某几周压到 5 天以下）。
+ * 于是 `withHorizon` 的目标**单调且必然足够**：`workdayCount ≥ (span − 14) × 5 / 7 ≥ k + 1`。
+ */
+function expandToCoverOrdinal(calendar: Calendar, maxOrdinal: number): Calendar {
+  if (!Number.isFinite(maxOrdinal) || maxOrdinal < 0) {
     return calendar;
   }
-  const needed = maxDocumentDay - calendar.baseDay + 1;
+  const needed = Math.ceil((Math.floor(maxOrdinal) + 1) * (7 / 5)) + 14;
+  if (needed <= calendar.spanDays) {
+    return calendar;
+  }
+  let spanDays = calendar.spanDays;
+  while (spanDays < needed && spanDays < HORIZON_GUARD_DAYS) {
+    spanDays = Math.min(HORIZON_GUARD_DAYS, spanDays * 2);
+  }
+  return calendar.withHorizon(spanDays);
+}
+
+/** 扩容到"至少覆盖自然日 `target`"（与 `expandToCoverDates` 同一手法：翻倍 + `HORIZON_GUARD_DAYS` 封顶）。 */
+function expandToCoverDay(calendar: Calendar, target: DayNumber | null): Calendar {
+  if (target === null) {
+    return calendar;
+  }
+  const needed = target - calendar.baseDay + 1;
   if (needed <= calendar.spanDays) {
     return calendar;
   }
@@ -846,6 +899,12 @@ export function compute(
 
   return {
     ok: true,
+    // P-48／ADR 0005 附录 §1：交出"这份序号真正能被翻译"的那份日历。
+    // 两半：① 上面 `expandToCoverDates(calendar, maxDocumentDay)` 覆盖**文档日期**；
+    // ② 这里再按 `projectFinish` 覆盖**计算出来的序号**——文档日期定不住后者，
+    // 而渲染层要画完整张图就必须能翻译它（`contentWidthFor` 用 `projectFinish − 1`）。
+    // 两项都是"够用就原样返回"的幂等扩容，代价为零。
+    renderCalendar: expandToCoverOrdinal(cal, projectFinish - 1),
     schedule: {
       taskCount: n,
       es,

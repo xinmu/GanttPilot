@@ -211,6 +211,44 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
     expect(actual).toStrictEqual(expected);
   });
 
+  /**
+   * **P-46 的两级刻度必须同时进 PPTX**（ADR 0007 附录 §3 的硬约束：跨投影同步）。
+   *
+   * 三条判据：
+   * 1. 上级分段带（`major-band-N`）数 == `view.axis` 的 `major-band` 数（与屏幕/SVG 逐条同源）；
+   * 2. **上级标签在下半、下级标签在上半**：同一份 `view.axis` 的 `level` 决定基线——
+   *    这是"两行"这件事在 PPTX 里的可判定形式（只画一行会立刻红）；
+   * 3. 上级标签数严格少于下级（日档）——"段内只写一次"的判别力。
+   */
+  it('①-b 两级刻度：上级分段带与上级标签同步进 PPTX，且两行基线不同', async () => {
+    const fixture = demoFixture();
+    const bytes = await renderTemplateA({ ...fixture, zoom: 'day' });
+    const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
+    const projection = buildExportView({ ...fixture, zoom: 'day' });
+    const majorBands = projection.view.axis.filter((element) => element.kind === 'major-band');
+    const majorLabels = projection.view.axis.filter((element) => element.kind === 'label' && element.level === 1);
+    const minorLabels = projection.view.axis.filter((element) => element.kind === 'label' && element.level !== 1);
+    expect(majorBands.length).toBeGreaterThan(0);
+    expect(majorLabels.length).toBe(majorBands.length);
+    expect(majorLabels.length).toBeLessThan(minorLabels.length);
+    expect(slideXml.match(/name="major-band-\d+"/g) ?? []).toHaveLength(majorBands.length);
+
+    // PPTX 的文本框 `y` 由 `slidePointOf(plan, x, baseline)` 给出：两者都是 `baseline × scale` 的单调函数，
+    // 因此"上级标签的 y 严格大于下级标签的 y"就是"上级在下半行"的可判定形式（不带像素口径）。
+    const yOfAxisName = (index: number): number =>
+      Number(new RegExp(`name="axis-${String(index)}"[\\s\\S]{0,600}?<a:off x="-?\\d+" y="(-?\\d+)"`).exec(slideXml)?.[1] ?? '-1');
+    const axisOrder = projection.view.axis;
+    const yOfLevel = (level: 1 | 2): readonly number[] =>
+      axisOrder
+        .map((element, index) => ({ element, index }))
+        .filter(({ element }) => element.kind === 'label' && (element.level ?? 2) === level)
+        .map(({ index }) => yOfAxisName(index));
+    const minorYs = yOfLevel(2);
+    const majorYs = yOfLevel(1);
+    expect(minorYs.length).toBeGreaterThan(0);
+    expect(Math.min(...majorYs)).toBeGreaterThan(Math.max(...minorYs));
+  });
+
   it('② 背景：周末/节假日灰度带与网格线与 SVG 同源，且**在条形之下**', async () => {
     const fixture = demoFixture();
     const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });

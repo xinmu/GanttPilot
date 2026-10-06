@@ -28,10 +28,10 @@ export const ENGINE_VERSION = '0.0.0';
  *
  * 注意语义：它是"最新一个"，不是"唯一一个"——完整清单见 `COMPLETED_GATES`。
  */
-export const PLANNED_GATE = 'G6' as const;
+export const PLANNED_GATE = 'G8' as const;
 
 /** 已落地能力块清单（G0 的护栏不在本包内，故不计入；G6 的应用侧接线在 `apps/web`）。 */
-export const COMPLETED_GATES = ['G1.1', 'G1.2', 'G1.3', 'G2', 'G6'] as const;
+export const COMPLETED_GATES = ['G1.1', 'G1.2', 'G1.3', 'G2', 'G6', 'G8'] as const;
 
 // ---------------------------------------------------------------- G1.1 日期与日历
 export {

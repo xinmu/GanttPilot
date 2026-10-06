@@ -78,6 +78,20 @@ export interface UseProject {
   readonly canUndo: ComputedRef<boolean>;
   readonly canRedo: ComputedRef<boolean>;
   readonly calendar: ComputedRef<Calendar>;
+  /**
+   * **渲染/翻译用的日历 = `compute` 真正用到的那一份**（ADR 0005 附录 §1，裁决 P-48）。
+   *
+   * 与上面 `calendar`（= `createScheduleCalendar(已提交文档)`，喂给 `compute` 的**入参**）的分工：
+   *
+   * - `calendar` 是**入参**：它决定 `baseDay`（序号 ↔ 日期的映射起点），必须只由已提交文档派生
+   *   （见下面 `calendar` 的说明）；
+   * - `renderCalendar` 是**结果**：它按定义覆盖本次计算里出现过的全部文档日期**与全部 `es`/`ef`**，
+   *   因此**凡把序号翻译成日期（或反向）一律用它**——拖动预览喂的是另一份文档，
+   *   用入参日历翻译远期序号会抛 `RangeError` ⇒ 整页空白（2026-10-05 的人工报障）。
+   *
+   * `compute` 失败（成环）时它回落到 `calendar`：那种情形下没有 `ViewModel`，也就没有翻译。
+   */
+  readonly renderCalendar: ComputedRef<Calendar>;
   readonly scheduleResult: ComputedRef<ScheduleResult>;
   readonly schedule: ComputedRef<Schedule | null>;
   readonly scheduleError: ComputedRef<{
@@ -182,6 +196,18 @@ export function useProject(initial?: ProjectDocument): UseProject {
     compute(effectiveDocument.value, calendar.value, anchors.value),
   );
 
+  /**
+   * **渲染用的日历**：`compute` 交出的那一份（P-48）。
+   *
+   * **它必须由 `scheduleResult` 派生**（而不是另算一份）：同一份 `compute` 结果里的
+   * `schedule` 与 `renderCalendar` 是**同一个调用**的产物，拆开写就会出现
+   * "序号来自 A、日历来自 B"的分叉——那正是本项要消灭的缺陷形态。
+   */
+  const renderCalendar = computed<Calendar>(() => {
+    const result = scheduleResult.value;
+    return result.ok ? result.renderCalendar : calendar.value;
+  });
+
   function commit(result: ReturnType<typeof applyToSession>, touchedTaskIds: readonly string[]): DispatchResult {
     const outcome: DispatchResult = result.ok
       ? { ok: true, changed: result.changed, touchedTaskIds }
@@ -252,6 +278,7 @@ export function useProject(initial?: ProjectDocument): UseProject {
     canUndo: computed(() => sessionRef.value.undoStack.length > 0),
     canRedo: computed(() => sessionRef.value.redoStack.length > 0),
     calendar,
+    renderCalendar,
     scheduleResult,
     schedule: computed<Schedule | null>(() => {
       const result = scheduleResult.value;

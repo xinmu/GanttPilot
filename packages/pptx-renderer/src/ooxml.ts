@@ -48,6 +48,13 @@ export const NAMES = {
   axis: (index: number): string => `axis-${String(index)}`,
   /** 周末/节假日灰度带。 */
   band: (index: number): string => `band-${String(index)}`,
+  /**
+   * **上级刻度分段带**（P-46 的两级刻度）。
+   *
+   * 命名刻意与 `band`/`grid` 都不同：`band-\d+` 与 `grid-\d+` 是既有判据的计数锚，
+   * 混进新元素会让"逐条同源"的断言在**不该动的地方**变红（也掩盖新元素本身的计数）。
+   */
+  majorBand: (index: number): string => `major-band-${String(index)}`,
   /** 背景网格线。 */
   grid: (index: number): string => `grid-${String(index)}`,
   /** 图例色块/箭头（按 styleKey 命名）。 */

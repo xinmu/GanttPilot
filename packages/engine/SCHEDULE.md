@@ -234,19 +234,19 @@ function createScheduleCalendar(document: ProjectDocument): Calendar;
 const calendar = createScheduleCalendar(document);
 const result = compute(document, calendar);
 if (result.ok) {
-  // 翻译序号一律用 result.calendar（= compute 真正用到的那份），不要用入参 calendar。
-  const startIso = result.calendar.isoOfOrdinal(result.schedule.es[i]);   // es[i] === -1 是汇总行，别翻译
+  // 翻译序号一律用 result.renderCalendar（= compute 真正用到的那份），不要用入参 calendar。
+  const startIso = result.renderCalendar.isoOfOrdinal(result.schedule.es[i]);   // es[i] === -1 是汇总行，别翻译
 }
 ```
 
 **容量不足时的行为**：`compute` 内部按 `withHorizon(spanDays × 2)` 循环扩容后**再做日期翻译**
 （传播本身是纯整数算术，不需要地平线），**序号逐项不变**；早于 `baseDay` 的日期按 0 计（§五）。
-**`compute` 交出的 `result.calendar` 就是那份扩容后的日历**（ADR 0005 附录 §1，裁决 `P-48`）——
+**`compute` 交出的 `result.renderCalendar` 就是那份扩容后的日历**（ADR 0005 附录 §1，裁决 `P-48`）——
 它按定义覆盖本次调用里出现过的全部文档日期，因此**调用方不需要自己再扩容**，
 也**不应该**再用入参 `calendar` 去翻译（那是"两份日历"的分叉：调用方日历的容量是按**规划那一刻的文档**
 算出来的，而预览/编辑/导入之后文档已经变了 ⇒ 越界抛错）。
 `createScheduleCalendar` 的规划只对**构造它的那份文档**成立（有单测守住）——
-它不保证"文档被改过之后仍然够用"，那正是 `result.calendar` 存在的理由。
+它不保证"文档被改过之后仍然够用"，那正是 `result.renderCalendar` 存在的理由。
 
 > **历史（2026-10-05）**：本节此前写的是"调用方自己的日历容量不足时，用 `calendar.withHorizon(...)`
 > 扩容后翻译"——把容量当成**调用方义务**。实践证伪了这条：`apps/web` 的拖动预览喂给 `compute`

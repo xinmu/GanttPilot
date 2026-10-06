@@ -50,12 +50,14 @@ import { useExport } from './composables/useExport.js';
 import { useGesture } from './composables/useGesture.js';
 import { usePersistence } from './composables/usePersistence.js';
 import { useProject, type DispatchResult } from './composables/useProject.js';
+import { useTemplate } from './composables/useTemplate.js';
 
 const project = useProject();
 const chart = useChart({
   document: project.document,
   schedule: project.schedule,
   calendar: project.calendar,
+  renderCalendar: project.renderCalendar,
 });
 
 /**
@@ -65,13 +67,14 @@ const chart = useChart({
  * **不会**丢失响应性；但反过来说，`project.documentDiagnostics` 是 `ComputedRef` 而不是数组
  * ——所以下面一律用解构出来的名字，不再经 `project.*` 取值（这是本文件最容易踩的一处）。
  */
-const { view, zoom, scrollTop, columnHeight, contentHeight, contentWidth, paneRef } = chart;
+const { view, zoom, scrollTop, columnHeight, contentHeight, contentWidth, paneRef, hoverRow } = chart;
 const {
   document,
   session,
   schedule,
   scheduleError,
   calendar,
+  renderCalendar,
   canUndo,
   canRedo,
   revision,
@@ -90,9 +93,16 @@ const exporter = useExport({
   document,
   schedule,
   calendar,
+  renderCalendar,
   zoom,
   notify: show,
 });
+
+/**
+ * **模板下载接线**（P-46；ADR 0006 附录 §1）：字节由协议层的纯函数运行时生成
+ * （因此仓库内不放 `.xlsx` 二进制），本层只做"按钮 → 动态 `import('exceljs')` → 下载"。
+ */
+const template = useTemplate({ notify: show });
 
 /**
  * 手势接线（G5）：**DOM 只到这里为止**，其余交给 `render-core` 的纯内核。
@@ -104,6 +114,7 @@ const gesture = useGesture({
   document,
   schedule,
   calendar,
+  renderCalendar,
   dispatch: (command) => project.dispatch(command),
   dispatchLink: (link: DocumentLink) => project.dispatch({ kind: 'link.insert', link }),
   setAnchors: project.setAnchors,
@@ -323,7 +334,7 @@ function onCellEdit(payload: { readonly taskId: string; readonly column: ColumnK
     column: payload.column,
     text: payload.text,
     // P-19：派生 `endDate` 必须用**与图表同一个**日历（`createScheduleCalendar`）。
-    calendar: calendar.value,
+    calendar: renderCalendar.value,
   });
   if (!outcome.ok) {
     show('error', outcome.reason);
@@ -405,7 +416,7 @@ const dragPreview = computed(() =>
     : dragPreviewFor({
         view: view.value,
         document: document.value,
-        calendar: calendar.value,
+        calendar: renderCalendar.value,
         state: gesture.state.value,
       }),
 );
@@ -425,7 +436,7 @@ function linkEntryOf(pointer: PointerInput): { readonly taskId: string; readonly
     view: current,
     document: document.value,
     schedule: currentSchedule,
-    calendar: calendar.value,
+    calendar: renderCalendar.value,
   });
   return entry === null ? null : { taskId: entry.taskId, exitSide: entry.exitSide };
 }
@@ -455,7 +466,7 @@ function onMouseMoveHint(event: MouseEvent): void {
       view: current,
       document: document.value,
       schedule: currentSchedule,
-      calendar: calendar.value,
+      calendar: renderCalendar.value,
     }) !== null
       ? 'crosshair'
       : cursorForPointer({
@@ -463,7 +474,7 @@ function onMouseMoveHint(event: MouseEvent): void {
           view: current,
           document: document.value,
           schedule: currentSchedule,
-          calendar: calendar.value,
+          calendar: renderCalendar.value,
         });
   pane.style.cursor = hint;
 }
@@ -518,12 +529,16 @@ function onChartPointerMove(event: MouseEvent): void {
 function updateHover(pointer: PointerInput): void {
   const current = view.value;
   const currentSchedule = schedule.value;
-  if (current === null || currentSchedule === null) return;
+  if (current === null || currentSchedule === null) {
+    // 没有视图（不可排程）时把悬停行带一并清掉，免得它挂在上一帧的行号上。
+    if (hoverRow.value !== null) hoverRow.value = null;
+    return;
+  }
   const target = resolvePointerTarget({
     view: current,
     document: document.value,
     schedule: currentSchedule,
-    calendar: calendar.value,
+    calendar: renderCalendar.value,
     x: pointer.x,
     y: pointer.y,
   });
@@ -531,6 +546,13 @@ function updateHover(pointer: PointerInput): void {
   const nextX = target === null ? null : Math.round(pointer.x);
   if (hoverTaskId.value !== nextId) hoverTaskId.value = nextId;
   if (hoverX.value !== nextX) hoverX.value = nextX;
+  /**
+   * **悬停行带**（P-46 §2.2）：只认"`rows` 里真的有一行"的情况（`row` 是**可见行序号**，
+   * `ViewModel.hoverBand` 与 `view.axis` 的 `hover-band` 都以它为准）。
+   * 缓冲行/折叠行的 `taskId` 不在 `rows` 里 ⇒ 自然不高亮（高亮与"能否交互"同一个行集合）。
+   */
+  const nextRow = nextId === null ? null : (current.rows.find((row) => row.id === nextId)?.row ?? null);
+  if (hoverRow.value !== nextRow) hoverRow.value = nextRow;
 }
 
 /**
@@ -544,10 +566,11 @@ function advanceLinkHover(event: MouseEvent): void {
   if (pointer !== null) updateHover(pointer);
 }
 
-/** 指针离开窗格：连接点立刻消失（不留"悬空的方块"）。 */
+/** 指针离开窗格：连接点立刻消失（不留"悬空的方块"），悬停行带一并清掉（P-46）。 */
 function clearHover(): void {
   hoverTaskId.value = null;
   hoverX.value = null;
+  hoverRow.value = null;
 }
 /** 窗格 `mousemove` 的**唯一入口**（模板上只能有一个 `@mousemove`，否则 Vue 报重复属性）。 */
 function onChartMouseMove(event: MouseEvent): void {
@@ -689,6 +712,23 @@ watch(
   },
 );
 
+/**
+ * **悬停行号必须与当前视图一致**（P-46 §2.2 的收尾条件）。
+ *
+ * `hoverRow` 是"指针在哪一行"的**上一帧**读数，而 `view` 会因为滚动/折叠/编辑瞬时重建：
+ * 旧行号可能指到别的任务上（或指到渲染窗口之外）。`ViewModel` 侧已经夹了一道
+ * （`visibleHoverRow` 只认渲染窗口），这里再按"该行号上的行是否还在 `rows` 里"收一次口——
+ * 否则会留下一条**高亮错任务**的行带（比"没有高亮"更坏：它看起来像选中）。
+ */
+watch(
+  () => view.value,
+  (current) => {
+    const row = hoverRow.value;
+    if (row === null) return;
+    if (current === null || !current.rows.some((item) => item.row === row)) hoverRow.value = null;
+  },
+);
+
 onMounted(() => {
   const params = new URLSearchParams(window.location.search);
   // `?table=0` 隐藏左表（全宽图表）。测量脚本用它对齐 ADR 0007 §11 的图表宽度口径。
@@ -713,7 +753,7 @@ onMounted(() => {
       view: () => view.value,
       document: () => document.value,
       schedule: () => schedule.value,
-      calendar: () => calendar.value,
+      calendar: () => renderCalendar.value,
       pointer: {
         down: (event: MouseEvent) => {
           const pointer = pointerFrom(event);
@@ -755,7 +795,7 @@ onMounted(() => {
             view: current,
             document: document.value,
             schedule: currentSchedule,
-            calendar: calendar.value,
+            calendar: renderCalendar.value,
           }) !== null
         ) {
           return 'crosshair';
@@ -765,7 +805,7 @@ onMounted(() => {
           view: current,
           document: document.value,
           schedule: currentSchedule,
-          calendar: calendar.value,
+          calendar: renderCalendar.value,
         });
       },
       anchors: () => anchors.value.length,
@@ -801,6 +841,42 @@ onMounted(() => {
       setZoom: (next: ZoomKey) => {
         chart.setZoom(next);
       },
+      };
+
+      /**
+       * **G8：两级刻度与悬停行带**的读数入口（P-46）。
+       *
+       * 两条口径（与既有记录制一致）：
+       * - `hoverRowAt` 走 `updateHover`（**用户 `mousemove` 的同一个函数**），不另开后门——
+       *   否则"悬停高亮"测的是一条平行公式；
+       * - `setZoom` 复用 `alignHost` 的同一个 `chart.setZoom`（档位住在页面状态里）。
+       */
+      const g8Host = {
+        view: () => view.value,
+        zoom: () => zoom.value,
+        revision: () => revision.value,
+        setZoom: (next: ZoomKey) => {
+          chart.setZoom(next);
+        },
+        hoverRowAt: (rowIndex: number) => {
+          const current = view.value;
+          const pane = paneRef.value;
+          if (current === null || pane === null) return;
+          const row = current.rows[rowIndex];
+          if (row === undefined) return;
+          const rect = pane.getBoundingClientRect();
+          const contentX = Math.max(0, row.xLeft + current.pxPerDay / 2);
+          const contentY = row.row * current.rowHeight + current.rowHeight / 2;
+          const pointer = pointerFromClientPoint(
+            rect.left + contentX - current.scrollLeft,
+            rect.top + contentY - current.scrollTop,
+            1,
+          );
+          if (pointer !== null) updateHover(pointer);
+        },
+        clearHover: () => {
+          clearHover();
+        },
       };
       exposeMeasurement({
         // G6：测量用的夹具解析必须与 `measure.ts` 的 `specOfDataset` 同源——
@@ -849,6 +925,8 @@ onMounted(() => {
           probe: () => persistenceProbe.value,
           drag: dragHost,
         },
+        // G8：两级刻度与悬停行带（P-46）。判据走 `smoke:build`（门禁）+ 记录制（打包产物）。
+        g8: g8Host,
         align: alignHost
       });
       window.__GANTTPILOT_READY__ = true;
@@ -887,8 +965,10 @@ onUnmounted(() => {
       :export-png-scale="exporter.pngScale.value"
       :export-with-sidebar="exporter.includeSidebar.value"
       :exporting="exporter.busy.value"
+      :template-busy="template.busy.value"
       @zoom="onZoom"
       @import-file="onImportFile"
+      @template="template.downloadTemplate"
       @reset="resetToDemo"
       @toggle-table="tableVisible = !tableVisible"
       @undo="undo"
@@ -907,7 +987,7 @@ onUnmounted(() => {
         :view="view"
         :document="document"
         :schedule="schedule"
-        :calendar="calendar"
+        :calendar="renderCalendar"
         :scroll-top="scrollTop"
         :column-height="columnHeight"
         :content-height="contentHeight"

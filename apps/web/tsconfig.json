@@ -10,5 +10,5 @@
     "jsx": "preserve",
     "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts", "bundle.config.ts"]
 }

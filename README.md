@@ -2,13 +2,23 @@
 
 > 把 Excel 里长大的计划，变成专业排程的甘特图，一键输出可编辑的汇报 PPT——个人和小团队用得起、学得会的开源项目计划工具。
 
-**当前状态：G0（仓库骨架与测试/门禁护栏）已完成，三项证伪实验（G0-S）全部收口；
+**当前状态：v0.1 的能力块（G0 / G0-S / G1.1 / G1.2 / G1.3 / G2 / G3 / G4 / G5 / G6 / G7）全部完成；
+G8（v0.1 闭合与发布）的代码、判据与证据已落地，剩一次人工复验**——
+**「Excel 导入 → 出图 → 拖动 → 撤销 → 导出 PPTX」这条主链路在浏览器里已跑通**，且**离线单文件**可双击使用。
+下面按能力块给出口径；**每块的出口条件与实测数字**在
+[首版能力顺序](docs/01-roadmap/首版能力顺序.md) 与 [落地记录](docs/01-roadmap/首版-记录-G6-G8.md)。
+
+**先说怎么用**：[用户手册 ① 导入与 Excel 准备](docs/03-guide/导入与Excel准备.md) ·
+[② 依赖列语法与排程规则](docs/03-guide/依赖列语法与排程规则.md) ·
+[③ 导出与离线单文件](docs/03-guide/导出与离线单文件.md)（**建议先下载模板**：工具栏「模板下载」）。
+
+
 G1.1（日历与日期算术：工作日序号化）、G1.2（文档 schema、版本迁移与 WBS 层级）、
 G1.3（命令层与事务）、G2（最小正向传播内核）、G3（xlsx 导入/导出，仅可见列）、
 G4（纯 SVG 甘特渲染，含裁剪）与 **G5（编辑体验：拖拽三语义 + 撤销重做）** 已完成 ——
 **「Excel 导入 → 出图 → 拖动 → 撤销」这条主链路在浏览器里已跑通**
 （左表右图分屏、虚拟滚动、折叠、行内编辑、xlsx 导入、拖动条体改开始/工期/整体移动、
-拖动期下游实时跟随、`Alt+拖动` 建线并即时检环、手势级撤销/重做、冲突标红与诊断清单）。
+拖动期下游实时跟随、从条端外侧的**连接点**拖出建线并即时检环、手势级撤销/重做、冲突标红与诊断清单）。
 `packages/engine` 已落地 O(1) 的「工作日序号 ↔ 日期」翻译与 `exceptions` 双集合
 （[落地记录](docs/01-roadmap/首版能力顺序.md)）、**冻结的文档模型**
 （规范化序列化与深比较往返、结构化诊断校验、`v1→v2→v3` 迁移与未知版本拒绝、WBS 调级，
@@ -35,8 +45,16 @@ G4（纯 SVG 甘特渲染，含裁剪）与 **G5（编辑体验：拖拽三语�
 [P-18](docs/00-baseline/裁决记录.md) 与 [P-20](docs/00-baseline/裁决记录.md)，打包产物测量见
 [渲染计时证据](apps/web/evidence/render-timing-chrome152.md) 与
 [拖动计时证据](apps/web/evidence/drag-timing-chrome152.md)）。
-**下一步是 G8**（v0.1 闭合与发布）——其口径前置（**承诺环境 / 应用层判据入口 / 复核口径 /
-G-7·G-8 的 UI 归属**）已由 [P-40](docs/00-baseline/裁决R39.md) 收口。
+**G8（v0.1 闭合与发布）已落地**——口径前置（**承诺环境 / 应用层判据入口 / 复核口径 /
+G-7·G-8 的 UI 归属**）由 [P-40](docs/00-baseline/裁决R39.md) 收口，范围增补（**两级刻度 /
+悬停行高亮 / 模板下载**）由 [P-46](docs/00-baseline/裁决R45.md) 裁定，地平线收口由
+[P-48](docs/00-baseline/裁决R47.md) 冻结、[P-49](docs/00-baseline/裁决R47.md) 登记**离线单文件分发**：
+本轮交付 **两级刻度**（上级随档位）、**指针所在整行的浅色高亮**（图表侧 1 个覆盖层元素 + 左表纯 CSS）、
+**模板下载**（运行时生成的三页签 xlsx，且**再导入 `error 0`**）、**向右拖远不再白屏**
+（`compute` 交出真正用到的日历）与 **`file://` 双击即用的单文件产物**；
+落地数字见 [落地记录](docs/01-roadmap/首版-记录-G6-G8.md)，
+**剩一次人工复验**。**两条出口条件明确未做**：「在线 Demo 可用」与"HTTP 口径的断网可用"——
+仓库当前没有远端、CI 自称未验证，按 P-49 §4 的同一条口径**不把托管变成对外承诺**。
 **G6（持久化：自动保存 + 命令回退栈）已完成**（[P-33](docs/00-baseline/裁决记录.md)）；
 **G7（导出：SVG → PNG → PPTX 模板 A）已落地**——
 契约见 [ADR 0010](docs/02-adr/0010-导出契约.md)，包级规范见 [PPTX.md](packages/pptx-renderer/PPTX.md)，
@@ -108,7 +126,23 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
   锚点是拖动期的临时意图，持久化它会让"所见"与"文档事实"分叉，滚动位置与档位属视图状态；
 - **多标签页只做互斥停写 + 提示**（G6）：另一个标签页在编辑同一份文档时，本标签页会停止自动保存并提示，
   **不做合并**（多标签合并属非目标 NG-01）；
-- **存储后端是 IndexedDB**（G6）：不可用时降级为"本次会话不自动保存"并提示，编辑与撤销重做不受影响。
+- **存储后端是 IndexedDB**（G6）：不可用时降级为"本次会话不自动保存"并提示，编辑与撤销重做不受影响；
+- **离线单文件产物**（G8／[P-49](docs/00-baseline/裁决R47.md)）：`apps/web/dist-offline/index.html`
+  是**一个文件、双击即用**（`file://`），不需要 Node / Python / 任何托管。实测结论——
+  **IndexedDB 可用**（自动保存照常）、**下载可用**（SVG/PNG/PPTX/模板都真落盘）、
+  **三条主链路全可用**（**断网下同样全可用**——全部资源已在同一个文件里）、首屏约 **126–150 ms**；
+  代价是体积约 **1.59 MB**（两个大库必须内联）；
+  若你的浏览器策略禁止 `file://` 页面使用存储或下载，界面会**明示降级**（"本次会话不自动保存"/
+  提示改用新标签页另存），**不会静默假成功**。证据见
+  [单文件探针记录](apps/web/evidence/offline-single-file-chrome154.md)；
+- **在线 Demo / HTTP 托管**（G8）：**本轮未做**——仓库当前没有任何 git remote，
+  `.github/workflows/ci.yml` 自己也声明"尚未经过真实运行验证"；按 P-49 §4 的同一条口径
+  （"CI 没跑过之前不变成对外承诺"），**不落地 Pages 部署 workflow、不启用远端**。
+  要自己跑：`pnpm build && pnpm preview`；
+- **"`file://` 下打不开产物"这条历史说法的订正**（G8 实测）：外链 `<script type="module">`
+  与它内部的相对 `import()` 在 `file://` 下**都能加载**；**单文件分发的真需求是"只有一个文件"**
+  （不需要 HTTP 服务、不需要联网），而不是"CORS 逼着内联"。四组对照见
+  [`bundle-offline.mjs`](scripts/bundle-offline.mjs) 的文件头。
 
 ## 文档
 
@@ -119,6 +153,9 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [裁决记录](docs/00-baseline/裁决记录.md) | **裁决的唯一权威登记处**，按时间追加 |
 | [证伪实验计划](docs/00-baseline/证伪实验计划.md) | 三项前置 spike 的可执行协议与通过/失败门禁 |
 | [首版能力顺序](docs/01-roadmap/首版能力顺序.md) | v0.1 的能力推进顺序与每块出口条件（取代按周数的路线图） |
+| [用户手册 ① 导入与 Excel 准备](docs/03-guide/导入与Excel准备.md) | 模板下载、表头定位、三类别搞混的"空"、导入反馈与常见异常（G8） |
+| [用户手册 ② 依赖列语法与排程规则](docs/03-guide/依赖列语法与排程规则.md) | `前置任务` 语法、四类关系、拖拽三语义、诊断码含义（G8） |
+| [用户手册 ③ 导出与离线单文件](docs/03-guide/导出与离线单文件.md) | 三种导出物、PPTX 图面要素、兼容性承诺边界、单文件分发与限制（G8） |
 | [文档 schema 规范](packages/engine/SCHEMA.md) | `@ganttpilot/engine` 的文档模型：字段语义、`null` 口径、未启用字段、迁移与调级约定 |
 | [命令层规范](packages/engine/COMMAND.md) | `@ganttpilot/engine` 的命令层：变更唯一通道、before 镜像（日志）形状、失败码、事务与撤销/重做语义 |
 | [排程内核规范](packages/engine/SCHEDULE.md) | `@ganttpilot/engine` 的排程内核：`compute()` 的输入/输出与哨兵、锚点四情形、汇总与里程碑、项目起点与截断、诊断码表、检环与闭包、容量配方、验证与门禁 |
@@ -152,16 +189,21 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 | [导入记录制证据](apps/web/evidence/import-cyclic-sample-chrome152.md) | **成环样本**的导入实测（记录制）：由 `node scripts/make-sample.mjs` + `node scripts/measure-render.mjs --import=<xlsx>` 采集——6 任务 / 5 依赖 / 恰 1 条 `XLSX_CYCLE_EDGE_DROPPED`（带成环路径）/ 无"不可排程" |
 | G4-S 准入定标实验 | `S4-a`…`S4-d` 判定、ADR §11 回填值、浏览器首屏与滚动实测、P-8 遗留 1/2 的 WPS 实测。**探针目录已随 G4 落地删除**（[裁决 P-18](docs/00-baseline/裁决记录.md)），复现入口见 [render-core 规范](packages/render-core/SPEC.md) 与 [`scripts/measure-render.mjs`](scripts/measure-render.mjs) |
 | [渲染计时证据](apps/web/evidence/render-timing-chrome152.md) | **打包产物**的首屏与 10× 滚动实测（记录制，不进 `pnpm gate`）：由 `node scripts/measure-render.mjs` 采集，环境与数字一起登记 |
+| [离线单文件探针记录](apps/web/evidence/offline-single-file-chrome154.md) | G8／P-49 的**四个问题**：`file://` 下的 IndexedDB、下载是否落盘、体积与首屏、断网三链路；附 `-raw.json` 机器可读读数 |
 | [贡献指南](CONTRIBUTING.md) | 环境、开发命令、铁律、依赖准入流程与提交约定 |
 
 ## 仓库结构
 
 ```
 packages/engine          @ganttpilot/engine          日期算术与排程内核（零 DOM / 零框架）
-packages/xlsx-protocol   @ganttpilot/xlsx-protocol   xlsx 导入/导出协议（G3 已落地）
+packages/xlsx-protocol   @ganttpilot/xlsx-protocol   xlsx 导入/导出协议（G3 已落地；G8 加模板生成）
 packages/render-core     @ganttpilot/render-core     渲染几何与裁剪内核（零 DOM / 零框架，G4 已落地）
-packages/pptx-renderer   @ganttpilot/pptx-renderer   PPTX 原生形状与 OOXML 补丁（G7 落地）
-apps/web                 @ganttpilot/web             前端应用：渲染与交互（G4 已落地；G5 继续）
+packages/pptx-renderer   @ganttpilot/pptx-renderer   PPTX 原生形状与 OOXML 补丁（G7 已落地）
+apps/web                 @ganttpilot/web             前端应用：渲染与交互（G4/G5/G6/G7/G8）
+apps/web/dist            在线产物（多文件，配 HTTP 伺服；`pnpm build`）
+apps/web/dist-offline    离线单文件产物（一个文件、双击即用；`node scripts/bundle-offline.mjs`）
+apps/web/evidence        记录制证据（浏览器实测快照；**证据不可再生**，随版本分文件）
+docs/03-guide            用户手册（导入 / 依赖语法 / 导出与离线）
 tools/cpm-reference      排程内核的独立 Python 参照实现（差分的"另一套实现"）
 tools/xlsx-reference     xlsx 协议的独立 Python 参照实现（openpyxl，双向差分）
 ```
@@ -180,7 +222,7 @@ tools/xlsx-reference     xlsx 协议的独立 Python 参照实现（openpyxl，�
 
 ```bash
 pnpm install        # 顺带通过 prepare 钩子设置 core.hooksPath=.husky
-pnpm gate           # lint → typecheck → test → build → smoke:build → license:check → docs:check
+pnpm gate           # lint → typecheck → test → build → smoke:build → bundle:offline → smoke:build:file → license:check → docs:check
 ```
 
 - `pnpm install` 后 `.husky/pre-push` 生效：**门禁任一步失败即阻断推送**；
@@ -203,6 +245,15 @@ pnpm gate           # lint → typecheck → test → build → smoke:build → 
   状态栏的持久化那一栏）。它补的是一个真实缺口：**此前没有任何门禁碰过 `dist/`**，于是
   "产物能不能起来"全靠人记得看一眼（维护者的报文「打开 `dist/index.html` 空白」暴露了它）。
   该步**需要本机 Chrome，缺失时失败而不是跳过**；用 `GANTTPILOT_CHROME=<path>` 指定。
+   **G8 起它同时承载四组应用层判据**（这几件事都是 DOM 事实）：**两级刻度**（上级随档位、两栏表头同高、
+  左表第二行留白）、**悬停行高亮**（图表侧 `.hover-row` 跟着指针走 + 左表 `:hover` 底色）、
+  **模板下载 → 回导**（落盘文件真的解出三个页签，再用应用自己的导入入口读回、`error 0`）、
+  **向右拖远不白屏**（拖 120 个工作日格，全程无应用级错误、结构完整）。
+- **门禁含离线单文件的形状判据**（G8 落地）：`pnpm bundle:offline` 构建单文件产物并断言
+  "**恰好一个文件**、零外链 `script`/样式表、零 `assets/` 引用"——纯字符串/文件系统判定。
+- **门禁含 `file://` 冒烟**（G8 落地）：`pnpm smoke:build:file` 以 `file://` 打开单文件产物，
+  断言"无应用级错误 + 界面渲染 + **导入/拖动/导出三条主链路各走一次**（含真实落盘）"，
+  并**如实登记** `file://` 下的 IndexedDB 可用性（不可用时要求 UI 明示，**不得静默假成功**）。
 
 ## 预览与人工复验（**打包产物口径**）
 
@@ -210,13 +261,28 @@ pnpm gate           # lint → typecheck → test → build → smoke:build → 
 **在 `dev` 下发现的缺陷必须在打包产物上复现才计入报文**——[P-40](docs/00-baseline/裁决R39.md)）：
 
 ```bash
-pnpm build      # 产出 apps/web/dist/
+pnpm build      # 产出 apps/web/dist/（在线产物：需要 HTTP 伺服）
 pnpm preview    # 起一个本地静态服务器（Vite preview），按它打印的 URL 打开
 ```
 
-> **不要直接打开 `apps/web/dist/index.html`**：那会走 `file://` 协议，而浏览器
-> **拒绝在 `file://` 下加载 ES module**（CORS）⇒ 页面会**空白**。产物没坏，是打开方式不对。
-> 这条口径有门禁兜底：`pnpm smoke:build` 就是"用 HTTP 打开产物并断言它真的起来了"。
+> **不要直接打开 `apps/web/dist/index.html`**：那份产物按**多文件**打包（外链 module + 独立 chunk 与样式），
+> 走 `file://` 打开会缺东西 ⇒ 页面不完整。**要"双击即用"，请用离线单文件产物**（见下一节）。
+> 这条口径有门禁兜底：`pnpm smoke:build` 就是"用 HTTP 打开 `dist/` 并断言它真的起来了"。
+
+## 离线单文件（G8／[P-49](docs/00-baseline/裁决R47.md)）
+
+```bash
+node scripts/bundle-offline.mjs         # 产出 apps/web/dist-offline/index.html（**目录里只有它一个文件**）
+node scripts/smoke-build.mjs --file     # 以 file:// 打开它，跑三条主链路（也进 pnpm gate）
+node scripts/offline-artifact-probe.mjs # 探针：IndexedDB / 下载 / 体积与首屏 / 断网（记录制，不进 gate）
+```
+
+**双击就能用**：不需要 Node、Python、也不需要任何托管；**不需要网络**。
+体积约 **1.59 MB**（两个大库 `exceljs` / `pptxgenjs` 必须内联进同一个文件），
+而**在线产物的首屏预算口径不变**（主 chunk 仍不含这两个库，断言照旧）。
+形状判据（**恰好一个文件、零外链、零 `assets/` 引用**）与 `file://` 三链路冒烟都在 `pnpm gate` 内；
+实测登记（IndexedDB **可用**、下载**可落盘**、首屏约 **126–150 ms**、**断网下三链路同样可用**）见
+[单文件探针记录](apps/web/evidence/offline-single-file-chrome154.md)。
 
 ## 导出（G7）
 

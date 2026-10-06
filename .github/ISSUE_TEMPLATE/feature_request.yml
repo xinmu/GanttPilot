@@ -1,0 +1,51 @@
+name: 功能建议
+description: 提一个改进建议（请先看 README 的「明确不做」）
+title: '[feat] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提之前请先扫一眼 README 的「**明确不做（非目标）**」与「**已知限制**」——
+        协作编辑、资源均衡、企业级功能、`.mpp`/MS Project 互操作、CPM 浮动与关键路径、
+        基线、筛选/分组、移动端/触屏入口都已经明确安排在 v0.5 或**永不做**。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决的问题
+      description: 描述**场景与痛点**，而不是先给方案——方案常常有更简单的形状。
+      placeholder: 例如：每周汇报要人工数里程碑，容易漏。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 你设想的做法（可选）
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 涉及的模块
+      options:
+        - xlsx 导入/导出协议
+        - 排程（依赖/工期/锚点）
+        - 渲染（图表/刻度/裁剪）
+        - 交互（拖动/建线/撤销）
+        - 导出（SVG/PNG/PPTX）
+        - 持久化（自动保存/恢复）
+        - 文档 / 用户手册
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 你现在怎么绕过（可选）
+      description: 了解你的绕法常常比了解你的方案更有用。
+    validations:
+      required: false

@@ -31,9 +31,9 @@
 | `manifest.ts` | **常量与判据的唯一声明处**（ADR §11 七项回填值 + `evaluateScaleCriteria()` 复推） |
 | `route.ts` | 出/入边策略的可执行副本、正交折点 `routeEdge`、4 类箭头几何与可区分性度量 |
 | `domain.ts` | 行序（树序经折叠过滤）、`barXRange`、`milestoneCenterX`、`taskBounds` |
-| `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点 |
+| `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点。**轴元素是两级结构**（[ADR 0007 附录 §3](../../docs/02-adr/附录/0007-增补.md)／P-46）：`band` / `gridline` / `label`（下级，`level` 缺省或 2）+ **`major-band` / `label(level: 1)`（上级分段带：段内只在左端写一次、段的左边界即竖线、与下级刻度同 x 时不重复发 `gridline`）** + **`hover-band`（悬停行带，窗口坐标、每帧 1 个覆盖层元素）** |
 | `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges` |
-| `count.ts` | 元素计数（两路互证）与预算判定；G5 的 **`c₄ = perRenderedRow·rows + overlay`**（ADR 0008 §16.4：每渲染行 6 + 每帧固定 12；`countOverlays` 只承担"每帧固定"那一半，不随文档总规模增长） |
+| `count.ts` | 元素计数（两路互证）与预算判定；G5 的 **`c₄ = perRenderedRow·rows + overlay`**（ADR 0008 §16.4：每渲染行 6 + 每帧固定 **13**；`countOverlays` 只承担"每帧固定"那一半，不随文档总规模增长；**`overlay` 由 12 增到 13 是 P-46 的悬停行带**，`hoverRowOf(view)` 是它的唯一输入来源） |
 | `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出） |
 | `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19）；**行内编辑的基线文本与陈旧判定** `rawCellText` / `isEditStale`（P-21 批次 C 的 R5）；**提示条的迁移** `noticeAfterDispatch` / `rejectionNotice` / `StatusNotice`（P-30，唯一实现处） |
 | `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13** + §16.3/§16.8 + **附录 §3**：连接点入口、建线四格表、**重复边预检拒绝**、**拖动期的未提交副本**）：屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、位移与候选 `deltaFor` / `candidateOrdinalFor`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture`、结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor`、**未提交副本 `previewDocumentFor`** |
@@ -55,12 +55,23 @@
 buildView({
   document: ProjectDocument,
   schedule: Schedule,
-  calendar: Calendar,          // 必须来自 createScheduleCalendar(document)
+  calendar: Calendar,          // 见下面的两条日历口径
   viewport: Viewport,          // scrollTop / scrollLeft / width / height / rowHeight / rowBuffer
   zoom: 'day' | 'week' | 'month',
   clipMode?: 'intersect' | 'endpoints' | 'none',   // 后两者只作负向对照
+  hoverRow?: number | null,    // 指针所在的**可见行序号**（P-46 的悬停行带；缺省 = 不高亮）
 }): ViewModel
 ```
+
+**两条日历口径（P-48／[ADR 0005 附录 §1](../../docs/02-adr/附录/0005-增补.md)；这是本轮最容易搞错的一处）**
+
+| 角色 | 是谁 | 用途 |
+|---|---|---|
+| **入参日历** | `createScheduleCalendar(已提交文档)` | **喂给 `compute`**：它决定 `baseDay`（序号 ↔ 日期的映射起点），因此**只由已提交文档派生**（拖动期的副本不参与，否则映射会跟着每帧平移） |
+| **可翻译日历** | `compute` 交出的 `ScheduleResult.renderCalendar` | **凡把序号翻译成日期（或反向）一律用它**——它按定义覆盖本次调用的全部文档日期**与全部 `es`/`ef`**；用入参日历翻译远期序号会抛 `RangeError` ⇒ Vue 卸载整棵树 ⇒ **整页空白** |
+
+`buildView` 收的是**后者**（`useProject.renderCalendar` 由 `scheduleResult` 派生，不另算一份）；
+`render-core` 自己不构造日历、也不决定"哪份"——那是应用层的接线，本包只消费。
 
 **一处有意偏离 ADR §2**（已由 G4-S 记载并继承）：ADR 写的是 `ordinalAtX(view, x)`，
 而"序号"只有 `Calendar` 能算。为了让 `ViewModel` 保持"只有数字与枚举"，
@@ -91,7 +102,17 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 - **轴线起点**：按档位向前取整（日档 = 当天；周档 = 该周周一；月档 = 该月 1 日），
   再向左留 `AXIS_LEFT_GUTTER_DAYS`。**左边距不是装饰**：P-8 的 SS/SF"左出回绕"走线需要它；
 - **档位只改 `pxPerDay` 与表头分组**，不改变任何序号 ↔ 日期的对应；切换是**离散**的；
-- **序号 → 日期必须用同一个 `createScheduleCalendar(document)`**，否则容量不足时 `isoOfOrdinal` 会抛错。
+- **序号 → 日期必须用"可翻译的那份日历"**（§2 的两条口径）：用入参日历翻译远期序号会抛错（P-48）。
+
+**表头带与两级刻度**（[ADR 0007 附录 §3](../../docs/02-adr/附录/0007-增补.md)／P-46）：
+
+- 表头带内是**两行**文本：**下级**刻度在**上半**（基线 `MINOR_LABEL_BASELINE_PX = 17`）、
+  **上级**刻度在**下半**（基线 `MAJOR_LABEL_BASELINE_PX = 33`）——两个基线在 `manifest.ts` 单点声明，
+  **屏幕 SVG / 导出 SVG / PPTX 三处共用**（各写一个数字就是"所见 ≠ 所导出"）；
+- **上级按分段带表达**：段内**只在左端**发一次文本（`major-band` 的左边界即竖线）；
+  段与下级刻度同 `x` 时**不重复发 `gridline`**（否则两路计数对不上）；
+- 上级标签字面：日/周档 `YYYY-MM`、月档 `YYYY`（下级仍是 §11 第 6 项的 `DD` / `MM-DD` / `YYYY-MM`）；
+- 两级元素**共用同一处水平窗口裁剪** ⇒ `c₃` 仍与文档总规模无关（§6.1 ③）。
 
 ## 四、行模型
 
@@ -101,7 +122,8 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 行屏幕 y = 列顶 + HEADER_HEIGHT_PX + row × ROW_HEIGHT − scrollTop
 ```
 
-- `HEADER_HEIGHT_PX = 28`（`manifest.ts` 单点声明）= 左表表头与图表表头带的**外高**（两栏 `box-sizing: border-box`）；
+- `HEADER_HEIGHT_PX = 40`（`manifest.ts` 单点声明；**P-46 起由 28 上调**，为两行刻度留出带高）
+  = 左表表头与图表表头带的**外高**（两栏 `box-sizing: border-box`）；
 - **绘制区 = 滚动容器客户区**：`Viewport.height = clientHeight`（§2 的 `scrollTop // 不含表头` 由此字面成立）；
 - **行外高必须 = `ROW_HEIGHT`**：`.row` 若在 `content-box` 下加 1 px 下边框，外高成 25 px ⇒ 每行漂 1 px（R9）；
 - 图表行的 `<g>` **没有自己的盒子**，`getBoundingClientRect()` 是子元素（条 / 菱形）的并集，
@@ -115,7 +137,12 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 - **轴的 `x` 是窗口坐标**（`buildAxis` 已扣 `scrollLeft`、只发射视口内的元素，§6.1 ③）：
   因此轴必须渲染在**滚动组之外**（放进滚动组就是横向双重偏移，`scrollLeft = 0` 处不可见）；
 - SVG 覆盖**整列**：`svgHeight = height + HEADER_HEIGHT_PX`，盒 = `viewBox`（1 单位 = 1 px）；
-  色带/网格线整体下移 `HEADER_HEIGHT_PX`（落到绘制区），日期刻度画在表头带内（0..28）。
+  色带/网格线/上级分段带整体下移 `HEADER_HEIGHT_PX`（落到绘制区），两级刻度文本都在表头带内（0..40）；
+- **悬停行带**（P-46 §2.2）：`ViewModel.hoverBand` = 指针所在的**渲染窗口内的可见行序号**（否则 `null`），
+  内容坐标系下 `y = row × rowHeight`、高 = 行高；它同时是 `view.axis` 里的一个 `hover-band`
+  元素（窗口坐标、x=0、宽=视口宽）⇒ **计入 `c₄` 的 `overlay`（+1）、不计入 `c₃`**。
+  渲染时它必须画在**逐行序列之前**（在条体之下）并由滚动组抵消滚动；
+  **不得**在应用层自己再减一次 `scrollTop`（§14.3 的同源陷阱）。
 
 | 项 | 冻结内容 |
 |---|---|
@@ -239,7 +266,7 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
   id 由本包给确定性建议值；**成环预检即拒绝**并把 `path` 交给高亮层；
 - **高亮是独立覆盖层**（`highlight.ts`）：**不进 `ViewModel`**——几何真相源只由
   「文档 + `Schedule` + `Calendar` + 视口」决定，交互态进去会让期望值表与裁剪判据跟着手势漂移；
-- **元素预算**：覆盖层另立 **`c₄`**（`ELEMENT_MODEL_G5.overlay = 12`，**每帧固定开销**），
+- **元素预算**：覆盖层另立 **`c₄`**（`ELEMENT_MODEL_G5.overlay = 13`，**每帧固定开销**；**13 = 12 + P-46 的悬停行带**），
   `c₁`/`c₂`/`c₃` 一字未改；`countElements` 与 `countElementsByEnumeration` 对覆盖层同样逐项互证。
   批次 A 只改覆盖层的**坐标**（预览几何），**不新增元素** ⇒ `c₄` 不变。
 
@@ -275,6 +302,9 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | G5 ⑦ 拖动期画的是结果（P-24） | `gesture.spec.ts`（24 → 26 例） | 三语义下 `drawnBarForRow` == 落库重算后的 `taskBounds`；与**锚点视图**的对照（`resize-start` 的右端固定）；未被拖行不受影响 | **进** | [ADR 0008 §14](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑫ 拖动期的**下游**也所见即所提交（P-45） | `gesture.spec.ts`（**+3 例**） | `previewDocumentFor`：只改那一个任务、其余**按引用共享**、原文档一字不动、两种 `null`；**下游同源**——`resize-duration` 拖动期 `compute(副本, 锚点)` 与落库后重算的后继行开始序号**逐位一致**（**负向对照写在同一条断言里**：只喂锚点必然给出另一个值；并以"至少一个样本"自证前提）；`GestureUpdate.dragOutcome.patch` 与松手命令的 `patch` **逐字段相等** | **进** | [ADR 0008 附录 §3](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑫ 拖动期的下游（记录制） | `scripts/measure-render.mjs --drag`（**两种语义 × 两个滚动状态**；`--drag-dataset=` 可换规模） | **抓取点自证**（`gestureMode === 'resize-duration'`）、位移判据（**工期** = 拖动前 + N）、**下游跟随**（拖动期 == 松手后 **且** ≠ 拖动前）、**预览不落库**（拖动期 `revision` 不变、松手后 +1）；两族共用同一个聚合函数 ⇒ 数字可比 | **不进**（记录制，需本机 Chrome） | [P-45](../../docs/00-baseline/裁决R44.md) |
+| **G8 ① 两级刻度**（P-46） | `clipping.spec.ts` + `scaleInvariance.spec.ts` + `pptx-renderer/template.spec.ts` | 上级标签随档位（日/周 `YYYY-MM`、月 `YYYY`；下级仍 `DD`/`MM-DD`/`YYYY-MM`）；**上级标签数 == 上级分段带数**且（日档）严格少于下级标签数（"段内只写一次"的判别力）；**同 `x` 处只有一条 `gridline`**；`c₃` 逐档位重锚 **122 / 89 / 94** 且"同档位恒定"仍成立；PPTX 侧 `major-band-N` 数 == `view.axis` 的 `major-band` 数、上级标签的 `y` 严格大于下级 | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
+| **G8 ② 悬停行带**（P-46） | `clipping.spec.ts` + `viewModel.spec.ts` | 给定 `hoverRow` 时**恰好 1 个** `hover-band`（`x=0`、宽=视口宽、`y = row × 行高`、高=行高）；**计入 `overlay`（+1）、不计入 `c₃`**；两路计数仍逐项相等且**没有双重计数**（`axis-hover-band` 必须不存在、`overlay-hover-row` 恰 1）；**负向对照**：不传 `hoverRow` 时 `overlays`/`total` 各少 1；渲染窗口外的行号 ⇒ 不发射 | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
+| **G8 ③ 渲染地平线收口**（P-48） | `dragHorizon.spec.ts`（**4 例**） | 夹取方向（左侧一律 0、右侧夹到末日）；向左拖五个距离逐帧都能建出视图；**向右拖 90 个工作日必须能建出视图**（看门人已由"必须抛错"改写而来）；**`renderCalendar` 覆盖 `projectFinish − 1`**（入参日历缩到 30 天时它严格更大、且能翻译）；守卫型负向对照（把越界序号交回入参日历必须现形） | **进** | [P-47](../../docs/00-baseline/裁决R46.md) / [P-48](../../docs/00-baseline/裁决R47.md) |
 | G5 ⑧ 滚动状态下的反算与命中（P-25） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** | [ADR 0007 §16](../../docs/02-adr/附录/0007-增补.md) / [ADR 0008 §15](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑧ 滚动状态下的拖动（记录制） | `scripts/measure-render.mjs --drag` | **两个滚动状态各一次**（`(0,0)` 与 `(480,600)`）：各自的"松手后 `startDate` = 按下时的开始序号 + 天数"都必须成立；目标行必须**无有效入边约束**（否则 `snap` 夹住候选 = 假红） | **不进**（记录制，需本机 Chrome） | [P-25](../../docs/01-roadmap/首版-记录-G5.md) |
 | G4/G5 ② 内容横向范围（P-24） | `viewModel.spec.ts`（16 → 19 例） | `contentWidth` 覆盖**全部任务最右缘** + 引出段 + 回绕走廊；随项目末端单调；空文档回落窗格宽；**负向对照**：旧式"按窗格宽推导"必须不满足 | **进** | [ADR 0007 §15](../../docs/02-adr/附录/0007-增补.md) |
@@ -289,14 +319,16 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 
 - `c₁ = 3`（每渲染行：`<g>` + 条 + 进度；里程碑行 2；**汇总条不加端帽**）、
   `c₂ = 3`（每条渲染边：折线 + 箭头 + **透明热区**）；
-- **`c₄ = perRenderedRow·rows + overlay = 6·rows + 12`**（ADR 0008 §16.4／[P-32](../../docs/00-baseline/裁决R31.md)）：
+- **`c₄ = perRenderedRow·rows + overlay = 6·rows + 13`**（ADR 0008 §16.4／[P-32](../../docs/00-baseline/裁决R31.md)；
+  **`overlay` 12 → 13 是 P-46 的悬停行带**）：
   每渲染行 6（条/菱形 1 + 进度 1 + 端点手柄 2 + 连接点 2 的**上界**，最"胖"的是有进度的叶子）+
-  每帧固定 12（拖动轮廓 3 / 建线预览 2 / 冲突描边 1 / 成环与选中高亮 ≤ 6）。
+  每帧固定 13（拖动轮廓 3 / 建线预览 2 / 冲突描边 1 / 成环与选中高亮 ≤ 6 / **悬停行带 1**）。
   **"与文档总规模无关"不变**：`rows ≤ 视口行数 + ROW_BUFFER`，10× 规模下 `rows` 恒为 32
-  （实测锚值随之平移：`scaleInvariance.spec.ts` 由 `350 / 317 / 329 / 335` → `472 / 439 / 451 / 457`，
-  逐项差值恒为 **122**；`clipping.spec.ts` 的 NC2 比值由 10.71× → **≈10.8×**）；
-- `c₃` 逐档位 = **114 / 69 / 88**（日/周/月，图表全宽 1265 px），与 ADR §11 回填的
-  **116 / 70 / 89**（图表独占 1280 px）差 1–2——就是那点宽度差；
+  （实测锚值随之平移：`scaleInvariance.spec.ts` 由 `350 / 317 / 329 / 335` → **`474 / 441 / 453 / 459`**，
+  逐项差值恒为 **124**——`+6` 来自 P-46 的两级刻度与悬停行带；`clipping.spec.ts` 的 NC2 比值由 10.71× → **≈10.8×**）；
+- `c₃` 逐档位 = **122 / 89 / 94**（日/周/月，合成视口 1280 px、合成夹具；
+  **P-46 两级刻度后重锚**，单级口径原为 116 / 70 / 89）；
+- 打包产物上（图表全宽 1265 px）同一口径为 114 / 69 / 88（单级时）——差 1–2 就是那点宽度差；
 - 分屏时图表窗格被左表占去一部分宽度，同一页面下 `c₃` 只有 35 / 21 / 26：
   **`c₃` 只取决于"窗格宽 ÷ `pxPerDay`"，与文档总规模无关**（§11.1 ③ 的直接后果）。
 
