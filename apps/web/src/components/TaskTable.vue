@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
- * 左表（ADR 0007 §4/§8）。列集合**锚 G3 的 9 列契约**（`COLUMN_SPECS`，不新造第四套列语义），
- * `wbs` 列显示派生值 `outlineNumber`（真相源是层级 + 文档序）。
+ * 左表（ADR 0007 §4/§8）。列集合**锚 G3 的 9 列契约**（`COLUMN_SPECS`，不新造第四套列语义）， * `wbs` 列显示派生值 `outlineNumber`（真相源是层级 + 文档序）。
  *
  * ## 行内编辑（G4 的出口条件之一）
  *
@@ -29,6 +28,7 @@
 import { computed, ref, watch } from 'vue';
 import {
   cellText,
+  COLUMN_SPECS,
   HEADER_HEIGHT_PX,
   isEditStale,
   rawCellText,
@@ -52,6 +52,16 @@ const props = defineProps<{
   readonly contentHeight: number;
   /** 冲突行（`anchorConflict` 的任务 id；判据来自引擎，ADR 0008 §6）。 */
   readonly conflictTaskIds: readonly string[];
+  /**
+   * **指针当前所在的渲染行**（任务 id；与图表侧同一个事实，`GanttChart.hoverTaskId`）。
+   *
+   * 它让"悬停高亮"**跨两栏一致**（G8 人工复验第 ⑦ 条：在图表上悬停时，左表对应行也应当有同样的指示）——
+   * 否则用户只能靠肉眼在两张表之间对齐行号，而"条体 ↔ 左表"的对齐正是这一层的用途。
+   *
+   * 它与 `.row:hover`（纯 CSS）**不是同一件事**：CSS 那半只在指针**物理落在左表上**时生效，
+   * 而这一半跟着**图表**指针走。两者同色，因此视觉上是一条连续的指示。
+   */
+  readonly hoverTaskId?: string | null;
   readonly disabled: boolean;
 }>();
 
@@ -69,6 +79,52 @@ const editing = ref<{ readonly taskId: string; readonly column: ColumnKey } | nu
 const draft = ref('');
 
 const columns = TABLE_COLUMNS;
+
+/**
+ * **左表的列宽与网格模板（左表与表体的唯一真相源）**。
+ *
+ * ## 为什么不再手写 `grid-template-columns`
+ *
+ * 此前表头与表体各写了一遍 `28px 200px …`，而 `COLUMN_SPECS.width` 是**导出用的字符宽度**
+ * （`wbs: 10`、`name: 32`）——两者语义不同，手写值一旦被抄错（或只改一处）就会让
+ * **表头与表体的列宽不一致**。现在只有一处：`COLUMN_SPECS.width` 归一成像素 + 语义下限。
+ *
+ * ## 像素换算与下限
+ *
+ * `px = max(minPx, round(width × 6.5))`：6.5 px/字符 ≈ 12 px 系统的汉字宽（略宽于英文），
+ * 下限保的是"这一列至少能放下它自己的表头与典型内容"：
+ *
+ * | 列 | 导出宽度 | 归一 | 下限的来历 |
+ * |---|---|---|---|
+ * | `WBS` | 10 | 65 | `1.2.3` + **折叠按钮 18 px** |
+ * | `任务名称` | 32 | 208 | 名称 + 12 px/级的缩进 |
+ * | `开始`/`完成` | 12 | 78 | 十字符日期 |
+ * | `工期` | 8 | 56 | 三字符数字 + 右对齐内边距 |
+ * | `前置任务` | 20 | 130 | `1.3FS` / `1.3SS-2` 可直接照抄 |
+ * | `进度`/`里程碑` | 8 | 56 | 百分比 / 是·否 |
+ * | `备注` | 28 | 182 | 略窄于名称列 |
+ *
+ * 合计 **992 px**（下限之和 906 px）；`.table-pane` 是 `flex: 0 0 auto`（不拉伸），
+ * 剩余宽度全给图表——与既有布局口径一致。
+ */
+const COLUMN_MIN_PX: Readonly<Record<ColumnKey, number>> = {
+  wbs: 65,
+  name: 208,
+  start: 78,
+  end: 78,
+  duration: 56,
+  predecessors: 130,
+  progress: 56,
+  milestone: 56,
+  notes: 182,
+};
+
+const columnWidths = computed<number[]>(() =>
+  COLUMN_SPECS.map((spec) => Math.max(COLUMN_MIN_PX[spec.key], Math.round(spec.width * 6.5))),
+);
+
+/** 网格模板（表头与表体**共用**它——这是两栏内部对齐的前提）。 */
+const columnTemplate = computed(() => columnWidths.value.map((width) => `${String(width)}px`).join(' '));
 
 /** 任务 id → 文档序索引与层级深度（一次性构建，避免 O(n²) 查找）。 */
 const taskMeta = computed(() => {
@@ -170,26 +226,44 @@ void emit;
     :style="{ height: `${String(columnHeight)}px`, '--header-h': `${String(HEADER_HEIGHT_PX)}px` }"
   >
     <div class="table-header">
-      <div
-        v-for="column in columns"
-        :key="column.key"
-        class="cell"
-        :class="{ numeric: ['duration', 'progress', 'milestone'].includes(column.key) }"
-      >
-        {{ column.header }}
-      </div>
       <!--
-        **表头第二行：留白**（P-46 §3 的当场定值）。
-        它只保高度与分隔线——**不放任何文字**：表头带的内容集合仍是"时间刻度"
-        （[ADR 0007 附录 §2](../docs/02-adr/附录/0007-增补.md)），放"档位提示"一类文字须先改附录。
-        高度由 `.table-header` 的两行网格 + `--header-h` 承担，因此两栏外高仍严格相等。
+        第一行：九列列名。**两行要显式成两层列表**（下面是第二行），而不是"18 个格子靠
+        `grid-auto-flow` 自动折行"——`grid-auto-flow: column` 会把 9 列扩成 18 列、
+        让表头与表体彻底错位（G8 复验当场抓到的一处回归）。
+        **`gridTemplateColumns` 必须落在 `.header-row` 上**（不是外面的 `.table-header`）：
+        真正的网格容器是这两行，写在父级上等于没写（列名会一格一行地竖排）。
       -->
       <div
-        v-for="column in columns"
-        :key="`blank-${column.key}`"
-        class="cell cell-blank"
+        class="header-row"
+        :style="{ gridTemplateColumns: columnTemplate }"
+      >
+        <div
+          v-for="column in columns"
+          :key="column.key"
+          class="cell"
+          :class="{ numeric: ['duration', 'progress', 'milestone'].includes(column.key) }"
+          :title="column.header"
+        >
+          {{ column.header }}
+        </div>
+      </div>
+      <!--
+        **第二行：留白**（P-46 §3 的当场定值）。
+        它只保高度与分隔线——**不放任何文字**：表头带的内容集合仍是"时间刻度"
+        （[ADR 0007 附录 §2](../docs/02-adr/附录/0007-增补.md)），放"档位提示"一类文字须先改附录。
+        高度由 `.header-row` 的 `flex: 1 1 0` 等分承担，因此两栏外高仍严格相等。
+      -->
+      <div
+        class="header-row header-row-blank"
+        :style="{ gridTemplateColumns: columnTemplate }"
         aria-hidden="true"
-      />
+      >
+        <div
+          v-for="column in columns"
+          :key="`blank-${column.key}`"
+          class="cell cell-blank"
+        />
+      </div>
     </div>
 
     <div
@@ -209,8 +283,8 @@ void emit;
           :key="row.id"
           class="row"
           :data-task-id="row.id"
-          :class="{ summary: row.kind === 'summary', conflict: isConflicting(row.id) }"
-          :style="{ height: `${String(view.rowHeight)}px` }"
+          :class="{ summary: row.kind === 'summary', conflict: isConflicting(row.id), hovered: props.hoverTaskId === row.id }"
+          :style="{ height: `${String(view.rowHeight)}px`, gridTemplateColumns: columnTemplate }"
         >
           <template
             v-for="column in columns"
@@ -273,31 +347,43 @@ void emit;
 
 .table-header {
   /**
-   * **两行网格**（P-46 的两级刻度）：第一行 9 列列名、第二行**留白**（只保高度与分隔线）。
+   * **两行表头**（P-46 §3）：第一行九列列名、第二行**留白**（只保高度与分隔线）。
    *
-   * `grid-auto-flow: column` + `grid-template-rows: 1fr 1fr` ⇒ 两个 9 项 `v-for` 自然落成
-   * "先横排一行、再横排第二行"，不需要写死行号；`align-content: center` 让文本在中线附近。
+   * 两行是**两个独立的网格行**（`.header-row`），每行各自 `display: grid` 并共用
+   * `gridTemplateColumns`（由 `COLUMN_SPECS` 归一而来，**表头与表体同源**）。
+   *
+   * **为什么不用单个网格 + `grid-auto-flow`**：18 个格子靠自动流折行时，
+   * `grid-auto-flow: column` 会把 9 列扩成 18 列（表头与表体彻底错位），
+   * 而默认的 `row` 也只对"格子数 = 列数 × 行数"成立；显式两层更稳、也更能表达意图。
    *
    * 表头高由 `HEADER_HEIGHT_PX` 经 `--header-h` 喂进来（**两栏同源**，ADR 0007 §14）；
    * `border-box` 让"40 px"是**外高**（含 1 px 下边框），否则与表体高差 1 px。
    */
-  display: grid;
-  grid-template-columns: 28px 200px 92px 92px 56px 150px 56px 56px 160px;
-  grid-template-rows: 1fr 1fr;
-  grid-auto-flow: column;
-  align-content: center;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
   height: var(--header-h);
   background: #f9fafb;
-  /* 右边界：两栏之间本有 1 px 竖线（`.table-pane` 的 border-right），这里只做**行间**分隔线。 */
   border-bottom: 1px solid #e4e7ec;
   font-weight: 600;
   color: #475467;
 }
 
-/* 第二行留白（P-46 §3）：高度由网格 `1fr` 给出，只画一条行间分隔线，**不放任何文字**。 */
-.cell-blank {
+/* 两行等分表头带高（各 20 px）：列名在上、留白在下。 */
+.header-row {
+  display: grid;
+  flex: 1 1 0;
+  min-height: 0;
+  align-items: center;
+}
+
+/* 第二行留白（P-46 §3）：只画一条行间分隔线，**不放任何文字**。 */
+.header-row-blank {
   border-top: 1px solid #e4e7ec;
+}
+
+.cell-blank {
+  min-height: 0;
 }
 
 .table-body {
@@ -318,7 +404,8 @@ void emit;
 
 .row {
   display: grid;
-  grid-template-columns: 28px 200px 92px 92px 56px 150px 56px 56px 160px;
+  /* 列宽**不在这里写死**：`.row` 与 `.header-row` 共用模板里内联喂进来的 `columnTemplate`
+     （由 `COLUMN_SPECS` 归一而来）——两处各写一遍就是"表头与表体列宽不一致"的来源。 */
   align-items: center;
   /* **外高必须 = 模型行高**（ADR 0007 §4 的固定行高）：`content-box` 下 24 + 1 px 边框 = 25 px，
      每行多 1 px ⇒ 逐行累积漂移（P-23 诊断实测的 R9）。 */
@@ -333,27 +420,34 @@ void emit;
 }
 
 /**
- * **悬停行高亮（左表侧）**：**纯 CSS `:hover`**（P-46 §2.2 的口径——零 SVG 元素、零预算）。
+ * **悬停行高亮（左表侧）**：两条来源、**同一个颜色**。
+ *
+ * | 来源 | 触发条件 | 机制 |
+ * |---|---|---|
+ * | `.row:hover` | 指针**物理落在左表**这一行上 | **纯 CSS**（P-46 §2.2 的口径——零 SVG 元素、零预算） |
+ * | `.row.hovered` | **图表**的指针在这一行上（`GanttChart.hoverTaskId`） | 由父级传 `hoverTaskId` 派生 |
  *
  * 颜色与图表侧那 1 个 `hover-band` 覆盖层**同值**（`render-core` 的 `HOVER_ROW_FILL`），
- * 因此"条体 ↔ 左表"的对照成立；两侧**不共享判据**（图表侧由元素预算与计数两路互证，
- * 左表侧不进任何判据）。
+ * 因此"条体 ↔ 左表"的对照成立（P-46 的复验反馈第 ⑥ 条：原来的 `#e8f1fb` 太浅、
+ * 与周末灰度带 `#f4f6f8` 混在一起 ⇒ 加深到 `#cfe3fa`；第 ⑦ 条要求跨两栏一致）。
  *
- * **必须排在 `.row.conflict` 之后**（CSS 同优先级下后者胜出）：冲突行是"事实"，
- * 悬停是"临时视图状态"，事实不该被悬停盖住。
+ * 三条 CSS 规则的**优先级是刻意写清的**（都是单类 + 单伪类，同级）：
+ * ① `.row.summary` 的底色比 `.row` 更具体 ⇒ 汇总行的悬停要**同等具体**才生效；
+ * ② 冲突行压过悬停（"事实"不该被"临时视图状态"盖住）。
  */
-.row:hover {
-  background: #e8f1fb;
+.row:hover,
+.row.hovered {
+  background: #cfe3fa;
 }
 
-/* 汇总行的底色更具体（`.row.summary`）⇒ 悬停要**同等具体**才生效，否则汇总行不响应悬停
-   （两条规则的优先级必须写清，否则表现为"阶段行不高亮、任务行高亮"这类看起来像 bug 的差异）。 */
-.row.summary:hover {
-  background: #e8f1fb;
+.row.summary:hover,
+.row.summary.hovered {
+  background: #cfe3fa;
 }
 
-.row.conflict:hover {
-  background: #fef3f2;
+.row.conflict:hover,
+.row.conflict.hovered {
+  background: #fde3e1;
 }
 
 /* 冲突行（`anchorConflict`）：与图表覆盖层的 `.conflict-outline` 同色，两处一眼对得上 */

@@ -86,7 +86,11 @@ export const COLOR = {
   muted: '667085',
   band: 'F4F6F8',
   gridline: 'E4E7EC',
-  /** 上级刻度分段带（P-46 的两级刻度；与 `render-core` 的 `AXIS_MAJOR_FILL` 同值）。 */
-  majorBand: 'EEF1F5',
+  /** 上级分段带的**正文**（近乎白：整高覆盖全宽，不能与周末带抢对比度）。 */
+  majorBody: 'FAFBFC',
+  /** 上级分段带的**表头底**（与正文明显一档）。 */
+  majorHeader: 'E4E9F0',
+  /** 上级分段的**边界线**（全高）。 */
+  majorEdge: 'B9C0CB',
   white: 'FFFFFF',
 } as const;

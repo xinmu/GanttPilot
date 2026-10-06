@@ -32,9 +32,12 @@ const COLOR = {
   band: '#f4f6f8',
   gridline: '#e4e7ec',
   axisText: '#667085',
-  /** 上级分段带（P-46 的两级刻度；与 `manifest.ts` 的 `AXIS_MAJOR_FILL`/`AXIS_MAJOR_EDGE` 同值）。 */
-  majorBand: '#eef1f5',
-  majorEdge: '#d0d5dd',
+  /** 上级分段带的**正文**（近乎白：它整高覆盖全宽，不能与周末带抢对比度）。 */
+  majorBody: '#fafbfc',
+  /** 上级分段带的**表头底**（比正文明显一档，一眼看出"这是哪个月"）。 */
+  majorHeader: '#e4e9f0',
+  /** 上级分段的**边界线**（全高；"月的边界"比刻度线醒目）。 */
+  majorEdge: '#b9c0cb',
   rowText: '#1f2933',
   bar: '#2e75b6',
   barSummary: '#7a8699',
@@ -46,6 +49,9 @@ const COLOR = {
   hollowFill: '#ffffff',
   legendBg: '#fcfcfd',
 } as const;
+
+/** 导出物里下级刻度线的长度（px）——与屏幕的 `TICK_LENGTH_PX` 同值（"刻度只属于刻度区"）。 */
+export const EXPORT_TICK_LENGTH_PX = 6;
 
 /** 侧栏（图例 + 摘要）宽度（px）；`svgString` 与适配公式共用。 */
 export const EXPORT_SIDEBAR_WIDTH_PX = 260;
@@ -271,42 +277,66 @@ export function svgString(args: SvgExportArgs): string {
     `<rect x="0" y="0" width="${String(width)}" height="${String(height)}" fill="#ffffff"/>`,
   );
 
-  // 轴：下级色带/网格线与**上级分段带**（P-46 的两级刻度）；只落在绘制区
+  /**
+   * 轴：**三层视觉**（与屏幕 `GanttChart.vue` 逐层同源，ADR 0007 §2 的"双投影共享几何"）。
+   *
+   * | 层 | 元素 | 画在哪 | 颜色 |
+   * |---|---|---|---|
+   * | 周末/假日色带 | `band` | 绘制区（整高） | `COLOR.band` |
+   * | 上级分段的正文 | `major-band` | 绘制区（整高，**近乎白**） | `COLOR.majorBody` |
+   * | 上级分段的边界 | （由 `major-band` 派生） | **全高**（表头带 + 绘制区） | `COLOR.majorEdge` |
+   * | 下级刻度线 | `gridline` | **只画在表头带内**（短刻度） | `COLOR.gridline` |
+   * | 上级分段的表头底 | （由 `major-band` 派生） | 表头带 | `COLOR.majorHeader` |
+   *
+   * **顺序即绘制顺序**：周末带 → 上级正文 → 全高边界 → 表头底与刻度 → 刻度文本。
+   * 计数**仍与 `view.axis` 逐条一致**（派生出来的那条线不算新元素——它取代了
+   * `buildAxis` 因判重而不再发射的那条 `gridline`）。
+   */
   chunks.push(`<g class="axis">`);
+  // ① 上级分段的正文（近乎白，整高）——**先画**：它在周末色带之下
   for (const element of view.axis) {
-    if (element.kind === 'band') {
-      // 裁到绘制区右缘（不裁会露进侧栏/间隙）；**计数仍与 `view.axis` 一致**（夹到 ≥1 px，不跳过）
-      const width = Math.max(1, Math.min(element.width, chartWidth - Math.max(0, element.x)));
-      chunks.push(
-        `<rect x="${String(round(offsetX + element.x))}" y="${String(offsetY)}" width="${String(round(width))}" height="${String(rowsHeight)}" fill="${COLOR.band}"/>`,
-      );
-    } else if (element.kind === 'major-band') {
-      /**
-       * **上级分段带**（ADR 0007 附录 §3）：底色比周末色带更深一档（两者必须可区分），
-       * 左边界画一条竖线——它已经取代了该处那条重复的网格线（`buildAxis` 不再发它）。
-       * 宽度同样裁到绘制区，避免露进侧栏。
-       */
-      const x = Math.min(Math.max(element.x, 0), chartWidth);
-      const width = Math.max(1, Math.min(element.width, chartWidth - x));
-      chunks.push(
-        `<rect x="${String(round(offsetX + x))}" y="${String(offsetY)}" width="${String(round(width))}" height="${String(rowsHeight)}" fill="${COLOR.majorBand}"/>`,
-        `<line x1="${String(round(offsetX + x))}" x2="${String(round(offsetX + x))}" y1="${String(offsetY)}" y2="${String(offsetY + rowsHeight)}" stroke="${COLOR.majorEdge}" stroke-width="1"/>`,
-      );
-    } else if (element.kind === 'gridline') {
-      const x = Math.min(Math.max(element.x, 0), chartWidth);
-      chunks.push(
-        `<line x1="${String(round(offsetX + x))}" x2="${String(round(offsetX + x))}" y1="${String(offsetY)}" y2="${String(offsetY + rowsHeight)}" stroke="${COLOR.gridline}" stroke-width="1"/>`,
-      );
-    }
+    if (element.kind !== 'major-band') continue;
+    const x = Math.min(Math.max(element.x, 0), chartWidth);
+    const width = Math.max(1, Math.min(element.width, chartWidth - x));
+    chunks.push(
+      `<rect x="${String(round(offsetX + x))}" y="${String(offsetY)}" width="${String(round(width))}" height="${String(rowsHeight)}" fill="${COLOR.majorBody}"/>`,
+    );
+  }
+  // ② 周末/假日色带——画在月份分组底**之后**，因此永远看得见
+  for (const element of view.axis) {
+    if (element.kind !== 'band') continue;
+    // 裁到绘制区右缘（不裁会露进侧栏/间隙）；**计数仍与 `view.axis` 一致**（夹到 ≥1 px，不跳过）
+    const width = Math.max(1, Math.min(element.width, chartWidth - Math.max(0, element.x)));
+    chunks.push(
+      `<rect x="${String(round(offsetX + element.x))}" y="${String(offsetY)}" width="${String(round(width))}" height="${String(rowsHeight)}" fill="${COLOR.band}"/>`,
+    );
+  }
+  // ③ 上级分段的边界（全高）与表头底
+  for (const element of view.axis) {
+    if (element.kind !== 'major-band') continue;
+    const x = Math.min(Math.max(element.x, 0), chartWidth);
+    const width = Math.max(1, Math.min(element.width, chartWidth - x));
+    chunks.push(
+      `<line x1="${String(round(offsetX + x))}" x2="${String(round(offsetX + x))}" y1="0" y2="${String(offsetY + rowsHeight)}" stroke="${COLOR.majorEdge}" stroke-width="1"/>`,
+      `<rect x="${String(round(offsetX + x))}" y="0" width="${String(round(width))}" height="${String(HEADER_HEIGHT_PX)}" fill="${COLOR.majorHeader}"/>`,
+    );
   }
   chunks.push(`</g>`);
+  // ④ 下级刻度线：只画在表头带内的短刻度（"刻度归刻度区"）
+  for (const element of view.axis) {
+    if (element.kind !== 'gridline') continue;
+    const x = Math.min(Math.max(element.x, 0), chartWidth);
+    chunks.push(
+      `<line class="axis-tick" x1="${String(round(offsetX + x))}" x2="${String(round(offsetX + x))}" y1="${String(HEADER_HEIGHT_PX - EXPORT_TICK_LENGTH_PX)}" y2="${String(HEADER_HEIGHT_PX)}" stroke="${COLOR.gridline}" stroke-width="1"/>`,
+    );
+  }
 
   /**
-   * 刻度文本（**两级**，都在表头带内）：
+   * 刻度文本（**两级**，都在表头带内；**大刻度在上、小刻度在下**）：
    *
-   * - **下级**（`level` 缺省或 2）画在带的**上半**（基线 `MAJOR_LABEL_BASELINE_PX / 2 + 5` 量级）；
-   * - **上级**（`level: 1`）画在带的**下半**（基线 `MAJOR_LABEL_BASELINE_PX`），
-   *   段内由 `buildAxis` 保证只在左端发一次。
+   * - **上级**（`level: 1`）画在带内的**第一行**（基线 `MAJOR_LABEL_BASELINE_PX`），
+   *   段内由 `buildAxis` 保证只在左端发一次；
+   * - **下级**（`level` 缺省或 2）画在**第二行**（基线 `MINOR_LABEL_BASELINE_PX`）。
    *
    * 两者共用同一份 `view.axis`（与屏幕同源，铁律 #2）。
    */

@@ -84,8 +84,19 @@ function baselineProbe(): RowAlignProbe {
     rowCount: 500,
     rowHeight: ROW_HEIGHT,
     samples,
-    axisCoverage: { top: paneTop, bottom: paneTop + paneHeight, left: paneLeft, right: paneLeft + paneWidth },
-    // 刻度铺满视口：第一个刻度 ≈ 左缘、最后一个 ≈ 右缘（允许一个刻度间距的容差）。
+    /**
+     * **轴的纵向覆盖基准是 SVG 的盒**（G8 复验第 ⑤ 条）：轴画在那一个覆盖整列的 SVG 里，
+     * `y ∈ [0, svgHeight]` = 表头带 + 绘制区，因此 `top = svgTop`、`bottom = svgTop + svgHeight`
+     * （= `paneTop + paneHeight`）。旧 fixture 写的是 `paneTop .. paneTop + paneHeight`
+     * ——它只在"轴最高只到绘制区顶"时与上式同值。
+     */
+    axisCoverage: {
+      top: paneTop - HEADER_HEIGHT_PX,
+      bottom: paneTop + paneHeight,
+      left: paneLeft,
+      right: paneLeft + paneWidth,
+    },
+    // 刻度铺满视口：第一个刻度 ≈ 左缘、最后一个 ≈ 右缘（允许 1.5 个刻度间距的相位容差）。
     axisTicks: { left: paneLeft + 2, right: paneLeft + paneWidth - 2 },
     tickSpacingPx: ROW_HEIGHT,
     // 刻度文本落在表头带内：带 = [paneTop − HEADER, paneTop]。

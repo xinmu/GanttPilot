@@ -1734,6 +1734,11 @@ function readAxisFacts(): G8MeasureResult['axis'] {
   /**
    * 两行刻度的证据取自**文本盒的竖向中心**（不是 `y` 属性）：文字盒反映的是"屏幕上真的分了两行"
    * 这件事本身，而 `y` 只是它的因；两者取其一就够，取盒更接近判据要回答的问题。
+   *
+   * **行序的命名**（G8 复验第 ③ 条订正后）：**大刻度在上**（`majorY` = 最小中心 y，
+   * 日/周档 `YYYY-MM`、月档 `YYYY`）、**小刻度在下**（`minorY` = 最大中心 y，`DD`/`MM-DD`）。
+   * 首版把这两个字段的含义写反了（`minorY` 装的是上级行），于是判据会"两边都通过"
+   * ——这正是"读数口本身也要有判据"的例子。
    */
   const texts = [...document.querySelectorAll('.chart-pane-wrap .axis-labels text, #chart-pane .axis-labels text')];
   const measured = texts.map((element) => {
@@ -1741,8 +1746,8 @@ function readAxisFacts(): G8MeasureResult['axis'] {
     return { text: element.textContent ?? '', centerY: Math.round((rect.top + rect.bottom) / 2) };
   });
   const ys = [...new Set(measured.map((item) => item.centerY))].sort((left, right) => left - right);
-  const minorY = ys[0] ?? null;
-  const majorY = ys.length > 1 ? (ys[ys.length - 1] ?? null) : null;
+  const majorY = ys.length > 0 ? (ys[0] ?? null) : null;
+  const minorY = ys.length > 1 ? (ys[ys.length - 1] ?? null) : null;
   const headerTable = document.querySelector('.table-header')?.getBoundingClientRect().height ?? 0;
   const headerChart = document.querySelector('.chart-header')?.getBoundingClientRect().height ?? 0;
   const blank = document.querySelector('.table-header .cell-blank');
@@ -1752,7 +1757,16 @@ function readAxisFacts(): G8MeasureResult['axis'] {
     minorSamples: minorY === null ? [] : measured.filter((item) => item.centerY === minorY).map((item) => item.text).slice(0, 6),
     majorY,
     majorSamples: majorY === null ? [] : measured.filter((item) => item.centerY === majorY).map((item) => item.text).slice(0, 6),
-    majorBands: document.querySelectorAll('.axis .axis-major-band').length,
+    /**
+     * 上级分段带的元素数：屏幕侧它现在拆成**两个**元素（`axis-major-body` 绘制区底 +
+     * `axis-major-header` 表头底）——两者都是"同一个 `major-band` 轴元素"的投影，
+     * 因此读数取**较大者**（每个轴元素恰好各有一份），而不是把两者相加。
+     * 这一条与导出 SVG / PPTX 的口径一致（那边也是"一个轴元素 → 多个图形"）。
+     */
+    majorBands: Math.max(
+      document.querySelectorAll('.axis .axis-major-body').length,
+      document.querySelectorAll('.axis-header .axis-major-header').length,
+    ),
     headerTable: Math.round(headerTable * 10) / 10,
     headerChart: Math.round(headerChart * 10) / 10,
     tableHeaderSecondRowText: (blank?.textContent ?? '').trim(),
@@ -2067,39 +2081,59 @@ export async function runAlignMeasurement(args: {
       };
     }
 
-    // 轴覆盖：优先用色带（矩形，无描边误差），没有色带时退到网格线（±0.5 px 描边）。
-    // **四边都要量**（P-24）：轴的横向双重偏移在 `scrollLeft = 0` 处不可见，
-    // 只看纵向会让"右侧新区域空白"从判据下溜走。
-    //
-    // **P-46 的口径订正**：悬停行带（`.hover-row`）也是 `.axis` 族里的一个 `<rect>`，
-    // 但它是**内容滚动的覆盖层**（跟着指针走、可落在绘制区中间），
-    // 若混进来，`axisCoverage.top` 会变成"那一行"的顶 ⇒ 纵向覆盖判据无意义地变红/变绿。
-    // 因此这里**显式排除**它（`--align` 的两个 selector 都改）。
-    const bandBoxes = [
+    /**
+     * **轴的覆盖范围**（P-24 的四边口径；G8 复验第 ⑤ 条后重新定义"哪些元素算轴"）。
+     *
+     * ## 两层要分开看（这是本轮的关键订正）
+     *
+     * | 层 | 元素 | 量什么 |
+     * |---|---|---|
+     * | **纵向** | `.axis rect`（周末色带 / 月份正文底）**∪** `.axis-major-edge`（全高月边界线） | 轴是否铺满绘制区的高度（`top = 窗格顶`、`bottom ≥ 窗格底`） |
+     * | **横向** | `.axis-tick`（表头带内的短刻度）**∪** `.axis-major-edge` | 刻度是否铺满视口宽度（左右各留不超过一个刻度间距） |
+     *
+     * **为什么不能只看色带**：色带是**稀疏**的（只有周末/假日），它的并集本来就不该触到绘制区上下缘——
+     * 拿它判纵向覆盖会恒红（P-24 落地时当场踩到过）。旧口径"有色带就只用色带、否则用网格线"
+     * 在网格线**整高**时恰好能过；而 G8 把刻度线收进表头带之后，
+     * `line` 的纵向范围只剩表头那 6 px ⇒ 旧口径必然判红。
+     * 现在按"**轴背景（整高）** 与 **刻度（表头带内）**"分别取并集，两边的语义各自成立。
+     *
+     * `.hover-row` 仍**显式排除**（P-46）：它是内容滚动的覆盖层，混进来会让纵向判据读到"那一行"的上下界。
+     */
+    const verticalBoxes = [
       ...document.querySelectorAll(
         '.chart-pane-wrap .axis rect:not(.hover-row), #chart-pane .axis rect:not(.hover-row)',
+      ),
+      ...document.querySelectorAll(
+        '.chart-pane-wrap .axis-major-edge, #chart-pane .axis-major-edge',
       ),
     ]
       .map((element) => boxOf(element))
       .filter((box) => box !== null);
-    const lineBoxes =
-      bandBoxes.length > 0
-        ? []
-        : [...document.querySelectorAll('.chart-pane-wrap .axis line, #chart-pane .axis line')]
-            .map((element) => boxOf(element))
-            .filter((box) => box !== null);
-    const axisBoxes = bandBoxes.length > 0 ? bandBoxes : lineBoxes;
     const axisCoverage =
-      axisBoxes.length === 0
+      verticalBoxes.length === 0
         ? null
         : {
-            top: Math.min(...axisBoxes.map((box) => box.top)),
-            bottom: Math.max(...axisBoxes.map((box) => box.top + box.height)),
-            left: Math.min(...axisBoxes.map((box) => box.left)),
-            right: Math.max(...axisBoxes.map((box) => box.left + box.width)),
+            top: Math.min(...verticalBoxes.map((box) => box.top)),
+            bottom: Math.max(...verticalBoxes.map((box) => box.top + box.height)),
+            left: Math.min(...verticalBoxes.map((box) => box.left)),
+            right: Math.max(...verticalBoxes.map((box) => box.left + box.width)),
           };
-    // **横向覆盖**用刻度（网格线）：色带是稀疏的，它的并集本来就不该触到左右缘。
-    const tickBoxes = [...document.querySelectorAll('.chart-pane-wrap .axis line, #chart-pane .axis line')]
+    /**
+     * **横向覆盖**用刻度：色带是稀疏的（其并集本来就不该触到左右缘）。
+     *
+     * G8 起刻度线只画在表头带内 ⇒ 这里取 `.axis-tick`（表头带内的短刻度）
+     * **∪** `.axis-major-edge`（全高月边界线）的横向并集——两者都落在"这一天的位置"上。
+     *
+     * **边距容差按档位放宽到"刻度间距"**（G8 复验第 ⑤ 条的连带订正）：刻度线只标记
+     * **该档位的边界日**（日档每天、周档周一、月档 1 日），而视口两端**不必落在边界日上**——
+     * 例如周档下窗格右缘在周四时，最右的刻度离右缘还有 3 天（= 半个刻度间距）。
+     * 旧口径（`axisTicks.right >= paneRight − tickSpacing`）在"刻度线整高"时代恰好能过，
+     * 现在必须允许最多**一个刻度间距**（那是"刻度日之间的最大间隔"本身）。
+     */
+    const tickBoxes = [
+      ...document.querySelectorAll('.chart-pane-wrap .axis-tick, #chart-pane .axis-tick'),
+      ...document.querySelectorAll('.chart-pane-wrap .axis-major-edge, #chart-pane .axis-major-edge'),
+    ]
       .map((element) => boxOf(element))
       .filter((box) => box !== null);
     const axisTicks =

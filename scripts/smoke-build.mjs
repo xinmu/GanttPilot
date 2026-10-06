@@ -643,8 +643,9 @@ async function exerciseExports(cdp, downloadDir = null, formats = ['svg', 'png',
  * 1. **未悬停**：`.hover-row` 必须不存在（否则"高亮"是常亮装饰）；
  * 2. **悬停第 1 行 vs 第 3 行**：`.hover-row` 的竖向范围必须**跟着指针走**——
  *    只读一次无法区分"跟着指针"与"画了一条固定带"；
- * 3. **左表那一行的底色**必须真的变了（左表侧是纯 CSS `:hover`，但 CDP 的 `Input.dispatchMouseEvent`
- *    会真的产生 `:hover` 命中）。
+ * 3. **左表那一行的底色**必须真的变了——**两条路径各测一次**：
+ *    ① 指针落在**左表**上（纯 CSS `:hover`，CDP 的 `Input.dispatchMouseEvent` 会真的产生命中）；
+ *    ② 指针落在**图表**上（`.row.hovered`，跟着 `hoverTaskId` 走，G8 复验第 ⑦ 条）。
  */
 async function probeG8AxisAndHover(cdp) {
   const problems = [];
@@ -661,19 +662,40 @@ async function probeG8AxisAndHover(cdp) {
         return { text: (element.textContent || '').trim(), centerY: Math.round((rect.top + rect.bottom) / 2) };
       });
       const ys = [...new Set(measured.map((item) => item.centerY))].sort((a, b) => a - b);
-      const minorY = ys.length > 0 ? ys[0] : null;
-      const majorY = ys.length > 1 ? ys[ys.length - 1] : null;
+      // **大刻度在上**（G8 复验第 ③ 条）：最小中心 y = 上级行、最大 = 下级行。
+      const majorY = ys.length > 0 ? ys[0] : null;
+      const minorY = ys.length > 1 ? ys[ys.length - 1] : null;
       const pick = (y) => y === null ? [] : measured.filter((item) => item.centerY === y).map((item) => item.text);
       const header = (selector) => {
         const node = document.querySelector(selector);
         return node === null ? -1 : Math.round(node.getBoundingClientRect().height * 10) / 10;
       };
       const blank = document.querySelector('.table-header .cell-blank');
+      const tick = document.querySelector('.axis-tick');
+      const chartHeader = document.querySelector('.chart-header');
       return JSON.stringify({
         texts: texts.length,
         minorY, majorY,
         minor: pick(minorY), major: pick(majorY),
-        majorBands: document.querySelectorAll('.axis .axis-major-band').length,
+        // 上级分段带在屏幕侧拆成两个元素（绘制区正文 + 表头底），取较大者（每个轴元素各一份）。
+        majorBands: Math.max(
+          document.querySelectorAll('.axis .axis-major-body').length,
+          document.querySelectorAll('.axis-header .axis-major-header').length,
+        ),
+        // **刻度线只属于刻度区**（G8 复验第 ⑤ 条）：短刻度必须整条落在表头带内。
+        tick: tick === null ? null : {
+          top: Math.round(tick.getBoundingClientRect().top),
+          bottom: Math.round(tick.getBoundingClientRect().bottom),
+          bandTop: chartHeader === null ? -1 : Math.round(chartHeader.getBoundingClientRect().top),
+          bandBottom: chartHeader === null ? -1 : Math.round(chartHeader.getBoundingClientRect().bottom),
+        },
+        // 背景分层（第 ④ 条）：周末色带 / 月份正文底 / 表头底 三色必须互不相同。
+        fills: {
+          band: document.querySelector('.axis .axis-band')?.getAttribute('fill') ?? null,
+          majorBody: document.querySelector('.axis .axis-major-body')?.getAttribute('fill') ?? null,
+          majorHeader: document.querySelector('.axis-header .axis-major-header')?.getAttribute('fill') ?? null,
+          hover: document.querySelector('.hover-row')?.getAttribute('fill') ?? null,
+        },
         headerTable: header('.table-header'),
         headerChart: header('.chart-header'),
         blankText: (blank === null ? '(没有第二行)' : (blank.textContent || '').trim()),
@@ -683,13 +705,32 @@ async function probeG8AxisAndHover(cdp) {
 
   if (axis.texts === 0) problems.push('[G8 刻度] 表头带里一条刻度文本都没有');
   if (axis.majorY === null) problems.push('[G8 刻度] 刻度只有一行（两级刻度未生效）');
-  if (axis.majorBands === 0) problems.push('[G8 刻度] 没有上级分段带（.axis-major-band）');
+  if (axis.majorBands === 0) problems.push('[G8 刻度] 没有上级分段带（.axis-major-body / .axis-major-header）');
   // 上级标签随档位：默认日档 ⇒ 上级 `YYYY-MM`、下级 `DD`。
   if (!axis.minor.every((text) => /^\d{2}$/.test(text))) {
-    problems.push(`[G8 刻度] 日档下级标签不是 DD：${axis.minor.slice(0, 4).join('/')}`);
+    problems.push(`[G8 刻度] 日档下级（下方那一行）标签不是 DD：${axis.minor.slice(0, 4).join('/')}`);
   }
   if (!axis.major.every((text) => /^\d{4}-\d{2}$/.test(text))) {
-    problems.push(`[G8 刻度] 日档上级标签不是 YYYY-MM：${axis.major.slice(0, 4).join('/')}`);
+    problems.push(`[G8 刻度] 日档上级（上方那一行）标签不是 YYYY-MM：${axis.major.slice(0, 4).join('/')}`);
+  }
+  // **行序**：上级那一行的文本盒中心必须**小于**下级（大刻度在上，第 ③ 条）。
+  if (axis.majorY !== null && axis.minorY !== null && !(axis.majorY < axis.minorY)) {
+    problems.push(`[G8 刻度] 两级刻度行序反了：上级中心 y=${String(axis.majorY)} ≥ 下级 y=${String(axis.minorY)}`);
+  }
+  // **刻度线只画在表头带内**（第 ⑤ 条）：短刻度的上下端都必须落在表头带的区间里。
+  if (axis.tick === null) {
+    problems.push('[G8 刻度] 表头带里没有刻度线（.axis-tick）');
+  } else if (axis.tick.top < axis.tick.bandTop - 1 || axis.tick.bottom > axis.tick.bandBottom + 1) {
+    problems.push(
+      `[G8 刻度] 刻度线越出刻度区：刻度 ${String(axis.tick.top)}..${String(axis.tick.bottom)} / 表头带 ${String(axis.tick.bandTop)}..${String(axis.tick.bandBottom)}`,
+    );
+  }
+  // **背景三层必须互不相同**（第 ④ 条：月份底曾与周末带同量级 ⇒ 整块浅色）。
+  if (axis.fills.band !== null && axis.fills.majorBody !== null && axis.fills.band === axis.fills.majorBody) {
+    problems.push(`[G8 背景] 周末色带与月份正文底同色（${String(axis.fills.band)}）⇒ 周末看不出来`);
+  }
+  if (axis.fills.majorHeader !== null && axis.fills.majorBody !== null && axis.fills.majorHeader === axis.fills.majorBody) {
+    problems.push('[G8 背景] 月份表头底与正文底同色 ⇒ 上级分段看不出来');
   }
   if (axis.headerTable !== axis.headerChart) {
     problems.push(`[G8 刻度] 两栏表头外高不等：左表 ${String(axis.headerTable)} px / 图表 ${String(axis.headerChart)} px`);
@@ -833,16 +874,39 @@ async function probeG8AxisAndHover(cdp) {
     if (tableOn.otherBackgrounds.includes(value)) {
       problems.push('[G8 悬停] 左表"别的行"底色与悬停行相同——高亮没有限定在指针所在行');
     }
-    // 悬停**图表**时，左表那一行**不该**跟着变色（两侧不共享判据）。
+    /**
+     * **跨栏一致**（G8 复验第 ⑦ 条）：指针移到**图表**上时，左表**对应那一行**必须也带上
+     * 高亮底色（`.row.hovered`，跟着图表指针走），而**别的行**不变。
+     *
+     * 这与上面那条"指针在左表上"是**两条不同的路径**，因此要分别断言：
+     * ① `.row:hover` 只在指针物理落在左表时生效（上面那条）；
+     * ② `.row.hovered` 跟着图表的 `hoverTaskId` 走（这条）。
+     */
     const chartAgain = await hoverBar(3);
-    if (chartAgain !== null) {
-      const after = await read(`(() => {
+    if (chartAgain === null) {
+      problems.push('[G8 悬停] 无法把指针移到图表上（跨栏一致无法验证）');
+    } else {
+      const after = JSON.parse(await read(`(() => {
         const rows = [...document.querySelectorAll('.table-body .row-block .row[data-task-id]')];
         const row = rows.find((item) => item.getAttribute('data-task-id') === ${JSON.stringify(tableOn.taskId)}) || null;
-        return row === null ? '' : getComputedStyle(row).backgroundColor;
-      })()`);
-      if (String(after) === value) {
-        problems.push('[G8 悬停] 指针在图表上时左表对应行仍保持高亮底色（左表侧应为纯 :hover，不跟随图表）');
+        const other = rows.find((item) => item.getAttribute('data-task-id') !== ${JSON.stringify(tableOn.taskId)}) || null;
+        return JSON.stringify({
+          bg: row === null ? '' : getComputedStyle(row).backgroundColor,
+          hovered: row === null ? false : row.classList.contains('hovered'),
+          otherBg: other === null ? '' : getComputedStyle(other).backgroundColor,
+        });
+      })()`));
+      if (after.hovered !== true) {
+        problems.push('[G8 悬停] 指针在图表上时，左表对应行没有 `.hovered`（跨两栏的高亮没有联动）');
+      }
+      if (String(after.bg) === '' || String(after.bg) === 'rgba(0, 0, 0, 0)' || String(after.bg) === 'transparent') {
+        problems.push(`[G8 悬停] 指针在图表上时，左表对应行没有底色（${String(after.bg) || '空'}）`);
+      }
+      if (String(after.otherBg) === String(after.bg)) {
+        problems.push('[G8 悬停] 跨栏高亮没有限定在对应那一行（别的行也同色）');
+      }
+      if (process.env.GANTTPILOT_SMOKE_VERBOSE === '1') {
+        console.log(`[smoke] G8 跨栏：图表悬停 → 左表 ${tableOn.taskId} 底色 ${String(after.bg)}（别的行 ${String(after.otherBg)}）`);
       }
     }
     if (process.env.GANTTPILOT_SMOKE_VERBOSE === '1') {

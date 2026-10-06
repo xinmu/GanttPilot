@@ -88,34 +88,50 @@ export const WHEEL_NOTCH_PX = 100;
 export const HEADER_HEIGHT_PX = 40;
 
 /**
- * 上级刻度（分段带）与悬停行带的两条**颜色**常量（P-46 §2.2／§3）。
+ * 轴的**三层视觉**颜色常量（P-46 §2.2／§3；屏幕 SVG、导出 SVG、PPTX 与左表 CSS 共用同值）。
  *
- * 两条都必须与既有色系**区分开**，否则判据（与）目视都会失效：
+ * ## 三层各自承担什么（G8 人工复验第 ④⑥ 条的订正）
  *
- * | 用途 | 值 | 为什么不是别的 |
- * |---|---|---|
- * | 上级分段带 | `#eef1f5` | 与**周末/假日色带** `#f4f6f8` 区分——否则"周末"与"上级段"混为一色（P-37 的"背景层先注入"同口径） |
- * | 上级段边线 | `#d0d5dd` | 与**网格线** `#e4e7ec` 区分：上级段的边界是"月的边界"，比网格线更醒目 |
- * | 悬停行带 | `#e8f1fb` | 浅蓝（与条体 `#2e75b6` 同色系、但远浅）；与上面两条灰/蓝灰**都**不同 |
+ * | 层 | 常量 | 值 | 画在哪 |
+ * |---|---|---|---|
+ * | 周末/假日色带 | `AXIS_BAND_FILL` | `#f4f6f8` | **绘制区**（整高、合并成极大连续段）——"哪几天不上班" |
+ * | 上级分段带（表头） | `AXIS_MAJOR_HEADER_FILL` | `#e4e9f0` | **表头带**（上级那一行）——"这是哪个月/年" |
+ * | 上级分段带（正文） | `AXIS_MAJOR_BODY_FILL` | `#fafbfc` | **绘制区**（整高）——**极淡**的月份分组底 |
+ * | 上级段边线 | `AXIS_MAJOR_EDGE` | `#b9c0cb` | 全高竖线（"月的边界"，比网格线醒目） |
+ * | 网格线（下级刻度） | `AXIS_GRIDLINE_STROKE` | `#e4e7ec` | **只画在表头带内**（短刻度线，不进条体区） |
+ * | 悬停行带 | `HOVER_ROW_FILL` | `#cfe3fa` | **绘制区**（一行高，覆盖层） |
  *
- * 三处一律从这里取值：屏幕 SVG（`GanttChart.vue`）、导出 SVG（`svgExport.ts`）、左表 CSS
- * （`TaskTable.vue` 的 `.row:hover` 需要同值，写在 CSS 里但注释指向本常量）。
+ * ## 首版错在哪（复验当场报回来的两条）
+ *
+ * 1. **上级分段带的正文填充曾经用过 `#eef1f5`（= 与周末灰度带同量级）**：
+ *    它整高、且**覆盖整个绘制区宽度**（月段必然首尾相接），于是"白周中 + 灰周末"的
+ *    对比被它整体盖掉，看起来像**一整块浅色**。⇒ 正文填充改为**近似白**的 `#fafbfc`：
+ *    月份分组仍然看得出来（相邻月之间有线），但不再与周末带抢对比度；
+ * 2. **网格线曾经是整高的**：它把"刻度"画进了条体区。⇒ 网格线**只画表头带内**（短刻度线），
+ *    绘制区只保留周末带与月边界线——这正是"刻度线该在刻度区"的字面要求。
  */
-export const AXIS_MAJOR_FILL = '#eef1f5';
-export const AXIS_MAJOR_EDGE = '#d0d5dd';
-export const HOVER_ROW_FILL = '#e8f1fb';
+export const AXIS_BAND_FILL = '#f4f6f8';
+export const AXIS_MAJOR_HEADER_FILL = '#e4e9f0';
+export const AXIS_MAJOR_BODY_FILL = '#fafbfc';
+export const AXIS_MAJOR_EDGE = '#b9c0cb';
+export const AXIS_GRIDLINE_STROKE = '#e4e7ec';
+export const HOVER_ROW_FILL = '#cfe3fa';
 
 /**
- * 两级刻度的**文本基线**（表头带内的 y，px；**屏幕 SVG 与导出 SVG 共用同值**）。
+ * 两级刻度的**文本基线**（表头带内的 y，px；**屏幕 SVG / 导出 SVG / PPTX 共用同值**）。
  *
  * 两级刻度是"一个带子里的两行文本"，因此基线必须有单点声明——否则屏幕画在上半、
  * 导出画在下半，"所见 = 所导出"当场破裂（三者同源是 ADR 0007 §2 的铁律）。
  *
- * 与 `HEADER_HEIGHT_PX = 40` 的关系：上级段是带内**下半**的主体（基线 33，字号 10），
- * 下级标签在**上半**（基线 17）。两者间距 16 px > 字号，因此不重叠。
+ * **行序（G8 人工复验第 ③ 条订正）**：**大刻度在上、小刻度在下**——
+ * 上级（`level: 1`，日/周档 `YYYY-MM`、月档 `YYYY`）是**粗**的那一层，放**第一行**；
+ * 下级（日/周档 `DD`/`MM-DD`、月档 `YYYY-MM`）放**第二行**。
+ * 首版把两者写反了（上级在下），复验当场报"刻度上下反了"。
+ *
+ * 与 `HEADER_HEIGHT_PX = 40` 的关系：第一行基线 16、第二行基线 33，间距 17 px > 字号 10 ⇒ 不重叠。
  */
-export const MINOR_LABEL_BASELINE_PX = 17;
-export const MAJOR_LABEL_BASELINE_PX = 33;
+export const MAJOR_LABEL_BASELINE_PX = 16;
+export const MINOR_LABEL_BASELINE_PX = 33;
 
 /**
  * 轴线左侧留白（**天数**，不是像素）——SS/SF"左出回绕"走线的空间（ADR 0007 §3）。

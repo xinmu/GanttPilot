@@ -39,9 +39,15 @@
 import { computed } from 'vue';
 import {
   arrowPolygons,
+  AXIS_BAND_FILL,
+  AXIS_GRIDLINE_STROKE,
+  AXIS_MAJOR_BODY_FILL,
+  AXIS_MAJOR_EDGE,
+  AXIS_MAJOR_HEADER_FILL,
   drawnBarForRow,
   emptyHighlight,
   HEADER_HEIGHT_PX,
+  HOVER_ROW_FILL,
   MAJOR_LABEL_BASELINE_PX,
   MINOR_LABEL_BASELINE_PX,
   rowHandlesFor,
@@ -105,6 +111,16 @@ const props = withDefaults(
 );
 type Edge = ViewModel['edges'][number];
 type Row = ViewModel['rows'][number];
+
+/**
+ * 下级刻度线在表头带内的长度（px）：从带的底边往上画这么长。
+ *
+ * **它是"刻度线只属于刻度区"的可执行形式**（G8 人工复验第 ⑤ 条）：
+ * 轴元素 `gridline` 的语义是"这一天的位置"，画成表头带内的一段短线即可；
+ * 绘制区里只保留周末色带与月边界线（"刻度归刻度区、背景归背景区"）。
+ * 取 6 px——足够看见，又不与表头两行文本抢空间。
+ */
+const TICK_LENGTH_PX = 6;
 
 // ---------------------------------------------------------------- G5 覆盖层（元素计入 `c₄`）
 
@@ -236,23 +252,43 @@ const scrollTransform = computed(() => {
  */
 const axisBandsTransform = `translate(0 ${String(HEADER_HEIGHT_PX)})`;
 /**
- * 轴元素按**两级刻度**拆成四组（P-46 §3／ADR 0007 附录 §3）：
+ * 轴元素按**两级刻度 + 三层视觉**拆成五组（P-46 §3／ADR 0007 附录 §3；
+ * 视觉分层按 G8 人工复验第 ③④⑤ 条订正）：
  *
- * | 组 | 元素 | 画在哪 |
- * |---|---|---|
- * | `axisLower` | `band`（周末色带）+ `gridline` | 绘制区（下移一个表头带） |
- * | `axisMajorBands` | `major-band`（上级分段带） | 绘制区（同上）；**段左边界自带竖线** |
- * | `axisMinorLabels` | `label`（`level` 缺省/2，下级刻度） | 表头带的**上半** |
- * | `axisMajorLabels` | `label`（`level: 1`，上级刻度） | 表头带的**下半** |
+ * | 组 | 元素 | 画在哪 | 颜色 |
+ * |---|---|---|---|
+ * | `axisBands` | `band`（周末/假日色带） | **绘制区**（下移一个表头带） | `AXIS_BAND_FILL` |
+ * | `axisMajorBodies` | `major-band` 的**正文**部分 | **绘制区** | `AXIS_MAJOR_BODY_FILL`（近乎白） |
+ * | `axisMajorEdges` | `major-band` 的**左边界线** | 全高（表头带 + 绘制区） | `AXIS_MAJOR_EDGE` |
+ * | `axisMajorBands` | `major-band` 的**表头**部分 | **表头带** | `AXIS_MAJOR_HEADER_FILL` |
+ * | `axisTicks` | `gridline`（下级刻度线） | **表头带内**（短刻度，**不进条体区**） | `AXIS_GRIDLINE_STROKE` |
+ * | `axisMajorLabels` / `axisMinorLabels` | `label`（上级 / 下级） | 表头带的**第一行 / 第二行** | — |
  *
- * 悬停行带（`hover-band`）**不在这里**：它是覆盖层元素，画在内容滚动组里（与行同一坐标系），
- * 见下面的 `.hover-row`——放进轴组会与"轴的窗口坐标"口径打架（P-46 §2.2 的落点决定）。
+ * **三条纪律（复验换来的）**：
+ * 1. **刻度线只画在刻度区**：`gridline` 曾经是整高的，于是"刻度"画进了条体区；
+ *    现在它只是表头带里的一段短线（月边界线仍全高——那是**分组边界**，不是刻度）；
+ * 2. **上级分段的正文填充必须近乎白**：它整高、且必须首尾相接覆盖整个绘制区宽，
+ *    一旦取值与周末灰度带同量级（首版用过 `#eef1f5`），"白周中 + 灰周末"的对比就被整体盖掉；
+ * 3. **悬停行带不在这里**：它是覆盖层，画在内容滚动组里（与行同一坐标系），见 `.hover-row`。
  */
-const axisLower = computed<readonly AxisElement[]>(() =>
-  props.view === null ? [] : props.view.axis.filter((element) => element.kind === 'band' || element.kind === 'gridline'),
+const axisBands = computed<readonly Extract<AxisElement, { kind: 'band' }>[]>(() =>
+  props.view === null
+    ? []
+    : props.view.axis.filter((element): element is Extract<AxisElement, { kind: 'band' }> => element.kind === 'band'),
 );
-const axisMajorBands = computed<readonly AxisElement[]>(() =>
-  props.view === null ? [] : props.view.axis.filter((element) => element.kind === 'major-band'),
+const axisMajorBands = computed<readonly Extract<AxisElement, { kind: 'major-band' }>[]>(() =>
+  props.view === null
+    ? []
+    : props.view.axis.filter(
+        (element): element is Extract<AxisElement, { kind: 'major-band' }> => element.kind === 'major-band',
+      ),
+);
+const axisTicks = computed<readonly Extract<AxisElement, { kind: 'gridline' }>[]>(() =>
+  props.view === null
+    ? []
+    : props.view.axis.filter(
+        (element): element is Extract<AxisElement, { kind: 'gridline' }> => element.kind === 'gridline',
+      ),
 );
 const axisMinorLabels = computed<readonly Extract<AxisElement, { kind: 'label' }>[]>(() =>
   props.view === null
@@ -339,74 +375,91 @@ const drawnRows = computed(() =>
       class="axis"
       :transform="axisBandsTransform"
     >
-      <template
-        v-for="element in axisLower"
-        :key="`axis-${element.kind}-${String(element.x)}`"
-      >
-        <rect
-          v-if="element.kind === 'band'"
-          class="axis-band"
-          :x="element.x"
-          y="0"
-          :width="element.width"
-          :height="view.height"
-          fill="#f4f6f8"
-        />
-        <line
-          v-else
-          :x1="element.x"
-          :x2="element.x"
-          y1="0"
-          :y2="view.height"
-          stroke="#e4e7ec"
-          stroke-width="1"
-        />
-      </template>
       <!--
-        上级分段带（P-46 的两级刻度）：底色与周末色带**必须可区分**（`#eef1f5` vs `#f4f6f8`），
-        左边界画一条竖线——它取代了该处那条重复的网格线（`buildAxis` 不再发它）。
-        宽度允许越过右缘（与周末色带同口径），SVG 的 `overflow: hidden` 负责裁掉。
+        **上级分段带的正文**（绘制区，整高）：**近乎白**——它首尾相接地覆盖整个绘制区宽，
+        它只是"月份分组"的极淡底，**必须先画**：一旦画在周末色带之后，就会把
+        "白周中 + 灰周末"的对比整体盖掉（G8 人工复验第 ④ 条报的"一整块浅色"就是这个——
+        首版既用了与周末带同量级的 `#eef1f5`、又画在了周末带**之后**，两个错叠在一起）。
+        它的边界由下面的全高竖线给出，分组因此仍然看得出来。
       -->
-      <template
+      <rect
         v-for="element in axisMajorBands"
-        :key="`axis-major-${String(element.x)}`"
-      >
-        <rect
-          v-if="element.kind === 'major-band'"
-          class="axis-major-band"
-          :x="element.x"
-          y="0"
-          :width="element.width"
-          :height="view.height"
-          fill="#eef1f5"
-        />
-        <line
-          v-if="element.kind === 'major-band'"
-          :x1="element.x"
-          :x2="element.x"
-          y1="0"
-          :y2="view.height"
-          stroke="#d0d5dd"
-          stroke-width="1"
-        />
-      </template>
+        :key="`axis-major-body-${String(element.x)}`"
+        class="axis-major-body"
+        :x="element.x"
+        y="0"
+        :width="element.width"
+        :height="view.height"
+        :fill="AXIS_MAJOR_BODY_FILL"
+      />
+      <!--
+        **周末/假日色带**（绘制区，整高、已按极大连续段合并）：**画在月份分组底之后**，
+        因此"哪几天不上班"永远看得见——这是本层唯一不能被别的东西盖住的语义。
+      -->
+      <rect
+        v-for="element in axisBands"
+        :key="`axis-band-${String(element.x)}`"
+        class="axis-band"
+        :x="element.x"
+        y="0"
+        :width="element.width"
+        :height="view.height"
+        :fill="AXIS_BAND_FILL"
+      />
+      <!--
+        **上级分段的边界线**（**全高**：表头带 + 绘制区）：它是"月的边界"，比刻度线醒目，
+        因此在这里（窗口坐标）画一条贯穿全高的竖线——它取代了该处那条重复的刻度线
+        （`buildAxis` 不再为它发 `gridline`）。
+      -->
+      <line
+        v-for="element in axisMajorBands"
+        :key="`axis-major-edge-${String(element.x)}`"
+        class="axis-major-edge"
+        :x1="element.x"
+        :x2="element.x"
+        :y1="-HEADER_HEIGHT_PX"
+        :y2="view.height"
+        :stroke="AXIS_MAJOR_EDGE"
+        stroke-width="1"
+      />
     </g>
 
     <!--
-      日期刻度：**两级**（P-46 §3），都画在表头带内（0 .. HEADER_HEIGHT_PX）。
-      下级在上半、上级在下半；基线取自 `render-core` 的常量（**与导出 SVG/PPTX 同源**，
-      三处各写一个数字就是"所见 ≠ 所导出"）。
+      **下级刻度线**：只画在**表头带内**（`0 .. HEADER_HEIGHT_PX`）的短刻度——
+      G8 人工复验第 ⑤ 条报的"刻度线画到了条体区"就是把它们画成了整高；
+      绘制区里只保留周末带与月边界线（"刻度归刻度区、背景归背景区"）。
+      上级分段的表头底色与全部刻度文本也在这里（同在窗口坐标、不进内容滚动组）。
+    -->
+    <g class="axis-header">
+      <rect
+        v-for="element in axisMajorBands"
+        :key="`axis-major-header-${String(element.x)}`"
+        class="axis-major-header"
+        :x="element.x"
+        y="0"
+        :width="element.width"
+        :height="HEADER_HEIGHT_PX"
+        :fill="AXIS_MAJOR_HEADER_FILL"
+      />
+      <line
+        v-for="element in axisTicks"
+        :key="`axis-tick-${String(element.x)}`"
+        class="axis-tick"
+        :x1="element.x"
+        :x2="element.x"
+        :y1="HEADER_HEIGHT_PX - TICK_LENGTH_PX"
+        :y2="HEADER_HEIGHT_PX"
+        :stroke="AXIS_GRIDLINE_STROKE"
+        stroke-width="1"
+      />
+    </g>
+
+    <!--
+      日期刻度文本：**两级**（P-46 §3），都画在表头带内（0 .. HEADER_HEIGHT_PX）。
+      **大刻度在上、小刻度在下**（复验第 ③ 条订正）；基线取自 `render-core` 的常量
+      （**与导出 SVG / PPTX 同源**，三处各写一个数字就是"所见 ≠ 所导出"）。
     -->
     <g class="axis-labels">
-      <text
-        v-for="element in axisMinorLabels"
-        :key="`axis-label-minor-${String(element.x)}`"
-        :x="element.x + 2"
-        :y="MINOR_LABEL_BASELINE_PX"
-        class="axis-label"
-        font-size="10"
-        fill="#667085"
-      >{{ element.text }}</text>
       <text
         v-for="element in axisMajorLabels"
         :key="`axis-label-major-${String(element.x)}`"
@@ -415,6 +468,15 @@ const drawnRows = computed(() =>
         class="axis-label axis-label-major"
         font-size="10"
         fill="#475467"
+      >{{ element.text }}</text>
+      <text
+        v-for="element in axisMinorLabels"
+        :key="`axis-label-minor-${String(element.x)}`"
+        :x="element.x + 2"
+        :y="MINOR_LABEL_BASELINE_PX"
+        class="axis-label"
+        font-size="10"
+        fill="#667085"
       >{{ element.text }}</text>
     </g>
 
@@ -433,7 +495,7 @@ const drawnRows = computed(() =>
         :transform="`translate(0 ${String(hoverBandRect.y)})`"
         :width="view.width"
         :height="hoverBandRect.height"
-        fill="#e8f1fb"
+        :fill="HOVER_ROW_FILL"
       />
       <!-- 行：条 / 进度 / 里程碑菱形（被拖行画的是**预览结果几何**，ADR 0008 §14） -->
       <g class="rows">
@@ -696,10 +758,20 @@ const drawnRows = computed(() =>
 
 /* 轴标签不参与命中，避免遮住边的热区（`.axis` 的色带/网格线 + `.axis-labels` 的刻度文本） */
 .axis text,
-.axis-labels text {
+.axis-labels text,
+.axis-header line,
+.axis-header rect {
   pointer-events: none;
   user-select: none;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/**
+ * 表头带里的**下级刻度线**：长度由模板的 `y1 = HEADER_HEIGHT_PX - TICK_LENGTH_PX` 给出，
+ * 样式只负责颜色（与 `AXIS_GRIDLINE_STROKE` 同源，写在模板里）。
+ */
+.axis-header {
+  pointer-events: none;
 }
 
 /* 上级刻度文本比下级略深一档：同行不同层级要能一眼分开（P-46 §3 的两级结构） */

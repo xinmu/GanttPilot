@@ -2,14 +2,14 @@
   "chromeMajor": "154",
   "artifact": {
     "path": "D:\\workspace\\GanttPilot\\apps\\web\\dist-offline\\index.html",
-    "bytes": 1627486,
-    "kb": 1589.3
+    "bytes": 1629532,
+    "kb": 1591.3
   },
   "firstScreen": {
     "ready": true,
-    "readyMs": 150,
+    "readyMs": 137,
     "fcpMs": null,
-    "domContentLoadedMs": 114
+    "domContentLoadedMs": 109
   },
   "indexedDb": {
     "open": true,
@@ -25,7 +25,7 @@
       "ok": true,
       "id": "t2",
       "text": "2026-10-05",
-      "x": 1089,
+      "x": 1108,
       "y": 183
     },
     "dragDiagnostics": {
@@ -51,7 +51,7 @@
   "flowsOffline": {
     "skipped": false,
     "ready": true,
-    "firstScreenMs": 6351,
+    "firstScreenMs": 6317,
     "import": "ok: 任务 15 / 依赖 14",
     "drag": "ok: t2 开始 2026-10-05 → 2026-12-14",
     "export": "ok: gantt-day.svg",
@@ -60,7 +60,7 @@
       "ok": true,
       "id": "t2",
       "text": "2026-10-05",
-      "x": 1089,
+      "x": 1108,
       "y": 183
     },
     "dragDiagnostics": {

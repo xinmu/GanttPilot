@@ -1,6 +1,6 @@
 {
   "env": {
-    "采集时刻": "2026-10-06T07:46:04.689Z",
+    "采集时刻": "2026-10-06T12:01:22.529Z",
     "机器": "FAIRY",
     "系统": "win32 x64",
     "Node": "v26.7.0",
@@ -16,54 +16,54 @@
     {
       "label": "开",
       "enabled": true,
-      "url": "http://127.0.0.1:7414/?measure=1&table=1&persist=1&dataset=dense",
+      "url": "http://127.0.0.1:4767/?measure=1&table=1&persist=1&dataset=dense",
       "result": {
         "status": "ok",
         "errors": [],
         "dataset": "dense",
         "enabled": true,
         "frameGapsMs": [
-          16.3,
-          31.8,
-          12.7,
-          16.6,
-          16.8,
-          16.5,
-          16.8,
-          16.8,
-          16.5,
-          16.6,
+          17,
+          31.1,
+          6.9,
           16.9,
-          16.5
+          16.5,
+          16.6,
+          16.8,
+          18.4,
+          15,
+          16.6,
+          16.7,
+          16.8
         ],
-        "frameGapP50Ms": 16.6,
-        "frameGapP95Ms": 31.8,
+        "frameGapP50Ms": 16.7,
+        "frameGapP95Ms": 31.1,
         "mainThreadMs": [
-          6.6,
-          6.3,
-          6,
+          6.4,
+          6.5,
+          5.2,
+          6.2,
+          7.3,
           6.7,
-          5.5,
-          5.9,
-          6.1,
-          5.3,
-          8,
-          5.4,
-          5.4,
-          5.2
+          8.3,
+          6.4,
+          6.8,
+          6.7,
+          6.4,
+          6.6
         ],
-        "mainThreadP50Ms": 5.9,
-        "mainThreadP95Ms": 8,
+        "mainThreadP50Ms": 6.5,
+        "mainThreadP95Ms": 8.3,
         "longTasks": 0,
         "writesDuringGesture": 0,
         "writesBefore": 2,
         "writesAfter": 7,
-        "flushAfterReleaseMs": 2.6,
+        "flushAfterReleaseMs": 2.7,
         "storage": {
           "tasks": 1000,
           "links": 1500,
           "documentBytes": 316038,
-          "serializeMs": 0.5,
+          "serializeMs": 0.4,
           "recordBytes": 837,
           "recordBreakdown": {
             "baseBytes": 4,
@@ -73,12 +73,12 @@
           },
           "probeLastWriteIncrementSteps": 1,
           "putMs": [
-            1.2,
-            0.4,
-            0.3
+            0.7,
+            0.2,
+            0.6
           ],
-          "putP50Ms": 0.4,
-          "putP95Ms": 1.2,
+          "putP50Ms": 0.6,
+          "putP95Ms": 0.7,
           "estimate": {
             "usage": 52480,
             "quota": 10737470720
@@ -93,7 +93,7 @@
     {
       "label": "关",
       "enabled": false,
-      "url": "http://127.0.0.1:7414/?measure=1&table=1&persist=0&dataset=dense",
+      "url": "http://127.0.0.1:4767/?measure=1&table=1&persist=0&dataset=dense",
       "result": {
         "status": "ok",
         "errors": [],
@@ -101,36 +101,36 @@
         "enabled": false,
         "frameGapsMs": [
           12.6,
-          7.3,
-          17.5,
-          16.6,
+          7.6,
+          16.5,
           16.9,
-          16.4,
+          16.6,
+          16.5,
           16.8,
+          17.1,
+          16.2,
           16.7,
           16.7,
-          16.7,
-          16.7,
-          17.1
+          16.7
         ],
-        "frameGapP50Ms": 16.7,
-        "frameGapP95Ms": 17.5,
+        "frameGapP50Ms": 16.6,
+        "frameGapP95Ms": 17.1,
         "mainThreadMs": [
-          6.1,
-          4.9,
-          7.3,
-          5.4,
-          5.9,
-          6.2,
-          6.2,
-          4.7,
-          4.4,
-          5.3,
           5.8,
-          4.8
+          5.4,
+          6.5,
+          6,
+          6,
+          6.1,
+          5.5,
+          6.3,
+          5.8,
+          6.1,
+          5.8,
+          6.9
         ],
-        "mainThreadP50Ms": 5.4,
-        "mainThreadP95Ms": 7.3,
+        "mainThreadP50Ms": 6,
+        "mainThreadP95Ms": 6.9,
         "longTasks": 0,
         "writesDuringGesture": 0,
         "writesBefore": 0,
@@ -148,8 +148,8 @@
           "putP50Ms": 0,
           "putP95Ms": 0,
           "estimate": {
-            "usage": 61021,
-            "quota": 10737479261
+            "usage": 58942,
+            "quota": 10737477182
           }
         }
       }

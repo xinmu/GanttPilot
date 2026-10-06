@@ -719,6 +719,11 @@ watch(
  * 旧行号可能指到别的任务上（或指到渲染窗口之外）。`ViewModel` 侧已经夹了一道
  * （`visibleHoverRow` 只认渲染窗口），这里再按"该行号上的行是否还在 `rows` 里"收一次口——
  * 否则会留下一条**高亮错任务**的行带（比"没有高亮"更坏：它看起来像选中）。
+ *
+ * **`flush: 'post'` 是必需的**：默认的 `pre` flush 会让本回调在"指针读数已更新、
+ * 而视图尚未重建"的中间态上跑，于是它会把一次**刚发生的**悬停当成过期读数清掉
+ * （实测：`updateHover` 刚设好 `hoverRow`，本回调立刻把它置回 `null` ⇒
+ * 图表侧与左表侧的高亮都不出现）。`post` 表示"等 DOM 更新之后再判"，那时视图与指针同源。
  */
 watch(
   () => view.value,
@@ -727,6 +732,7 @@ watch(
     if (row === null) return;
     if (current === null || !current.rows.some((item) => item.row === row)) hoverRow.value = null;
   },
+  { flush: 'post' },
 );
 
 onMounted(() => {
@@ -992,6 +998,7 @@ onUnmounted(() => {
         :column-height="columnHeight"
         :content-height="contentHeight"
         :conflict-task-ids="conflictTaskIds"
+        :hover-task-id="hoverTaskId"
         :disabled="false"
         @cell-edit="onCellEdit"
         @toggle-collapse="onToggleCollapse"

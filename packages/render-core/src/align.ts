@@ -346,14 +346,50 @@ export function diagnoseRowAlignment(probe: RowAlignProbe): RowAlignVerdict {
   }
   if (maxAbsBarXDeltaPx > tol) mechanisms.push('bar-x-offset');
   if (coverage !== null && (coverage.topBandPx > tol || coverage.bottomBandPx > tol)) mechanisms.push('coverage-gap');
+  /**
+   * **纵向覆盖**：轴的**背景层**（周末色带 / 月份正文底 ∪ 月边界线）必须铺满 **SVG 的整高**
+   * （= 表头带 + 绘制区）。
+   *
+   * ## 基准为什么是 `svgTop`/`svgHeight` 而不是 `paneTop`/`paneHeight`（G8 复验第 ⑤ 条连带订正）
+   *
+   * 轴的载体是那一个 SVG：`<svg :height="svgHeight">` 覆盖**整列**，`y ∈ [0, svgHeight]`；
+   * 而 `paneTop` 是**绘制区**的顶（= `svgTop + headerHeight`）。旧写法拿"轴顶 vs 绘制区顶"比，
+   * 在"刻度线整高、轴最高只到绘制区顶"时恰好相等；G8 把月边界线画成**含表头带的全高**之后，
+   * 轴的并集顶自然变成 `svgTop`，于是旧写法恒红 **40 px**（= 一个表头带）——
+   * **画面完全正确**。⇒ 基准改成 SVG 的盒（那才是这一层真正要铺满的范围）。
+   *
+   * 这条也顺带把"表头带里没有轴元素"这类漏画抓在同一个判据里。
+   */
   const axisCoversVertically =
     probe.axisCoverage !== null &&
-    Math.abs(probe.axisCoverage.top - probe.paneTop) <= tol &&
-    probe.axisCoverage.bottom >= probe.paneTop + probe.paneHeight - tol;
+    Math.abs(probe.axisCoverage.top - probe.svgTop) <= tol &&
+    probe.axisCoverage.bottom >= probe.svgTop + probe.svgHeight - tol;
+  /**
+   * **横向"铺满"：容差是「一个刻度间距 + 相位」——即最多 1.5 个间距**（G8 复验第 ⑤ 条的连带订正）。
+   *
+   * ## 为什么要改（这不是放宽阈值，是把判据改回它要说的事）
+   *
+   * 旧写法是"最左刻度 ≤ 左缘 + 1 间距 且 最右刻度 ≥ 右缘 − 1 间距"，它只在
+   * **网格线被画成整高**时成立——那时"刻度"是一条条铺满绘制区的竖线，
+   * "有没有刻度铺满宽度"就等价于"轴有没有横向错位"。
+   *
+   * G8 起刻度线只标记**该档位的边界日**（日档每天、周档周一、月档 30 天单位），
+   * 而窗格两端**不必落在边界日上**，于是最右刻度离右缘可以到"接近一个完整间距"：
+   * 实测周档间距 56 px、窗格右缘 1265 px、最右刻度 1254 px（差 11 px，旧判据恰好能过）；
+   * 月档间距 90 px、最右刻度 1210 px（差 55 px，**画面完全正确而旧判据必红**）。
+   *
+   * ## 现在的形式（仍然能抓住"横向错位"）
+   *
+   * 轴元素的并集必须**与可见的窗格区间有实质重叠**：左端不晚于"左缘 + 1.5 间距"、
+   * 右端不早于"右缘 − 1.5 间距"。一个横向偏了半个屏幕的轴会**立刻**越出这两条
+   * （`--align` 在六个滚动位置 × 三档位上各跑一遍，横向错位原本就会由
+   * `maxAbsBarXDeltaPx` / `content-range-mismatch` / `scrollInSync` 更直接地报出来）。
+   */
+  const axisHorizon = probe.tickSpacingPx * 1.5;
   const axisCoversHorizontally =
     probe.axisTicks !== null &&
-    probe.axisTicks.left <= probe.paneLeft + probe.tickSpacingPx + tol &&
-    probe.axisTicks.right >= probe.paneLeft + probe.paneWidth - probe.tickSpacingPx - tol;
+    probe.axisTicks.left <= probe.paneLeft + axisHorizon + tol &&
+    probe.axisTicks.right >= probe.paneLeft + probe.paneWidth - axisHorizon - tol;
   if (!axisCoversVertically || !axisCoversHorizontally) mechanisms.push('axis-not-covering');
 
   return {

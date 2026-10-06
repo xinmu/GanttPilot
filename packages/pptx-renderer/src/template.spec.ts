@@ -215,7 +215,8 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
    * **P-46 的两级刻度必须同时进 PPTX**（ADR 0007 附录 §3 的硬约束：跨投影同步）。
    *
    * 三条判据：
-   * 1. 上级分段带（`major-band-N`）数 == `view.axis` 的 `major-band` 数（与屏幕/SVG 逐条同源）；
+   * 1. 上级分段带的三个投影（**绘制区正文 / 全高边界 / 表头底**）都在，且
+   *    `major-band-N` 的条数 == `view.axis` 的 `major-band` 数（与屏幕/SVG 逐条同源）；
    * 2. **上级标签在下半、下级标签在上半**：同一份 `view.axis` 的 `level` 决定基线——
    *    这是"两行"这件事在 PPTX 里的可判定形式（只画一行会立刻红）；
    * 3. 上级标签数严格少于下级（日档）——"段内只写一次"的判别力。
@@ -246,10 +247,16 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
     const minorYs = yOfLevel(2);
     const majorYs = yOfLevel(1);
     expect(minorYs.length).toBeGreaterThan(0);
-    expect(Math.min(...majorYs)).toBeGreaterThan(Math.max(...minorYs));
+    /**
+     * **大刻度在上、小刻度在下**（G8 人工复验第 ③ 条订正）。
+     *
+     * PPTX 的文本框 `y` 由 `slidePointOf(plan, x, baseline)` 给出：两者都是 `baseline × scale`
+     * 的单调函数，因此"上级标签的 y 全都小于下级标签的 y"就是"上级在第一行"的可判定形式。
+     */
+    expect(Math.max(...majorYs)).toBeLessThan(Math.min(...minorYs));
   });
 
-  it('② 背景：周末/节假日灰度带与网格线与 SVG 同源，且**在条形之下**', async () => {
+  it('② 背景：周末/节假日灰度带在绘制区、刻度线在表头带，且**都在条形之下**', async () => {
     const fixture = demoFixture();
     const bytes = await renderTemplateA({ ...fixture, zoom: 'week' });
     const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
@@ -260,8 +267,22 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
     expect(grids).toBeGreaterThan(0);
     expect(slideXml.match(/name="band-\d+"/g)).toHaveLength(bands);
     expect(slideXml.match(/name="grid-\d+"/g)).toHaveLength(grids);
-    // 绘制顺序：背景 → 条形 → 依赖线（OOXML 按文档序绘制）
-    const order = ['name="band-0"', 'name="grid-0"', 'name="bar-s1"', '<p:cxnSp>'].map((needle) =>
+
+    /**
+     * **刻度线只画在表头带内**（G8 人工复验第 ⑤ 条：首版把刻度线画满了绘制区 ⇒
+     * "刻度线画到了条体区"）。判据：`grid-*` 形状的**高度**必须明显小于 `band-*` 的
+     * （带是整高、刻度是表头带里的短线），且刻度线整体落在表头带的上沿附近。
+     */
+    const heightOf = (name) =>
+      Number(new RegExp(`name="${name}"[\\s\\S]{0,300}?<a:ext cx="\\d+" cy="(\\d+)"`).exec(slideXml)?.[1] ?? '-1');
+    const bandHeight = heightOf('band-0');
+    const gridHeight = heightOf('grid-0');
+    expect(bandHeight).toBeGreaterThan(0);
+    expect(gridHeight).toBeGreaterThan(0);
+    expect(gridHeight).toBeLessThan(bandHeight / 4);
+
+    // 绘制顺序：背景（周末带 → 月份正文 → 表头底/边界 → 刻度）→ 条形 → 依赖线
+    const order = ['name="major-band-0"', 'name="band-0"', 'name="grid-0"', 'name="bar-s1"', '<p:cxnSp>'].map((needle) =>
       slideXml.indexOf(needle),
     );
     expect(order.every((index) => index >= 0)).toBe(true);
