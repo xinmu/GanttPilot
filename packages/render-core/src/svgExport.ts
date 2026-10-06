@@ -27,7 +27,14 @@ import { HEADER_HEIGHT_PX, LABEL_CHAR_PX, MAJOR_LABEL_BASELINE_PX, MINOR_LABEL_B
 import { arrowPolygons } from './route.js';
 import type { EdgeGeom, RowBox, ViewModel } from './viewModel.js';
 
-/** 颜色常量（与屏幕同值；ADR 0010 §4 的"同源"）。 */
+/**
+ * 颜色常量（与屏幕同值；ADR 0010 §4 的"同源"）。
+ *
+ * 轴的**三层视觉**各自一个字段，名字与 `manifest.ts` 的 `AXIS_*` 单点常量一一对应
+ * （`band` = `AXIS_BAND_FILL`、`majorBody` = `AXIS_MAJOR_BODY_FILL`、
+ * `majorHeader` = `AXIS_MAJOR_HEADER_FILL`、`majorEdge` = `AXIS_MAJOR_EDGE`、
+ * `gridline` = `AXIS_GRIDLINE_STROKE`）——**谁是整高、谁先画**见 `svgString` 的轴注释。
+ */
 const COLOR = {
   band: '#f4f6f8',
   gridline: '#e4e7ec',
@@ -280,16 +287,21 @@ export function svgString(args: SvgExportArgs): string {
   /**
    * 轴：**三层视觉**（与屏幕 `GanttChart.vue` 逐层同源，ADR 0007 §2 的"双投影共享几何"）。
    *
-   * | 层 | 元素 | 画在哪 | 颜色 |
-   * |---|---|---|---|
-   * | 周末/假日色带 | `band` | 绘制区（整高） | `COLOR.band` |
-   * | 上级分段的正文 | `major-band` | 绘制区（整高，**近乎白**） | `COLOR.majorBody` |
-   * | 上级分段的边界 | （由 `major-band` 派生） | **全高**（表头带 + 绘制区） | `COLOR.majorEdge` |
-   * | 下级刻度线 | `gridline` | **只画在表头带内**（短刻度） | `COLOR.gridline` |
-   * | 上级分段的表头底 | （由 `major-band` 派生） | 表头带 | `COLOR.majorHeader` |
+   * **表的行序即绘制顺序**：
    *
-   * **顺序即绘制顺序**：周末带 → 上级正文 → 全高边界 → 表头底与刻度 → 刻度文本。
-   * 计数**仍与 `view.axis` 逐条一致**（派生出来的那条线不算新元素——它取代了
+   * | 顺序 | 层 | 元素 | 画在哪 | 颜色 |
+   * |---|---|---|---|---|
+   * | ① | 上级分段的**正文** | `major-band` | 绘制区（整高，**近乎白**） | `COLOR.majorBody` |
+   * | ② | 周末/假日色带 | `band` | 绘制区（整高，**压在正文之上**） | `COLOR.band` |
+   * | ③ | 上级分段的**全高边界线** | 由 `major-band` 派生 | **全高**（表头带 + 绘制区） | `COLOR.majorEdge` |
+   * | ④ | 上级分段的**表头底** | 由 `major-band` 派生 | **表头带** | `COLOR.majorHeader` |
+   * | ⑤ | 下级**短刻度** | `gridline` | **只画在表头带内**（`EXPORT_TICK_LENGTH_PX`） | `COLOR.gridline` |
+   *
+   * **为什么正文必须最先画**（G8 人工复验第 ④ 条）：正文整高、月段又首尾相接 ⇒ 它连续覆盖
+   * 整个绘制区宽；首版既把它的填充取成与周末灰同量级的 `#eef1f5`，又把它画在周末带**之后**，
+   * "白周中 + 灰周末"的对比因此被整体盖掉（看起来是一整块浅色）——两半都已订正。
+   * **刻度线只属于刻度区**是第 ⑤ 条的订正（首版是整高竖线 ⇒ 刻度画进了条体区）。
+   * 计数**仍与 `view.axis` 逐条一致**（派生出来的线与底不算新元素——边界线取代了
    * `buildAxis` 因判重而不再发射的那条 `gridline`）。
    */
   chunks.push(`<g class="axis">`);

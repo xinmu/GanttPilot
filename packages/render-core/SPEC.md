@@ -45,7 +45,7 @@
 | `fixtures.ts` | 确定性夹具生成（**规模口径**：测量 / 测试同源） |
 | `demoPlan.ts` | **演示口径的唯一定义处**（[P-34](../../docs/00-baseline/裁决R33.md)）：手写的 15 行演示计划（3 汇总 + 10 任务 + 2 里程碑、14 条依赖，四类关系齐备）；页面默认文档、重置与 G7 的导出演示/golden 都用它。与 `fixtures.ts` 的分工见该文件头部 |
 | `exportView.ts` | **导出投影与单页适配**（G7／[ADR 0010](../../docs/02-adr/0010-导出契约.md) §2/§3）：`buildExportView`（全量渲染、`contentWidth` **不被视口宽抬升**）、`fitScaleFor`（等比 + 居中）、`exportReadabilityOf` / `exportAdvisoryFor`（可读性提示的判据） |
-| `svgExport.ts` | **语义化 SVG 序列化**（ADR 0010 §4）：`svgString` / `svgInnerSizeOf`；整数坐标、**无交互图元**、含可选图例与摘要侧栏 |
+| `svgExport.ts` | **语义化 SVG 序列化**（ADR 0010 §4）：`svgString` / `svgInnerSizeOf` / **`EXPORT_TICK_LENGTH_PX`（下级短刻度的长度，§三）**；整数坐标、**无交互图元**、含可选图例与摘要侧栏 |
 | `exportSummary.ts` | **模板 A 的自动摘要与图例数据**（ADR 0010 §7）：`exportSummaryOf`（完成率与引擎**同公式**）、`exportLegendItems`、**`exportSummaryLines`（摘要文案的唯一生成处）**、`formatCompletionRatio` |
 | `exportLabels.ts` | **导出左列标签的样式与文本**（P-37／[附录 §1](../../docs/02-adr/附录/0010-增补.md)）：`exportLabelStyleOf`（汇总加粗、按 WBS 深度缩进）、`exportLabelTextOf`（截断；**缩进不进文本** ⇒ SVG 与 PPTX 逐字同源） |
 
@@ -106,13 +106,46 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 
 **表头带与两级刻度**（[ADR 0007 附录 §3](../../docs/02-adr/附录/0007-增补.md)／P-46）：
 
-- 表头带内是**两行**文本：**下级**刻度在**上半**（基线 `MINOR_LABEL_BASELINE_PX = 17`）、
-  **上级**刻度在**下半**（基线 `MAJOR_LABEL_BASELINE_PX = 33`）——两个基线在 `manifest.ts` 单点声明，
-  **屏幕 SVG / 导出 SVG / PPTX 三处共用**（各写一个数字就是"所见 ≠ 所导出"）；
+- 表头带内是**两行**文本：**上级**刻度在**上**（基线 `MAJOR_LABEL_BASELINE_PX = 16`）、
+  **下级**刻度在**下**（基线 `MINOR_LABEL_BASELINE_PX = 33`）——两个基线在 `manifest.ts` 单点声明，
+  **屏幕 SVG / 导出 SVG / PPTX 三处共用**（各写一个数字就是"所见 ≠ 所导出"）。
+  **行序是 G8 人工复验第 ③ 条订正的**（报文原文"刻度上下反了"）：首版把**粗**的那一层
+  （上级 `level: 1`，日/周档 `YYYY-MM`、月档 `YYYY`）放在下半（33）、**细**的那一层放在上半（17），
+  与"粗的在上"相反；两级对调后两基线间距 17 px > 字号 10 ⇒ 不重叠；
 - **上级按分段带表达**：段内**只在左端**发一次文本（`major-band` 的左边界即竖线）；
   段与下级刻度同 `x` 时**不重复发 `gridline`**（否则两路计数对不上）；
 - 上级标签字面：日/周档 `YYYY-MM`、月档 `YYYY`（下级仍是 §11 第 6 项的 `DD` / `MM-DD` / `YYYY-MM`）；
 - 两级元素**共用同一处水平窗口裁剪** ⇒ `c₃` 仍与文档总规模无关（§6.1 ③）。
+
+**轴的视觉分层与绘制顺序**（G8 人工复验第 ④⑤ 条的订正；**屏幕 SVG / 导出 SVG / PPTX 同一份口径**，
+PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
+
+| 绘制顺序 | 层 | 屏幕 class | 填充（`manifest.ts` 单点常量） | 画在哪 |
+|---|---|---|---|---|
+| ①（最先） | 上级分段的**正文** | `.axis-major-body` | `#fafbfc`（`AXIS_MAJOR_BODY_FILL`，**近乎白**） | 绘制区（整高） |
+| ② | 周末/假日色带（口径未变） | `.axis-band` | `#f4f6f8`（`AXIS_BAND_FILL`） | 绘制区（整高） |
+| ③ | 上级分段的**全高边界线** | `.axis-major-edge` | `#b9c0cb`（`AXIS_MAJOR_EDGE`） | 表头带 + 绘制区（**全高**） |
+| ④ | 上级分段的**表头底** | `.axis-major-header` | `#e4e9f0`（`AXIS_MAJOR_HEADER_FILL`） | **表头带**（上级那一行） |
+| ⑤ | **下级刻度线**（短刻度） | `.axis-tick` | `#e4e7ec`（`AXIS_GRIDLINE_STROKE`） | **表头带内**（长度 6 px，见下） |
+
+- **顺序是关键，且第 ④ 条报的"一整块浅色"是两个错叠在一起**：月份**正文最先画**，周末色带**压在它上面**。
+  正文整高、月段又必然首尾相接 ⇒ 它**连续覆盖整个绘制区宽度**；首版还把它的填充取了 `#eef1f5`
+  （与周末灰 `#f4f6f8` 同量级）**并且画在周末带之后** ⇒ "白周中 + 灰周末"的对比被整体盖掉。
+  两半都已修：填充改为近乎白（分组仍由相邻月之间的**边界线**表达），顺序钉死为 **正文 → 周末带**
+  （周末带永远看得见）；
+- **刻度线归刻度区**（第 ⑤ 条）：`gridline` 首版是**整高竖线**，等于把刻度画进了条体区；
+  现在它是表头带内的**短刻度**（`class="axis-tick"`、`x1 = x2 = 刻度 x`、
+  `y1 = HEADER_HEIGHT_PX − 6`、`y2 = HEADER_HEIGHT_PX`）。长度在**两处单点声明且同值**：
+  屏幕 `TICK_LENGTH_PX = 6`（`GanttChart.vue`）与导出 `EXPORT_TICK_LENGTH_PX = 6`
+  （`svgExport.ts`，经包 `index.ts` 导出，PPTX 也消费它）。⇒ **绘制区里只剩**周末色带 + 月份正文底 +
+  月边界线（月边界线仍是**全高**——那是**分组边界**，不是刻度）；
+- **常量改名/新增**（`manifest.ts` 单点声明，屏幕 SVG / 导出 SVG / PPTX 与左表 CSS 共用同值）：
+  `AXIS_BAND_FILL`、`AXIS_MAJOR_BODY_FILL`、`AXIS_MAJOR_HEADER_FILL`、`AXIS_MAJOR_EDGE`、
+  `AXIS_GRIDLINE_STROKE`，另加悬停行带的 `HOVER_ROW_FILL`（见 §四）；
+  **旧名 `AXIS_MAJOR_FILL` 随分层删除**——它当初把"正文"与"表头底"混成了一色；
+- **元素模型未动**：分层只改"**每个轴元素投影出几个图形**"（一个 `major-band` → 正文 + 全高边界 +
+  表头底；一个 `gridline` → 一条短刻度，取代原先那条整高竖线），
+  `c₁` / `c₂` / `c₃` / `c₄` 逐个不变（§九）。
 
 ## 四、行模型
 
@@ -137,12 +170,18 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 - **轴的 `x` 是窗口坐标**（`buildAxis` 已扣 `scrollLeft`、只发射视口内的元素，§6.1 ③）：
   因此轴必须渲染在**滚动组之外**（放进滚动组就是横向双重偏移，`scrollLeft = 0` 处不可见）；
 - SVG 覆盖**整列**：`svgHeight = height + HEADER_HEIGHT_PX`，盒 = `viewBox`（1 单位 = 1 px）；
-  色带/网格线/上级分段带整体下移 `HEADER_HEIGHT_PX`（落到绘制区），两级刻度文本都在表头带内（0..40）；
+  **周末色带与月份正文底**整体下移 `HEADER_HEIGHT_PX`（落到绘制区），**短刻度与上级表头底留在表头带内**，
+  月边界线**全高**；两级刻度文本都在表头带内（0..40）——**绘制区里没有刻度线**（§三的 G8 人工复验第 ⑤ 条订正）；
 - **悬停行带**（P-46 §2.2）：`ViewModel.hoverBand` = 指针所在的**渲染窗口内的可见行序号**（否则 `null`），
   内容坐标系下 `y = row × rowHeight`、高 = 行高；它同时是 `view.axis` 里的一个 `hover-band`
-  元素（窗口坐标、x=0、宽=视口宽）⇒ **计入 `c₄` 的 `overlay`（+1）、不计入 `c₃`**。
+  元素（窗口坐标、x=0、宽=视口宽）⇒ **计入 `c₄` 的 `overlay`（+1）、不计入 `c₃`**，且**恰好 1 个**
+  （不得在 `drawnRows` 的逐行模板里再加一个）。取色 `HOVER_ROW_FILL = #cfe3fa`：
+  **G8 人工复验第 ⑥ 条**把首版的 `#e8f1fb` 加深，理由是它与周末灰度带 `#f4f6f8` 太近、区分度不够。
   渲染时它必须画在**逐行序列之前**（在条体之下）并由滚动组抵消滚动；
   **不得**在应用层自己再减一次 `scrollTop`（§14.3 的同源陷阱）。
+  左表那半与它**同值，但是两条不同的路径**：`.row:hover`（指针**物理落在左表**上）是纯 CSS；
+  `.row.hovered`（**图表**指针所在的行，G8 人工复验第 ⑦ 条补齐的缺失）由 `hoverTaskId` 派生——
+  两者都**零 SVG 元素**，不进任何元素预算判据。
 
 | 项 | 冻结内容 |
 |---|---|
@@ -302,7 +341,7 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 | G5 ⑦ 拖动期画的是结果（P-24） | `gesture.spec.ts`（24 → 26 例） | 三语义下 `drawnBarForRow` == 落库重算后的 `taskBounds`；与**锚点视图**的对照（`resize-start` 的右端固定）；未被拖行不受影响 | **进** | [ADR 0008 §14](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑫ 拖动期的**下游**也所见即所提交（P-45） | `gesture.spec.ts`（**+3 例**） | `previewDocumentFor`：只改那一个任务、其余**按引用共享**、原文档一字不动、两种 `null`；**下游同源**——`resize-duration` 拖动期 `compute(副本, 锚点)` 与落库后重算的后继行开始序号**逐位一致**（**负向对照写在同一条断言里**：只喂锚点必然给出另一个值；并以"至少一个样本"自证前提）；`GestureUpdate.dragOutcome.patch` 与松手命令的 `patch` **逐字段相等** | **进** | [ADR 0008 附录 §3](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑫ 拖动期的下游（记录制） | `scripts/measure-render.mjs --drag`（**两种语义 × 两个滚动状态**；`--drag-dataset=` 可换规模） | **抓取点自证**（`gestureMode === 'resize-duration'`）、位移判据（**工期** = 拖动前 + N）、**下游跟随**（拖动期 == 松手后 **且** ≠ 拖动前）、**预览不落库**（拖动期 `revision` 不变、松手后 +1）；两族共用同一个聚合函数 ⇒ 数字可比 | **不进**（记录制，需本机 Chrome） | [P-45](../../docs/00-baseline/裁决R44.md) |
-| **G8 ① 两级刻度**（P-46） | `clipping.spec.ts` + `scaleInvariance.spec.ts` + `pptx-renderer/template.spec.ts` | 上级标签随档位（日/周 `YYYY-MM`、月 `YYYY`；下级仍 `DD`/`MM-DD`/`YYYY-MM`）；**上级标签数 == 上级分段带数**且（日档）严格少于下级标签数（"段内只写一次"的判别力）；**同 `x` 处只有一条 `gridline`**；`c₃` 逐档位重锚 **122 / 89 / 94** 且"同档位恒定"仍成立；PPTX 侧 `major-band-N` 数 == `view.axis` 的 `major-band` 数、上级标签的 `y` 严格大于下级 | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
+| **G8 ① 两级刻度**（P-46） | `clipping.spec.ts` + `scaleInvariance.spec.ts` + `pptx-renderer/template.spec.ts` | 上级标签随档位（日/周 `YYYY-MM`、月 `YYYY`；下级仍 `DD`/`MM-DD`/`YYYY-MM`）；**上级标签数 == 上级分段带数**且（日档）严格少于下级标签数（"段内只写一次"的判别力）；**同 `x` 处只有一条 `gridline`**；`c₃` 逐档位重锚 **122 / 89 / 94** 且"同档位恒定"仍成立；PPTX 侧 `major-band-N` 数 == `view.axis` 的 `major-band` 数（**绘制区正文 / 全高边界 `-edge` / 表头底 `-head` 三个投影都在**）、**上级标签的 `y` 严格小于下级**（大刻度在上，**G8 人工复验第 ③ 条订正**）、短刻度的高度 < 灰度带的 1/4 且绘制顺序 `major-band-N` < `band-N` < `grid-N` < 条形（刻度只在表头带内，**第 ⑤ 条**） | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
 | **G8 ② 悬停行带**（P-46） | `clipping.spec.ts` + `viewModel.spec.ts` | 给定 `hoverRow` 时**恰好 1 个** `hover-band`（`x=0`、宽=视口宽、`y = row × 行高`、高=行高）；**计入 `overlay`（+1）、不计入 `c₃`**；两路计数仍逐项相等且**没有双重计数**（`axis-hover-band` 必须不存在、`overlay-hover-row` 恰 1）；**负向对照**：不传 `hoverRow` 时 `overlays`/`total` 各少 1；渲染窗口外的行号 ⇒ 不发射 | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
 | **G8 ③ 渲染地平线收口**（P-48） | `dragHorizon.spec.ts`（**4 例**） | 夹取方向（左侧一律 0、右侧夹到末日）；向左拖五个距离逐帧都能建出视图；**向右拖 90 个工作日必须能建出视图**（看门人已由"必须抛错"改写而来）；**`renderCalendar` 覆盖 `projectFinish − 1`**（入参日历缩到 30 天时它严格更大、且能翻译）；守卫型负向对照（把越界序号交回入参日历必须现形） | **进** | [P-47](../../docs/00-baseline/裁决R46.md) / [P-48](../../docs/00-baseline/裁决R47.md) |
 | G5 ⑧ 滚动状态下的反算与命中（P-25） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** | [ADR 0007 §16](../../docs/02-adr/附录/0007-增补.md) / [ADR 0008 §15](../../docs/02-adr/附录/0008-增补.md) |
@@ -328,6 +367,10 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
   逐项差值恒为 **124**——`+6` 来自 P-46 的两级刻度与悬停行带；`clipping.spec.ts` 的 NC2 比值由 10.71× → **≈10.8×**）；
 - `c₃` 逐档位 = **122 / 89 / 94**（日/周/月，合成视口 1280 px、合成夹具；
   **P-46 两级刻度后重锚**，单级口径原为 116 / 70 / 89）；
+- **本轮（G8 人工复验整改）四个常数一个都不动**：分层只改"**每个轴元素投影出几个图形**"
+  （一个 `major-band` → 正文 + 全高边界 + 表头底；一个 `gridline` → 一条 6 px 短刻度，
+  取代原先那条整高竖线），**轴元素模型本身未变** ⇒ `c₁ = 3`、`c₂ = 3`、`c₄ = 6·rows + 13`、
+  `c₃ = 122 / 89 / 94` 全部沿用（两路计数的锚值因此无需重取）；
 - 打包产物上（图表全宽 1265 px）同一口径为 114 / 69 / 88（单级时）——差 1–2 就是那点宽度差；
 - 分屏时图表窗格被左表占去一部分宽度，同一页面下 `c₃` 只有 35 / 21 / 26：
   **`c₃` 只取决于"窗格宽 ÷ `pxPerDay`"，与文档总规模无关**（§11.1 ③ 的直接后果）。
