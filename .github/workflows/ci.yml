@@ -1,9 +1,12 @@
 name: gate
 
-# 等价于本地 `pnpm gate`：安装 → lint → 类型检查 → 测试 → 构建 → 许可审计。
+# 与本地 `pnpm gate` 同源，但**不是同一条链**：这里只跑不依赖无头 Chrome 的那几步
+# （安装 → lint → 构建 → 类型检查 → 测试 → 许可审计）；`smoke:build` / `bundle:offline` /
+# `smoke:build:file` / `docs:check` 不在此文件内，因此它**比 `pnpm gate` 弱**。
 #
-# 当前门禁落在本地 pre-push 钩子（见 docs/02-adr/0001）。本文件是"接上远端即可用"的等价物：
-# 在把仓库推到 GitHub 之前它不会运行，因此**尚未经过真实运行验证**，不要把它当作现有护栏。
+# 步骤顺序须与 `scripts/gate.mjs` 的 `STEPS` 一致，尤其**构建必须先于类型检查**：
+# 消费者的 typecheck 经各包 `exports.types` → `dist/*.d.ts` 解析工作区依赖，而 `dist/` 不入库，
+# 顺序反了在干净检出上必然红（首次真实运行即因此失败，见 docs/02-adr/附录/0001-增补.md）。
 on:
   push:
   pull_request:
@@ -42,14 +45,15 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # 必须先于 Typecheck：见文件头注释与 scripts/gate.mjs 的 STEPS
+      - name: Build
+        run: pnpm build
+
       - name: Typecheck
         run: pnpm typecheck
 
       - name: Test
         run: pnpm test
-
-      - name: Build
-        run: pnpm build
 
       - name: License audit
         run: pnpm license:check

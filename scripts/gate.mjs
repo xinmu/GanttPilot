@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * `pnpm gate` 的实现：**安装 → Lint → 类型检查 → 测试 → 构建 → 许可审计**。
+ * `pnpm gate` 的实现：**安装 → Lint → 构建 → 类型检查 → 测试 → 构建冒烟 → 离线单文件 → 许可审计 → 文档检查**。
+ * （**顺序的权威定义是下面的 `STEPS`**；改动它等于改动门禁契约，须同步 ADR 0001 与附录增补。）
  *
  * 这是 G0 定义的本地合并门禁（见 `docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md`）：
  * `pre-push` 钩子调用它，任何一步失败即阻断推送。
@@ -24,15 +25,20 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /**
  * 门禁步骤。顺序刻意如此：
  * - lint 最便宜，先失败先退出；
- * - 类型检查先于测试，因为它能更早暴露机械性错误；
- * - 构建放在测试之后：测试不需要产物，构建最贵；
- * - 许可审计放最后（依赖没变时它没有信息量，但必须进同一道门）。
+ * - **构建必须先于类型检查**：消费者的 `typecheck` 是经由各包的 `exports.types` → `dist/*.d.ts`
+ *   解析工作区依赖的（`render-core` / `web` 依赖 `@ganttpilot/engine` 等），而 `dist/` **不入库**
+ *   （见 `.gitignore`）。若 typecheck 先跑，**干净克隆上的门禁必然失败**——本地之所以长期为绿，
+ *   只是因为工作区里残留着上一轮的 `dist/`。这不是步骤风格问题，是正确性问题：
+ *   机制、实测与代价见 `docs/02-adr/附录/0001-增补.md`；
+ * - test 不依赖产物，紧随类型检查（机械性错误仍先于测试暴露）；
+ * - 许可证审计与文档检查收尾（依赖没变时许可审计没有信息量，但必须进同一道门）。
  */
 const STEPS = [
   { name: 'lint', args: ['lint'] },
+  // 构建必须在 typecheck 之前（原因见上）。代价：最贵的一步提前，且不再"先报类型错再构建"。
+  { name: 'build', args: ['build'] },
   { name: 'typecheck', args: ['typecheck'] },
   { name: 'test', args: ['test'] },
-  { name: 'build', args: ['build'] },
   // 打包产物冒烟：用 HTTP 伺服 dist/ 并用无头 Chrome 断言"没有应用级错误、界面真的渲染了"。
   // 放在 build 之后（它测的就是产物）；缺 Chrome 时**失败而不是跳过**（P-12 口径）。
   // G8 起它同时承载 P-46/P-48 的四组应用层判据：两级刻度 + 悬停行高亮 + 模板下载→回导 +
@@ -73,5 +79,5 @@ for (const [index, step] of STEPS.entries()) {
 }
 
 console.log(
-    '\n[gate] 全部通过：lint / typecheck / test / build / smoke:build / bundle:offline / smoke:build:file / license:check / docs:check。',
+    '\n[gate] 全部通过：lint / build / typecheck / test / smoke:build / bundle:offline / smoke:build:file / license:check / docs:check。',
   );

@@ -276,6 +276,12 @@
       "cap": "contract"
     },
     {
+      "path": "docs/02-adr/附录/0001-增补.md",
+      "role": "record",
+      "cap": "record",
+      "note": "§1：门禁步骤顺序修正（build 前移到 typecheck 之前），裁决登记待补"
+    },
+    {
       "path": "docs/02-adr/0002-文档模型与序列化契约.md",
       "role": "contract",
       "cap": "contract"
