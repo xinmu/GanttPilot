@@ -189,6 +189,12 @@
       "note": "P-47：拖动预览越过渲染地平线 ⇒ 整页空白（夹取方向已修；日历容量缺口待契约面裁决）"
     },
     {
+      "path": "docs/00-baseline/裁决R47.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "note": "P-48/P-49：地平线收口（compute 交出日历，契约冻结）+ 离线单文件分发登记（Docker 归 v0.5）"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
@@ -302,6 +308,12 @@
       "role": "record",
       "cap": "record",
       "note": "P-23/P-24/P-25/P-41/P-46 的增补节与落地段"
+    },
+    {
+      "path": "docs/02-adr/附录/0005-增补.md",
+      "role": "record",
+      "cap": "record",
+      "note": "P-48 的增补节：ScheduleResult 交出真正用到的日历（只增字段）"
     },
     {
       "path": "docs/02-adr/附录/0006-增补.md",
