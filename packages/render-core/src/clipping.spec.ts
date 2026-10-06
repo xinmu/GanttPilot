@@ -17,6 +17,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { countElements, countElementsByEnumeration, countOverlays, hoverRowOf } from './count.js';
+import { buildAxis } from './clip.js';
 import { DATASETS, REFERENCE_DATASET, SCROLL_ROW_OFFSETS, buildFixture, scaleGradient } from './fixtures.js';
 import { ELEMENT_MODEL, ROW_HEIGHT, THRESHOLDS, VIEWPORT_DEFAULT, ZOOM_ORDER } from './manifest.js';
 import { buildView } from './viewModel.js';
@@ -169,7 +170,7 @@ describe('两级刻度与悬停行带（P-46）', () => {
     }
   });
 
-  it('悬停行带：给定 `hoverRow` 时恰好 1 个元素、窗口坐标整幅宽，且计入 `overlay` 而不是 `c₃`', () => {
+  it('悬停行带：给定 `hoverRow` 时恰好 1 个元素、**按内容宽贯穿整行**，且计入 `overlay` 而不是 `c₃`', () => {
     const fixture = buildFixture(DATASETS[2]);
     const base = {
       document: fixture.document,
@@ -188,7 +189,20 @@ describe('两级刻度与悬停行带（P-46）', () => {
     expect(withHover.hoverBand).toStrictEqual({ row: hoverRow });
     const hoverBands = withHover.axis.filter((element) => element.kind === 'hover-band');
     expect(hoverBands).toHaveLength(1);
-    expect(hoverBands[0]).toMatchObject({ x: 0, width: viewport.width, y: hoverRow * ROW_HEIGHT, height: ROW_HEIGHT });
+    /**
+     * **宽度 = 内容宽**（G8 第二次复验第 ① 条：行带要"贯穿整行"，不是只盖住首屏那一屏）。
+     *
+     * 行带画在**内容滚动组**里（横向不翻译）⇒ 铺到内容宽就等于"整行"。
+     * 负向对照在下面第 ⑤ 条（用视口宽会被本断言拦下）。
+     */
+    expect(hoverBands[0]).toMatchObject({
+      x: 0,
+      width: withHover.contentWidth,
+      y: hoverRow * ROW_HEIGHT,
+      height: ROW_HEIGHT,
+    });
+    // 内容宽必须**严格大于**视口宽，否则这个断言没有判别力（"整行"与"首屏"不可区分）。
+    expect(withHover.contentWidth).toBeGreaterThan(viewport.width);
     expect(hoverRowOf(withHover)).toBe(true);
 
     // ① 覆盖层计数 +1（`overlay` 是每帧固定开销）；② `c₃` **一字不变**（行带不是轴刻度）。
@@ -206,6 +220,24 @@ describe('两级刻度与悬停行带（P-46）', () => {
     const wrong = countElements(withHover);
     expect(wrong.overlays).toBe(byCategory.overlays - 1);
     expect(wrong.total).toBe(byCategory.total - 1);
+
+    // ⑤ **负向对照（宽度的判别力）**：直接把"视口宽"喂成 `contentWidth` ⇒ 行带就只有首屏那么宽。
+    //    这一条是在说"**两种写法真的不同**"：旧实现（按视口宽）会得到这里的值。
+    const narrowed = buildAxis({
+      calendar: fixture.calendar,
+      axisOriginDay: withHover.axisOriginDay,
+      pxPerDay: withHover.pxPerDay,
+      scrollLeft: 0,
+      width: viewport.width,
+      contentWidth: viewport.width,
+      zoom: 'day',
+      hoverRow,
+      rowHeight: ROW_HEIGHT,
+    }).find((element) => element.kind === 'hover-band');
+    expect(narrowed).toBeDefined();
+    expect(narrowed?.width).toBe(viewport.width);
+    // 而真实视图给的是内容宽 ⇒ 两者**必须不相等**（否则"贯穿整行"这条断言没有判别力）。
+    expect(narrowed?.width).not.toBe(hoverBands[0]?.width);
   });
 
   it('悬停行在渲染窗口之外时不发射（高亮与"能否交互"同一个行集合）', () => {

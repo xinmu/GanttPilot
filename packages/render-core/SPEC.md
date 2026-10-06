@@ -174,11 +174,15 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
   月边界线**全高**；两级刻度文本都在表头带内（0..40）——**绘制区里没有刻度线**（§三的 G8 人工复验第 ⑤ 条订正）；
 - **悬停行带**（P-46 §2.2）：`ViewModel.hoverBand` = 指针所在的**渲染窗口内的可见行序号**（否则 `null`），
   内容坐标系下 `y = row × rowHeight`、高 = 行高；它同时是 `view.axis` 里的一个 `hover-band`
-  元素（窗口坐标、x=0、宽=视口宽）⇒ **计入 `c₄` 的 `overlay`（+1）、不计入 `c₃`**，且**恰好 1 个**
+  元素（**`x` 起点在窗口坐标、宽度取 `contentWidth`**）⇒ **计入 `c₄` 的 `overlay`（+1）、不计入 `c₃`**，且**恰好 1 个**
   （不得在 `drawnRows` 的逐行模板里再加一个）。取色 `HOVER_ROW_FILL = #cfe3fa`：
   **G8 人工复验第 ⑥ 条**把首版的 `#e8f1fb` 加深，理由是它与周末灰度带 `#f4f6f8` 太近、区分度不够。
   渲染时它必须画在**逐行序列之前**（在条体之下）并由滚动组抵消滚动；
   **不得**在应用层自己再减一次 `scrollTop`（§14.3 的同源陷阱）。
+  **宽度是 `contentWidth` 而不是视口宽**（G8 **第二次**复验第 ① 条）：行带的语义是"**整行**"，
+  而"那一行"在横向是有长度的；它画在内容滚动组里（横向不翻译）⇒ 铺到内容宽即跟着行滚到任何位置。
+  用视口宽则表现为"**首屏那一段亮、向右滚动后新露出的那段不亮**"。消费方**不得**自己再算一份几何
+  ——屏幕曾这样漏改过一次（模型改了、模板里的 `width = view.width` 没改，症状一模一样）；
   左表那半与它**同值，但是两条不同的路径**：`.row:hover`（指针**物理落在左表**上）是纯 CSS；
   `.row.hovered`（**图表**指针所在的行，G8 人工复验第 ⑦ 条补齐的缺失）由 `hoverTaskId` 派生——
   两者都**零 SVG 元素**，不进任何元素预算判据。
@@ -342,7 +346,7 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
 | G5 ⑫ 拖动期的**下游**也所见即所提交（P-45） | `gesture.spec.ts`（**+3 例**） | `previewDocumentFor`：只改那一个任务、其余**按引用共享**、原文档一字不动、两种 `null`；**下游同源**——`resize-duration` 拖动期 `compute(副本, 锚点)` 与落库后重算的后继行开始序号**逐位一致**（**负向对照写在同一条断言里**：只喂锚点必然给出另一个值；并以"至少一个样本"自证前提）；`GestureUpdate.dragOutcome.patch` 与松手命令的 `patch` **逐字段相等** | **进** | [ADR 0008 附录 §3](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑫ 拖动期的下游（记录制） | `scripts/measure-render.mjs --drag`（**两种语义 × 两个滚动状态**；`--drag-dataset=` 可换规模） | **抓取点自证**（`gestureMode === 'resize-duration'`）、位移判据（**工期** = 拖动前 + N）、**下游跟随**（拖动期 == 松手后 **且** ≠ 拖动前）、**预览不落库**（拖动期 `revision` 不变、松手后 +1）；两族共用同一个聚合函数 ⇒ 数字可比 | **不进**（记录制，需本机 Chrome） | [P-45](../../docs/00-baseline/裁决R44.md) |
 | **G8 ① 两级刻度**（P-46） | `clipping.spec.ts` + `scaleInvariance.spec.ts` + `pptx-renderer/template.spec.ts` | 上级标签随档位（日/周 `YYYY-MM`、月 `YYYY`；下级仍 `DD`/`MM-DD`/`YYYY-MM`）；**上级标签数 == 上级分段带数**且（日档）严格少于下级标签数（"段内只写一次"的判别力）；**同 `x` 处只有一条 `gridline`**；`c₃` 逐档位重锚 **122 / 89 / 94** 且"同档位恒定"仍成立；PPTX 侧 `major-band-N` 数 == `view.axis` 的 `major-band` 数（**绘制区正文 / 全高边界 `-edge` / 表头底 `-head` 三个投影都在**）、**上级标签的 `y` 严格小于下级**（大刻度在上，**G8 人工复验第 ③ 条订正**）、短刻度的高度 < 灰度带的 1/4 且绘制顺序 `major-band-N` < `band-N` < `grid-N` < 条形（刻度只在表头带内，**第 ⑤ 条**） | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
-| **G8 ② 悬停行带**（P-46） | `clipping.spec.ts` + `viewModel.spec.ts` | 给定 `hoverRow` 时**恰好 1 个** `hover-band`（`x=0`、宽=视口宽、`y = row × 行高`、高=行高）；**计入 `overlay`（+1）、不计入 `c₃`**；两路计数仍逐项相等且**没有双重计数**（`axis-hover-band` 必须不存在、`overlay-hover-row` 恰 1）；**负向对照**：不传 `hoverRow` 时 `overlays`/`total` 各少 1；渲染窗口外的行号 ⇒ 不发射 | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
+| **G8 ② 悬停行带**（P-46；**宽度口径见 G8 第二次复验第 ① 条**） | `clipping.spec.ts` + `viewModel.spec.ts` | 给定 `hoverRow` 时**恰好 1 个** `hover-band`（`x=0`、**宽 = `contentWidth`**、`y = row × 行高`、高=行高）；外加**判别力**前提（`contentWidth` 必须严格大于视口宽）与**负向对照**（把视口宽当内容宽喂进 `buildAxis` ⇒ 得到一屏宽，两者必须不等）；**计入 `overlay`（+1）、不计入 `c₃`**；两路计数仍逐项相等且**没有双重计数**（`axis-hover-band` 必须不存在、`overlay-hover-row` 恰 1）；**负向对照**：不传 `hoverRow` 时 `overlays`/`total` 各少 1；渲染窗口外的行号 ⇒ 不发射 | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
 | **G8 ③ 渲染地平线收口**（P-48） | `dragHorizon.spec.ts`（**4 例**） | 夹取方向（左侧一律 0、右侧夹到末日）；向左拖五个距离逐帧都能建出视图；**向右拖 90 个工作日必须能建出视图**（看门人已由"必须抛错"改写而来）；**`renderCalendar` 覆盖 `projectFinish − 1`**（入参日历缩到 30 天时它严格更大、且能翻译）；守卫型负向对照（把越界序号交回入参日历必须现形） | **进** | [P-47](../../docs/00-baseline/裁决R46.md) / [P-48](../../docs/00-baseline/裁决R47.md) |
 | G5 ⑧ 滚动状态下的反算与命中（P-25） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** | [ADR 0007 §16](../../docs/02-adr/附录/0007-增补.md) / [ADR 0008 §15](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑧ 滚动状态下的拖动（记录制） | `scripts/measure-render.mjs --drag` | **两个滚动状态各一次**（`(0,0)` 与 `(480,600)`）：各自的"松手后 `startDate` = 按下时的开始序号 + 天数"都必须成立；目标行必须**无有效入边约束**（否则 `snap` 夹住候选 = 假红） | **不进**（记录制，需本机 Chrome） | [P-25](../../docs/01-roadmap/首版-记录-G5.md) |

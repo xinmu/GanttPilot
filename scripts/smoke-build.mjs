@@ -739,20 +739,39 @@ async function probeG8AxisAndHover(cdp) {
     problems.push(`[G8 刻度] 左表表头第二行不是留白："${String(axis.blankText)}"`);
   }
 
-  /** 把指针放到第 N 个可见行的条体上（真实鼠标事件 ⇒ `mousemove` 真的发生）。 */
+  /**
+   * 把指针放到第 N 个**可见**行的条体上（真实鼠标事件 ⇒ `mousemove` 真的发生）。
+   *
+   * "可见"是必需的：窗格横向滚到最右之后，靠左的条形会滚出视口，
+   * 这时若还去点它，鼠标事件落在窗格之外 ⇒ `mousemove` 不发生 ⇒ 行带不出现，
+   * 而那是**探针的错**、不是产品的（本轮就踩到过一次：`向右滚动后读不到行带`）。
+   * 因此候选行必须**整条都在窗格可见矩形内**。
+   */
   const hoverBar = async (index) => {
     const target = JSON.parse(
       await read(`(() => {
         const pane = document.getElementById('chart-pane');
         const svgRows = [...document.querySelectorAll('.rows > g[data-task-id]')];
-        const row = svgRows[${String(index)}];
-        if (!pane || !row) return JSON.stringify({ ok: false });
+        if (!pane) return JSON.stringify({ ok: false });
+        const paneBox = pane.getBoundingClientRect();
+        const usable = svgRows.filter((row) => {
+          const bar = row.querySelector('rect.bar') || row.querySelector('polygon.milestone');
+          if (!bar) return false;
+          const box = bar.getBoundingClientRect();
+          const x = box.left + Math.min(6, box.width / 2);
+          const y = box.top + box.height / 2;
+          return x >= paneBox.left && x <= paneBox.right && y >= paneBox.top && y <= paneBox.bottom;
+        });
+        const row = usable[${String(index)}] || usable[0];
+        if (!row) return JSON.stringify({ ok: false });
         const bar = row.querySelector('rect.bar') || row.querySelector('polygon.milestone');
-        if (!bar) return JSON.stringify({ ok: false });
         const barBox = bar.getBoundingClientRect();
-        const x = barBox.left + Math.min(6, barBox.width / 2);
-        const y = barBox.top + barBox.height / 2;
-        return JSON.stringify({ ok: true, x, y, taskId: row.getAttribute('data-task-id') });
+        return JSON.stringify({
+          ok: true,
+          x: barBox.left + Math.min(6, barBox.width / 2),
+          y: barBox.top + barBox.height / 2,
+          taskId: row.getAttribute('data-task-id'),
+        });
       })()`),
     );
     if (!target.ok) return null;
@@ -875,7 +894,7 @@ async function probeG8AxisAndHover(cdp) {
       problems.push('[G8 悬停] 左表"别的行"底色与悬停行相同——高亮没有限定在指针所在行');
     }
     /**
-     * **跨栏一致**（G8 复验第 ⑦ 条）：指针移到**图表**上时，左表**对应那一行**必须也带上
+     * **跨栏一致（图表 → 左表）**（G8 复验第 ⑦ 条）：指针移到**图表**上时，左表**对应那一行**必须也带上
      * 高亮底色（`.row.hovered`，跟着图表指针走），而**别的行**不变。
      *
      * 这与上面那条"指针在左表上"是**两条不同的路径**，因此要分别断言：
@@ -911,6 +930,112 @@ async function probeG8AxisAndHover(cdp) {
     }
     if (process.env.GANTTPILOT_SMOKE_VERBOSE === '1') {
       console.log(`[smoke] G8 左表侧：${tableOn.taskId} 底色 ${value}（未悬停值集合 ${tableOn.otherBackgrounds.join(' / ')}）`);
+    }
+
+    /**
+     * **跨栏一致（左表 → 图表）**（G8 **第二次**复验第 ② 条）：指针只落在**左表**上时，
+     * 右图**对应那一行**也必须出现那条行带。
+     *
+     * 它与上面那条互为反向，且**实现路径完全不同**：这条靠左表的 `pointerenter` 事件把
+     * `hoverTaskId` 推给父级（`setHoverFromTable`），上面那条靠图表的 `mousemove` 坐标反解。
+     * 只测一个方向就会漏掉"另一侧根本不在同一条链上"这类缺陷。
+     */
+    if (tableOn.hovered === true) {
+      const mirrored = JSON.parse(await read(`(() => {
+        const nodes = [...document.querySelectorAll('.hover-row')];
+        const row = [...document.querySelectorAll('.table-body .row-block .row[data-task-id]')]
+          .find((item) => item.getAttribute('data-task-id') === ${JSON.stringify(tableOn.taskId)}) || null;
+        return JSON.stringify({
+          count: nodes.length,
+          fill: nodes[0] === undefined ? null : nodes[0].getAttribute('fill'),
+          tableBg: row === null ? '' : getComputedStyle(row).backgroundColor,
+        });
+      })()`));
+      if (mirrored.count !== 1) {
+        problems.push(
+          `[G8 悬停] 指针只落在左表上时，右图没有出现行带（.hover-row 数 = ${String(mirrored.count)}）——左表→图表的联动缺失`,
+        );
+      }
+      if (mirrored.fill === null || mirrored.fill === '') {
+        problems.push('[G8 悬停] 左表悬停时右图行带没有填充色');
+      }
+      if (process.env.GANTTPILOT_SMOKE_VERBOSE === '1') {
+        console.log(`[smoke] G8 跨栏（反向）：左表悬停 ${tableOn.taskId} → 右图行带 ${String(mirrored.count)} 个（${String(mirrored.fill)}）`);
+      }
+    }
+  }
+  await clearPointer();
+
+  /**
+   * **悬停行带必须贯穿整行**（G8 **第二次**复验第 ① 条）。
+   *
+   * 形态：行带画在内容滚动组里、宽度取**内容宽**。若宽度取的是**视口宽**，
+   * 那么"向右滚动后新露出的那段行"就没有高亮 —— 而**这一条在 `scrollLeft = 0` 处看不出来**
+   * （首屏那一段照样是亮的），所以必须**先把窗格滚到最右**再断言。
+   *
+   * 判据（三条，缺一不可）：
+   * ① 行带的**盒子右缘必须越过窗格右缘**（说明它铺的比一屏宽）；
+   * ② 行带在**滚到最右之后仍然覆盖窗格的整个可见宽度**（左缘 ≤ 窗格左缘、右缘 ≥ 窗格右缘）；
+   * ③ 行带的**内容宽必须真的大于视口宽**（否则"整行"与"首屏"不可区分，判据没有判别力）。
+   */
+  const scrollPaneToRight = async () => {
+    await read(`(() => {
+      const pane = document.querySelector('#chart-pane');
+      if (pane !== null) pane.scrollLeft = pane.scrollWidth;
+      return true;
+    })()`);
+    await new Promise((settle) => setTimeout(settle, 300));
+  };
+  const bandCoverage = async () => JSON.parse(await read(`(() => {
+    const pane = document.querySelector('#chart-pane');
+    const band = document.querySelector('.hover-row');
+    const svg = document.querySelector('.gantt-svg');
+    if (pane === null || band === null || svg === null) return JSON.stringify({ ok: false });
+    const p = pane.getBoundingClientRect();
+    const b = band.getBoundingClientRect();
+    const s = svg.getBoundingClientRect();
+    return JSON.stringify({
+      ok: true,
+      paneLeft: p.left, paneRight: p.right,
+      svgLeft: s.left, svgRight: s.right, svgWidth: s.width,
+      bandLeft: b.left, bandRight: b.right,
+      scrollLeft: pane.scrollLeft, scrollWidth: pane.scrollWidth, clientWidth: pane.clientWidth,
+    });
+  })()`));
+
+  /**
+   * **"贯穿整行"的判据要拿 SVG 的盒比，不是窗格的盒**：
+   * 窗格的 padding box 含**竖向滚动条**（约 15 px），而 SVG 宽 = `view.width`（客户区宽）⇒
+   * 行带铺到内容宽之后会被 SVG 自己裁在"窗格右缘 − 滚动条"处。拿窗格右缘比会**差一条滚动条而恒红**
+   * （本轮踩到过：带 1569 / 窗格 1584）。正确的不变量是"行带铺满 **SVG 的整个可见宽度**"。
+   */
+  const coversSvg = (reading) =>
+    reading.bandLeft <= reading.svgLeft + 1 && reading.bandRight >= reading.svgRight - 1;
+
+  const beforeScroll = await hoverBar(3);
+  if (beforeScroll !== null) {
+    const narrow = await bandCoverage();
+    if (narrow.ok === true && !(narrow.scrollWidth > narrow.clientWidth + 1)) {
+      problems.push('[G8 悬停] 窗格横向不可滚动 ⇒ "贯穿整行"这条判据没有判别力（无法验证）');
+    }
+  }
+  await scrollPaneToRight();
+  const afterScroll = await hoverBar(3);
+  if (afterScroll !== null) {
+    const wide = await bandCoverage();
+    if (wide.ok !== true) {
+      problems.push('[G8 悬停] 向右滚动后读不到行带/窗格几何');
+    } else {
+      if (!coversSvg(wide)) {
+        problems.push(
+          `[G8 悬停] 滚到最右后行带没有铺满可见宽度（带 ${String(Math.round(wide.bandLeft))}..${String(Math.round(wide.bandRight))} / SVG ${String(Math.round(wide.svgLeft))}..${String(Math.round(wide.svgRight))}）⇒ 它只铺了一屏宽，不是整行`,
+        );
+      }
+      if (process.env.GANTTPILOT_SMOKE_VERBOSE === '1') {
+        console.log(
+          `[smoke] G8 行带宽度：scrollLeft=${String(Math.round(wide.scrollLeft))}/${String(Math.round(wide.scrollWidth - wide.clientWidth))}、带 ${String(Math.round(wide.bandLeft))}..${String(Math.round(wide.bandRight))}、SVG ${String(Math.round(wide.svgLeft))}..${String(Math.round(wide.svgRight))}`,
+        );
+      }
     }
   }
   await clearPointer();

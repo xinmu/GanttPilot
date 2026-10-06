@@ -2,12 +2,12 @@
   "chromeMajor": "154",
   "artifact": {
     "path": "D:\\workspace\\GanttPilot\\apps\\web\\dist-offline\\index.html",
-    "bytes": 1629532,
-    "kb": 1591.3
+    "bytes": 1629941,
+    "kb": 1591.7
   },
   "firstScreen": {
     "ready": true,
-    "readyMs": 137,
+    "readyMs": 133,
     "fcpMs": null,
     "domContentLoadedMs": 109
   },
@@ -51,7 +51,7 @@
   "flowsOffline": {
     "skipped": false,
     "ready": true,
-    "firstScreenMs": 6317,
+    "firstScreenMs": 6353,
     "import": "ok: 任务 15 / 依赖 14",
     "drag": "ok: t2 开始 2026-10-05 → 2026-12-14",
     "export": "ok: gantt-day.svg",

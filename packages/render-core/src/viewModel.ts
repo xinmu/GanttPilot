@@ -357,12 +357,32 @@ export function buildView(args: BuildViewArgs): ViewModel {
 
   const hoverBand = visibleHoverRow(args.hoverRow, win);
 
+  /**
+   * 内容宽（`contentWidthFor`）：**先算**——悬停行带要按它铺宽（见下），
+   * 而它同时是返回值的字段，因此必须在 `buildAxis` 之前求出来（两处必须同值，
+   * 所以只算一次、两处共用一个局部变量）。
+   */
+  const contentWidth = contentWidthFor({
+    calendar,
+    projectFinish: schedule.projectFinish,
+    axisOriginDay,
+    pxPerDay,
+    viewportWidth: viewport.width,
+  });
+
   const axis = buildAxis({
     calendar,
     axisOriginDay,
     pxPerDay,
     scrollLeft: viewport.scrollLeft,
     width: viewport.width,
+    /**
+     * 悬停行带要**贯穿整行**（不是"只盖住首屏那一屏"）——所以它按 **`contentWidth`** 铺宽，
+     * 而不是按视口宽。它画在**内容滚动组**里（`translate(0 −scrollTop)`，横向不翻译），
+     * 横向因此天然与行/条同坐标系 ⇒ 铺到内容宽就能跟着行一起滚到任何位置；
+     * 用视口宽则"向右滚动时超出首屏的部分没有高亮"（G8 第二次复验第 ① 条）。
+     */
+    contentWidth,
     zoom,
     hoverRow: hoverBand === null ? null : hoverBand.row,
     rowHeight: viewport.rowHeight,
@@ -378,13 +398,7 @@ export function buildView(args: BuildViewArgs): ViewModel {
     scrollLeft: viewport.scrollLeft,
     width: viewport.width,
     height: viewport.height,
-    contentWidth: contentWidthFor({
-      calendar,
-      projectFinish: schedule.projectFinish,
-      axisOriginDay,
-      pxPerDay,
-      viewportWidth: viewport.width,
-    }),
+    contentWidth,
     rowCount: order.length,
     firstVisible: win.firstVisible,
     visibleLast: win.visibleLast,

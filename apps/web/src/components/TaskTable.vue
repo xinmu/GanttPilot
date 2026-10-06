@@ -72,6 +72,18 @@ const emit = defineEmits<{
   readonly toggleCollapse: [payload: { readonly taskId: string }];
   /** 编辑被拒绝时的提示（例如日期格式错）。 */
   readonly rejected: [message: string];
+  /**
+   * **指针进出某一行的渲染行**（`null` = 指针离开了表格）。
+   *
+   * 它是"悬停高亮**跨两栏一致**"的**反向那一半**（G8 第二次复验第 ② 条）：
+   * 指针在**左表**上时，右图对应行也要有一条行带。左表自己没有"行带"这种图形
+   * （它是纯 CSS 底色），所以"图上那一条"只能由父级按这个事件去设 `hoverTaskId`——
+   * 于是 `GanttChart` 的 `hoverBand` 与左表的 `:hover` 同时亮，两栏看起来是一整条。
+   *
+   * 为什么用 `pointerenter`/`pointerleave` 而不是 `mousemove`：它们在**行的层面**
+   * 天然成对（一次进出只发一次），不需要自己抖去重；`mousemove` 会在每一帧都发。
+   */
+  readonly hoverRow: [payload: { readonly taskId: string | null }];
 }>();
 
 /** 编辑态：同一时刻只编辑一个单元格。 */
@@ -285,6 +297,8 @@ void emit;
           :data-task-id="row.id"
           :class="{ summary: row.kind === 'summary', conflict: isConflicting(row.id), hovered: props.hoverTaskId === row.id }"
           :style="{ height: `${String(view.rowHeight)}px`, gridTemplateColumns: columnTemplate }"
+          @pointerenter="emit('hoverRow', { taskId: row.id })"
+          @pointerleave="emit('hoverRow', { taskId: null })"
         >
           <template
             v-for="column in columns"

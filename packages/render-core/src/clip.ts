@@ -180,8 +180,9 @@ export function selectEdges(args: {
  * ## `hover-band`（P-46 §2.2：指针所在整行的浅色高亮）
  *
  * 它是**每帧固定开销**的那 1 个覆盖层元素（`c₄` 的 `overlay` 项），由 `buildAxis` 在最后追加
- * （`row` 由调用方给出）。**画在窗口坐标**（`x = 0 .. width`）：行高亮是"当前可视行"的概念，
- * 放进内容滚动组会随内容滚动、并再叠一次 `−scrollTop`（[ADR 0007 §14.3](../…/docs/02-adr/0007-渲染几何与裁剪契约.md) 的同源陷阱）。
+ * （`row` 由调用方给出）。**画在窗口坐标的 `x` 起点、但宽度取内容宽**：行高亮是"指针所在的那一行"，
+ * 而"那一行"在横向是有长度的（= 内容宽）；放进**内容滚动组**（横向不翻译）⇒ 它跟着行滚到任何位置。
+ * 用视口宽会表现为"首屏那一段亮、向右滚动后的新部分不亮"（G8 第二次复验第 ① 条）。
  */
 export type AxisElement =
   /** 非工作日色带（极大连续段）；`level: 2` = 下级（缺省）。 */
@@ -196,7 +197,7 @@ export type AxisElement =
    * 与既有 `band` 同口径）。左边界即该段的竖线，因此**不再单独发 `gridline`**。
    */
   | { readonly kind: 'major-band'; readonly x: number; readonly width: number; readonly level: 1 }
-  /** 指针所在整行的浅色行带（覆盖层；**窗口坐标**，由视口宽给宽、由可视行高给高）。 */
+  /** 指针所在整行的浅色行带（覆盖层；**x 起点在窗口坐标、宽度取内容宽**，高 = 可视行高）。 */
   | {
       readonly kind: 'hover-band';
       readonly x: number;
@@ -254,6 +255,17 @@ export function buildAxis(args: {
   readonly pxPerDay: number;
   readonly scrollLeft: number;
   readonly width: number;
+  /**
+   * **内容总宽**（`ViewModel.contentWidth`）：只给 `hover-band` 用。
+   *
+   * 悬停行带的语义是"**整行**高亮"，因此它必须铺到**行的实际宽度**（= 内容宽），
+   * 而不是视口宽——用视口宽会表现为"**首屏那一段亮、向右滚动后新的部分不亮**"
+   * （G8 第二次复验第 ① 条）。**只有它**用这个值：其余轴元素的裁剪仍按视口宽
+   * （`c₃` 与文档总规模无关这条不变量依赖 `width`，不能混）。
+   *
+   * 缺省回落到 `width`（既有调用方与测试不必都改；行为与"视口宽"等价）。
+   */
+  readonly contentWidth?: number;
   readonly zoom: ZoomKey;
   /** 指针所在的**渲染行序号**（`null` = 无高亮）。它决定 `hover-band` 的 `y`。 */
   readonly hoverRow?: number | null;
@@ -331,13 +343,17 @@ export function buildAxis(args: {
   pushSegment(dayTo + 1);
 
   // 指针所在整行的浅色行带（P-46 §2.2；窗口坐标、每帧 1 个元素）。
+  //
+  // **宽度取内容宽**（`contentWidth`，缺省回落视口宽）：行带要"贯穿整行"，
+  // 而它画在内容滚动组里（横向不翻译）⇒ 铺到内容宽即跟着行滚到任何位置。
+  // 用视口宽的话只有首屏那一段会亮（G8 第二次复验第 ① 条）。
   const hoverRow = args.hoverRow ?? null;
   const rowHeight = args.rowHeight ?? 0;
   if (hoverRow !== null && rowHeight > 0) {
     elements.push({
       kind: 'hover-band',
       x: 0,
-      width,
+      width: Math.max(width, args.contentWidth ?? width),
       y: hoverRow * rowHeight,
       height: rowHeight,
     });

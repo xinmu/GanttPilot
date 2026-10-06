@@ -303,15 +303,22 @@ const axisMajorLabels = computed<readonly Extract<AxisElement, { kind: 'label' }
 /**
  * **悬停行带**（P-46 §2.2）：指针所在整行的浅色底。
  *
- * 位置取 `view.hoverBand.row`（**可见行序号**），竖向用 `row × 行高` 与 `row.y` **同式**——
- * 二者都是**内容坐标**，由 `scrollTransform` 抵消滚动，因此这里**绝不再减 `scrollTop`**
+ * ## 几何**全部**取自模型里的那个 `hover-band` 轴元素（不在这里重算）
+ *
+ * 它与 `row.y` **同式**（`row × 行高`）、宽是**内容宽**——两件事都由 `render-core` 给出，
+ * 这里只做"取出来 + 摆到内容滚动组里"。**上一版在这里另写了一份几何**（宽取 `view.width`），
+ * 于是模型已经改成内容宽、而屏幕仍按视口宽画 ⇒ "向右滚动后新露出的那段不亮"
+ * （G8 **第二次**复验第 ① 条）。**同一份几何只留一处**是这一层唯一的纪律。
+ *
+ * 竖向**绝不再减 `scrollTop`**：它是内容坐标，由外层 `scrollTransform` 统一抵消
  * （P-23 的同源陷阱：双重偏移会让高亮带与行错开一个滚动量）。
  */
 const hoverBandRect = computed(() => {
   const view = props.view;
-  const band = view?.hoverBand ?? null;
-  if (view === null || band === null) return null;
-  return { y: band.row * view.rowHeight, height: view.rowHeight };
+  if (view === null) return null;
+  const element = view.axis.find((item) => item.kind === 'hover-band');
+  if (element === undefined || element.kind !== 'hover-band') return null;
+  return { x: element.x, width: element.width, y: element.y, height: element.height };
 });
 
 /**
@@ -485,15 +492,16 @@ const drawnRows = computed(() =>
       <!--
         **悬停行带**（P-46 §2.2）：指针所在整行的浅色底，**1 个元素**（计入 `c₄` 的 `overlay`）。
         画在 `.rows` **之前**（条体之下）——否则它会压住条形，那正是 P-37"背景层先注入"的同一条口径。
-        坐标是**内容坐标**（与 `row.y` 同式），由上面的 `translate(0 −scrollTop)` 抵消滚动。
+        四个几何值（x / 宽 / y / 高）**全部来自模型**（`hoverBandRect`），屏幕不重算——
+        宽是**内容宽**，因此向右滚动时它照样贯穿整行（G8 第二次复验第 ① 条）。
       -->
       <rect
         v-if="hoverBandRect !== null"
         class="hover-row"
-        x="0"
+        :x="hoverBandRect.x"
         y="0"
         :transform="`translate(0 ${String(hoverBandRect.y)})`"
-        :width="view.width"
+        :width="hoverBandRect.width"
         :height="hoverBandRect.height"
         :fill="HOVER_ROW_FILL"
       />

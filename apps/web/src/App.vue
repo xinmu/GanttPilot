@@ -572,6 +572,30 @@ function clearHover(): void {
   hoverX.value = null;
   hoverRow.value = null;
 }
+
+/**
+ * **指针落在左表某一行**时的悬停推进（G8 第二次复验第 ② 条：反向联动）。
+ *
+ * 它做的事与 `updateHover` 的"命中某一行"分支**完全一样**（设 `hoverTaskId` + `hoverRow`），
+ * 但**判据来源完全不同**：`updateHover` 从坐标反解（`resolvePointerTarget`），
+ * 这里直接用左表告诉我们的行 id。**不合并成一条路**的理由是硬的：
+ * 左表行在**图表坐标系之外**（它在另一栏），拿它的屏幕坐标去 `resolvePointerTarget`
+ * 只会得到 `null`（或误命中相邻行）——那是把"两栏对齐"这件事重新算一遍，而不是复用既有事实。
+ *
+ * `hoverX` 明确置 `null`：连接点（`connectVisible`）要求"指针靠近该行的**条端**"，
+ * 而指针根本不在图上 ⇒ 不显示才是对的（否则左表悬停会在图上凭空冒出白框）。
+ */
+function setHoverFromTable(taskId: string | null): void {
+  const nextRow = taskId === null ? null : (view.value?.rows.find((row) => row.id === taskId)?.row ?? null);
+  /**
+   * 缓冲行/折叠行的 id 不在 `rows` 里 ⇒ `nextRow === null` ⇒ **整条不清**：
+   * 这与 `updateHover` 的口径一致（"高亮与能否交互同一个行集合"），也避免"图上有带、左表没有行"
+   * 这种半亮状态。注意此时 `hoverTaskId` 也一并清掉，否则左表会留一条 `.hovered` 底色。
+   */
+  hoverTaskId.value = nextRow === null ? null : taskId;
+  hoverRow.value = nextRow;
+  hoverX.value = null;
+}
 /** 窗格 `mousemove` 的**唯一入口**（模板上只能有一个 `@mousemove`，否则 Vue 报重复属性）。 */
 function onChartMouseMove(event: MouseEvent): void {
   const kind = gesture.state.value.kind;
@@ -1002,6 +1026,7 @@ onUnmounted(() => {
         :disabled="false"
         @cell-edit="onCellEdit"
         @toggle-collapse="onToggleCollapse"
+        @hover-row="(payload: { taskId: string | null }) => setHoverFromTable(payload.taskId)"
         @rejected="(message: string) => show('error', message)"
       />
       <div
