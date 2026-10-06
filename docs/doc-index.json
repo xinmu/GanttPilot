@@ -365,6 +365,42 @@
       "note": "P-37 的增补节：图面要素清单、箭头强制口径、标签样式与文案单一来源"
     },
     {
+      "path": "docs/04-refactor/README.md",
+      "role": "plan",
+      "cap": "plan",
+      "note": "v0.2 重构计划入口：阶段总览、按需注入指引、不变量与分支口径（临时物，合流后按 05 收口）"
+    },
+    {
+      "path": "docs/04-refactor/01-基线与决策.md",
+      "role": "plan",
+      "cap": "plan",
+      "note": "实测基线 + 七项决策 + 两条行为变更的降级目标措辞 + P0 证据索引"
+    },
+    {
+      "path": "docs/04-refactor/02-文档重构.md",
+      "role": "plan",
+      "cap": "plan",
+      "note": "P2：目标分层、逐文件处置、D1–D10 批次、关键手术细则（契约归位 / 常量收口 / R48–R50 / spike 生命周期）"
+    },
+    {
+      "path": "docs/04-refactor/03-代码重构.md",
+      "role": "plan",
+      "cap": "plan",
+      "note": "P3：C1–C8 批次（scripts / xlsx / pptx / engine / render-core / web / 工程配套 / 证据卫生）与每批验收"
+    },
+    {
+      "path": "docs/04-refactor/04-验收与门禁.md",
+      "role": "plan",
+      "cap": "plan",
+      "note": "P1 三条新检查的设计与负向对照、各阶段验收、「稳定」的五条可判定定义、记录制证据纪律"
+    },
+    {
+      "path": "docs/04-refactor/05-登记与本轮不做.md",
+      "role": "plan",
+      "cap": "plan",
+      "note": "本轮不做项（N1–N8）、CI 补两步、两项只读验证的落点、待裁决开放项、风险与回滚、本计划自身的收口"
+    },
+    {
       "path": "packages/engine/SCHEMA.md",
       "role": "spec",
       "cap": "spec"
