@@ -251,9 +251,9 @@ if (result.ok) {
 > **历史（2026-10-05）**：本节此前写的是"调用方自己的日历容量不足时，用 `calendar.withHorizon(...)`
 > 扩容后翻译"——把容量当成**调用方义务**。实践证伪了这条：`apps/web` 的拖动预览喂给 `compute`
 > 的是**另一份文档**，而渲染仍用已提交文档规划的那份日历 ⇒ 向右拖远时
-> `buildView` 抛 `RangeError`、**整页空白**。取证与两个候选见 [裁决 R46 §2(b)/§6](../../docs/00-baseline/裁决R46.md)、
-> 裁定（采"交出日历"这一路）见 [裁决 R47 §2](../../docs/00-baseline/裁决R47.md) 与
-> [ADR 0005 附录 §1](../../docs/02-adr/附录/0005-增补.md)。
+> `buildView` 抛 `RangeError`、**整页空白**。取证与两个候选见 [裁决 R46 §2(b)/§6（依据）](../../docs/00-baseline/裁决R46.md)、
+> 裁定（采"交出日历"这一路）见 [裁决 R47 §2（依据）](../../docs/00-baseline/裁决R47.md) 与
+> [ADR 0005 附录 §1（细则）](../../docs/02-adr/附录/0005-增补.md)。
 
 ## 八、检环与闭包
 
@@ -305,7 +305,7 @@ function affectedClosure(
 | ① 不变量/性质 | `schedule.invariants.spec.ts` | ≥ 1,000 随机图全过 |
 | ② 手工推导用例 | `schedule.manual.spec.ts`（声明式期望值表，内核无权改基准） | 逐条声明式期望值 |
 | ③ 跨语言差分 | `schedule.differential.spec.ts` + [`tools/cpm-reference/cpm_reference.py`](../../tools/cpm-reference/cpm_reference.py) | ≥ 1,000 DAG + 200 成环图，**0 不一致** |
-| ④ 性能 | `schedule.performance.spec.ts`（批量计时 + median-of-suites） | 1,000 任务/1,500 依赖全量 `compute` **p50 ≤ 1 ms 且 p99 ≤ 2 ms**（Node 24 参照机；EN-08 的 100 ms 保留为产品侧不回归天花板）。**口径于 P-38 修订**：中位数管"实现退化"、尾部管"并行争用"，见 [ADR 0004 附录 §1](../../docs/02-adr/附录/0004-增补.md)。**实测**：空闲档 p50 = 326 µs / p99 = 530 µs（P-38 之后两次全量 `pnpm gate` 实测 p50 = 533 / 545 µs、p99 = 1.40 / 1.28 ms）（最差 suite p99 0.61–2.72 ms）——注意 S3 的 52.1 µs 是**只测传播内核**的窄口径，本数字是产品口径（含日期解析、工期解析、诊断收集与结果分配） |
+| ④ 性能 | `schedule.performance.spec.ts`（批量计时 + median-of-suites） | 1,000 任务/1,500 依赖全量 `compute` **p50 ≤ 1 ms 且 p99 ≤ 2 ms**（Node 24 参照机；EN-08 的 100 ms 保留为产品侧不回归天花板）。**口径于 P-38 修订**：中位数管"实现退化"、尾部管"并行争用"，见 [ADR 0004 附录 §1（细则）](../../docs/02-adr/附录/0004-增补.md)。**实测**：空闲档 p50 = 326 µs / p99 = 530 µs（P-38 之后两次全量 `pnpm gate` 实测 p50 = 533 / 545 µs、p99 = 1.40 / 1.28 ms）（最差 suite p99 0.61–2.72 ms）——注意 S3 的 52.1 µs 是**只测传播内核**的窄口径，本数字是产品口径（含日期解析、工期解析、诊断收集与结果分配） |
 | ⑤ 负向对照 | 正确性侧（打坏期望值/改关系类型/篡改结果必须被检出）与性能侧（朴素对照必须被量出 ≥3×） | **必须有**，否则判据可能是恒真式 |
 
 **差分层怎么跑**（协议与 CLI 见 [`tools/cpm-reference/README.md`](../../tools/cpm-reference/README.md)）：

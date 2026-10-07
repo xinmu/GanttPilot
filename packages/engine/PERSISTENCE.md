@@ -31,7 +31,7 @@
 |---|---|---|
 | `AUTOSAVE_DEBOUNCE_MS` | `2000` | 连续编辑只写一次（去抖） |
 | `AUTOSAVE_MAX_INTERVAL_MS` | `5000` | **≤5s 的落地方式**：去抖上限封顶，故最坏"变更 → 落盘"延迟 ≈ 5 s，而不是"整个会话不写" |
-| `CHECKPOINT_INTERVAL_MS` | `300000`（5 分钟） | R-2 建议值（[裁决R01-02](../../docs/00-baseline/裁决R01-02.md) §一 R-2 的分层建议） |
+| `CHECKPOINT_INTERVAL_MS` | `300000`（5 分钟） | R-2 建议值（[裁决R01-02（依据）](../../docs/00-baseline/裁决R01-02.md) §一 R-2 的分层建议） |
 | `CHECKPOINT_EVERY_STEPS` | `200` | 同上 |
 | `CHECKPOINT_KEEP` | `3` | R-2 的"保留 2–3 份"，取上界 |
 | `QUOTA_DEGRADED_KEEP` | `1` | 配额超限后只留最近 1 份，并提示 |
