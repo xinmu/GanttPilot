@@ -229,6 +229,34 @@
       "note": "P-48/P-49：地平线收口（compute 交出日历，契约冻结）+ 离线单文件分发登记（Docker 归 v0.5）"
     },
     {
+      "path": "docs/00-baseline/裁决R48.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-50：G8 首次人工复验 7 条回执与整改（D3 补登记）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R49.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-51：G8 第二次回执 2 条与整改（D3 补登记）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R50.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-52：G8 第三次复验通过 ⇒ G8 收口（D3 补登记）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R51.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-53：门禁步骤顺序修正（build 前移到 typecheck 之前）——收敛 0001-增补的「裁决登记待补」（D3 补登记）"
+    },
+    {
       "path": "docs/00-baseline/上游原文-产品需求文档与路线图.md",
       "role": "baseline",
       "cap": "baseline",
@@ -339,7 +367,7 @@
       "role": "record",
       "cap": "record",
       "layer": "archive",
-      "note": "§1：门禁步骤顺序修正（build 前移到 typecheck 之前），裁决登记待补"
+      "note": "§1：门禁步骤顺序修正（build 前移到 typecheck 之前），裁决 = P-53（R51，2026-10-07 补登记）"
     },
     {
       "path": "docs/02-adr/0002-文档模型与序列化契约.md",
