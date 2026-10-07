@@ -17,13 +17,13 @@
  * - **不含时间戳/随机 id**：同一份输入两次调用必须**逐字符相等**（进 gate 的判据）。
  */
 
-import type { DocumentTask, ProjectDocument } from '@ganttpilot/engine';
+import type { ProjectDocument } from '@ganttpilot/engine';
 
 import { EXPORT_LABEL_FONT_PX, EXPORT_LABEL_WIDTH_PX } from './exportView.js';
 import { EXPORT_AXIS_FONT_PX } from './exportView.js';
-import { exportLabelStyleOf, exportLabelTextOf } from './exportLabels.js';
+import { exportLabelOf } from './exportLabels.js';
 import { exportLegendItems, exportSummaryLines, type ExportSummary } from './exportSummary.js';
-import { HEADER_HEIGHT_PX, LABEL_CHAR_PX, MAJOR_LABEL_BASELINE_PX, MINOR_LABEL_BASELINE_PX } from './manifest.js';
+import { HEADER_HEIGHT_PX, MAJOR_LABEL_BASELINE_PX, MINOR_LABEL_BASELINE_PX } from './manifest.js';
 import { arrowPolygons } from './route.js';
 import type { EdgeGeom, RowBox, ViewModel } from './viewModel.js';
 
@@ -83,7 +83,13 @@ export interface SvgExportArgs {
   readonly options?: SvgExportOptions;
 }
 
-function escapeXml(value: string): string {
+/**
+ * XML 转义（**本仓库的唯一实现**；P3/C3 起 `pptx-renderer` 的属性转义 `attr()` 也走这里）。
+ *
+ * 五个字符都转：文本节点与属性值共用同一份，因此属性里出现的 `'` 也会变成 `&apos;`
+ * （合法实体，XML 解析器等价处理）。
+ */
+export function escapeXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -109,24 +115,6 @@ function pathData(points: readonly (readonly [number, number])[]): string {
 /** 箭头填充形态：SS/SF 空心、FS/FF 实心（`ARROW_FILL` 的口径）。 */
 function arrowForm(edge: EdgeGeom): 'solid' | 'hollow' {
   return edge.type === 'SS' || edge.type === 'SF' ? 'hollow' : 'solid';
-}
-
-/** 标签列内的显示名（**与 PPTX 同源**：共享 `exportLabels` 的缩进/加粗/截断口径）。 */
-function labelOf(args: {
-  readonly task: DocumentTask | undefined;
-  readonly fallback: string;
-}): { readonly text: string; readonly indentPx: number; readonly bold: boolean } {
-  const style = exportLabelStyleOf(args.task);
-  return {
-    text: exportLabelTextOf({
-      task: args.task,
-      fallback: args.fallback,
-      availablePx: EXPORT_LABEL_WIDTH_PX,
-      charPx: LABEL_CHAR_PX,
-    }),
-    indentPx: style.indentPx,
-    bold: style.bold,
-  };
 }
 
 /**
@@ -366,7 +354,7 @@ export function svgString(args: SvgExportArgs): string {
   chunks.push(`<g class="rows">`);
   for (const row of view.rows) {
     const task = document.tasks[row.docIndex];
-    const label = labelOf({ task, fallback: row.id });
+    const label = exportLabelOf({ task, fallback: row.id });
     const y = round(offsetY + row.y);
     chunks.push(
       `<g class="row" data-task-id="${escapeXml(row.id)}" data-kind="${row.kind}">` +

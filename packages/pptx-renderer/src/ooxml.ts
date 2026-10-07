@@ -18,7 +18,7 @@
  * `id` 只用于"分配一个未被占用的新值"（`IdAllocator`），绝不硬编码 `idx + 2`。
  */
 
-import type { RouteSide } from '@ganttpilot/render-core';
+import { escapeXml, type RouteSide } from '@ganttpilot/render-core';
 
 import { EMU_PER_PT } from './units.js';
 
@@ -61,14 +61,13 @@ export const NAMES = {
   legendSwatch: (styleKey: string): string => `legend-swatch-${styleKey}`,
 } as const;
 
-/** XML 属性转义。 */
-export function attr(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+/**
+ * XML 属性转义。
+ *
+ * **实现归属 `@ganttpilot/render-core` 的 `escapeXml`**（P3/C3 收敛：此前本包与 SVG 各有一份）。
+ * 这里只保留本包的公开名 `attr`，不再写第二份实现；转义字符集以 `escapeXml` 为准（含 `&apos;`）。
+ */
+export const attr = escapeXml;
 
 /** 轴对齐矩形（EMU）。 */
 export interface EmuRect {

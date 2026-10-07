@@ -355,14 +355,18 @@ export {
   EXPORT_LABEL_INDENT_PX,
   EXPORT_LABEL_MAX_DEPTH,
   EXPORT_LABEL_PADDING_PX,
+  exportLabelOf,
   exportLabelStyleOf,
   exportLabelTextOf,
+  type ExportLabel,
+  type ExportLabelOfArgs,
   type ExportLabelStyle,
   type ExportLabelTextArgs,
 } from './exportLabels.js';
 export {
   EXPORT_SIDEBAR_GAP_PX,
   EXPORT_SIDEBAR_WIDTH_PX,
+  escapeXml,
   svgInnerSizeOf,
   svgString,
   EXPORT_TICK_LENGTH_PX,

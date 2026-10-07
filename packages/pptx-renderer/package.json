@@ -24,9 +24,11 @@
     "typecheck": "tsc -p tsconfig.check.json --noEmit"
   },
   "dependencies": {
-    "@ganttpilot/engine": "workspace:*",
     "@ganttpilot/render-core": "workspace:*",
     "jszip": "^3.10.2",
     "pptxgenjs": "4.0.1"
+  },
+  "devDependencies": {
+    "@ganttpilot/engine": "workspace:*"
   }
 }

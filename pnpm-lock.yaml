@@ -71,9 +71,6 @@ importers:
 
   packages/pptx-renderer:
     dependencies:
-      '@ganttpilot/engine':
-        specifier: workspace:*
-        version: link:../engine
       '@ganttpilot/render-core':
         specifier: workspace:*
         version: link:../render-core
@@ -83,6 +80,10 @@ importers:
       pptxgenjs:
         specifier: 4.0.1
         version: 4.0.1
+    devDependencies:
+      '@ganttpilot/engine':
+        specifier: workspace:*
+        version: link:../engine
 
   packages/render-core:
     dependencies:

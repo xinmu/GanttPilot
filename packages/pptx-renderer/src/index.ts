@@ -35,7 +35,7 @@ export {
   type PptxTextOptions,
   type TemplateAInput,
   type TemplateAPlan,
-} from './template.js';
+} from './template/index.js';
 
 export {
   attr,
@@ -88,3 +88,4 @@ export {
   type EntryDiff,
   type EntryDigest,
 } from './fingerprint.js';
+

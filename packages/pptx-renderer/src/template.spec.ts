@@ -31,7 +31,7 @@ import {
 
 import { bytesEqual, entryDigests, diffDigests } from './fingerprint.js';
 import { buildIdMap, parseShapeRefs, extractSpTree } from './ooxml.js';
-import { planTemplateA, renderTemplateA, readPptxEntry, readSlideSize, FIXED_TIMESTAMP_ISO } from './template.js';
+import { planTemplateA, renderTemplateA, readPptxEntry, readSlideSize, FIXED_TIMESTAMP_ISO } from './template/index.js';
 import { TEMPLATE_A_PAGE, TEMPLATE_A_PAGE_PX } from './units.js';
 
 function demoFixture() {
@@ -164,7 +164,7 @@ describe('模板 A · 负向对照（判据必须有判别力）', () => {
     const slideXml = await readPptxEntry(bytes, 'ppt/slides/slide1.xml');
     expect(structureViolations(slideXml)).toStrictEqual([]); // 前提自证：正例干净
 
-    const badIdx = slideXml.replace('<a:stCxn id=', '<a:stCxn id=').replace('idx="3"/>', 'idx="4"/>');
+    const badIdx = slideXml.replace('idx="3"/>', 'idx="4"/>');
     expect(structureViolations(badIdx).some((item) => item.includes('越界'))).toBe(true);
 
     const dangling = slideXml.replace(/<a:endCxn id="\d+"/, '<a:endCxn id="99999"');
@@ -390,7 +390,7 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
     const swatchRight = plan.sidebarBox.x + 6 + 18;
     expect(textX - swatchRight).toBeGreaterThanOrEqual(8);
 
-    // ③ 侧栏内容块与甘特内容块**同基准居中**（中心差 ≤ 2 px）——人工复验第 4 条
+    // ③ 侧栏内容块与甘特内容块**同基准居中**（判据：中心差 < 6 px；演示计划实测 0 px）——人工复验第 4 条
     const sidebarCenter = plan.sidebarContentTop + plan.sidebarContentHeight / 2;
     const ganttCenter = plan.ganttBox.y + plan.fit.offsetY + (plan.projection.innerHeight * plan.fit.scale) / 2;
     expect(Math.abs(sidebarCenter - ganttCenter)).toBeLessThan(6);
@@ -472,3 +472,4 @@ describe('模板 A · 布局与可读性纪律（ADR 0010 §7/§11）', () => {
     expect(slideXml).toContain('name="bar-t1"');
   });
 });
+
