@@ -308,11 +308,19 @@
       "note": "P-54：必读层口径与预算调整（mustReadKb 25 → 34；采 A：先迁移可推导/历史内容）"
     },
     {
+      "path": "docs/00-baseline/裁决R53.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-55：精简层构成口径与预算重设（slimKb 100 → 500；generated 不计入）"
+    },
+    {
       "path": "docs/00-baseline/轮次导读.md",
       "role": "plan",
       "cap": "plan",
       "layer": "slim",
-      "note": "生成物（`pnpm docs:index`）：轮次 → 主题 → 条目 → 细则；D7.5 从台账移出，不再是第二处真相源"
+      "note": "生成物（`pnpm docs:index`）：轮次 → 主题 → 条目 → 细则；D7.5 从台账移出，不再是第二处真相源",
+      "generated": true
     },
     {
       "path": "docs/01-roadmap/首版-记录-待定清单.md",
@@ -326,7 +334,7 @@
       "role": "plan",
       "cap": "plan",
       "layer": "slim",
-      "generated": "node scripts/make-doc-index.mjs"
+      "generated": true
     },
     {
       "path": "docs/01-roadmap/首版-记录-归档-G0-G3.md",
@@ -624,15 +632,21 @@
     }
   ],
   "contextBudget": {
-    "$comment": "决策 2 的预算，**必读口径与上限由 P-54（R52）调整**：必读 = 台账登记本体（条目表 + 未决摘要）+ 当前规划 + 待定清单 ⇒ 精简层 ≤ 100 KB、必读 ≤ 34 KB；entryCapKb 是 L0 入口的自主上限（02 §一）。判定见 check-docs.mjs 的「分层预算与入口封闭性」。userFacing（用户手册）与 budgetExempt（v0.2 临时施工计划）不计入精简层预算，但仍列在报告里。",
+    "$comment": "决策 2 的预算，**两项上限都由 R52/P-54 与 R53/P-55 按实测重设**：精简层 ≤ 500 KB（**构成**：契约 221.8 + 包规范 156.1 + 基线/规范 64.9 + 判定 26.8 + 登记 19.2 ≈ 475 KB；**可推导的生成物**（generated: true）与用户手册、临时计划一样**不计入**）、必读 ≤ 34 KB（= 台账登记本体 + 当前规划 + 待定清单）；entryCapKb 是 L0 入口的自主上限（02 §一）。判定见 check-docs.mjs 的「分层预算与入口封闭性」。",
     "entry": "docs/README.md",
-    "slimKb": 100,
+    "slimKb": 500,
     "mustReadKb": 34,
     "entryCapKb": 6
   },
   "crossLayerCheck": {
     "$comment": "P1-c 的可判定那一半：L1 正文指向归档层的链接，其链接文本或同一行必须出现标记词（读者一眼知道这是历史口径，而不是当前契约）。入口页（L0）由 contextBudget 的入口封闭性负责，不在这里重复报。判定见 check-docs.mjs 的「跨层引用必须带标记词」。",
-    "markers": ["历史", "原文口径", "细则", "依据", "存档"],
+    "markers": [
+      "历史",
+      "原文口径",
+      "细则",
+      "依据",
+      "存档"
+    ],
     "allow": [
       {
         "path": "docs/01-roadmap/首版-文档索引.md",
@@ -651,13 +665,33 @@
       "allow 是例外登记处：每条必须带 reason。例外不等于「修好了」，而是「这一处按裁决保留」。"
     ],
     "docScan": {
-      "roles": ["contract", "spec", "guide", "plan", "register"],
-      "extraPaths": ["README.md", "CONTRIBUTING.md", "docs/README.md", "docs/DOC-SPEC.md"],
+      "roles": [
+        "contract",
+        "spec",
+        "guide",
+        "plan",
+        "register"
+      ],
+      "extraPaths": [
+        "README.md",
+        "CONTRIBUTING.md",
+        "docs/README.md",
+        "docs/DOC-SPEC.md"
+      ],
       "$comment": "role=register-archive/record 属归档层（按轮次存档逐字不改写、记录制证据带环境口径），不进扫描。P1-b 落地 layer 之后，此处改为按 layer==slim 选取同一集合。"
     },
     "codeScan": {
-      "roots": ["packages", "apps", "scripts"],
-      "extensions": [".ts", ".mts", ".vue", ".mjs"]
+      "roots": [
+        "packages",
+        "apps",
+        "scripts"
+      ],
+      "extensions": [
+        ".ts",
+        ".mts",
+        ".vue",
+        ".mjs"
+      ]
     },
     "allow": [
       {
@@ -675,11 +709,26 @@
           "pattern": "const expectedC3: Record<string, number> = \\{ day: (\\d+), week: (\\d+), month: (\\d+) \\};"
         },
         "detectors": [
-          { "pattern": "c₃[^\\n]{0,40}?(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})", "label": "c₃ 之后的三元组" },
-          { "pattern": "\\*\\*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\*\\*", "label": "加粗三元组（重锚 / 回填值）" },
-          { "pattern": "单级口径原为\\s*\\*{0,2}(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})", "label": "单级口径三元组（历史值）" },
-          { "pattern": "单级回填值\\s*\\*{0,2}(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})", "label": "单级回填值三元组（ADR 0007 §11 口径）" },
-          { "pattern": "同一口径为\\s*\\*{0,2}(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})", "label": "同一口径为 a / b / c（打包产物口径）" }
+          {
+            "pattern": "c₃[^\\n]{0,40}?(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})",
+            "label": "c₃ 之后的三元组"
+          },
+          {
+            "pattern": "\\*\\*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\*\\*",
+            "label": "加粗三元组（重锚 / 回填值）"
+          },
+          {
+            "pattern": "单级口径原为\\s*\\*{0,2}(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})",
+            "label": "单级口径三元组（历史值）"
+          },
+          {
+            "pattern": "单级回填值\\s*\\*{0,2}(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})",
+            "label": "单级回填值三元组（ADR 0007 §11 口径）"
+          },
+          {
+            "pattern": "同一口径为\\s*\\*{0,2}(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})",
+            "label": "同一口径为 a / b / c（打包产物口径）"
+          }
         ]
       },
       {
@@ -691,14 +740,67 @@
           "pattern": "export const ELEMENT_MODEL_G5 = \\{ perRenderedRow: (\\d+), overlay: (\\d+) \\} as const;"
         },
         "detectors": [
-          { "pattern": "c₄\\s*=\\s*(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)", "equals": [0, 1], "label": "c₄ = a·rows + b" },
-          { "pattern": "=\\s*\\*{0,2}(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)", "equals": [0, 1], "label": "换行写法：= a·rows + b" },
-          { "pattern": "扩成\\s*`?(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)", "equals": [0, 1], "label": "把 c₄ 扩成 a·rows + b" },
-          { "pattern": "(?:重定为|改为|收窄为|改成)\\s*\\*{0,2}`?(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)", "equals": [0, 1], "label": "改口径的说法：重定为/改为 a·rows + b" },
-          { "pattern": "每帧固定\\s*\\*{0,2}(\\d+)(?!\\s*个)", "equals": [1], "label": "每帧固定 N" },
-          { "pattern": "overlay\\*{0,2}\\s*=\\s*\\*{0,2}(\\d+)(?!\\s*·)", "equals": [1], "label": "overlay = N" },
-          { "pattern": "每渲染行\\s*\\*{0,2}(\\d+)\\*{0,2}\\s*\\+\\s*\\*{0,2}每帧固定\\s*\\*{0,2}(\\d+)", "equals": [0, 1], "label": "每渲染行 a + 每帧固定 b" },
-          { "pattern": "perRenderedRow\\s*=\\s*\\*{0,2}(\\d+)", "equals": [0], "label": "perRenderedRow = N" }
+          {
+            "pattern": "c₄\\s*=\\s*(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "c₄ = a·rows + b"
+          },
+          {
+            "pattern": "=\\s*\\*{0,2}(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "换行写法：= a·rows + b"
+          },
+          {
+            "pattern": "扩成\\s*`?(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "把 c₄ 扩成 a·rows + b"
+          },
+          {
+            "pattern": "(?:重定为|改为|收窄为|改成)\\s*\\*{0,2}`?(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "改口径的说法：重定为/改为 a·rows + b"
+          },
+          {
+            "pattern": "每帧固定\\s*\\*{0,2}(\\d+)(?!\\s*个)",
+            "equals": [
+              1
+            ],
+            "label": "每帧固定 N"
+          },
+          {
+            "pattern": "overlay\\*{0,2}\\s*=\\s*\\*{0,2}(\\d+)(?!\\s*·)",
+            "equals": [
+              1
+            ],
+            "label": "overlay = N"
+          },
+          {
+            "pattern": "每渲染行\\s*\\*{0,2}(\\d+)\\*{0,2}\\s*\\+\\s*\\*{0,2}每帧固定\\s*\\*{0,2}(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "每渲染行 a + 每帧固定 b"
+          },
+          {
+            "pattern": "perRenderedRow\\s*=\\s*\\*{0,2}(\\d+)",
+            "equals": [
+              0
+            ],
+            "label": "perRenderedRow = N"
+          }
         ]
       },
       {
@@ -710,8 +812,14 @@
           "pattern": "export const EXPORT_TICK_LENGTH_PX = (\\d+);"
         },
         "detectors": [
-          { "pattern": "TICK_LENGTH_PX`?\\s*=\\s*\\*{0,2}(\\d+)", "label": "…TICK_LENGTH_PX = N" },
-          { "pattern": "（长度\\s*\\*{0,2}(\\d+)\\s*px", "label": "（长度 N px）" }
+          {
+            "pattern": "TICK_LENGTH_PX`?\\s*=\\s*\\*{0,2}(\\d+)",
+            "label": "…TICK_LENGTH_PX = N"
+          },
+          {
+            "pattern": "（长度\\s*\\*{0,2}(\\d+)\\s*px",
+            "label": "（长度 N px）"
+          }
         ],
         "$comment": "声明处按 02 §4.3 取 svgExport.ts；03 §C5 另写「TICK_LENGTH_PX 收回 manifest.ts」——两处口径必须在 C5 开工前对齐，若改归属须同步改本表。"
       },
@@ -724,8 +832,14 @@
           "pattern": "export const HEADER_HEIGHT_PX = (\\d+);"
         },
         "detectors": [
-          { "pattern": "HEADER_HEIGHT_PX`?\\s*=\\s*\\*{0,2}(\\d+)", "label": "HEADER_HEIGHT_PX = N" },
-          { "pattern": "由\\s*\\*{0,2}(\\d+)\\s*上调", "label": "由 N 上调（历史值）" }
+          {
+            "pattern": "HEADER_HEIGHT_PX`?\\s*=\\s*\\*{0,2}(\\d+)",
+            "label": "HEADER_HEIGHT_PX = N"
+          },
+          {
+            "pattern": "由\\s*\\*{0,2}(\\d+)\\s*上调",
+            "label": "由 N 上调（历史值）"
+          }
         ]
       },
       {
@@ -737,8 +851,14 @@
           "pattern": "export const EDGE_STUB_PX = (\\d+);"
         },
         "detectors": [
-          { "pattern": "EDGE_STUB_PX`?\\s*=\\s*\\*{0,2}(\\d+)", "label": "EDGE_STUB_PX = N" },
-          { "pattern": "STUB 用固定\\s*\\*{0,2}(\\d+)\\s*px", "label": "STUB 用固定 N px" }
+          {
+            "pattern": "EDGE_STUB_PX`?\\s*=\\s*\\*{0,2}(\\d+)",
+            "label": "EDGE_STUB_PX = N"
+          },
+          {
+            "pattern": "STUB 用固定\\s*\\*{0,2}(\\d+)\\s*px",
+            "label": "STUB 用固定 N px"
+          }
         ]
       },
       {
@@ -747,11 +867,19 @@
         "compare": "site",
         "declaration": {
           "path": "packages/engine/src/schedule.performance.spec.ts",
-          "patterns": ["const P50_BUDGET_NS = ([\\d_]+);"]
+          "patterns": [
+            "const P50_BUDGET_NS = ([\\d_]+);"
+          ]
         },
         "detectors": [
-          { "pattern": "medianP50\\s*≤\\s*\\*{0,2}(\\d+)\\s*ms", "label": "medianP50 ≤ N ms" },
-          { "pattern": "`p50 ≤ (\\d+) ms`", "label": "p50 ≤ N ms" }
+          {
+            "pattern": "medianP50\\s*≤\\s*\\*{0,2}(\\d+)\\s*ms",
+            "label": "medianP50 ≤ N ms"
+          },
+          {
+            "pattern": "`p50 ≤ (\\d+) ms`",
+            "label": "p50 ≤ N ms"
+          }
         ]
       },
       {
@@ -760,11 +888,19 @@
         "compare": "site",
         "declaration": {
           "path": "packages/engine/src/schedule.performance.spec.ts",
-          "patterns": ["const P99_BUDGET_NS = ([\\d_]+);"]
+          "patterns": [
+            "const P99_BUDGET_NS = ([\\d_]+);"
+          ]
         },
         "detectors": [
-          { "pattern": "medianP99\\s*≤\\s*\\*{0,2}(\\d+)\\s*ms", "label": "medianP99 ≤ N ms" },
-          { "pattern": "`p99 ≤ (\\d+) ms`", "label": "p99 ≤ N ms" }
+          {
+            "pattern": "medianP99\\s*≤\\s*\\*{0,2}(\\d+)\\s*ms",
+            "label": "medianP99 ≤ N ms"
+          },
+          {
+            "pattern": "`p99 ≤ (\\d+) ms`",
+            "label": "p99 ≤ N ms"
+          }
         ]
       },
       {
@@ -777,9 +913,18 @@
           "item": "^  [A-Z][A-Z0-9_]*:"
         },
         "detectors": [
-          { "pattern": "ADR 0006 §7 的\\s*\\*{0,2}(\\d+)\\s*条", "label": "ADR 0006 §7 的 N 条" },
-          { "pattern": "闭集\\*{0,4}（\\s*\\*{0,4}(\\d+)\\s*条", "label": "闭集（N 条）" },
-          { "pattern": "诊断码[^\\n]{0,16}?\\*{0,2}(\\d+)\\s*条", "label": "诊断码 … N 条" }
+          {
+            "pattern": "ADR 0006 §7 的\\s*\\*{0,2}(\\d+)\\s*条",
+            "label": "ADR 0006 §7 的 N 条"
+          },
+          {
+            "pattern": "闭集\\*{0,4}（\\s*\\*{0,4}(\\d+)\\s*条",
+            "label": "闭集（N 条）"
+          },
+          {
+            "pattern": "诊断码[^\\n]{0,16}?\\*{0,2}(\\d+)\\s*条",
+            "label": "诊断码 … N 条"
+          }
         ],
         "allow": [
           {
@@ -804,8 +949,14 @@
           ]
         },
         "detectors": [
-          { "pattern": "'(#(?:f4f6f8|e4e9f0|fafbfc|b9c0cb|e4e7ec|cfe3fa))'", "label": "带引号的色值（被当常量写下的形态）" },
-          { "pattern": "(#(?:f4f6f8|e4e9f0|fafbfc|b9c0cb|e4e7ec|cfe3fa))", "label": "裸色值（CSS / 散文里的形态）" }
+          {
+            "pattern": "'(#(?:f4f6f8|e4e9f0|fafbfc|b9c0cb|e4e7ec|cfe3fa))'",
+            "label": "带引号的色值（被当常量写下的形态）"
+          },
+          {
+            "pattern": "(#(?:f4f6f8|e4e9f0|fafbfc|b9c0cb|e4e7ec|cfe3fa))",
+            "label": "裸色值（CSS / 散文里的形态）"
+          }
         ],
         "scanPaths": [
           "packages/render-core/src",
@@ -823,9 +974,17 @@
         "compare": "site",
         "declaration": {
           "path": "packages/render-core/src/svgExport.ts",
-          "patterns": ["  bar: '(#[0-9a-f]{6})',", "  barSummary: '(#[0-9a-f]{6})',"]
+          "patterns": [
+            "  bar: '(#[0-9a-f]{6})',",
+            "  barSummary: '(#[0-9a-f]{6})',"
+          ]
         },
-        "detectors": [{ "pattern": "(#(?:2e75b6|7a8699))", "label": "条 / 汇总条色值" }],
+        "detectors": [
+          {
+            "pattern": "(#(?:2e75b6|7a8699))",
+            "label": "条 / 汇总条色值"
+          }
+        ],
         "scanPaths": [
           "packages/render-core/src",
           "packages/render-core/SPEC.md",
@@ -844,9 +1003,26 @@
       "② 指向被 .gitignore 覆盖的**临时/草稿**路径（temporaryPathPatterns，必须与根 .gitignore 逐字一致）：只在可复现层判，且**同一行**必须出现 markers 里的声明词（说明这份东西本就不入库、要自己生成），否则 warning。可再生的构建产物（dist/ / node_modules/ / out/）不在判定内——文档引用它们是正常口径。",
       "allow 是例外表：每条必须带 kind（环境观测 | 来源元信息 | 产物说明 | 规范示例）与 reason——kind 回答「这条本机路径为什么可以留」。"
     ],
-    "errorScope": { "layers": ["slim"], "roles": ["baseline"] },
-    "markers": ["gitignore", "不入库", "不进库", "可再生", "再生", "临时"],
-    "temporaryPathPatterns": ["tmp/", "*.tmp"],
+    "errorScope": {
+      "layers": [
+        "slim"
+      ],
+      "roles": [
+        "baseline"
+      ]
+    },
+    "markers": [
+      "gitignore",
+      "不入库",
+      "不进库",
+      "可再生",
+      "再生",
+      "临时"
+    ],
+    "temporaryPathPatterns": [
+      "tmp/",
+      "*.tmp"
+    ],
     "allow": [
       {
         "path": "docs/DOC-SPEC.md",
@@ -869,17 +1045,31 @@
       "extractors：提取件必须保留指向入仓原文的链接且带 markers 里的标记词——这是「提取件 ↔ 原文」对应关系不被静默摘掉的钉子。"
     ],
     "contentStartMarker": "<!-- 原文内容开始",
-    "markers": ["原文口径", "依据", "来源"],
+    "markers": [
+      "原文口径",
+      "依据",
+      "来源"
+    ],
     "archived": [
       {
         "path": "docs/00-baseline/上游原文-产品需求文档与路线图.md",
         "contentStartMarker": "<!-- 原文内容开始",
         "hashLabel": "入库件正文 sha256",
-        "requiredLabels": ["来源", "文档版本", "获取日期", "原始文件 sha256", "入库件正文 sha256", "与重建件的关系"]
+        "requiredLabels": [
+          "来源",
+          "文档版本",
+          "获取日期",
+          "原始文件 sha256",
+          "入库件正文 sha256",
+          "与重建件的关系"
+        ]
       }
     ],
     "extractors": [
-      { "path": "docs/00-baseline/需求基线.md", "mustLinkTo": "docs/00-baseline/上游原文-产品需求文档与路线图.md" }
+      {
+        "path": "docs/00-baseline/需求基线.md",
+        "mustLinkTo": "docs/00-baseline/上游原文-产品需求文档与路线图.md"
+      }
     ]
   },
   "pendingList": "docs/01-roadmap/首版-待定清单.md"

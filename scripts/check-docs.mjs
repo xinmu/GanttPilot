@@ -473,13 +473,14 @@ export function evaluateLayers({ rows, budget, entry }) {
     }
   }
 
-  const slimRows = rows.filter((row) => row.layer === 'slim' && row.userFacing !== true && row.budgetExempt !== true);
+  const slimRows = rows.filter((row) => row.layer === 'slim' && row.userFacing !== true && row.budgetExempt !== true && row.generated !== true);
   const slimKb = sum(slimRows);
   const exemptKb = sum(rows.filter((row) => row.layer === 'slim' && row.budgetExempt === true));
+  const generatedKb = sum(rows.filter((row) => row.layer === 'slim' && row.generated === true));
   const userFacingKb = sum(rows.filter((row) => row.layer === 'slim' && row.userFacing === true));
   if (slimKb > budget.slimKb) {
     errors.push(
-      `[分层] 精简层超预算：${slimKb.toFixed(1)} KB > ${budget.slimKb} KB（不含用户手册 ${userFacingKb.toFixed(1)} KB 与临时计划 ${exemptKb.toFixed(1)} KB）；动作是拆分或迁归档层，不是提高上限`,
+      `[分层] 精简层超预算：${slimKb.toFixed(1)} KB > ${budget.slimKb} KB（不含用户手册 ${userFacingKb.toFixed(1)} KB、临时计划 ${exemptKb.toFixed(1)} KB 与生成物 ${generatedKb.toFixed(1)} KB）；动作是拆分或迁归档层，不是提高上限`,
     );
     errors.push(...listOf(slimRows, 12));
   }
@@ -519,7 +520,7 @@ export function evaluateLayers({ rows, budget, entry }) {
     }
   }
 
-  return { errors, warnings, slimKb, mustReadKb, exemptKb, userFacingKb };
+  return { errors, warnings, slimKb, mustReadKb, exemptKb, generatedKb, userFacingKb };
 }
 
 // ── 8b. 分层预算与入口封闭性：输入装配 ─────────────────────────────────────
@@ -529,7 +530,7 @@ const entryPath = budget.entry ?? 'docs/README.md';
 const entryAbsolute = join(repoRoot, entryPath);
 const layerRows = sizeRows.map((row) => {
   const meta = index.docs.find((entry) => entry.path === row.path) ?? {};
-  return { path: row.path, kb: row.kb, layer: meta.layer, userFacing: meta.userFacing, mustRead: meta.mustRead, budgetExempt: meta.budgetExempt };
+  return { path: row.path, kb: row.kb, layer: meta.layer, userFacing: meta.userFacing, mustRead: meta.mustRead, budgetExempt: meta.budgetExempt, generated: meta.generated };
 });
 
 const entryLinks = [];
@@ -1076,6 +1077,19 @@ function selftest() {
       entry: entry(),
     }),
     expect: (r) => r.errors.length === 0 && r.slimKb === 0,
+  });
+  cases.push({
+    name: 'generated（可推导的生成物）与 userFacing/budgetExempt 一样不计入精简层预算',
+    result: evaluateLayers({
+      rows: [
+        { path: 'g.md', layer: 'slim', userFacing: true, kb: 50 },
+        { path: 'p.md', layer: 'slim', budgetExempt: true, kb: 50 },
+        { path: 'i.md', layer: 'slim', generated: true, kb: 50 },
+      ],
+      budget,
+      entry: entry(),
+    }),
+    expect: (r) => r.errors.length === 0 && r.slimKb === 0 && r.generatedKb === 50,
   });
   cases.push({
     name: 'layer 不在闭集内判错',
