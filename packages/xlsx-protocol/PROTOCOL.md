@@ -39,7 +39,8 @@ function exportXlsx(document: ProjectDocument, options?: ExportOptions): Promise
 function assembleReport(protocol, document?, schedule?): readonly ReportDiagnostic[];
 ```
 
-**三个入口都是 `async`**（ADR 0006 §11 要求浏览器侧**动态 `import('exceljs')`**，把
+**四个入口都是 `async`**（`detectColumns` / `importXlsx` / `importCsv` / `exportXlsx`；上面第五个
+`assembleReport` 是**同步**的纯拼接）：ADR 0006 §11 要求浏览器侧**动态 `import('exceljs')`**，把
 925.5 KB min / 251.6 KB gzip 挡在首屏主 chunk 之外；`import()` 必然返回 Promise）。
 Node 侧 ESM/CJS 互操作已实测可用：`import ExcelJS from 'exceljs'`（命名空间键只有 `default`，
 **不能** `import { Workbook } from 'exceljs'`）。
@@ -256,8 +257,9 @@ openpyxl 3.1.5 在 `data_only=False` 下读出公式文本、`data_only=True` �
 - **导出失败的条件**：文档里有任务名为空（schema 要求非空但校验只给 warning），或
   `validateDocument` 有 error 级诊断——这两种情况下**不产出字节**，
   避免"写出一份自己都读不回来的文件"；
-- **导出不含依赖环的边**：文档里有环时，前置列**省略**该边并报 `XLSX_CYCLE_EDGE_DROPPED`
-  （保证导出物可重新导入）。
+- **导出侧不做成环检测**：`XLSX_CYCLE_EDGE_DROPPED` 只在**导入**路径发射（§7.1）。
+  导出时**只跳过悬空边**（`links[].from` 指向文档里不存在的任务），该情况由
+  `validateDocument` 报出——导出不重算、也不改写文档里的环。
 
 **不导出的字段**：`id`/`parentId`/`collapsed`/`manual`/`constraints`/`baselines`/项目级字段/
 日历例外 —— 因此"项目名与日历例外不往返"是**刻意的口径**，不是缺陷：`exceptions` 的工作表表达归 v0.5
@@ -275,7 +277,7 @@ openpyxl 3.1.5 在 `data_only=False` 下读出公式文本、`data_only=True` �
 - **ExcelJS 是运行时依赖**（`dependencies`，精确钉 `4.4.0`）：升级必须重跑
   确定性（部件指纹）、日期序列号整数性、格式码解析三项证据；
 - **浏览器侧必须动态导入**（`import('exceljs')`）：`dist/exceljs.min.js` 实测
-  **925.5 KB min**（`.bare.min.js` 842 KB）、包内**无 ESM 入口**、**不可 tree-shaking**。
+  **925.5 KB min**（`.bare.min.js` 842.4 KB）、包内**无 ESM 入口**、**不可 tree-shaking**。
   本块**不设 chunk 体积门禁**（首屏预算是 G4 的指标），只**记录实测体积**；
 - **"零 DOM 依赖"不因本依赖而放宽**：铁律约束的是**我们的源码**；依赖内部存在
   `document.*`/`window.*` 探测代码，我们不调用它的 DOM 分支——这条差异在此显式记录；
@@ -295,7 +297,10 @@ openpyxl 3.1.5 在 `data_only=False` 下读出公式文本、`data_only=True` �
 
 ```ts
 function buildTemplateXlsx(document?: ProjectDocument): Promise<TemplateResult>;   // 缺省 = 演示计划
-function templateSheetNames(): readonly string[];                                  // ['任务','填写说明与约束','最小示例']
+const TEMPLATE_SHEET_TASK: string;                  // '任务'（= 规范表名）
+const TEMPLATE_SHEET_GUIDE: string;                 // '填写说明与约束'
+const TEMPLATE_SHEET_SAMPLE: string;                // '最小示例'
+const TEMPLATE_SHEET_ORDER: readonly string[];      // ['任务','填写说明与约束','最小示例']（顺序即契约）
 ```
 
 ### 11.1 结构（**冻结**）
@@ -319,7 +324,7 @@ function templateSheetNames(): readonly string[];                               
 | 门禁（`template.spec.ts`，**6 例**） | ① 页签**集合与顺序**（恰好三个）；② `任务` 页 9 列列序与表头与 `COLUMN_SPECS` 逐值一致；③ **两次生成逐字节一致**（固定时间戳）；④ **可读回**（任务数一致、**error 0**、文档校验无 error）；⑤ 说明页覆盖四类依赖与关键诊断码；⑥ **负向对照**（调换页签顺序 / 改一个表头字面必须被检出） |
 | 打包产物（`smoke:build`） | 点「模板下载」→ **文件真的落盘** → 解出三个页签 → **用应用自己的导入入口回导** ⇒ 计数合理、无"导入失败"、无应用级错误（在线与 `file://` 两种产物都跑） |
 
-**实测**：模板 **11,668 字节**；两次生成逐字节一致；回导后 **15 任务 / 14 依赖 / 0 条 error**。
+**实测**：模板 **11,673 字节**（P3/C2 订正说明页里那条严重度文案后 +5 字节）；两次生成逐字节一致；回导后 **15 任务 / 14 依赖 / 0 条 error**。
 
 > **一条影响"按 id 挑任务"的事实**：xlsx **不承载任务 id**（§三 的 9 列里没有 `id`），
 > 导入时 id 由**行序**生成 ⇒ "导出 → 再导入"之后 **id 与原来不同**（身份是 `WBS` 编号）。
@@ -344,7 +349,7 @@ function templateSheetNames(): readonly string[];                               
 | 其中 `importXlsx` | 中位 **8.8 ms** |
 | 其中 `compute` | 中位 **0.56 ms** |
 | 200 行导出物 | 14,707 字节 / **10 个部件** |
-| `exceljs` 浏览器入口 | `dist/exceljs.min.js` = **925 KB**、`exceljs.bare.min.js` = 842 KB |
+| `exceljs` 浏览器入口 | `dist/exceljs.min.js` = **925.5 KB**（947,702 字节）、`exceljs.bare.min.js` = **842.4 KB**（862,631 字节） |
 | 部件指纹确定性 | 同一文档两次导出**部件内容逐字节相同** |
 | LibreOffice 结构哨兵 | 本机 **未找到 `soffice`** ⇒ 记录"未运行"并跳过（不是通过） |
 

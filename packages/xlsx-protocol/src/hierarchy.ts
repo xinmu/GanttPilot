@@ -8,11 +8,6 @@
  */
 import type { Reporter } from './values.js';
 
-/** 段数组 → 规范编号文本。 */
-export function outlineNumberOfSegments(segments: readonly number[]): string {
-  return segments.join('.');
-}
-
 /** 规范编号：每段为十进制整数、无前导零（`0` 本身合法）、段数 ≤ 20（`MAX_OUTLINE_DEPTH`）。 */
 export function validateOutlineNumber(text: string): boolean {
   const trimmed = text.trim();

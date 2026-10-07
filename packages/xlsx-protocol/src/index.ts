@@ -58,6 +58,7 @@ export {
   DiagnosticBag,
   XLSX_DIAGNOSTIC_CODES,
   XLSX_DIAGNOSTIC_SEVERITY,
+  type ReadonlyDiagnosticBag,
   type ReportDiagnostic,
   type XlsxDiagnostic,
   type XlsxDiagnosticCode,

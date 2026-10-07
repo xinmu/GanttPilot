@@ -29,13 +29,14 @@
 import {
   hasDocumentErrors,
   validateDocument,
+  type LinkType,
   type ProjectDocument,
 } from '@ganttpilot/engine';
 import { createDemoPlanDocument } from '@ganttpilot/render-core';
 
 import { COLUMN_SPECS, HEADER_ROW, SHEET_NAME } from './columns.js';
 import { DiagnosticBag, type XlsxDiagnostic } from './diagnostics.js';
-import { exportXlsx, FIXED_DOCUMENT_AUTHOR, FIXED_DOCUMENT_TIMESTAMP } from './export.js';
+import { exportXlsx, FIXED_DOCUMENT_AUTHOR, FIXED_DOCUMENT_TIMESTAMP, formatDependencyText } from './export.js';
 
 /**
  * 模板的页签名（**唯一定义处**；[ADR 0006 附录 §1](../…/docs/02-adr/附录/0006-增补.md) 的登记值）。
@@ -102,7 +103,7 @@ export const TEMPLATE_GUIDE_LINES: readonly string[] = [
   '  · 重复依赖                → XLSX_DEPENDENCY_DUPLICATE（warning，只保留首条）',
   '  · 依赖端点是阶段汇总行    → XLSX_DEPENDENCY_SUMMARY_ENDPOINT（warning，保留但排程忽略）',
   '  · 依赖构成环              → XLSX_CYCLE_EDGE_DROPPED（warning，按确定性顺序丢弃）',
-  '  · 公式没有缓存值          → XLSX_FORMULA_WITHOUT_CACHED_VALUE（warning）',
+  '  · 公式没有缓存值          → XLSX_FORMULA_WITHOUT_CACHED_VALUE（info）',
   '',
   '【不保留的东西】导入导出不保留你原有的列顺序、样式、公式与宏；请把模板当"数据入口"，不要当模板样式。',
   '【规模】单项目承诺 ≤ 2,000 任务 / 3,000 依赖；超出会提示，但仍尽力渲染。',
@@ -116,15 +117,13 @@ export const TEMPLATE_GUIDE_LINES: readonly string[] = [
  */
 function sampleRowsOf(document: ProjectDocument): readonly (readonly string[])[] {
   const outlineOf = new Map(document.tasks.map((task) => [task.id, task.outlineNumber]));
-  const predecessorsOf = new Map<string, string[]>();
+  /** 与导出路径**同一份**依赖文本格式化（`formatDependencyText`）；不在这里另拼一份（P3/C2）。 */
+  const predecessorsOf = new Map<string, { outlineNumber: string; type: LinkType; lagDays: number }[]>();
   for (const link of document.links) {
     const from = outlineOf.get(link.from);
     if (from === undefined) continue;
-    const type = link.type === 'FS' ? '' : link.type;
-    const lag = link.lagDays === 0 ? '' : link.lagDays > 0 ? `+${String(link.lagDays)}` : String(link.lagDays);
-    const suffix = type === '' && lag === '' ? '' : `[${type}${lag}]`;
     const list = predecessorsOf.get(link.to) ?? [];
-    list.push(`${from}${suffix}`);
+    list.push({ outlineNumber: from, type: link.type, lagDays: link.lagDays });
     predecessorsOf.set(link.to, list);
   }
   const header = COLUMN_SPECS.map((spec) => spec.header);
@@ -136,7 +135,7 @@ function sampleRowsOf(document: ProjectDocument): readonly (readonly string[])[]
       task.startDate ?? '',
       task.endDate ?? '',
       task.durationDays === null ? '' : String(task.durationDays),
-      (predecessorsOf.get(task.id) ?? []).join(';'),
+      formatDependencyText(predecessorsOf.get(task.id) ?? []),
       task.progress === null ? '' : String(task.progress),
       task.milestone ? '是' : '',
       task.notes ?? '',

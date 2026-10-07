@@ -9,9 +9,10 @@
  * 3. **只判"是否日期格式"，不比对格式码文本**（WPS 会把 `yyyy-mm-dd` 转义成 `yyyy\-mm\-dd`）。
  */
 import { DiagnosticBag, type XlsxDiagnostic } from './diagnostics.js';
-import { HEADER_ROW, SHEET_NAME } from './columns.js';
+import { SHEET_NAME } from './columns.js';
 import {
   isDateFormatCode,
+  sheetViewOf,
   toUint8Array,
   type SheetCell,
   type SheetCellValue,
@@ -184,23 +185,7 @@ export async function readXlsx(input: XlsxInput, options: ReadSheetOptions): Pro
       maxColumn = Math.max(maxColumn, columnNumber);
     });
   });
-  const view: SheetView = {
-    sheetName: targetName,
-    sheetNames: names,
-    maxRow,
-    maxColumn,
-    cell: (row, column) => rows.get(row)?.get(column),
-    row: (row) => {
-      const bucket = rows.get(row);
-      if (bucket === undefined) {
-        return undefined;
-      }
-      return [...bucket.entries()].sort((a, b) => a[0] - b[0]).map(([, cell]) => cell);
-    },
-  };
+  const view = sheetViewOf({ sheetName: targetName, sheetNames: names, maxRow, maxColumn, cells: rows });
 
   return { ok: true, view };
 }
-
-/** 供测试断言：表头行的规范序号（避免测试里散落魔法数）。 */
-export const DEFAULT_HEADER_ROW = HEADER_ROW;

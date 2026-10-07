@@ -17,7 +17,7 @@ import {
   type ImportOptions,
 } from './buildDocument.js';
 import { detectColumnsInView, type ColumnDetectionResult } from './header.js';
-import type { XlsxDiagnostic } from './diagnostics.js';
+import { DiagnosticBag, type XlsxDiagnostic } from './diagnostics.js';
 import { readCsv } from './csv.js';
 import { toUint8Array, type SheetView, type XlsxInput } from './sheet.js';
 import { readXlsx } from './xlsx.js';
@@ -62,17 +62,12 @@ async function readView(
   if (isCsvBytes(bytes)) {
     // CSV 是单表：`options.sheet` 若给了名字，必须与"没有工作表"这件事一致地报错（不静默忽略）。
     if (options?.sheet !== undefined && options.sheet !== '') {
-      return {
-        ok: false,
-        diagnostics: [
-          {
-            code: 'XLSX_SHEET_NOT_FOUND',
-            severity: 'error',
-            message: `CSV 是单表文件，没有名为「${options.sheet}」的工作表`,
-            locator: { sheet: options.sheet },
-          },
-        ],
-      };
+      // 走收集器：severity 由码表决定，**不在这里手写 `severity: 'error'`**（P3/C2）。
+      const bag = new DiagnosticBag();
+      bag.add('XLSX_SHEET_NOT_FOUND', `CSV 是单表文件，没有名为「${options.sheet}」的工作表`, {
+        locator: { sheet: options.sheet },
+      });
+      return { ok: false, diagnostics: bag.items };
     }
     const csv = readCsv(bytes);
     if (!csv.ok) {

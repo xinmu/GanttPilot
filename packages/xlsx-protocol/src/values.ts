@@ -6,7 +6,7 @@
  */
 import type { ColumnKey } from './columns.js';
 import type { XlsxDiagnosticCode } from './diagnostics.js';
-import { isoFromDate, isoFromSerial, MAX_DATE_SERIAL, MIN_DATE_SERIAL, parseDateText, serialHasTime } from './dates.js';
+import { isoFromDate, isoFromParts, isoFromSerial, MAX_DATE_SERIAL, MIN_DATE_SERIAL, parseDateText, serialHasTime } from './dates.js';
 import type { SheetCell } from './sheet.js';
 
 /** 上报一条协议诊断（定位信息由调用方闭包注入）。 */
@@ -131,7 +131,8 @@ export function parseDateCell(
   if (cell.value.kind === 'text') {
     const parts = parseDateText(cell.value.text);
     if (parts !== undefined) {
-      return `${String(parts.year).padStart(4, '0')}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+      // 走 `dates.ts` 的**唯一 ISO 生产点**，不在本文件另拼一份（P3/C2）。
+      return isoFromParts(parts.year, parts.month, parts.day);
     }
     // 文本但内容是数值 → 仍按序列号解读（与"数值序列号"同容差）
     const asNumber = numericText(cell.value.text);

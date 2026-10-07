@@ -15,7 +15,7 @@ import { compute, createScheduleCalendar, hasDocumentErrors, validateDocument, t
 import { exportXlsx, NUM_FMT_DATE, NUM_FMT_PROGRESS } from './export.js';
 import { importXlsx } from './import.js';
 import { COLUMN_SPECS, HEADER_ROW, SHEET_NAME } from './columns.js';
-import { fixtureDocument, fixtureDocumentNoProjectFields, fileHash, partFingerprint, readZip } from './fixtures.spec.js';
+import { fixtureDocument, fixtureDocumentNoProjectFields, fileHash, partFingerprint, zipFileEntries } from './fixtures.spec.js';
 
 /** `Schedule` 的可比较投影（诊断顺序不在契约里 → 排序）。 */
 function scheduleProjection(document: Parameters<typeof compute>[0]): unknown {
@@ -261,8 +261,7 @@ describe('G3 导出确定性：判据取部件指纹，不得用整文件哈希'
     if (!exported.ok) {
       return;
     }
-    const zip = await readZip(exported.bytes);
-    const names = Object.keys(zip.files).filter((name) => zip.files[name]?.dir === false);
+    const names = (await zipFileEntries(exported.bytes)).map((item) => item.name);
     expect(names).toContain('xl/workbook.xml');
     expect(names).toContain('xl/worksheets/sheet1.xml');
     expect(names).toContain('xl/sharedStrings.xml');

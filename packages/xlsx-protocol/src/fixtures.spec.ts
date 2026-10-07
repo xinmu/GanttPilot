@@ -190,9 +190,40 @@ export async function writeWorkbook(spec: WorkbookSpec): Promise<Uint8Array> {
   return buffer instanceof Uint8Array ? new Uint8Array(buffer) : new Uint8Array(buffer as ArrayBuffer);
 }
 
-/** 直接操纵 zip 条目（负向对照用：按字节变造导出物）。 */
-export async function readZip(bytes: Uint8Array): Promise<JSZip> {
+/** 直接读 zip（本文件内部用；对外一律经 `zipFileEntries` / `writeZipFromText`）。 */
+async function readZip(bytes: Uint8Array): Promise<JSZip> {
   return JSZip.loadAsync(bytes);
+}
+
+/** zip 里的一个**非目录**条目。 */
+export interface ZipEntry {
+  readonly name: string;
+  readonly entry: JSZip.JSZipObject;
+}
+
+/**
+ * **遍历 zip 的非目录条目**（按条目名升序）——本包 zip 遍历的**唯一实现**（P3/C2 前散在四处：
+ * 部件指纹、负向对照的读回与重打包、部件集合用例）。
+ *
+ * 排序是刻意的：指纹要可复现，重打包要确定性；调用方不必各写一遍 `Object.keys` + 目录过滤。
+ */
+export async function zipFileEntries(bytes: Uint8Array): Promise<readonly ZipEntry[]> {
+  const zip = await readZip(bytes);
+  return Object.keys(zip.files)
+    .sort()
+    .flatMap((name) => {
+      const entry = zip.files[name];
+      return entry === undefined || entry.dir ? [] : [{ name, entry }];
+    });
+}
+
+/** 由"条目名 → 文本内容"重建一个 zip（负向对照的写回；输入顺序即写入顺序）。 */
+export async function writeZipFromText(parts: ReadonlyMap<string, string>): Promise<Uint8Array> {
+  const out = new JSZip();
+  for (const [name, content] of parts) {
+    out.file(name, content);
+  }
+  return new Uint8Array(await out.generateAsync({ type: 'uint8array' }));
 }
 
 export interface PartFingerprint {
@@ -209,14 +240,8 @@ export interface PartFingerprint {
  * 跨秒重跑整文件哈希必然不同（S2 §六.2 实测）。
  */
 export async function partFingerprint(bytes: Uint8Array): Promise<PartFingerprint> {
-  const zip = await readZip(bytes);
   const parts = new Map<string, string>();
-  const names = Object.keys(zip.files).sort();
-  for (const name of names) {
-    const entry = zip.files[name];
-    if (entry === undefined || entry.dir) {
-      continue;
-    }
+  for (const { name, entry } of await zipFileEntries(bytes)) {
     const content = await entry.async('uint8array');
     parts.set(name, createHash('sha256').update(content).digest('hex'));
   }
