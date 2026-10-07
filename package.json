@@ -11,7 +11,7 @@
   "packageManager": "pnpm@10.34.6",
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck": "tsc -p tsconfig.json && pnpm -r --if-present typecheck",
     "test": "vitest run",
     "build": "pnpm -r --if-present build",
     "gate": "node scripts/gate.mjs",

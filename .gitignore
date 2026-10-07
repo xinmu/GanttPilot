@@ -7,6 +7,13 @@ build/
 out/
 *.tsbuildinfo
 
+# 生成的 Office 工件（P3/C7-g）：xlsx 样例（`scripts/make-sample.mjs`）与 pptx（`scripts/export-pptx.mjs`）
+# 都是**可再生**的中间物，证据是它们旁边那份 `.md`。
+# 原先这里只有下面 spike 段的一句注释说"不入库"、却没有规则（注释与规则不一致本身就是缺陷）。
+# 确需入库的**手写**样例请显式 `git add -f <file>`，并在同目录留一行说明为什么它是手工资产。
+*.pptx
+*.xlsx
+
 # 包管理器缓存/日志
 .pnpm-store/
 npm-debug.log*
@@ -42,6 +49,7 @@ tmp/
 # vitest 输出
 .vitest-reports/
 
-# spike（G0-S）：原探针的安装产物与生成的 pptx 不入库（工件可再生、证据不可再生）。
+# spike（G0-S）：原探针的安装产物与生成的 pptx 不入库（工件可再生、证据不可再生）——
+# pptx 那条由上面的 `*.pptx` 规则落实（P3/C7-g 补上；此前只有这句话）。
 # P2/D9 起探针代码（src/、reference/、构建配置）已按裁决 R54 删除，结论与 evidence/ 留档；
 # 原先为它写的 `spikes/*/out/`、`spikes/*/node_modules/` 与上面的 `out/`、`node_modules/` 完全重复（已复核），故随代码一并删除。

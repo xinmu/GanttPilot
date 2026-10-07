@@ -14,11 +14,11 @@
 | Node | **24 LTS**（`engines: >=24.0.0`；`.nvmrc` 同为 24）。更新的版本实测可用，但 CI 与发布以 24 为准 |
 | 包管理器 / 系统 | pnpm（`packageManager: pnpm@10.34.6`，corepack 或全局安装均可）；Windows / macOS / Linux 均可，门禁脚本避开平台特定的可执行包装 |
 | Chrome | **必需**：`smoke:build` 用本机 Chrome 打开**打包产物**并断言界面真的渲染了；缺失即失败、不跳过（`GANTTPILOT_CHROME=<path>` 可指定） |
-| Python | **3.x 必需**：只有**差分测试**用得到（`tools/cpm-reference/`、`tools/xlsx-reference/` 的参照实现，后者需 `openpyxl==3.1.5`）。缺失即失败、不静默跳过（[P-12 依据](docs/00-baseline/裁决记录.md)） |
+| Python | **3.12**（`.python-version` 的第一行；与 CI 的 `setup-python` 同版本）。只有**差分测试**用得到（`tools/cpm-reference/`、`tools/xlsx-reference/` 的参照实现，后者需 `openpyxl==3.1.5`）。缺失即失败、不静默跳过（[P-12 依据](docs/00-baseline/裁决记录.md)）。`.python-version` **写了两行**（`3.12` + `3.14.5`，pyenv 的多版本写法）：装了 3.12 就用它（与 CI 对齐），没装则落到 3.14.5——**本机实测 3.14.5 全绿**，但那属于**已知差异**（P3/C7-j 的裁决：声明一个版本，而不是假装两边一致）。**只写单行 `3.12` 会在没装 3.12 的机器上让 `python` 直接不可用**（pyenv shim 报错 ⇒ 差分测试与门禁一起红）——这是本轮实测到的代价，别再犯 |
 
 首次准备：`pnpm install`（经 prepare 钩子设 `core.hooksPath=.husky`）→ `pnpm gate`。
 
-**无头 Chrome 的收尾**：[`scripts/chrome-harness.mjs`](scripts/chrome-harness.mjs) 的三条不变量——profile 白名单 / 不杀进程（协议级 `Browser.close` 优先，超时才按 PID 树兜底并核对命令行）/ 禁止按名字匹配 `chrome.exe`；`--user-data-dir` 只在 `tmp/`（**不入库**，已 gitignore）下取。自检 `node scripts/chrome-harness.selftest.mjs`。
+**无头 Chrome 的收尾**：[`scripts/chrome-harness.mjs`](scripts/chrome-harness.mjs) 的三条不变量——profile 白名单 / 不杀进程（协议级 `Browser.close` 优先，超时才按 PID 树兜底并核对命令行）/ 禁止按名字匹配 `chrome.exe`；`--user-data-dir` 只在 `tmp/`（**不入库**，已 gitignore）下取。回归测试是 [`scripts/chrome-harness.spec.mjs`](scripts/chrome-harness.spec.mjs)，**随 `pnpm test` 步进 `pnpm gate`**（P3/C7-f 之前它是一份独立脚本、不在门禁里；转成 spec 是为了不动门禁契约 `STEPS`，见该文件头）。
 
 ## 开发命令
 

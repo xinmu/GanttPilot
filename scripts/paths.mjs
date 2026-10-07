@@ -14,5 +14,10 @@ import { fileURLToPath } from 'node:url';
 
 export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** 仓库相对路径（统一 `/` 分隔符；供输出与 `doc-index.json` 的条目比对）。 */
+/**
+ * 仓库相对路径（统一 `/` 分隔符；供输出与 `doc-index.json` 的条目比对）。
+ *
+ * @param {string} absolute 绝对路径（本仓库内的）
+ * @returns {string} 仓库相对路径
+ */
 export const rel = (absolute) => relative(repoRoot, absolute).split(sep).join('/');

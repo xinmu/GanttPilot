@@ -16,6 +16,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { GENERATED_ARTIFACTS, chineseNumberToInt } from './doc-artifacts.mjs';
 import { rel, repoRoot } from './paths.mjs';
 
 const index = JSON.parse(readFileSync(join(repoRoot, 'docs/doc-index.json'), 'utf8'));
@@ -408,15 +409,7 @@ if (ledgerMaxRound !== null) {
   }
 }
 
-/** 中文数字（本仓库只用到「二」…「二十六」）。 */
-function chineseNumberToInt(text) {
-  const digits = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
-  if (text === '十') return 10;
-  if (/^十[一二三四五六七八九]$/.test(text)) return 10 + digits[text[1]];
-  if (/^[一二三四五六七八九]十$/.test(text)) return digits[text[0]] * 10;
-  if (/^[一二三四五六七八九]十[一二三四五六七八九]$/.test(text)) return digits[text[0]] * 10 + digits[text[2]];
-  return digits[text] ?? null;
-}
+// 中文数字 → 整数的声明处是 `doc-artifacts.mjs`（生成器与检查器同用一份，P3/C7-i）。
 
 // ── 8. 体量上限 ────────────────────────────────────────────────────────────
 
@@ -975,6 +968,40 @@ const sourceLines = evaluateSourceLines({ archived: sourceArchived, extractors: 
 for (const message of sourceLines.errors) error(message);
 for (const message of sourceLines.warnings) warn(message);
 
+// ── 8f. 生成物与来源一致（P3/C7-i；登记项 N10） ─────────────────────────────
+//
+// 为什么需要它：两份生成物此前只有生成器、没有检查——"是否与来源一致"全凭记得跑一次
+// `pnpm docs:index`。D10 实测到了代价（登记 §四.11 有全过程）：生成器先跑、索引后登记，
+// 于是 `轮次导读` 留了一行陈旧的 `R54`，而当时的检查读的是索引 ⇒ 全绿。
+//
+// 判据：**就地重算一遍，与盘上的文件逐字节比对**。渲染逻辑是纯函数（`doc-artifacts.mjs`），
+// 因此这条检查同时守住"生成器可重跑逐字节一致"这条性质。
+for (const artifact of GENERATED_ARTIFACTS) {
+  const absolute = join(repoRoot, artifact.path);
+  if (!existsSync(absolute)) {
+    error(`[生成物] ${artifact.path} 不存在（生成物必须入库：跑 \`pnpm docs:index\`）`);
+    continue;
+  }
+  if (read(absolute) !== artifact.render()) {
+    error(
+      `[生成物] ${artifact.path} 与它的来源不一致（陈旧）：跑 \`pnpm docs:index\` 重新生成，` +
+        '并把结果一起提交（生成物与来源必须同一次提交里对齐）',
+    );
+  }
+}
+// "新加生成物却忘了配渲染器"不能是静默的：索引里每个 `generated: true` 都必须在登记表里。
+{
+  const registered = new Set(GENERATED_ARTIFACTS.map((artifact) => artifact.path));
+  for (const entry of index.docs) {
+    if (entry.generated === true && !registered.has(entry.path)) {
+      error(
+        `[生成物] ${entry.path} 在 doc-index.json 里标了 \`generated: true\`，但不在 scripts/doc-artifacts.mjs 的 GENERATED_ARTIFACTS 里` +
+          '（生成物必须能被重算与比对，否则它会静默变旧）',
+      );
+    }
+  }
+}
+
 // ── 9. 策略不变量 ──────────────────────────────────────────────────────────
 
 const POLICY = [
@@ -1017,7 +1044,7 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 体量 / 分层预算与入口封闭性 / 跨层引用标记词 / 仓库外路径 / 来源行与保真 / 策略不变量。');
+console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 生成物与来源一致 / 体量 / 分层预算与入口封闭性 / 跨层引用标记词 / 仓库外路径 / 来源行与保真 / 策略不变量。');
 
 // ── 自检（反向保护的钉子：每类判定都要有"该绿就绿、该红就红"的合成用例） ──
 //

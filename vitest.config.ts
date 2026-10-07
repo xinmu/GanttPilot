@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     root: '.',
-    include: ['packages/*/src/**/*.spec.ts', 'packages/*/lint-boundary/**/*.spec.ts'],
+    include: ['packages/*/src/**/*.spec.ts', 'packages/*/lint-boundary/**/*.spec.ts', 'scripts/**/*.spec.mjs'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/coverage/**'],
     environment: 'node',
     reporters: ['default'],
@@ -36,6 +36,10 @@ export default defineConfig({
      * "**缺失即失败，不静默跳过**"就是同一种取向：宁可慢，也不要一条会自己红的判据。
      */
     maxWorkers: 2,
-    minWorkers: 1,
+    // `minWorkers` 曾经写在这里，但 **Vitest 5 的 `InlineConfig` 里没有这个键**（P3/C7-e 把
+    // 本文件纳入 tsc 程序时当场抓到：`Object literal may only specify known properties`）——
+    // 也就是说它从写下那天起就**什么也没做**，"限并行度"实际只由上面的 `maxWorkers: 2` 生效
+    // （与实测 6.8 s → 14.1 s 的读数一致）。刻意删掉而不是留着：一个不存在的键会让人
+    // 以为还有第二道限制。要"保活 worker"请用 `isolate: false` 一类的真实开关。
   },
 });
