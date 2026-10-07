@@ -8,7 +8,7 @@
 import type { DocumentDiagnostic } from '@ganttpilot/engine';
 import type { ScheduleDiagnostic } from '@ganttpilot/engine';
 
-/** 协议层诊断码（闭集，ADR 0006 §7 的 21 条）。 */
+/** 协议层诊断码（**闭集**；**条数以本表为准**，ADR 0006 §7 与文档侧不复述数字）。 */
 export type XlsxDiagnosticCode =
   // 结构 / 表头
   | 'XLSX_SHEET_NOT_FOUND'

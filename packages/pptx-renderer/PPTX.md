@@ -51,7 +51,7 @@ renderTemplateA({
 | 周末/节假日**灰度带** | 无描边 `rect` | `band-<n>` | `F4F6F8`；与 SVG 的 `view.axis` 的 `band` 同源。**画在月份正文底之上**（G8 人工复验第 ④ 条：后者整高且月段首尾相接，压在它下面就再也看不出"哪几天不上班"） |
 | **上级分段带·正文** | 无描边 `rect` | `major-band-<n>` | `FAFBFC`（**近乎白**：它整高覆盖全宽，不能与灰度带抢对比度——首版的 `EEF1F5` 与周末灰同量级，效果是"一整块浅色"）；与 `view.axis` 的 `major-band` 同源（P-46 的两级刻度，[ADR 0007 附录 §3](../../docs/02-adr/附录/0007-增补.md)）。**命名刻意与 `band-*`/`grid-*` 分开**：那是既有判据的计数锚 |
 | **上级分段的边界与表头底** | 无描边 `rect` ×2 | `major-band-<n>-edge` / `major-band-<n>-head` | `B9C0CB`（**全高**：表头带 + 绘制区，"月的边界"）与 `E4E9F0`（**表头带内**，"这是哪个月"）——同一轴元素的**另两个投影**，与正文一起逐条同源（`template.spec.ts` 断言） |
-| 下级**刻度线** | 无描边 1 px `rect` | `grid-<n>` | `E4E7EC`；**只画在表头带内的短刻度**（长度 `EXPORT_TICK_LENGTH_PX = 6` px × 适配比例，与屏幕/导出 SVG 同源；G8 人工复验第 ⑤ 条——首版是**整高**竖线，等于把刻度画进了条体区）；同源（`gridline`） |
+| 下级**刻度线** | 无描边 1 px `rect` | `grid-<n>` | `E4E7EC`；**只画在表头带内的短刻度**（长度取 `EXPORT_TICK_LENGTH_PX`（**声明处**：`render-core/src/svgExport.ts`）× 适配比例，与屏幕/导出 SVG 同源；G8 人工复验第 ⑤ 条——首版是**整高**竖线，等于把刻度画进了条体区）；同源（`gridline`） |
 | **日期刻度（两级）** | pptxgenjs 文本框 | `axis-<n>` | 9 pt `667085`，放在表头带内；文案同源（`label`）。**行序：上级（`level: 1`）在上、下级（`level` 缺省）在下**，基线 `MAJOR_LABEL_BASELINE_PX = 16` / `MINOR_LABEL_BASELINE_PX = 33` 与屏幕/导出 SVG **共用同值**（各写一个数字就是"所见 ≠ 所导出"）。行序由 **G8 人工复验第 ③ 条**订正（首版写反，报文"刻度上下反了"）；PPTX 侧的可判定形式是**上级文本框的 `y` 严格小于下级** |
 | 图例**色块/箭头** | `rect` / `diamond` / `rect`+`triangle` | `legend-swatch-<styleKey>`（+`-head`） | 与 `exportLegendItems()` 一一对应，坐标与图例文本共用 `planTemplateA().legendRows` |
 | 容器文本 | pptxgenjs `addText` | `title` / `lbl-<taskId>` / `legend-<n>` / `summary-<n>` | 名称必须全容器唯一（`buildIdMap` 会拦） |
