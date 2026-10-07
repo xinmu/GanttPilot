@@ -3,7 +3,7 @@
 > 本文件是 `@ganttpilot/pptx-renderer` 的**权威规范**（与 [`engine/SCHEDULE.md`](../engine/SCHEDULE.md)、
 > [`render-core/SPEC.md`](../render-core/SPEC.md)、[`xlsx-protocol/PROTOCOL.md`](../xlsx-protocol/PROTOCOL.md) 同构）。
 > 契约出处：[ADR 0010 导出契约](../../docs/02-adr/0010-导出契约.md)（**冻结面**）；
-> 准入实验：[S-G7 四条门禁](evidence/g7-s7-a-b-wps.md)（跨组吸附 / `custGeom` / 字节确定性 / 适配数值）；
+> 准入实验：[S-G7 四条门禁（依据）](evidence/g7-s7-a-b-wps.md)（跨组吸附 / `custGeom` / 字节确定性 / 适配数值）；
 > 前史：[S1 结论](../../spikes/g0-s1-pptx-connector/结论.md)（connector 吸附形态与 WPS 口径的原始实证）。
 
 ## 一、四条铁律
@@ -162,7 +162,7 @@ pptxgenjs（版面/母版/主题 + 文本）→ write({outputType:'uint8array'})
 | ⑦ 图面要素（P-37 增补） | `template.spec.ts` | **日期刻度**文本框数与文案 == `view.axis` 的 `label`；**灰度带/短刻度**计数同源且**绘制顺序在条形之下**（`major-band-N` < `band-N` < `grid-N` < 条形 < `cxnSp`），且**刻度线只在表头带内**（`grid-*` 的高度 < 灰度带的 1/4 —— **G8 人工复验第 ⑤ 条**：首版它与灰度带一样是整高的）；**箭头**：`triangle` 数 == FS/FF、`arrow` 数 == SS/SF，且 **`tailEnd` 合计 == 依赖线条数**（不允许"没有吸附锚点的自绘箭头"）；**图例**文案逐字取自 `exportLegendItems()`+`exportSummaryLines()`（旧手写文案不得出现）、7 类图元齐全且 `SS`/`SF` 的箭头与画布同形（两条臂）；**标签**汇总加粗、子行缩进右移、与 SVG 文本**逐字相同** | **进** |
 | ⑨ 侧栏排版（P-38 增补） | `template.spec.ts` | 图例图元的**垂直中心与文本行中心差 ≤ 1.5 px**；图元右缘到文本左缘 **≥ 8 px**；侧栏内容块与甘特内容块的**中心差 ≤ 20 px**（同基准居中） | **进** |
 | ⑩ **两级刻度同步**（G8／P-46） | `template.spec.ts` | **上级分段带**（`major-band-N`）数 == `view.axis` 的 `major-band` 数，且它的**三个投影**（绘制区正文 / 全高边界 `-edge` / 表头底 `-head`）都在（与屏幕/导出 SVG 逐条同源）；**上级标签的 `y` 严格小于下级标签的 `y`**（**大刻度在上、小刻度在下**——"两行"这件事的可判定形式，基线取自 `render-core` 的常量；行序由 **G8 人工复验第 ③ 条**订正）；日档下上级标签数**严格少于**下级（"段内只写一次"的判别力） | **进** |
-| ⑧ WPS 证据链（含返工存活） | `scripts/wps-pptx-verify.ps1`（记录制） | 打开无修复弹窗、另存后 `stCxn/endCxn` 与形状 id 集合存活、移动任务条后 connector `xfrm` 重算；**返工四类图元**在三态逐类计数一致（[addendum](evidence/template-a-demo-roundtrip-addendum.md)） | **不进**（需本机 WPS，P-9/P-17 口径） |
+| ⑧ WPS 证据链（含返工存活） | `scripts/wps-pptx-verify.ps1`（记录制） | 打开无修复弹窗、另存后 `stCxn/endCxn` 与形状 id 集合存活、移动任务条后 connector `xfrm` 重算；**返工四类图元**在三态逐类计数一致（[addendum（依据）](evidence/template-a-demo-roundtrip-addendum.md)） | **不进**（需本机 WPS，P-9/P-17 口径） |
 | ⑨ 人工复验 | 维护者按 A/B 清单走查 | 浏览器三格式导出 + WPS 真机拖动；**三轮复验全部通过**（[P-37](../../docs/00-baseline/裁决R36.md) → [P-38](../../docs/00-baseline/裁决R37.md) → [P-39](../../docs/00-baseline/裁决R38.md) **验证通过**） | **不进**（人工） |
 
 ## 八、明确不做（v0.1 内）

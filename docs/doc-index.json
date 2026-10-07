@@ -612,6 +612,146 @@
       "role": "baseline",
       "cap": "root",
       "layer": "slim"
+    },
+    {
+      "path": "apps/web/evidence/chart-align-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G5 对齐档位实测（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/chart-align-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G8 对齐档位复测（Chrome 154；表头带变高后）"
+    },
+    {
+      "path": "apps/web/evidence/chart-align-diagnostic-before-fix-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "对齐缺陷的修前诊断快照（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/drag-timing-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "拖动帧率实测（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/drag-timing-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "拖动帧率复测（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/drag-timing-dense-2000-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "2,000 任务密集口径的拖动帧率（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/import-cyclic-sample-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "成环样本导入实测（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/offline-single-file-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "离线单文件探针记录（Chrome 154；P-49 §3 的四问）"
+    },
+    {
+      "path": "apps/web/evidence/persist-drag-timing-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "持久化期间拖拽帧率（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/persist-drag-timing-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "持久化期间拖拽帧率复测（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/persist-storage-2000-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "2,000 任务存储占用（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/persist-storage-2000-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "2,000 任务存储占用复测（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/render-timing-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "首屏与 10× 滚动渲染计时（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/render-timing-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "首屏与 10× 滚动渲染计时复测（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/scroll-consumers-audit.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "scroll 敏感量消费者盘点（13 处逐条给出坐标基准；只读）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/g7-s7-a-b-wps.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "S-G7 准入实验 S7-a 跨组吸附 / S7-b custGeom（WPS 真机）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/g7-s7-c-determinism.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "S-G7 准入实验 S7-c 字节确定性（golden 前提）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/g7-s7-d-fit.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "S-G7 准入实验 S7-d 单页适配数值（回填常数与提示阈值）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/template-a-demo-roundtrip-addendum.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "模板 A 演示的往返与返工存活核实（补遗）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/template-a-demo-wps.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "模板 A 演示的 WPS 真机判定报告"
     }
   ],
   "linkCheckAllowlist": [

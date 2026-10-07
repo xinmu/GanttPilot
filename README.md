@@ -90,7 +90,7 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
   代价是体积约 **1.60 MB**（两个大库必须内联）；
   若你的浏览器策略禁止 `file://` 页面使用存储或下载，界面会**明示降级**（"本次会话不自动保存"/
   提示改用新标签页另存），**不会静默假成功**。证据见
-  [单文件探针记录](apps/web/evidence/offline-single-file-chrome154.md)；
+  [单文件探针记录（历史实测）](apps/web/evidence/offline-single-file-chrome154.md)；
 - **在线 Demo / HTTP 托管**（G8）：**本轮未做**。**远端已接入**（`origin` → GitHub），
   但**在线 Demo 尚未托管**，`.github/workflows/ci.yml` 自己也声明"尚未经过真实运行验证"；
   按 P-49 §4 的同一条口径（"CI 没跑过之前不变成对外承诺"），**不落地 Pages 部署 workflow**
@@ -99,7 +99,7 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 - **"`file://` 下打不开产物"这条历史说法的订正**（G8 实测）：外链 `<script type="module" src="…">`
   与它内部的相对 `import()` 在 `file://` 下**都能加载**；会炸的是**去掉 `type="module"` 的 classic 脚本**
   与 `data:` URL 的 module。⇒ **单文件分发的真需求是"只有一个文件"**（不需要 HTTP 服务、不需要联网），
-  而不是"CORS 逼着内联"。四组对照见 [`bundle-offline.mjs`](scripts/bundle-offline.mjs) 文件头与[单文件探针记录](apps/web/evidence/offline-single-file-chrome154.md)；
+  而不是"CORS 逼着内联"。四组对照见 [`bundle-offline.mjs`](scripts/bundle-offline.mjs) 文件头与[单文件探针记录（历史实测）](apps/web/evidence/offline-single-file-chrome154.md)；
 - **左表列宽是「导出字符宽度的归一 + 语义下限」**（G8）：`COLUMN_SPECS.width` 是**导出用**的
   字符宽度（不是像素），左表按 `max(下限, 宽度 × 6.5)` 派生像素，并作为**表头与表体唯一的**
   `grid-template-columns`。九列合计 **992 px**，因此**不做响应式收缩**——窗口更窄时左表不压缩、
@@ -118,8 +118,8 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
   **`exceljs@4.4.0` 不可 tree-shaking** ⇒ 浏览器侧**必须动态 `import()`**，不进首屏主 chunk；
 - **永不做 `.mpp`，且不承诺 MS Project 互操作**（[裁决 R-4](docs/00-baseline/裁决记录.md)）；
 - **性能与规模口径**：排程内核只在 **Node 侧**实测过（[G0-S-S3 口径](spikes/g0-s3-cpm-perf/结论.md)）；
-  **渲染侧 / 拖拽帧率**由 G4 / G5 在打包产物上定标（[渲染计时证据](apps/web/evidence/render-timing-chrome152.md)、
-  [拖动计时证据](apps/web/evidence/drag-timing-chrome152.md)，**均为记录制、不进 CI**）：
+  **渲染侧 / 拖拽帧率**由 G4 / G5 在打包产物上定标（[渲染计时证据（依据）](apps/web/evidence/render-timing-chrome152.md)、
+  [拖动计时证据（依据）](apps/web/evidence/drag-timing-chrome152.md)，**均为记录制、不进 CI**）：
   **换机器 / 换 Chrome 大版本 / headed / DPR>1 都会改变绝对值，引用时必须连口径、环境与数据集一起读**。
   1,000 任务首屏 ≤1s **已定标**，"裁剪未达标 ⇒ 规模下调到 500 任务"**未触发**；**2,000 任务压测归 v0.5**；
 - **P-43／P-44 的三条界面口径**（人工复核后的裁定，**机制与逐轮数字见** [P-43 依据](docs/00-baseline/裁决R42.md)
@@ -258,7 +258,7 @@ node scripts/offline-artifact-probe.mjs # 探针：IndexedDB / 下载 / 体积�
 代价是体积（两个大库必须内联进同一个文件），而**在线产物的首屏预算口径不变**（主 chunk 仍不含这两个库）。
 形状判据（**恰好一个文件、零外链、零 `assets/` 引用**）与 `file://` 三链路冒烟都在 `pnpm gate` 内；
 **体积、首屏与断网结论的实测数字见上文「已知限制 · 离线单文件产物」**与
-[单文件探针记录](apps/web/evidence/offline-single-file-chrome154.md)。
+[单文件探针记录（历史实测）](apps/web/evidence/offline-single-file-chrome154.md)。
 
 ## 导出（G7）
 
@@ -278,7 +278,7 @@ node scripts/offline-artifact-probe.mjs # 探针：IndexedDB / 下载 / 体积�
 - **导出是全量渲染**（不分窗口，ADR 0007 §10）；折叠隐藏的行不导出，大文档会被压到不可读（**见下方「已知限制」的 G7 ①**）；
 - **可重复生成**：`docProps` 时间字段与 zip 条目日期归一化 ⇒ 两次导出**逐字节一致**；
 - **PPTX 走动态 `import()`**：`pptxgenjs` 单独成 chunk，**不进首屏**；`smoke:build` 会**真的点三次导出**并校验落盘文件；
-- **WPS 复现**（记录制、不进 `pnpm gate`；需本机 WPS；证据见 [template-a-demo-wps](packages/pptx-renderer/evidence/template-a-demo-wps.md)）：
+- **WPS 复现**（记录制、不进 `pnpm gate`；需本机 WPS；证据见 [template-a-demo-wps（依据）](packages/pptx-renderer/evidence/template-a-demo-wps.md)）：
   `node scripts/export-pptx.mjs --zoom week` 生成产物，`pwsh -File scripts/wps-pptx-verify.ps1` 做冷开 / 另存 / 拖动取证。
   **人工复验提示**：模板 A 的任务条在真 `p:grpSp` 里，在 WPS 里要先点进 `grp-s1` 之类组才能选中。
 

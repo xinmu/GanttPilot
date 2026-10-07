@@ -1,42 +1,66 @@
-# 文档导航（从这里开始）
+# 文档导航（L0 入口 · 从这里开始）
 
-> 分层与检查规则见 [DOC-SPEC](DOC-SPEC.md)；体量上限与索引规则见 [doc-index.json](doc-index.json)；
+> **本文件是上下文注入的起点**（唯一的 L0，含 `docs/` 之外的规范与证据）。分层与检查规则见
+> [DOC-SPEC](DOC-SPEC.md)；`layer`、体量上限与索引规则见 [doc-index.json](doc-index.json)；
 > 门禁检查见 `pnpm docs:check`（`scripts/check-docs.mjs`）。权威裁决：`P-27`。
-> **本文件是文档集合的入口**（含 `docs/` 之外的规范与证据）；完整清单与体量快照见
-> [首版-文档索引](01-roadmap/首版-文档索引.md)（生成物）。
 > **「不做版本号另存」与会话交接的口径在本文与 [CONTRIBUTING](../CONTRIBUTING.md)「文档约定」**。
 
-## 想回答什么问题，就读哪一份
+## 一、注入协议（新会话先读这一节）
+
+**最小注入包 = 本入口 + 台账 + 当前规划 + 待定清单**（四份；入口 ≤ 6 KB，台账 / 当前规划 / 待定清单三份合计 ≤ 34 KB）：
+
+| # | 文档 | 它回答什么 |
+|---|---|---|
+| 1 | 本文件 [docs/README.md](README.md) | 读什么、什么顺序、什么**不读** |
+| 2 | [裁决记录](00-baseline/裁决记录.md)（台账） | 定过什么、现在还算不算 |
+| 3 | [首版能力顺序](01-roadmap/首版能力顺序.md)（当前规划） | 先做什么、怎样才算做完 |
+| 4 | [首版-待定清单](01-roadmap/首版-待定清单.md) | 还没定的事（全仓唯一） |
+
+**按需注入，不要整读**：上表之外的文档一律**按问题检索**（见第二节），只读命中的那一份，读完就停；
+**归档层永远不进注入包**。完整集合与体量快照见生成物 [首版-文档索引](01-roadmap/首版-文档索引.md)，
+「轮次 → 主题 → 条目 → 细则」的对照见生成物 [轮次导读](00-baseline/轮次导读.md)。
+
+## 二、想回答什么问题，就读哪一份
 
 | 你想知道 | 读这份 | 角色 |
 |---|---|---|
 | **定过什么、现在还算不算** | [裁决记录](00-baseline/裁决记录.md)（台账，一张条目表） | `register` |
-| 当时为什么这么定、实测数字与教训 | `裁决R*.md`（按轮次存档，台账的「细则」列指到这里） | `register` |
-| **必须怎么做、边界在哪** | [ADR](02-adr/) 与各包规范（[SCHEMA](../packages/engine/SCHEMA.md) / [COMMAND](../packages/engine/COMMAND.md) / [SCHEDULE](../packages/engine/SCHEDULE.md) / [SPEC](../packages/render-core/SPEC.md) / [PROTOCOL](../packages/xlsx-protocol/PROTOCOL.md)） | `contract` |
+| 某一轮当时怎么判的（主题与细则落点） | [轮次导读](00-baseline/轮次导读.md)（生成物） | `plan` |
+| **必须怎么做、边界在哪** | 各包规范（实现口径的唯一住所）：[SCHEMA](../packages/engine/SCHEMA.md) / [COMMAND](../packages/engine/COMMAND.md) / [SCHEDULE](../packages/engine/SCHEDULE.md) / [PERSISTENCE](../packages/engine/PERSISTENCE.md) / [SPEC](../packages/render-core/SPEC.md) / [PROTOCOL](../packages/xlsx-protocol/PROTOCOL.md) / [PPTX](../packages/pptx-renderer/PPTX.md) | `spec` |
+| 契约的形状、边界与代价（决策） | ADR 正文 `02-adr/0001…0010-*.md`（例：[0004 排程契约](02-adr/0004-排程契约.md)、[0007 渲染几何](02-adr/0007-渲染几何与裁剪契约.md)、[0010 导出契约](02-adr/0010-导出契约.md)） | `contract` |
 | **先做什么、怎样才算做完** | [首版能力顺序](01-roadmap/首版能力顺序.md)（在办与未办的块 + 延后规则 + 明确不做 + DoD） | `plan` |
-| **还没定的事** | [首版待定清单](01-roadmap/首版-待定清单.md)（全仓唯一） | `plan` |
-| 某个已收口能力块当时怎么判的、实测多少 | [首版-记录-归档 G0–G3](01-roadmap/首版-记录-归档-G0-G3.md) / [G4–G5](01-roadmap/首版-记录-归档-G4-G5.md) | `record` |
-| 某块的落地动作与逐轮返工史 | [首版-记录-G5](01-roadmap/首版-记录-G5.md)、[首版-记录-G6-G8](01-roadmap/首版-记录-G6-G8.md) | `record` |
-| ADR 的逐轮增补与落地段 | [ADR 增补](02-adr/附录/)（[0004](02-adr/附录/0004-增补.md) 性能断言 / [0006](02-adr/附录/0006-增补.md) xlsx 模板形态 / [0007](02-adr/附录/0007-增补.md) 渲染几何 / [0008](02-adr/附录/0008-增补.md) 拖拽 / [0010](02-adr/附录/0010-增补.md) 导出） | `record` |
-| 上游原文怎么写的、当时怎么评估的 | [需求基线](00-baseline/需求基线.md) / [评估报告](00-baseline/评估报告.md) / [证伪实验计划](00-baseline/证伪实验计划.md) | `baseline` |
-| 浏览器侧的测量快照 | [apps/web/evidence](../apps/web/evidence/)（记录制，不进 `pnpm gate`） | `record` |
+| **还没定的事** | [首版-待定清单](01-roadmap/首版-待定清单.md)（全仓唯一） | `plan` |
+| 软件怎么用（面向使用者） | [03-guide/](03-guide/)（导入与 Excel 准备 / 依赖列语法与排程规则 / 导出与离线单文件） | `guide` |
+| 文档集合与体量快照 | [首版-文档索引](01-roadmap/首版-文档索引.md)（生成物，逐份列全） | `plan` |
 | **v0.2 重构怎么做、做到哪了** | [v0.2 重构计划](04-refactor/README.md)（施工图，非规范；**临时物**，合流后收口） | `plan` |
 
-## 三层铁律（写新内容前先读这三条）
+> **「当时为什么这么定、实测数字与教训」有意不在上表**：答案在**归档层**——`00-baseline/裁决R*.md`
+> 的细则、`02-adr/附录/*` 的增补、`01-roadmap/首版-记录-*` 的落地记录、三份基线文档，以及
+> `apps/web/evidence/`、`packages/*/evidence/` 的原始证据。**归档物与证据不在入口里出现**：
+> 入口一旦链过去，注入时就会把历史当当前值读——它们只允许由 L1 正文以
+> 「**依据 / 细则 / 历史 / 原文口径 / 存档**」指过去，入口到它们的路只有台账的「细则」列与
+> [轮次导读](00-baseline/轮次导读.md)。
+
+## 三、三条铁律（写新内容前先读这三条）
 
 1. **同类信息只有一处权威陈述**，其他地方只写指针；
 2. **未决项只进待定清单**，台账里用 `未决` 状态指过去；
 3. **发现文件触及体量上限时，动作是拆分或迁移，不是提高上限**（提高上限要在台账追加一条裁决）。
 
-## 目录一览
+## 四、目录一览
 
 ```
 docs/
   DOC-SPEC.md                     分层规范（不收录契约内容）
-  doc-index.json                  索引 + 体量上限 + 链接白名单（唯一真相源）
-  00-baseline/                    台账 + 按轮次存档 + 三份基线文档
-  01-roadmap/                     路线图（判定） + 待定清单 + 记录层 + 文档索引
-  02-adr/                         ADR 正文（契约） + 附录/（增补与落地记录）
+  doc-index.json                  索引 + layer + 体量上限 + 链接白名单（唯一真相源）
+  00-baseline/                    台账（精简）+ 按轮次存档 + 三份基线文档（后两者＝归档层）
+  01-roadmap/                     当前规划 + 待定清单（精简）+ 记录层 + 文档索引
+  02-adr/                         ADR 正文（契约）+ 附录/（增补与落地记录＝归档层）
   03-guide/                       用户手册（面向使用者）
   04-refactor/                    v0.2 重构计划（施工图；临时物，合流后收口）
+packages/*/                       各包规范（SCHEMA / COMMAND / SCHEDULE / PERSISTENCE / SPEC / PROTOCOL / PPTX）
+apps/web/evidence/、packages/*/evidence/   记录制证据（归档层，入口不注入）
 ```
+
+> 每份文档只登记两种 `layer`：`slim`（可注入；**入口只允许引用它**）与 `archive`（历史与原始证据，
+> 只允许被 L1 以标记词引用）。判据见 [DOC-SPEC](DOC-SPEC.md) §4.4 与 §五。
