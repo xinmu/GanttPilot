@@ -101,6 +101,7 @@ export {
   rowIndexOfOrder,
   taskBounds,
   visibleRowOrder,
+  workdayCellCenterX,
   type AxisParams,
   type RowKind,
   type TaskBounds,

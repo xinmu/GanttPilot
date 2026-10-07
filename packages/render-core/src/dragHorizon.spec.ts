@@ -34,6 +34,7 @@ import { describe, expect, it } from 'vitest';
 import { compute, createScheduleCalendar, type Calendar, type ProjectDocument, type Schedule } from '@ganttpilot/engine';
 
 import { createDemoPlanDocument } from './demoPlan.js';
+import { workdayCellCenterX } from './domain.js';
 import { buildView, type ViewModel, type Viewport } from './viewModel.js';
 import { ROW_BUFFER, ROW_HEIGHT } from './manifest.js';
 import { beginGesture, ordinalAtClamped, previewDocumentFor, resolveDragOutcome, type GestureState } from './gesture/index.js';
@@ -64,11 +65,24 @@ function pipeline(): Pipeline {
   return { document, calendar, schedule: result.schedule, view };
 }
 
-/** 抓取点：条体第一个工作日格的中点（按下不动 = 零位移，与 `measure.ts` 同口径）。 */
-function grabXOf(view: ViewModel, taskId: string): { readonly grabX: number; readonly y: number; readonly xLeft: number } {
+/** 抓取点：条体第一个工作日格的中点（按下不动 = 零位移；公式住在 `domain.ts` 的 `workdayCellCenterX`）。 */
+function grabXOf(
+  view: ViewModel,
+  calendar: Calendar,
+  taskId: string,
+): { readonly grabX: number; readonly y: number; readonly xLeft: number } {
   const row = view.rows.find((item) => item.id === taskId);
   if (row === undefined) throw new Error(`${taskId} 不在渲染窗口内`);
-  return { grabX: row.xLeft + view.pxPerDay / 2, y: row.row * view.rowHeight + view.rowHeight / 2, xLeft: row.xLeft };
+  return {
+    grabX: workdayCellCenterX({
+      calendar,
+      ordinal: row.es,
+      axisOriginDay: view.axisOriginDay,
+      pxPerDay: view.pxPerDay,
+    }),
+    y: row.row * view.rowHeight + view.rowHeight / 2,
+    xLeft: row.xLeft,
+  };
 }
 
 /**
@@ -110,7 +124,7 @@ function guardAgainstOverflow(calendar: Calendar): Calendar {
 /** 把条体拖到 `dragX`，返回"松手前预览"能否建出视图（**渲染用 `renderCalendar`**）。 */
 function dragTo(taskId: string, dragX: number): { readonly candidate: number; readonly built: boolean; readonly error: string | null } {
   const { document, calendar, schedule, view } = pipeline();
-  const { grabX, y } = grabXOf(view, taskId);
+  const { grabX, y } = grabXOf(view, calendar, taskId);
   const begin = beginGesture({ view, document, schedule, calendar, pointer: { x: grabX, y, buttons: 1 }, anchorMode: 'snap' });
   if (begin.state.kind !== 'dragging') throw new Error(`按下未进入拖动：${begin.state.kind}`);
   const state: GestureState = { ...begin.state, candidate: ordinalAtClamped(view, dragX, calendar) };
@@ -139,7 +153,7 @@ function dragTo(taskId: string, dragX: number): { readonly candidate: number; re
 describe('拖动期的反算夹取（人工报障 2026-10-05）', () => {
   it('`ordinalAtClamped`：项目起点左侧一律夹到 0，不退化成"地平线的另一端"', () => {
     const { calendar, view } = pipeline();
-    const { xLeft } = grabXOf(view, 't1');
+    const { xLeft } = grabXOf(view, calendar, 't1');
     // 条体左缘**左侧一点**——正是"不再位于 `x <= 0`"的那一段（旧实现把它判成向右越界）。
     expect(ordinalAtClamped(view, xLeft - 1, calendar)).toBe(0);
     expect(ordinalAtClamped(view, xLeft - view.pxPerDay, calendar)).toBe(0);
@@ -154,7 +168,7 @@ describe('拖动期的反算夹取（人工报障 2026-10-05）', () => {
 
   it('向左拖（含远超条体的距离）：每一步都能建出视图，且候选不会跳到别处', () => {
     const { view, calendar } = pipeline();
-    const { grabX, xLeft } = grabXOf(view, 't1');
+    const { grabX, xLeft } = grabXOf(view, calendar, 't1');
     const row = view.rows.find((item) => item.id === 't1');
     const failures: string[] = [];
     for (const dragX of [xLeft - 1, xLeft - view.pxPerDay, grabX - 4 * view.pxPerDay, grabX - 40 * view.pxPerDay, -5000]) {
@@ -180,7 +194,7 @@ describe('拖动期的反算夹取（人工报障 2026-10-05）', () => {
    */
   it('向右拖远（越过入参日历容量）：必须能建出视图，且候选仍被夹在容量内', () => {
     const { calendar, view } = pipeline();
-    const { grabX } = grabXOf(view, 't1');
+    const { grabX } = grabXOf(view, calendar, 't1');
     const result = dragTo('t1', grabX + 90 * view.pxPerDay);
     expect(result.built).toBe(true);
     expect(result.error).toBeNull();

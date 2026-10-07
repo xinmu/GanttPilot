@@ -30,7 +30,7 @@
 |---|---|
 | `manifest.ts` | **常量与判据的唯一声明处**（ADR §11 七项回填值 + `evaluateScaleCriteria()` 复推） |
 | `route.ts` | 出/入边策略的可执行副本、正交折点 `routeEdge`、4 类箭头几何与可区分性度量 |
-| `domain.ts` | 行序（树序经折叠过滤）、`barXRange`、`milestoneCenterX`、`taskBounds` |
+| `domain.ts` | 行序（树序经折叠过滤）、`barXRange`、`milestoneCenterX`、**`workdayCellCenterX`（工作日格的中点 = "抓取点"的几何，ADR 0008 §13；P3/C6-a 把测量脚手架与两个 spec 里的三份实现收成这一处）**、`taskBounds` |
 | `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点。**轴元素是两级结构**（[ADR 0007 附录 §3（细则）](../../docs/02-adr/附录/0007-增补.md)／P-46）：`band` / `gridline` / `label`（下级，`level` 缺省或 2）+ **`major-band` / `label(level: 1)`（上级分段带：段内只在左端写一次、段的左边界即竖线；该 `x` 处**至多一条** `gridline`——下级刻度发过就不重复发、没发过则由上级**补发**）** + **`hover-band`（悬停行带，窗口坐标、每帧 1 个覆盖层元素）** |
 | `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges`、`isRowRendered`（该行是否在**渲染**窗口内；P3/C5-b 起是这一判据的唯一名字） |
 | `count.ts` | 元素计数（两路互证）与预算判定；G5 的 **`c₄ = perRenderedRow·rows + overlay`**（ADR 0008 §16.4；**两个系数只在 `manifest.ts` 的 `ELEMENT_MODEL_G5` 声明一次，本文件不复述数字**；`countOverlays` 只承担"每帧固定"那一半，不随文档总规模增长；`overlay` 含 P-46 的悬停行带，`hoverRowOf(view)` 是它的唯一输入来源） |
@@ -41,7 +41,7 @@
 | `interaction.ts` | **交互几何**（ADR 0008 §16.2/§16.3，**落点与可见性按 §16.7/§16.8 的人工复验返工**：建线期"指针所在行"一律显形连接点；**可见图形按 P-42 批次③ 改为圆**；**汇总条按 P-43 撤下全部交互面**）：`rowHandlesFor`（端点手柄 2×4 px + 两侧连接点，内缘贴条端、竖向居中、**圆点直径略小于条高且 ≤ 命中盒边长**）、`handleXFor`、`barHeightOf`、**`connectDiameterFor`**、`connectSideAt`（**显示区 ⊇ 命中区**）、`connectRevealFor` / `rowConnectVisibleAt`（按需显形）、`cursorForPointer`（光标枚举）、`linkEntryFor`（建线起手位置；**汇总行返回 `null`**）、`handleOffsetsFor`（记录制核对） |
 | `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
 | `affected.ts` | `affectedRenderSet`：受影响行 + 受影响边（编辑重绘的判据） |
-| `align.ts` | **两栏行对齐的判读内核**（ADR 0007 §14/§15 / [P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)、**[P-41](../../docs/00-baseline/裁决记录.md)**）：`diagnoseRowAlignment`（一次探测）+ `summarizeAlignment`（多位置汇总）+ **`diagnoseScrollCoverage`**（判"这次测量有没有横向/纵向行程"）+ **`diagnoseResizeMigration`**（判"resize 对照是否真的发生"）；判据含**轴的四边覆盖**、**滚动范围**（`content-range-mismatch`）与**覆盖度 / 迁移前提**。输入全是**视口坐标的数字**（DOM 采数在 `apps/web/src/measure.ts` 的记录制钩子里）。机制标签见 ADR §14.4 与[附录 §1（细则）](../../docs/02-adr/附录/0007-增补.md)。**P3/C5 起走内部入口**：`@ganttpilot/render-core/align`（唯一的消费方是测量脚手架，**不进包入口**——包入口是"发布承诺"面） |
+| `align.ts` | **两栏行对齐的判读内核**（ADR 0007 §14/§15 / [P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)、**[P-41](../../docs/00-baseline/裁决记录.md)**）：`diagnoseRowAlignment`（一次探测）+ `summarizeAlignment`（多位置汇总）+ **`diagnoseScrollCoverage`**（判"这次测量有没有横向/纵向行程"）+ **`diagnoseResizeMigration`**（判"resize 对照是否真的发生"）；判据含**轴的四边覆盖**、**滚动范围**（`content-range-mismatch`）与**覆盖度 / 迁移前提**。输入全是**视口坐标的数字**（DOM 采数在 `apps/web/src/measure/` 的记录制钩子里，P3/C6-a 起是目录）。机制标签见 ADR §14.4 与[附录 §1（细则）](../../docs/02-adr/附录/0007-增补.md)。**P3/C5 起走内部入口**：`@ganttpilot/render-core/align`（唯一的消费方是测量脚手架，**不进包入口**——包入口是"发布承诺"面） |
 | `fixtures.ts` | 确定性夹具生成（**规模口径**：测量 / 测试同源） |
 | `demoPlan.ts` | **演示口径的唯一定义处**（[P-34（依据）](../../docs/00-baseline/裁决R33.md)）：手写的 15 行演示计划（3 汇总 + 10 任务 + 2 里程碑、14 条依赖，四类关系齐备）；页面默认文档、重置与 G7 的导出演示/golden 都用它。与 `fixtures.ts` 的分工见该文件头部 |
 | `exportView.ts` | **导出投影与单页适配**（G7／[ADR 0010](../../docs/02-adr/0010-导出契约.md) §2/§3）：`buildExportView`（全量渲染、`contentWidth` **不被视口宽抬升**）、`fitScaleFor`（等比 + 居中）、`exportReadabilityOf` / `exportAdvisoryFor`（可读性提示的判据） |

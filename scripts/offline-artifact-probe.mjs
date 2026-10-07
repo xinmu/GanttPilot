@@ -382,7 +382,7 @@ try {
   await cdp.call('Runtime.enable');
   await cdp.call('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: downloadDir });
   /**
-   * **带 `?measure=1` 打开**：它加载测量钩子（`measure.ts`），于是
+   * **带 `?measure=1` 打开**：它加载测量钩子（`apps/web/src/measure/`），于是
    * ① `window.__GANTTPILOT_READY__` 会被置起——这是**唯一**能确认"应用挂载完成"的信号
    *    （否则只能靠"DOM 里有 SVG"猜，而那可能在视图重建的中间态上也为真）；
    * ② 探针可以顺手读回应用自己的 `ViewModel`（诊断用）。

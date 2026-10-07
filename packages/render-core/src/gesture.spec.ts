@@ -26,6 +26,7 @@ import { compute, wouldCreateCycle, type ProjectDocument, type Schedule } from '
 import { buildView, type ViewModel, type Viewport } from './viewModel.js';
 import { HIT_TOLERANCE_PX, ROW_HEIGHT, ROW_BUFFER, SPACING, ZOOM_PX_PER_DAY } from './manifest.js';
 import { buildFixture, DATASETS } from './fixtures.js';
+import { workdayCellCenterX } from './domain.js';
 import {
   barHitFor,
   beginGesture,
@@ -122,10 +123,16 @@ function rowCenterY(row: number): number {
  * 这是 P-22 批次 A 之后唯一正确的口径：候选序号是**抓取点相对**的
  * （`候选 = 原开始 + (指针序号 − 抓取点序号)`），因此"按一下不动"必须得到 `delta === 0`。
  * 取第一个工作日格的中点同时满足两件事：① 落在 `move` 判定区内（`pxPerDay/2 > DRAG_EDGE_PX`）；
- * ② 其序号恰好是 `es`。`apps/web/src/measure.ts` 的 `dragScreenPoint` 一直用的是这个点。
+ * ② 其序号恰好是 `es`。**公式只有一处**：`domain.ts` 的 `workdayCellCenterX`
+ * （P3/C6-a 之前它在这里、`dragHorizon.spec.ts` 与 `apps/web` 的测量脚手架里各有一份）。
  */
 function moveGrabX(bounds: TaskBounds): number {
-  return xForOrdinal(bounds.es) + view.pxPerDay / 2;
+  return workdayCellCenterX({
+    calendar: fixture.calendar,
+    ordinal: bounds.es,
+    axisOriginDay: view.axisOriginDay,
+    pxPerDay: view.pxPerDay,
+  });
 }
 
 function boundsIn(target: ViewModel, row: number): TaskBounds {

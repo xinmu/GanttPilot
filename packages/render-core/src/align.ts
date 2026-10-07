@@ -6,7 +6,7 @@
  * P-21 的人工复核（R6）与 P-22 的线索都指向同一类缺陷：**"图表画在哪里"与"左表画在哪里"
  * 是两处各自算出来的**，而它们之间的差只能靠肉眼发现。把它做成可判定的检查需要两半：
  *
- * - **采数**（`apps/web/src/measure.ts` 的 `__GANTTPILOT_MEASURE_ALIGN__`）：只从真实 DOM 读
+ * - **采数**（`apps/web/src/measure/` 的 `__GANTTPILOT_MEASURE_ALIGN__`）：只从真实 DOM 读
  *   `getBoundingClientRect()` 与 `clientWidth/clientHeight` —— 这一半只能在浏览器里做；
  * - **判读**（本文件）：只做减法和阈值比较 —— 这一半是纯的，因此**进 `pnpm gate`**，
  *   并且可以用**合成的故障签名**（每条机制一条）证明它真的有判别力。

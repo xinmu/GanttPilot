@@ -122,6 +122,33 @@ export function barXRange(args: {
   };
 }
 
+/**
+ * 某个工作日**格的中点** x（内容坐标）——"抓取点"的几何（ADR 0008 §13）。
+ *
+ * ```
+ * x = (dayOfOrdinal(ordinal) − axisOriginDay) · pxPerDay + pxPerDay / 2
+ * ```
+ *
+ * **为什么它必须住在包里**（P3/C6-a）：这条式子此前有**三份**——测量脚手架
+ * （`apps/web` 的 `dragScreenPoint` 与持久化探针的 `pointAt`，两处逐字相同）、
+ * `gesture.spec.ts` 的 `moveGrabX`、`dragHorizon.spec.ts` 的 `grabXOf`，
+ * 靠注释"与测量脚手架的 `dragScreenPoint` 同口径"对齐。抓取点是"候选序号相对"那条口径
+ * （`候选 = 原开始 + (指针序号 − 抓取点序号)`）的**锚**：它偏半个格，"按下不动 = 零位移"
+ * 就不成立——而判据与仪器各算一份时，这种偏移**不会被任何一道门抓住**。
+ *
+ * 与 {@link milestoneCenterX} 的关系：后者是它的特例（里程碑的菱形中心就落在 `es` 那一格的中点），
+ * 只是多一条"序号必须合法"的守卫。
+ */
+export function workdayCellCenterX(args: {
+  /** 只用到"序号 → 自然日"这一条（结构性最小面，测量侧给的就是它）。 */
+  readonly calendar: { dayOfOrdinal(ordinal: number): number };
+  readonly ordinal: number;
+  readonly axisOriginDay: number;
+  readonly pxPerDay: number;
+}): number {
+  return (args.calendar.dayOfOrdinal(args.ordinal) - args.axisOriginDay) * args.pxPerDay + args.pxPerDay / 2;
+}
+
 /** 里程碑的几何中心 x：所在工作日**格的中点**（ADR 0007 §3 的视觉约定，不改变"零时长"语义）。 */
 export function milestoneCenterX(args: {
   readonly calendar: Calendar;
@@ -133,7 +160,7 @@ export function milestoneCenterX(args: {
   if (!Number.isInteger(es) || es < 0) {
     throw new RangeError(`里程碑的序号非法：es=${String(es)}（-1 是哨兵，不可用于几何）`);
   }
-  return (calendar.dayOfOrdinal(es) + 0.5 - axisOriginDay) * pxPerDay;
+  return workdayCellCenterX({ calendar, ordinal: es, axisOriginDay, pxPerDay });
 }
 
 /** {@link taskBounds} 的入参。 */

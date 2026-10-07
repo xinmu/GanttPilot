@@ -768,7 +768,7 @@ onMounted(() => {
   if (!params.has('measure')) return;
   void (async () => {
     try {
-      const { exposeMeasurement, specOfDataset } = await import('./measure.js');
+      const { exposeMeasurement, specOfDataset } = await import('./measure/index.js');
 
       /**
        * **记录制专用的"强制收口"入口**：不等去抖窗口就把当前状态写下去。
@@ -909,7 +909,7 @@ onMounted(() => {
         },
       };
       exposeMeasurement({
-        // G6：测量用的夹具解析必须与 `measure.ts` 的 `specOfDataset` 同源——
+        // G6：测量用的夹具解析必须与 `measure/` 的 `specOfDataset` 同源——
         // 否则 `dense-2000`（2,000 任务）会静默退回主口径（**出口条件④就测错规模了**）。
         buildFixtureDocument: (key) => {
           const spec = specOfDataset(key);
