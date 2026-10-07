@@ -566,6 +566,31 @@ async function probeAxisAndHover(cdp) {
         headerTable: header('.table-header'),
         headerChart: header('.chart-header'),
         blankText: (blank === null ? '(没有第二行)' : (blank.textContent || '').trim()),
+        /**
+         * 左表的列宽与缩进（P3/C6-e：两者都改成从 render-core 派生）。
+         *
+         * 这里读的是**算出来的**东西，不是源码：表头网格的 grid-template-columns、
+         * 以及逐个可见行"名称格的内边距 ↔ 该行 WBS 编号"的对应关系。后者正是本批次的判据
+         * （缩进 = WBS 层级），因此在真实产物上再验一次接线——纯函数侧的判据在
+         * render-core/columns.spec.ts（列宽）与 engine/wbs.spec.ts（深度）。
+         * （本段注入页面执行，**不能出现反引号**：它整体在一个模板字符串里。）
+         */
+        table: (() => {
+          const headerRow = document.querySelector('.table-header .header-row');
+          const bodyRows = [...document.querySelectorAll('.table-body .row')].slice(0, 24);
+          return {
+            headerTemplate: headerRow === null ? null : getComputedStyle(headerRow).gridTemplateColumns,
+            bodyTemplate: bodyRows.length === 0 ? null : getComputedStyle(bodyRows[0]).gridTemplateColumns,
+            rows: bodyRows.map((row) => {
+              const cells = [...row.children];
+              const name = cells[1] === undefined ? null : cells[1].querySelector('span');
+              return {
+                wbs: (cells[0] === undefined ? '' : (cells[0].querySelector('span')?.textContent ?? '')).trim(),
+                indentPx: name === null ? null : Math.round(Number.parseFloat(getComputedStyle(name).paddingLeft) || 0),
+              };
+            }),
+          };
+        })(),
       });
     })()`),
   );
@@ -604,6 +629,41 @@ async function probeAxisAndHover(cdp) {
   }
   if (axis.blankText !== '') {
     problems.push(`[G8 刻度] 左表表头第二行不是留白："${String(axis.blankText)}"`);
+  }
+
+  /**
+   * 左表列宽与缩进（P3/C6-e）。
+   *
+   * `909` 是九列宽度之和的**golden**（与 `render-core/columns.spec.ts` 的断言同一个值）：
+   * 两处都写是**有意的**——spec 管纯函数，这里管"组件真的把那一串注进去了"，
+   * 而"组件忘了注入 / 注入的是另一串"正是纯函数测不到的那一半。
+   */
+  const table = axis.table;
+  const headerWidths = table.headerTemplate === null ? [] : table.headerTemplate.trim().split(/\s+/);
+  if (headerWidths.length !== 9) {
+    problems.push(`[左表列宽/缩进] 表头网格不是 9 列（${String(headerWidths.length)} 列）：${String(table.headerTemplate)}`);
+  } else {
+    const total = headerWidths.reduce((sum, width) => sum + Number.parseFloat(width), 0);
+    if (Math.round(total) !== 909) {
+      problems.push(`[左表列宽/缩进] 九列合计 ${String(Math.round(total))} px ≠ 909（列宽不再是那一条单点派生的结果）`);
+    }
+  }
+  if (table.headerTemplate !== table.bodyTemplate) {
+    problems.push(
+      `[左表列宽/缩进] 表头与表体不是同一串列宽：表头 ${String(table.headerTemplate)} / 表体 ${String(table.bodyTemplate)}`,
+    );
+  }
+  for (const row of table.rows) {
+    // 缩进的**期望值由页面上的 WBS 编号算出**（段数 − 1）——不引用文档、不引用实现。
+    const expected = row.wbs === '' ? 0 : row.wbs.split('.').length - 1;
+    if (row.indentPx !== expected * 12) {
+      problems.push(
+        `[左表列宽/缩进] 缩进与 WBS 编号不一致：WBS=${JSON.stringify(row.wbs)} 缩进 ${String(row.indentPx)} px（期望 ${String(expected * 12)} px）`,
+      );
+    }
+  }
+  if (!table.rows.some((row) => (row.indentPx ?? 0) > 0)) {
+    problems.push('[左表列宽/缩进] 没有任何一行有缩进 ⇒ 这条判据在本页没有判别力');
   }
 
   /**

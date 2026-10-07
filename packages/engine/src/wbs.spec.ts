@@ -17,6 +17,8 @@ import {
   parentOutlineNumber,
   reindexTasks,
   summaryTaskIds,
+  type TaskHierarchyInput,
+  type TaskTreeNode,
   type WbsResult,
   type WbsFailureCode,
 } from './wbs.js';
@@ -87,6 +89,67 @@ describe('G1.2 树构建与派生量', () => {
     expect(dirtyDepths.get('a')).toBe(0);
     expect(dirtyDepths.get('b')).toBe(0);
     expect(dirtyDepths.get('c')).toBe(0);
+  });
+
+  /**
+   * P3/C6-e 的**判据本身**：左表把缩进改用 `computeDepths` 之后，"缩进"与"编号/行序"
+   * （`buildTaskTree` + `computeOutlineNumbers`）必须是同一个深度口径。
+   *
+   * 这条不变量此前没人守：组件里那份实现用 `depth < 64` 截断来防环，于是
+   * ① 成环 → 深度 **64**（缩进 768 px）；② 悬空 `parentId` → 深度 **1**（当成一级子节点）。
+   * 而树/编号口径把这两种形状都按**根**处理 ⇒ 同一行上"WBS 列显示 1（根）"与
+   * "缩进 12 px（一级子节点）"互相矛盾。
+   *
+   * ③ **引擎自己那份也不自洽**（本批"先比对"时被这条不变量当场抓出）：上溯途中遇到悬空
+   * `parentId` 时，旧实现把**整个结果**归 0——于是"父 `a` 悬空、子 `b` 指向 `a`"里，
+   * 树给 `b` 深度 1、它给 0。旧注释写的是"悬空 `parentId`…按 0 处理"，读起来像指**那一个
+   * 任务**，而实现的落点是**整条链**。修法与根判定同源：悬空/自指的那个任务是根，其上溯
+   * 到此为止、**已计的跳数照算**。
+   */
+  it('computeDepths 与 buildTaskTree 的 depth 逐节点一致（含脏数据：悬空 / 自环 / 深链）', () => {
+    /** 树里可达节点的深度（环上的节点进不了树，不在这张表里）。 */
+    const reachableDepths = (tasks: readonly TaskHierarchyInput[]): ReadonlyMap<string, number> => {
+      const found = new Map<string, number>();
+      const walk = (nodes: readonly TaskTreeNode<TaskHierarchyInput>[]): void => {
+        for (const node of nodes) {
+          found.set(node.task.id, node.depth);
+          walk(node.children);
+        }
+      };
+      walk(buildTaskTree(tasks));
+      return found;
+    };
+
+    const cases: readonly (readonly TaskHierarchyInput[])[] = [
+      wbsDocument().tasks,
+      // 悬空 `parentId`：按根（0），不是一级子节点（1）；**其子树按真实层级**（见下条）
+      flat(['a', 'ghost', '1'], ['b', 'a', '1.1']),
+      // 自环：按根（0），不是 64；子树照算 ⇒ `z` = 1
+      flat(['y', 'y', '1'], ['z', 'y', '1.1'], ['w', null, '2']),
+      // 二环：整环都按根（0）；它在树里不可达（见下面的单独断言）
+      flat(['a', 'b', '1'], ['b', 'a', '2'], ['c', null, '3']),
+      // 深链：**真实深度**，不截断到 64
+      Array.from({ length: 100 }, (_, index) =>
+        task({
+          id: `d${String(index)}`,
+          parentId: index === 0 ? null : `d${String(index - 1)}`,
+          outlineNumber: '1',
+        }),
+      ),
+    ];
+
+    for (const tasks of cases) {
+      const depths = computeDepths(tasks);
+      for (const [id, depth] of reachableDepths(tasks)) {
+        expect(depths.get(id), `${id} 的缩进深度必须等于树深度`).toBe(depth);
+      }
+    }
+
+    // 深链的具体值：第 100 个是 99 级（组件旧实现会截成 64）
+    expect(computeDepths(cases[4] ?? []).get('d99')).toBe(99);
+    // 环上节点不在树里（不可达），但仍有结论：0
+    expect(reachableDepths(cases[3] ?? []).has('a')).toBe(false);
+    expect(computeDepths(cases[3] ?? []).get('a')).toBe(0);
   });
 
   it('编号工具函数：形式校验、深度、父编号', () => {

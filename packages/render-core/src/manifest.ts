@@ -88,6 +88,19 @@ export const WHEEL_NOTCH_PX = 100;
 export const HEADER_HEIGHT_PX = 40;
 
 /**
+ * **每级层级缩进（px）**——左表名称列与两个导出投影的标签**共用同一个值**（P3/C6-e）。
+ *
+ * 为什么收在这里：屏幕侧原先在 `TaskTable.vue` 的模板里写 `depth * 12`，导出侧在
+ * `exportLabels.ts` 里写 `EXPORT_LABEL_INDENT_PX = 12`——同一个视觉语言（"子节点比父节点
+ * 右移一级"）的值写了两遍，正是 P1 要拦的那一类分叉（同 `TICK_LENGTH_PX`）。
+ *
+ * 两侧的**上限不同且必须不同**：导出侧还有 {@link EXPORT_LABEL_MAX_DEPTH}（3 级封顶，
+ * 窄列不能被缩进吃光），左表侧**不封顶**（名称列 208 px，多深都画得下）——
+ * 因此共用的是"一级多少像素"，不是"最多缩几级"。
+ */
+export const INDENT_PX_PER_LEVEL = 12;
+
+/**
  * 轴的**三层视觉**颜色常量（P-46 §2.2／§3；屏幕 SVG、导出 SVG、PPTX 与左表 CSS 共用同值）。
  *
  * ## 三层各自承担什么（G8 人工复验第 ④⑥ 条的订正）

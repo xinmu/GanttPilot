@@ -28,13 +28,13 @@
 
 | 模块 | 职责 |
 |---|---|
-| `manifest.ts` | **常量与判据的唯一声明处**（ADR §11 七项回填值 + `evaluateScaleCriteria()` 复推） |
-| `route.ts` | 出/入边策略的可执行副本、正交折点 `routeEdge`、4 类箭头几何与可区分性度量 |
+| `manifest.ts` | **常量与判据的唯一声明处**（ADR §11 七项回填值 + `evaluateScaleCriteria()` 复推）；**跨投影同值的两个收口（P3/C6-e）**：`INDENT_PX_PER_LEVEL`（每级层级缩进——左表名称列与 `EXPORT_LABEL_INDENT_PX` 共用一个值，上限各自不同） |
+| `route.ts` | 出/入边策略的可执行副本、正交折点 `routeEdge`、**建线预览的竖直段 `previewStubX`（P3/C6-e；与终态路由**故意不同**：预览夹出端 stub，终态取两端 stub 的中点）**、4 类箭头几何与可区分性度量 |
 | `domain.ts` | 行序（树序经折叠过滤）、`barXRange`、`milestoneCenterX`、**`workdayCellCenterX`（工作日格的中点 = "抓取点"的几何，ADR 0008 §13；P3/C6-a 把测量脚手架与两个 spec 里的三份实现收成这一处）**、`taskBounds` |
 | `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点。**轴元素是两级结构**（[ADR 0007 附录 §3（细则）](../../docs/02-adr/附录/0007-增补.md)／P-46）：`band` / `gridline` / `label`（下级，`level` 缺省或 2）+ **`major-band` / `label(level: 1)`（上级分段带：段内只在左端写一次、段的左边界即竖线；该 `x` 处**至多一条** `gridline`——下级刻度发过就不重复发、没发过则由上级**补发**）** + **`hover-band`（悬停行带，窗口坐标、每帧 1 个覆盖层元素）** |
 | `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges`、`isRowRendered`（该行是否在**渲染**窗口内；P3/C5-b 起是这一判据的唯一名字） |
 | `count.ts` | 元素计数（两路互证）与预算判定；G5 的 **`c₄ = perRenderedRow·rows + overlay`**（ADR 0008 §16.4；**两个系数只在 `manifest.ts` 的 `ELEMENT_MODEL_G5` 声明一次，本文件不复述数字**；`countOverlays` 只承担"每帧固定"那一半，不随文档总规模增长；`overlay` 含 P-46 的悬停行带，`hoverRowOf(view)` 是它的唯一输入来源） |
-| `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出） |
+| `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出）；**左表列宽也从这里派生（P3/C6-e）**：`tableColumnWidths()` = `max(TABLE_COLUMN_MIN_PX, round(导出字符宽 × TABLE_COLUMN_CHAR_PX))`、`tableColumnTemplate()`（表头与表体共用的那一串；九列合计 **909 px**，`columns.spec.ts` 钉住逐列值与合计） |
 | `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19）；**行内编辑的基线文本与陈旧判定** `rawCellText` / `isEditStale`（P-21 批次 C 的 R5）；**提示条的迁移** `noticeAfterDispatch` / `rejectionNotice` / `StatusNotice`（P-30，唯一实现处） |
 | `gesture/` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13** + §16.3/§16.8 + **附录 §3**：连接点入口、建线四格表、**重复边预检拒绝**、**拖动期的未提交副本**）。**P3/C5-b 起是目录**（原 `gesture.ts` 1,358 行 / 11 项职责；公共面逐符号不变，模块表见 `gesture/index.ts`）：`gesture/pointer.ts`（屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、位移与候选 `deltaFor` / `candidateOrdinalFor` / `ordinalAtClamped`）、`gesture/candidates.ts`（入边约束 `entryConstraintFor`、吸附 `snapCandidate`）、`gesture/outcome.ts`（结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor`、**未提交副本 `previewDocumentFor`**）、`gesture/linking.ts`（建线与预检）、`gesture/state.ts`（状态机 `beginGesture` / `reduceGesture`、判定区 `dragModeFor`） |
 | `zones.ts` | **判定区的唯一公式**（ADR 0008 §16.1／[P-32](../../docs/00-baseline/裁决记录.md)；**行类型的例外见 [P-43（依据）](../../docs/00-baseline/裁决R42.md)**：**汇总条整条无判定区**、**里程碑整条 `move`**）：`zonesFor`（随条宽收缩）、`zoneAt` / `dragModeOfZones`、`cursorForZone`、`translateZone` / `translateZones`、**`DragMode`（语义联合的声明处，P3/C5-b 起）**，以及建线四格表 `linkTypeFor` / `linkEnterSideFor` / `exitXFor` / `enterXFor`。**单独一层**：公式的消费者在环上（`gesture/` 要语义、`interaction.ts` 要手柄与光标）。`zoneContains` 是模块内私有（P3/C5-b 撤出公共面：全仓零消费者） |

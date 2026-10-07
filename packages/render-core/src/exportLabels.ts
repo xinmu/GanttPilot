@@ -20,10 +20,16 @@
 import type { DocumentTask } from '@ganttpilot/engine';
 
 import { EXPORT_LABEL_WIDTH_PX } from './exportView.js';
-import { LABEL_CHAR_PX } from './manifest.js';
+import { INDENT_PX_PER_LEVEL, LABEL_CHAR_PX } from './manifest.js';
 
-/** 每级缩进（px）。 */
-export const EXPORT_LABEL_INDENT_PX = 12;
+/**
+ * 每级缩进（px）。
+ *
+ * **值只在 `manifest.ts` 声明一处**（`INDENT_PX_PER_LEVEL`，P3/C6-e）：左表的名称列与
+ * 两个导出投影用的是同一个"一级 12 px"；本名保留是因为它是**导出侧**的公开名
+ * （`docs/02-adr/附录/0010-增补.md` 按此名记述）。
+ */
+export const EXPORT_LABEL_INDENT_PX = INDENT_PX_PER_LEVEL;
 
 /** 最多缩进到第几级（更深的层级不再叠加缩进，避免窄列被吃光）。 */
 export const EXPORT_LABEL_MAX_DEPTH = 3;

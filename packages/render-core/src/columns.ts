@@ -126,3 +126,70 @@ export const TABLE_COLUMNS: readonly TableColumn[] = COLUMN_SPECS.map((spec) => 
   header: spec.header,
   editable: EDITABLE_COLUMNS.includes(spec.key),
 }));
+
+// ---------------------------------------------------------------- 左表列宽（屏幕几何；P3/C6-e）
+
+/**
+ * **左表的列宽归一（屏幕像素）**。
+ *
+ * ## 为什么列宽要在这里、而不是在 `TaskTable.vue`
+ *
+ * `COLUMN_SPECS.width` 是**导出用的字符宽度**（`wbs: 10`、`name: 32`），不是像素；
+ * 左表此前自己把它换算成像素并配一张下限表（P-48 的 ①②：表头排成两行、`WBS` 列被省略号吃掉，
+ * 两次都是"手写的 `grid-template-columns` 与 `COLUMN_SPECS` 已经不一致"）。
+ * 换算规则与下限表因此和**列身份**是同一件事的两面：列一变，宽与下限都要跟着变，
+ * 分居两个包就一定会漂——所以收进列契约的同一个文件。
+ *
+ * `px = max(下限, round(字符宽 × 6.5))`：6.5 px/字符 ≈ 12 px 字号的汉字宽（略宽于英文）。
+ */
+export const TABLE_COLUMN_CHAR_PX = 6.5;
+
+/**
+ * 每列的**语义下限**（px）：保的是"这一列至少能放下它自己的表头与典型内容"。
+ *
+ * | 列 | 导出宽度 | 归一 | 下限的来历 |
+ * |---|---|---|---|
+ * | `WBS` | 10 | 65 | `1.2.3` + **折叠按钮 18 px** |
+ * | `任务名称` | 32 | 208 | 名称 + 每级 12 px 的缩进（`INDENT_PX_PER_LEVEL`，`manifest.ts`） |
+ * | `开始`/`完成` | 12 | 78 | 十字符日期 |
+ * | `工期` | 8 | 56 | 三字符数字 + 右对齐内边距 |
+ * | `前置任务` | 20 | 130 | `1.3FS` / `1.3SS-2` 可直接照抄 |
+ * | `进度`/`里程碑` | 8 | 56 | 百分比 / 是·否 |
+ * | `备注` | 28 | 182 | 略窄于名称列 |
+ */
+export const TABLE_COLUMN_MIN_PX: Readonly<Record<ColumnKey, number>> = {
+  wbs: 65,
+  name: 208,
+  start: 78,
+  end: 78,
+  duration: 56,
+  predecessors: 130,
+  progress: 56,
+  milestone: 56,
+  notes: 182,
+};
+
+/** 左表逐列像素宽（与 `COLUMN_SPECS` 同序：宽与列身份永远同源）。 */
+export function tableColumnWidths(): readonly number[] {
+  return COLUMN_SPECS.map((spec) =>
+    Math.max(TABLE_COLUMN_MIN_PX[spec.key], Math.round(spec.width * TABLE_COLUMN_CHAR_PX)),
+  );
+}
+
+/**
+ * 左表的 `grid-template-columns`（表头与表体**共用**它——两栏内部对齐的前提）。
+ *
+ * 合计 **909 px**（= 下限之和：九列的下限**全都**不小于字符宽归一，故两数恒等；
+ * 见 `columns.spec.ts` 的两条断言）。`.table-pane` 是 `flex: 0 0 auto`（不拉伸），
+ * 剩余宽度全给图表 ⇒ 窗口更窄时左表不压缩（不做响应式收缩）。
+ *
+ * **P3/C6-e 订正**：此处（以及 `README`）长期写着"合计 992 px（下限之和 906 px）"，
+ * 两个数**都与实现不符**——按上面这条公式算出来是 909，且从头到尾都是 909
+ * （`af408ce` 引入该公式时的宽度表与今天逐值相同）。数字写错而无人发现，是因为
+ * 它此前只出现在散文里、没有任何断言；现在它由 `columns.spec.ts` 钉住。
+ */
+export function tableColumnTemplate(): string {
+  return tableColumnWidths()
+    .map((width) => `${String(width)}px`)
+    .join(' ');
+}

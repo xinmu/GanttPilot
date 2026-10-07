@@ -8,7 +8,8 @@
  *
  * - **手势逻辑在 `render-core`**（纯函数、进门禁）：本文件只把窗格矩形与滚动位置喂给
  *   `pointerFromClient`（屏幕坐标 → 内容坐标，ADR 0008 §13），再把 `PointerInput`
- *   交给 `useGesture`； * - **拖动期不写文档**：位置经**会话锚点**进 `compute`（`useProject` 的 `anchors`），
+ *   交给 `useGesture`；
+ * - **拖动期不写文档**：位置经**会话锚点**进 `compute`（`useProject` 的 `anchors`），
  *   松手才提交命令（一次手势 = 一层撤销，IX-03）；
  * - **冲突与成环的判据来自引擎**：`anchorConflict` 诊断 / `wouldCreateCycle` 的 `path`，
  *   本层只做样式映射（不新开诊断码、不自己判"算不算冲突"）。
@@ -48,7 +49,7 @@ import TaskTable from './components/TaskTable.vue';
 import Toolbar from './components/Toolbar.vue';
 import { useChart } from './composables/useChart.js';
 import { useExport } from './composables/useExport.js';
-import { useGesture } from './composables/useGesture.js';
+import { conflictTaskIdsOf, useGesture } from './composables/useGesture.js';
 import { usePersistence } from './composables/usePersistence.js';
 import { useProject, type DispatchResult } from './composables/useProject.js';
 import { useTemplate } from './composables/useTemplate.js';
@@ -273,12 +274,13 @@ const diagnostics = computed(() => [
   ...documentDiagnostics.value,
   ...scheduleDiagnostics.value,
 ]);
-/** `anchorConflict` 的行（**判据来自引擎**，ADR 0008 §6）——冲突标红的唯一来源。 */
-const conflictTaskIds = computed(() =>
-  scheduleDiagnostics.value
-    .filter((item) => item.code === 'anchorConflict' && item.taskId !== undefined)
-    .map((item) => item.taskId as string),
-);
+/**
+ * `anchorConflict` 的行（**判据来自引擎**，ADR 0008 §6）——冲突标红的唯一来源。
+ *
+ * 过滤器本体在 `useGesture.ts` 的 `conflictTaskIdsOf`（P3/C6-e）：它与"哪个码、哪个字段是
+ * 任务 id"这条知识绑定，散成两份就会**静默漂**（引擎改码之后不报错，只是不再标红）。
+ */
+const conflictTaskIds = computed(() => conflictTaskIdsOf(scheduleDiagnostics.value));
 
 /** 渲染窗口内的元素计数（含 G5 覆盖层；判据本体在 `render-core` 的 spec 里）。 */
 const counts = computed(() => {
@@ -688,7 +690,8 @@ async function onImportFile(file: File): Promise<void> {
     const result = await importXlsx(bytes);
     // 协议层诊断**必须留下来**（见 `importDiagnostics` 的说明）——它只在导入那一刻存在。
     importDiagnostics.value = result.diagnostics;
-    const problems = result.diagnostics.length;    if (!result.ok) {
+    const problems = result.diagnostics.length;
+    if (!result.ok) {
       show('error', `导入失败：${String(problems)} 条问题 —— 详见诊断清单`);
       return;
     }

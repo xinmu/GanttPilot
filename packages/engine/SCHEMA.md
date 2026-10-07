@@ -121,6 +121,8 @@ migrateDocument(input: unknown): unknown
 // WBS 层级
 buildTaskTree(tasks) / flattenTaskTree(roots) / summaryTaskIds(tasks)
 computeOutlineNumbers(tasks) / computeOutlineNumbersByScan(tasks) / computeDepths(tasks)
+// computeDepths：与 buildTaskTree **同一根判定**（parentId 为空/悬空/自指 ⇒ 根；长度 ≥2 的环 ⇒ 0）、
+// **不设深度上限**（上限是 MAX_OUTLINE_DEPTH 的事）；P3/C6-e 起左表的层级缩进用它，判据在 wbs.spec.ts
 reindexTasks(tasks)
 indentTask(tasks, id) / outdentTask(tasks, id) / moveTask(tasks, id, target)
 isValidOutlineNumber(value) / outlineDepth(value) / parentOutlineNumber(value)

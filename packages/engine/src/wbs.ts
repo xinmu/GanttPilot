@@ -741,7 +741,7 @@ function guardDepth<T extends TaskHierarchyInput>(
   if (moving === undefined) {
     return failureOf('WBS_TASK_NOT_FOUND', `任务不存在：${id}`);
   }
-  const ownDepth = depthOf(tasks, id);
+  const ownDepth = depthOf(indexById(tasks), id);
   if (ownDepth > MAX_OUTLINE_DEPTH) {
     return failureOf(
       'WBS_DEPTH_EXCEEDED',
@@ -788,39 +788,62 @@ function guardDepth<T extends TaskHierarchyInput>(
 }
 
 /**
- * 每个节点的深度（0 基）：沿 `parentId` 上溯逐跳计数，**非递归**。
+ * 每个节点的深度（0 基）：沿 `parentId` 上溯到**最近的根**逐跳计数，**非递归**。
  *
- * 悬空 `parentId`、自环与成环都按 0 处理（诊断由 `validateHierarchy` 给出）——
- * 这里只保证不因脏数据陷入死循环或是爆栈。
+ * **根 = `parentId` 为空 / 悬空 / 自指**——与 {@link buildTaskTree} 的根判定逐字同源
+ * （两者必须一致，否则"左表缩进"与"WBS 编号 / 行序"会各说一套）。因此：
+ *
+ * - 悬空 `parentId` 的任务**自己**是根（0），其子树按真实层级计数（不是整棵子树归 0）；
+ * - 自环的任务也是根（0），其后代同样按真实层级计数；
+ * - **成环（长度 ≥ 2）⇒ 0**：环上的节点在 `buildTaskTree` 里**不可达**（没有任何根能走到它），
+ *   树给不出深度，故取 0 作退化值；`validateHierarchy` 会为此报 `TREE_CYCLE`。
+ *
+ * **不设深度上限**：上限是 `MAX_OUTLINE_DEPTH`（由 `validateHierarchy` 判）的事，
+ * 这里给的是**真实深度**——截断会静默改变缩进（左表按本函数缩进）。
+ *
+ * 复杂度：`byId` 只建一次，逐节点上溯 O(深度) ⇒ 整体 O(任务数 × 深度)。
+ * （P3/C6-e 之前每次上溯都重建一份 `byId`：对 2,000 任务的文档是 O(n²)。）
  */
 export function computeDepths(tasks: readonly TaskHierarchyInput[]): ReadonlyMap<string, number> {
+  const byId = indexById(tasks);
   const depths = new Map<string, number>();
   for (const task of tasks) {
-    depths.set(task.id, depthOf(tasks, task.id));
+    depths.set(task.id, depthOf(byId, task.id));
   }
   return depths;
 }
 
-function depthOf(tasks: readonly TaskHierarchyInput[], id: string): number {
-  const byId = new Map(tasks.map((task) => [task.id, task]));
-  const walked = new Set<string>([id]);
+/** `id → 任务` 索引（同 id 后出现者覆盖前者，与 `new Map(tasks.map(...))` 同口径）。 */
+function indexById(tasks: readonly TaskHierarchyInput[]): Map<string, TaskHierarchyInput> {
+  const byId = new Map<string, TaskHierarchyInput>();
+  for (const task of tasks) {
+    byId.set(task.id, task);
+  }
+  return byId;
+}
+
+function depthOf(byId: ReadonlyMap<string, TaskHierarchyInput>, id: string): number {
   const start = byId.get(id);
   if (start === undefined) {
     return 0;
   }
-  let cursor = start.parentId;
+  const walked = new Set<string>();
+  let current = start;
   let depth = 0;
-  while (cursor !== null) {
-    if (walked.has(cursor)) {
-      return 0; // 自环或成环：按根处理
+  while (current.parentId !== null) {
+    if (current.parentId === current.id) {
+      break; // 自环：本节点是根
     }
-    walked.add(cursor);
-    const parent = byId.get(cursor);
+    const parent = byId.get(current.parentId);
     if (parent === undefined) {
-      return 0; // 悬空 parentId：按根处理
+      break; // 悬空 parentId：本节点是根
     }
+    if (walked.has(current.id)) {
+      return 0; // 环（长度 ≥ 2）：树里不可达
+    }
+    walked.add(current.id);
     depth += 1;
-    cursor = parent.parentId;
+    current = parent;
   }
   return depth;
 }

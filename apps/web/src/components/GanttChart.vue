@@ -39,6 +39,7 @@
 import { computed } from 'vue';
 import {
   arrowPolygons,
+  ARROW_FILL,
   AXIS_BAND_FILL,
   BAR_FILL,
   BAR_SUMMARY_FILL,
@@ -47,13 +48,13 @@ import {
   AXIS_MAJOR_EDGE,
   AXIS_MAJOR_HEADER_FILL,
   drawnBarForRow,
-  EDGE_STUB_PX,
   emptyHighlight,
   EXPORT_TICK_LENGTH_PX,
   HEADER_HEIGHT_PX,
   HOVER_ROW_FILL,
   MAJOR_LABEL_BASELINE_PX,
   MINOR_LABEL_BASELINE_PX,
+  previewStubX,
   rowHandlesFor,
   rowConnectVisibleAt,
   type AxisElement,
@@ -157,16 +158,17 @@ const conflictRows = computed<Row[]>(() => {
 /**
  * 建线预览的正交路径：出端 → 竖直段 → 入端。
  *
- * STUB 用 `EDGE_STUB_PX`（**声明处**：`render-core` 的 `manifest.ts`，与路由侧同一个值、同样
- * **不随 `pxPerDay` 缩放**）：
- * 预览只是"将从哪里连到哪里"的示意，真正的几何在提交后由 `routeEdge` 给出。
+ * 两端的 `x` 由 `render-core` 的 `linking.ts` 给出（出端用 `exitXFor`、入端用 `enterXFor`），
+ * **竖直段 x 也归 `render-core`**（`previewStubX`，P3/C6-e）——它是一条**与终态路由不同**的
+ * 规则（出端 stub 夹在两端之间；终态取两端 stub 的中点，见 `routeEdge`）。
+ * 本组件只做序列化：预览是"将从哪里连到哪里"的示意，真正的几何在提交后由 `routeEdge` 给出。
  */
 const previewPath = computed(() => {
   const preview = props.preview;
   if (preview === null) return '';
   const [ex, ey] = preview.exitPoint;
   const [nx, ny] = preview.enterPoint;
-  const midX = nx >= ex ? Math.min(ex + EDGE_STUB_PX, Math.max(ex, nx)) : Math.max(ex - EDGE_STUB_PX, Math.min(ex, nx));
+  const midX = previewStubX({ exitX: ex, enterX: nx });
   return `M${String(ex)} ${String(ey)}H${String(midX)}V${String(ny)}H${String(nx)}`;
 });
 
@@ -194,9 +196,15 @@ function pathData(points: readonly (readonly [number, number])[]): string {
   return points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${String(x)} ${String(y)}`).join('');
 }
 
-/** 箭头形态：填充由关系类型决定（`ARROW_FILL` 的口径，`render-core` 已声明）。 */
+/**
+ * 箭头形态：填充由关系类型决定，**取值来自 `render-core` 的 `ARROW_FILL`**（P3/C6-e）。
+ *
+ * 此前这里按关系重推了一遍（`SS`/`SF` ⇒ 空心、其余实心）——与 `ARROW_FILL` 逐值相同，
+ * 但"哪类关系是空心"是**导出契约的一部分**（`arrows.spec.ts` 钉住 `ARROW_FILL`），
+ * 重推一份就意味着契约改了屏幕侧不会跟着改。未登记的类型退化为实心（与 `routeSides` 同口径）。
+ */
 function arrowForm(edge: Edge): 'solid' | 'hollow' {
-  return edge.type === 'SS' || edge.type === 'SF' ? 'hollow' : 'solid';
+  return ARROW_FILL[edge.type] ?? 'solid';
 }
 
 /**
