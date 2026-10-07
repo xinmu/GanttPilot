@@ -545,9 +545,14 @@
   ],
   "linkCheckAllowlist": [
     {
-      "pathRegex": "^(docs/00-baseline/证伪实验计划\\.md|docs/00-baseline/裁决R.*\\.md|packages/render-core/src/(clipping\\.spec|manifest)\\.ts)$",
+      "pathRegex": "^(docs/00-baseline/(证伪实验计划|裁决R.*)\\.md|docs/02-adr/0007-.*\\.md|docs/02-adr/附录/.*\\.md|docs/01-roadmap/首版-记录-.*\\.md|packages/render-core/src/(clipping\\.spec|manifest)\\.ts)$",
       "targetRegex": "^(\\.\\./\\.\\./)?spikes/g0-s4-svg-clipping/",
-      "reason": "G4-S 探针目录已随 G4 落地删除（裁决 P-18）；这一族引用分布在证伪实验计划、按轮次存档与 render-core 的注释里，属存量失效，正文不改写"
+      "reason": "G4-S 探针目录已随 G4 落地删除（裁决 P-18）：引用分布在归档层（证伪实验计划、按轮次存档、ADR 0007 与其附录、记录层）与 render-core 的两处注释里，属存量失效，正文不改写。P1-d 把 pathRegex 补齐到全部 12 处（旧实现只把 targetRegex 拿去做两次 test，pathRegex 从未参与）"
+    },
+    {
+      "pathRegex": "^(docs/00-baseline/裁决R.*\\.md|docs/01-roadmap/首版-记录-.*\\.md|packages/pptx-renderer/evidence/.*\\.md)$",
+      "targetRegex": "^(\\.\\./\\.\\./)?spikes/g7-export-probe/",
+      "reason": "G7 准入探针目录已随 G7 落地删除（S-G7 的处置见裁决 R34）：3 份 pptx evidence 已在正文注明「该探针目录已随 G7 落地删除」，其余是归档层的历史引用。旧白名单里 g7-export-probe 完全没有条目（来源链断裂），P1-d 补上"
     },
     {
       "pathRegex": "^docs/00-baseline/裁决R.*\\.md$",

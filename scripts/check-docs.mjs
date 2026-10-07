@@ -116,17 +116,23 @@ for (const path of ['README.md', 'CONTRIBUTING.md']) {
   if (!indexed.has(path)) error(`[索引] 根文档未登记：${path}`);
 }
 
-/** 正文里以 `docs/…`/`spikes/…` 形式提及的仓库根相对路径也要解析（代码注释与散文里的历史引用）。 */
-const DOC_MENTION_PATTERN = /`((?:docs|packages|apps|spikes|tools|scripts)\/[A-Za-z0-9_./@\u4e00-\u9fff-]+\.md)`/g;
+/** 正文里以 `docs/…`/`spikes/…` 形式提及的仓库根相对路径也要解析（代码注释与散文里的历史引用）。
+ *  P1-d：除了 `.md` 文件，还收**目录**形态（"某探针目录已整体删除"那类引用正是来源链断裂的形态）；
+ *  已存在的路径会被跳过，所以这里放宽不会产生存量噪声。 */
+const DOC_MENTION_PATTERN = /`((?:docs|packages|apps|spikes|tools|scripts)\/[A-Za-z0-9_./@\u4e00-\u9fff-]+\.md|(?:spikes|tools|apps|docs|packages|scripts)\/[A-Za-z0-9_./@\u4e00-\u9fff-]+\/)`/g;
 
-const allowlist = new Map();
-const allowlistRegex = [];
-for (const rule of index.linkCheckAllowlist ?? []) {
-  allowlist.set(`${rule.path}\u0000${rule.target}`, rule.reason);
-  if (typeof rule.targetRegex === 'string') allowlistRegex.push(new RegExp(rule.targetRegex));
+// 白名单 = **路径正则 与 目标正则** 同时命中（P1-d 修正）。
+// 旧实现只把 `targetRegex` 拿去做两次 `test`（一次对 target、一次对 path），`pathRegex` **从未参与**，
+// 于是规则比登记的宽得多——这正是"白名单缺口被静默吞掉"的机制性原因。
+const allowRules = (index.linkCheckAllowlist ?? []).map((rule) => ({
+  pathRegex: rule.pathRegex === undefined ? /.*/ : new RegExp(rule.pathRegex),
+  targetRegex: rule.targetRegex === undefined ? /.*/ : new RegExp(rule.targetRegex),
+  reason: rule.reason ?? '',
+}));
+if (allowRules.some((rule) => rule.reason === '')) {
+  error('[白名单] linkCheckAllowlist 的每条例外都必须写 reason（没有理由的例外等于没有门禁）');
 }
-const isAllowlisted = (path, target) =>
-  allowlist.has(`${path}\u0000${target}`) || allowlistRegex.some((re) => re.test(target)) || allowlistRegex.some((re) => re.test(path));
+const isAllowlisted = (path, target) => allowRules.some((rule) => rule.pathRegex.test(path) && rule.targetRegex.test(target));
 
 // ── 2 / 3 / 7. 链接、锚点、URL 卫生 ─────────────────────────────────────────
 
@@ -198,16 +204,28 @@ for (const absolute of markdownForLinks) {
 // 裸路径提及（代码注释与散文）：只警告，不当门禁。
 // 只检查**仓库根相对**的提及（`docs/…`、`spikes/…` 一类）；包内的裸文件名（`SCHEDULE.md`、`SPEC.md`）
 // 是相对该包目录的，按包目录解析没有意义、误报率极高，故不检查。
+//
+// P1-d：扫描面从"只有代码"扩到**代码 + 全部被索引的 markdown + 目录形态**。理由是"来源链断裂"正是
+// 这样漏掉的——G7 的准入探针目录已被删除，而 3 份 pptx evidence 与若干归档文档仍把它写成生成者，
+// 旧实现因为只扫代码、且只认 `.md` 后缀而完全看不见这一类引用。判据仍是**警告**（历史引用不该阻断门禁），
+// 但"白名单缺口"因此变成可验证的：没登记的缺口会逐条出现。v0.2 临时计划目录跳过（合流后整体删除）。
 for (const absolute of [
   ...walkFiles(join(repoRoot, 'packages'), ['.ts', '.mts']),
   ...walkFiles(join(repoRoot, 'scripts'), ['.mjs', '.mts']),
   ...walkFiles(join(repoRoot, 'apps'), ['.ts', '.mts', '.vue']),
+  ...markdownForLinks.filter((file) => indexed.get(rel(file))?.budgetExempt !== true),
   join(repoRoot, 'pnpm-workspace.yaml'),
 ]) {
   if (!existsSync(absolute)) continue;
   const path = rel(absolute);
   const lines = read(absolute).split('\n');
+  let inFence = false;
   lines.forEach((line, i) => {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence;
+      return;
+    }
+    if (inFence) return;
     DOC_MENTION_PATTERN.lastIndex = 0;
     for (const match of line.matchAll(DOC_MENTION_PATTERN)) {
       const target = match[1];
@@ -215,7 +233,6 @@ for (const absolute of [
       if (existsSync(resolve(repoRoot, target))) continue;
       warn(`[提及] 路径可能失效：${path}:${i + 1} → \`${target}\``);
     }
-    void line;
   });
 }
 
