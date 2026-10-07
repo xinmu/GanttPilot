@@ -15,7 +15,7 @@
     "test": "vitest run",
     "build": "pnpm -r --if-present build",
     "gate": "node scripts/gate.mjs",
-    "docs:check": "node scripts/check-docs.mjs",
+    "docs:check": "node scripts/check-docs.mjs && node scripts/check-constants.mjs",
     "smoke:build": "node scripts/smoke-build.mjs",
     "smoke:build:file": "node scripts/smoke-build.mjs --file",
     "bundle:offline": "node scripts/bundle-offline.mjs",
