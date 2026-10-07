@@ -15,17 +15,15 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, join, resolve } from 'node:path';
+import { rel, repoRoot } from './paths.mjs';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const index = JSON.parse(readFileSync(join(repoRoot, 'docs/doc-index.json'), 'utf8'));
 
 const errors = [];
 const warnings = [];
 const error = (message) => errors.push(message);
 const warn = (message) => warnings.push(message);
-const rel = (absolute) => relative(repoRoot, absolute).split(sep).join('/');
 
 // 自检模式：只跑判定引擎的合成用例（不读仓库），见文件末尾的 selftest()
 if (process.argv.includes('--selftest')) selftest();

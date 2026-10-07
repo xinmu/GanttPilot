@@ -30,15 +30,12 @@
  *   GANTTPILOT_CHROME=<path> node scripts/measure-render.mjs
  */
 
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:http';
-import { dirname, extname, join, normalize, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { closeOwnChrome, ensureProfileDir, profileDirFor, psCommandLine } from './chrome-harness.mjs';
+import { join, resolve } from 'node:path';
+import { closeChromeSession, connectCdp, findChrome, spawnChrome, startStaticServer, waitForDevToolsPort } from './cdp.mjs';
+import { repoRoot } from './paths.mjs';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = join(repoRoot, 'apps', 'web', 'dist');
 const evidenceDir = join(repoRoot, 'apps', 'web', 'evidence');
 
@@ -150,182 +147,6 @@ function parseArgs(argv) {
     }
   }
   return options;
-}
-
-const MIME = new Map([
-  ['.html', 'text/html; charset=utf-8'],
-  ['.js', 'text/javascript; charset=utf-8'],
-  ['.mjs', 'text/javascript; charset=utf-8'],
-  ['.css', 'text/css; charset=utf-8'],
-  ['.json', 'application/json; charset=utf-8'],
-  ['.map', 'application/json; charset=utf-8'],
-  ['.svg', 'image/svg+xml'],
-  ['.png', 'image/png'],
-  ['.ico', 'image/x-icon'],
-]);
-
-/** 静态服务器（只绑 127.0.0.1、临时端口、白名单范围内的路径）。 */
-function startStaticServer(root) {
-  const server = createServer((request, response) => {
-    const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-    const relative = url.pathname === '/' ? 'index.html' : url.pathname.replace(/^\/+/, '');
-    const filePath = normalize(join(root, relative));
-    if (!filePath.startsWith(normalize(root)) || !existsSync(filePath)) {
-      response.writeHead(404, { 'content-type': 'text/plain' });
-      response.end('not found');
-      return;
-    }
-    response.writeHead(200, { 'content-type': MIME.get(extname(filePath)) ?? 'application/octet-stream' });
-    response.end(readFileSync(filePath));
-  });
-  return new Promise((resolvePromise) => {
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      const port = typeof address === 'object' && address !== null ? address.port : 0;
-      resolvePromise({ server, origin: `http://127.0.0.1:${String(port)}` });
-    });
-  });
-}
-
-/** 找 Chrome：显式环境变量优先，其次常见安装位置（找不到就抛错，**不跳过**）。 */
-function findChrome() {
-  const explicit = process.env.GANTTPILOT_CHROME;
-  if (explicit !== undefined && explicit !== '' && existsSync(explicit)) return explicit;
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-          join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-          'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-        ]
-      : process.platform === 'darwin'
-        ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
-        : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
-  for (const candidate of candidates) {
-    if (candidate !== '' && existsSync(candidate)) return candidate;
-  }
-  throw new Error('找不到 Chrome：用 GANTTPILOT_CHROME 指定可执行文件（缺失即失败，不跳过）');
-}
-
-/** 启动 Chrome 与一个 CDP 会话（`--remote-debugging-port=0` + 读 `DevToolsActivePort`）。 */
-async function launchChrome(executable) {
-  const profileDir = ensureProfileDir(profileDirFor('measure-chrome-profile'));
-  const child = spawn(
-    executable,
-    [
-      '--headless=new',
-      '--remote-debugging-port=0',
-      `--user-data-dir=${profileDir}`,
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--force-device-scale-factor=1',
-      '--window-size=1280,640',
-      'about:blank',
-    ],
-    // 受限沙箱下用管道捕获子进程输出会 EPERM：这里显式忽略 stdio。
-    { stdio: 'ignore', detached: false },
-  );
-  const portFile = join(profileDir, 'DevToolsActivePort');
-  const deadline = Date.now() + 20_000;
-  let port = 0;
-  while (Date.now() < deadline) {
-    if (existsSync(portFile)) {
-      const text = readFileSync(portFile, 'utf8').split('\n');
-      port = Number(text[0]);
-      if (port > 0) break;
-    }
-    await new Promise((settle) => setTimeout(settle, 120));
-  }
-  if (port === 0) {
-    // 起不来时的兜底也走同一道闸（协议级关闭此时通常不可用，故按 PID 树）。
-    await closeOwnChrome({ profileDir, pid: child.pid, lookup: psCommandLine, timeoutMs: 2_000 });
-    throw new Error('Chrome 未在 20 秒内写出 DevToolsActivePort');
-  }
-  return { child, port, profileDir };
-}
-
-/** 极简 CDP 客户端（内置 WebSocket；一次一个页目标）。 */
-async function connectCdp(port) {
-  let targetId = '';
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline && targetId === '') {
-    const response = await fetch(`http://127.0.0.1:${String(port)}/json/list`);
-    const targets = await response.json();
-    const page = targets.find((item) => item.type === 'page');
-    if (page !== undefined) targetId = page.webSocketDebuggerUrl;
-    else await new Promise((settle) => setTimeout(settle, 150));
-  }
-  if (targetId === '') throw new Error('未找到可用的 page 目标');
-
-  const socket = new WebSocket(targetId);
-  await new Promise((settle, reject) => {
-    socket.addEventListener('open', () => settle(), { once: true });
-    socket.addEventListener('error', () => reject(new Error('CDP WebSocket 连接失败')), { once: true });
-  });
-
-  let nextId = 1;
-  const pending = new Map();
-  const listeners = new Map();
-  socket.addEventListener('message', (event) => {
-    const message = JSON.parse(typeof event.data === 'string' ? event.data : String(event.data));
-    if (message.id !== undefined && pending.has(message.id)) {
-      const { resolve: resolvePromise, reject } = pending.get(message.id);
-      pending.delete(message.id);
-      if (message.error !== undefined) reject(new Error(`${message.error.message ?? 'CDP 错误'}`));
-      else resolvePromise(message.result);
-      return;
-    }
-    const handlers = listeners.get(message.method) ?? [];
-    for (const handler of handlers) handler(message.params);
-  });
-
-  const call = (method, params = {}) =>
-    new Promise((resolvePromise, reject) => {
-      const id = nextId++;
-      pending.set(id, { resolve: resolvePromise, reject });
-      socket.send(JSON.stringify({ id, method, params }));
-    });
-
-  /** `Runtime.evaluate`：`awaitPromise` 求值一个表达式并返回其值。 */
-  const evaluate = async (expression) => {
-    const result = await call('Runtime.evaluate', {
-      expression,
-      awaitPromise: true,
-      returnByValue: true,
-      userGesture: true,
-    });
-    if (result.exceptionDetails !== undefined) {
-      const details = result.exceptionDetails;
-      const description =
-        details.exception?.description ?? details.exception?.value ?? details.text ?? JSON.stringify(details);
-      throw new Error(`页面内异常：${String(description)}`);
-    }
-    return result.result?.value;
-  };
-
-  const on = (method, handler) => {
-    const handlers = listeners.get(method) ?? [];
-    handlers.push(handler);
-    listeners.set(method, handlers);
-  };
-
-  /** 导航并等 `Page.loadEventFired`。 */
-  const navigate = async (url) => {
-    const loaded = new Promise((settle) => on('Page.loadEventFired', () => settle()));
-    await call('Page.navigate', { url });
-    await Promise.race([loaded, new Promise((settle) => setTimeout(settle, 30_000))]);
-  };
-
-  return {
-    call,
-    evaluate,
-    navigate,
-    on,
-    close: () => socket.close(),
-  };
 }
 
 /**
@@ -1391,7 +1212,8 @@ function renderStorageMetricsEvidence({ env, run }) {
   return lines.join('\n');
 }
 
-async function main() {  const options = parseArgs(process.argv.slice(2));
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
   if (!existsSync(join(distRoot, 'index.html'))) {
     console.error('[measure] 缺少打包产物：先跑 `pnpm --filter @ganttpilot/web build`');
     process.exit(1);
@@ -1399,11 +1221,38 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
   mkdirSync(evidenceDir, { recursive: true });
 
   const { server, origin } = await startStaticServer(distRoot);
-  const executable = findChrome();
-  const { child, port, profileDir } = await launchChrome(executable);
-  const cdp = await connectCdp(port);
+  /** 起不来时的兜底也走同一道闸；`finally` 里只收尾**还活着**的那一份（见下面的置空）。 */
+  let chrome = null;
+  let cdp = null;
+  let serverClosed = false;
+  const closeServer = () => {
+    if (!serverClosed) {
+      serverClosed = true;
+      server.close();
+    }
+  };
 
   try {
+    chrome = spawnChrome(findChrome({ allowEdge: true }), {
+      profileRoot: 'measure-chrome-profile',
+      extraArgs: ['--disable-extensions', '--disable-background-networking', '--force-device-scale-factor=1'],
+      /**
+       * **不给 `--window-size`**：有效视口由下面的 `Emulation.setDeviceMetricsOverride` 固定；
+       * 原先那一行 `--window-size=1280,640` 是 G4 的残留，与证据头写的视口不一致（P3/C1 删）。
+       */
+      windowSize: null,
+    });
+    let port = 0;
+    try {
+      port = await waitForDevToolsPort(chrome.profileDir, { timeoutMs: 20_000 });
+    } catch (error) {
+      // 起不来时的兜底：2 秒预算 + 不删 profile（与抽取前的行为一致），然后把句柄置空避免二次收尾。
+      await closeChromeSession({ profileDir: chrome.profileDir, pid: chrome.child.pid, timeoutMs: 2_000 });
+      chrome = null;
+      throw error;
+    }
+    cdp = await connectCdp(port);
+
     await cdp.call('Page.enable');
     await cdp.call('Runtime.enable');
     /**
@@ -1412,7 +1261,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
      * 为什么必须显式覆盖：测量的是**打包产物**，而图表窗格的高度取决于真实窗口尺寸；
      * 不固定的话"可见行数"会随窗口变化，元素预算与首屏数字就无法复现、也无法跨机器比较。
      * 取 `BASE_VIEWPORT`（1280×800）：理由与迁移轮的起点口径见该常量的注释。
-     * 窗格真实的 `clientWidth/clientHeight` 会随结果一起登记（不假定它等于 1280×640）。
+     * 窗格真实的 `clientWidth/clientHeight` 会随结果一起登记（不假定它等于 `BASE_VIEWPORT`）。
      */
     await cdp.call('Emulation.setDeviceMetricsOverride', {
       ...BASE_VIEWPORT,
@@ -1874,7 +1723,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
       Chrome: chromeVersion,
       'Chrome 模式': '--headless=new',
       DPR: 1,
-      视口: '1280×640',
+      视口: `${String(BASE_VIEWPORT.width)}×${String(BASE_VIEWPORT.height)}`,
       档位: options.zooms.join(' / '),
       数据集: plans.map((plan) => plan.dataset).join(' / '),
       轮数: options.rounds,
@@ -1893,13 +1742,17 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
       process.exitCode = 1;
     }
   } finally {
-    cdp.close();
+    cdp?.close();
     // 收尾：协议级 `Browser.close` 优先，超时才按 PID 树；两条路都先过 profile 闸
     // （不杀进程、不按名字匹配——见 `scripts/chrome-harness.mjs`）。
-    const outcome = await closeOwnChrome({ profileDir, pid: child.pid, lookup: psCommandLine });
+    // **不删 profile 目录**：`tmp/` 的清理策略属 C7，本批保持原行为。
+    const outcome = await closeChromeSession({
+      profileDir: chrome?.profileDir ?? null,
+      pid: chrome?.child.pid,
+    });
     if (outcome.closedBy === 'pid-tree') console.error('[measure] 协议级关闭未生效，已按 PID 树兜底');
     if (outcome.note !== '') console.error(`[measure] 收尾说明：${outcome.note}`);
-    server.close();
+    closeServer();
   }
 }
 

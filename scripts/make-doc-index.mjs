@@ -9,12 +9,10 @@
  */
 
 import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import { rel, repoRoot } from './paths.mjs';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const index = JSON.parse(readFileSync(join(repoRoot, 'docs/doc-index.json'), 'utf8'));
-const rel = (absolute) => relative(repoRoot, absolute).split(sep).join('/');
 
 const ROWS = [];
 let totalKb = 0;

@@ -136,7 +136,8 @@ export default [
         __filename: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
-        // `scripts/measure-render.mjs` 用 Node 内置能力驱动本机 Chrome（零新增依赖，P-17）：
+        // `scripts/cdp.mjs` 用 Node 内置能力驱动本机 Chrome（零新增依赖，P-17；
+        // P3/C1 起这层公共实现收在这一个文件里，原先是三个脚本各写一遍）：
         // `fetch` 取 CDP 的 `/json/list`，内置 `WebSocket` 走 CDP 协议。
         fetch: 'readonly',
         WebSocket: 'readonly',

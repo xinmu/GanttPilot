@@ -24,10 +24,12 @@
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { isAbsolute, join, relative, resolve } from 'node:path';
+import { repoRoot } from './paths.mjs';
 
-export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// 单点声明在 `paths.mjs`（P3/C1：原先这里与 11 个脚本各写一遍）；这里原样再导出，
+// 保持本文件既有的公开面（`chrome-harness.selftest.mjs` 从这里取 repoRoot）。
+export { repoRoot };
 
 /** `tmp/` 下允许被用于无头 Chrome 的 profile 根（**白名单**：不是任意目录）。 */
 export const PROFILE_ROOT_NAMES = [

@@ -20,11 +20,8 @@
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { dirname, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const rel = (absolute) => relative(repoRoot, absolute).split(sep).join('/');
+import { join } from 'node:path';
+import { rel, repoRoot } from './paths.mjs';
 
 /** 目录级排除（与 `.gitignore` 的语义一致，但本脚本不读 .gitignore）。 */
 const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'dist-offline', 'build', 'out', 'tmp', '.git', 'coverage', '.husky']);
