@@ -657,7 +657,9 @@ export function evaluateCrossLayer({ links, markers, allow = [], maxRound, round
 //   ⇒ **警告**。可再生的构建产物（`dist/` / `node_modules/` / `out/`）**不在判定内**：文档里引用它们
 //   是正常口径（有再生命令），而 `tmp/` 是维护者本机的草稿，读者照做必然复现不出来。
 // - 判定面之外的文档（记录层 / 证据 / spike）**不判错**：那里的本机路径是"当时的机器事实"，
-//   记录制证据按先例不改写（`P-41 §9(a)` / `P-44 §9(a)`）⇒ 只聚合成**一条存量警告**（执行落 C8 / D9）；
+//   记录制证据按先例不改写（`P-41 §9(a)` / `P-44 §9(a)`）⇒ 只聚合成**一条存量警告**；
+//   **存量不是靠无视警告收口的**：C8-c 把当时那 4 份 / 6 处**逐条登记进 `allow`**（每条 kind + reason，
+//   命中面按行收窄）——于是"永久噪声"变成"逐条可复核的例外"，而警告再次出现就说明**有新实例**；
 // - 例外表 `externalPathCheck.allow`：每条必须带 `kind`（环境观测 | 来源元信息 | 产物说明 | 规范示例）与 `reason`。
 
 /** `.gitignore` 的最小匹配器（本仓库只有根 `.gitignore`；嵌套 `.gitignore` 不在判定内）。
@@ -744,7 +746,8 @@ export function evaluateExternalPaths({ hits, markers = [], allow = [] }) {
       .join('、');
     warnings.push(
       `[外部路径] 归档 / 证据层有 ${String(archived.size)} 份文档含本机绝对路径（共 ${String(total)} 处）：${names}` +
-        `${archived.size > 4 ? ' 等' : ''}——记录制证据按先例不改写（P-41 §9(a)）：落在 spike 记录的由 P2/D9 留档、不改写，其余落 C8（证据卫生）`,
+        `${archived.size > 4 ? ' 等' : ''}——记录制证据按先例不改写（P-41 §9(a)），改法是**逐条登记进 \`externalPathCheck.allow\`**` +
+        '（每条 kind + reason，命中面尽量按行收窄）；C8-c 已把当时的 4 份 / 6 处存量登记完毕 ⇒ 这里再次出现说明**有新实例**',
     );
   }
   const ignored = hits.filter((hit) => hit.kind === 'temporary' && hit.scope === 'reproducible' && hit.declared !== true && !isAllowed(hit));
@@ -1272,7 +1275,19 @@ function selftest() {
       ],
       markers: extMarkers,
     }),
-    expect: (r) => r.errors.length === 0 && r.warnings.length === 1 && r.warnings[0].includes('2 份文档') && r.warnings[0].includes('C8'),
+    expect: (r) => r.errors.length === 0 && r.warnings.length === 1 && r.warnings[0].includes('2 份文档') && r.warnings[0].includes('externalPathCheck.allow'),
+  });
+  cases.push({
+    name: '归档 / 证据层的存量走例外表收口：命中面按行收窄，同一文件的别的行仍会警告（C8-c）',
+    result: evaluateExternalPaths({
+      hits: [
+        { path: 'apps/web/evidence/e.md', line: 26, kind: 'absolute', scope: 'archive', text: 'D:\\w\\tmp\\a.xlsx', lineText: '| 路径 | `D:\\w\\tmp\\a.xlsx` |' },
+        { path: 'apps/web/evidence/e.md', line: 40, kind: 'absolute', scope: 'archive', text: 'C:\\other\\b.xlsx', lineText: '另一处新写的本机路径' },
+      ],
+      markers: extMarkers,
+      allow: [{ path: 'apps/web/evidence/e.md', lineRegex: 'tmp', kind: '环境观测', reason: '采集时的输入路径' }],
+    }),
+    expect: (r) => r.errors.length === 0 && r.warnings.length === 1 && r.warnings[0].includes('1 份文档') && r.warnings[0].includes('e.md'),
   });
   cases.push({
     name: 'gitignore 的临时路径引用缺声明词判警告、带声明词通过',
