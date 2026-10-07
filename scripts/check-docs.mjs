@@ -753,7 +753,7 @@ export function evaluateExternalPaths({ hits, markers = [], allow = [] }) {
       .join('、');
     warnings.push(
       `[外部路径] 归档 / 证据层有 ${String(archived.size)} 份文档含本机绝对路径（共 ${String(total)} 处）：${names}` +
-        `${archived.size > 4 ? ' 等' : ''}——记录制证据按先例不改写（P-41 §9(a)），执行落 C8（证据卫生）与 D9（spike 批次）`,
+        `${archived.size > 4 ? ' 等' : ''}——记录制证据按先例不改写（P-41 §9(a)）：落在 spike 记录的由 P2/D9 留档、不改写，其余落 C8（证据卫生）`,
     );
   }
   const ignored = hits.filter((hit) => hit.kind === 'temporary' && hit.scope === 'reproducible' && hit.declared !== true && !isAllowed(hit));

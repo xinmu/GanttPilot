@@ -4,7 +4,7 @@
 > [`render-core/SPEC.md`](../render-core/SPEC.md)、[`xlsx-protocol/PROTOCOL.md`](../xlsx-protocol/PROTOCOL.md) 同构）。
 > 契约出处：[ADR 0010 导出契约](../../docs/02-adr/0010-导出契约.md)（**冻结面**）；
 > 准入实验：[S-G7 四条门禁（依据）](evidence/g7-s7-a-b-wps.md)（跨组吸附 / `custGeom` / 字节确定性 / 适配数值）；
-> 前史：[S1 结论](../../spikes/g0-s1-pptx-connector/结论.md)（connector 吸附形态与 WPS 口径的原始实证）。
+> 前史：[S1 结论（历史实测）](../../spikes/g0-s1-pptx-connector/结论.md)（connector 吸附形态与 WPS 口径的原始实证）。
 
 ## 一、四条铁律
 
@@ -102,7 +102,7 @@ renderTemplateA({
 
 - 容器元素是 `p:nvCxnSpPr > p:cNvCxnSpPr`，其子元素是 **`a:stCxn` / `a:endCxn`**；
 - `roundRect`/`rect`/`diamond` 的连接点序列：**0=上 1=左 2=下 3=右**
-  （`idx_OOXML = COM − 1`；四站点已实测，见 [S1 结论 §二.2](../../spikes/g0-s1-pptx-connector/结论.md)）；
+  （`idx_OOXML = COM − 1`；四站点已实测，见 [S1 结论 §二.2（历史实测）](../../spikes/g0-s1-pptx-connector/结论.md)）；
 - **不写 `<a:cxnSpLocks/>`**（WPS 原生产物也不写）；
 - `bentConnector3` 的走线由渲染引擎按两端站点与形状位置计算；**我们在幻灯片上的几何承诺是"端点落在条边上"**
   （与屏幕/SVG 同源的那两个点），不是"折线与 SVG 的折点逐点相同"。

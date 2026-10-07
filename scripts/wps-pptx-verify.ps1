@@ -18,8 +18,9 @@
     ⑥ 用 COM 移动一个任务条，再导出 PNG、再另存，比较该形状相关 connector 的 `xfrm` ⇒ 端点跟随；
     ⑦ 写 Markdown 报告（LF 换行）与 XML/PNG 证据。
 
-  本脚本**不复制** S1 的 COM 工具实现，只 dot-source 复用：
-  `spikes/g0-s1-pptx-connector/src/wps-common.ps1`。
+  COM 工具实现**不在本文件里**：本脚本 dot-source 同目录的 `scripts/wps-com.ps1`
+  （原为 S1 探针的 `wps-common.ps1`；P2/D9 **逐字迁入** `scripts/`，动机与出处见该文件头）。
+  迁移动机是一条方向性约束：受维护的脚本不能反向依赖一个"结论已收口、随时可删"的探针目录。
 
   环境说明（必读）：本机 WPS 的 COM 自报 `Name = "Microsoft PowerPoint"`、`Version = "12.0"`，
   这是**伪装字符串**——绝不能当作"用 Microsoft PowerPoint 验证过"的证据。
@@ -47,9 +48,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# dot-source 复用 S1 的 COM 工具（New/Open/Export/Save/Export-PptxEntry/Get-AnchorStats/Write-LfText…）。
+# dot-source 同目录的 COM 工具底座（New/Open/Export/Save/Export-PptxEntry/Get-AnchorStats/Write-LfText…）。
 $repoRoot = Split-Path -Parent $PSScriptRoot
-. (Join-Path $repoRoot 'spikes/g0-s1-pptx-connector/src/wps-common.ps1')
+. (Join-Path $PSScriptRoot 'wps-com.ps1')
 
 $pptxPath = if ([System.IO.Path]::IsPathRooted($Pptx)) { $Pptx } else { Join-Path $repoRoot $Pptx }
 if (-not (Test-Path $pptxPath)) {
@@ -146,7 +147,7 @@ function Get-PptxEntryNames {
 
 # **递归**按名取形状（先顶层，再进 `GroupItems`）。
 #
-# 为什么不能直接用 S1 的 `Get-WpsShapeByName`：它只扫**顶层** `Slide.Shapes`，
+# 为什么不能直接用 `wps-com.ps1` 的 `Get-WpsShapeByName`：它只扫**顶层** `Slide.Shapes`，
 # 而本件的一级组（`grp-s*`）是真的 `p:grpSp`——任务条/进度条都在组**内**。
 # 实测：顶层 `Shapes.Count = 44`（28 个文本框 + 3 个组 + 14 条 connector），
 # `bar-t1` 在 `grp-s1.GroupItems` 里；因此顶层扫描必然找不到 `bar-*`。

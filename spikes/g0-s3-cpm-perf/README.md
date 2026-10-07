@@ -1,10 +1,19 @@
 # spike：G0-S-S3 · CPM 性能定标与拖拽 DoD 边界
 
-> **这是 spike 代码，不属于产品主干。** 结论见 [结论.md](结论.md)。
+> **这是 spike 留档，不属于产品主干、也不进任何注入包。** 结论见 [结论.md](结论.md)。
 >
 > 铁律（[证伪实验计划](../../docs/00-baseline/证伪实验计划.md)）：**spike 代码不进主干**。
 > 本目录只交付「性能定标 + 可行性约束」；排程内核的产品实现（含单测）在能力块 **G2** 由
-> `@ganttpilot/engine` 重新实现，届时**本目录应整体删除**。
+> `@ganttpilot/engine` 重新实现。
+>
+> **处置（P2/D9）**：S3 的处置原被 [裁决 R13-15](../../docs/00-baseline/裁决R13-15.md) 延到"留待 G8 一并定"，
+> G8 与 `v0.1.0` 均已发布 ⇒ 按 DOC-SPEC §4.5 执行**一半**：**探针代码已删除**
+> （`src/`、`reference/` 与 `package.json` / `tsconfig.json` / `pnpm-lock.yaml`）；
+> **本文、`结论.md` 与 `evidence/` 留档**（后者是**不可再生的外部工具观测**：两个 Node 版本的原始计时
+> 与差分报告，登记为归档层）。因此下文所有"如何运行本 spike"的步骤**已不可执行**，保留原文只为留痕；
+> 受维护的替代是差分参照实现 [`tools/cpm-reference/cpm_reference.py`](../../tools/cpm-reference/cpm_reference.py)
+> （同口径、后续演进版）与 `packages/engine` 的 spec（随机图生成器 mulberry32 已移植进
+> `scheduleFixtures.spec.ts`）。
 
 ## 这个 spike 回答什么
 

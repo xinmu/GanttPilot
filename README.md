@@ -73,7 +73,7 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
 - **WPS**：兼容性结论以真机测试为准，未经证据支持的承诺不下发；
 - **xlsx**：导入导出以**自有 schema 规范化**为准，**不保留用户原有的列顺序、样式、公式与宏**；
   **公式只读缓存值**（没算过的按"值缺失"处理并给提示）；**往返以 WPS 表格为准**（「仅保存」与「编辑后保存」
-  两种均已实测通过，见 [G0-S-S2 结论](spikes/g0-s2-xlsx-roundtrip/结论.md)），**Excel 与 Google Sheets 未验证**；
+  两种均已实测通过，见 [G0-S-S2 结论（历史实测）](spikes/g0-s2-xlsx-roundtrip/结论.md)），**Excel 与 Google Sheets 未验证**；
 - **PPTX**：图形为原生形状（永不为位图）；connector 异常时降级为折线形状。
 - **持久化只保证"恢复到不早于最近检查点"**（G6）：浏览器杀进程不触发 `beforeunload`，
   因此活下来的是**最后一次已完成的写入**（自动保存的去抖上限是 5 s，丢失窗口 ≈ 一个写入周期）——
@@ -117,7 +117,7 @@ Excel 太平面、MS Project 太重、汇报出口只能截图——本项目要
   （Excel 的序列号语义就是"本地墙钟"）；**`.xls`(BIFF) 不支持**；**CSV 导入尽力而为、导出不在 v0.1 范围**；
   **`exceljs@4.4.0` 不可 tree-shaking** ⇒ 浏览器侧**必须动态 `import()`**，不进首屏主 chunk；
 - **永不做 `.mpp`，且不承诺 MS Project 互操作**（[裁决 R-4](docs/00-baseline/裁决记录.md)）；
-- **性能与规模口径**：排程内核只在 **Node 侧**实测过（[G0-S-S3 口径](spikes/g0-s3-cpm-perf/结论.md)）；
+- **性能与规模口径**：排程内核只在 **Node 侧**实测过（[G0-S-S3 口径（历史实测）](spikes/g0-s3-cpm-perf/结论.md)）；
   **渲染侧 / 拖拽帧率**由 G4 / G5 在打包产物上定标（[渲染计时证据（依据）](apps/web/evidence/render-timing-chrome152.md)、
   [拖动计时证据（依据）](apps/web/evidence/drag-timing-chrome152.md)，**均为记录制、不进 CI**）：
   **换机器 / 换 Chrome 大版本 / headed / DPR>1 都会改变绝对值，引用时必须连口径、环境与数据集一起读**。
@@ -196,7 +196,7 @@ tools/xlsx-reference     xlsx 协议的独立 Python 参照实现（openpyxl，�
 - **门禁以 WPS 为准**——G1-a（拖动后 connector 端点跟随）等判据的"真机"即指 WPS；
 - **Microsoft PowerPoint 备查、不阻塞**。输出为标准 OOXML 原生形状、未用 WPS 私有扩展，
   但**未在 PowerPoint 下验证**，故不对外承诺其行为；需要时按
-  [备查清单](spikes/g0-s1-pptx-connector/evidence/powerpoint/README.md) 跑一次即可提升为门禁。
+  [备查清单（历史实测）](spikes/g0-s1-pptx-connector/evidence/powerpoint/README.md) 跑一次即可提升为门禁。
 
 ## 本地质量门禁
 

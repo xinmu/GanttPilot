@@ -201,12 +201,12 @@ type WbsResult<T> = { ok: true; value: T } | { ok: false; code: WbsFailureCode; 
 | 项 | 归属 |
 |---|---|
 | `endDate` 与 `startDate + durationDays` 的一致性校验 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §2 + [SCHEDULE.md](SCHEDULE.md) §四.2）：`endDate` 是**派生显示值、工期为准**，不一致只给 `info`（`endDateStale`，对含汇总在内的**所有任务**判定），**校验从不改写文档** |
-| 负 lag 越到项目起点之前的语义 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §4 + [SCHEDULE.md](SCHEDULE.md) §五）：截断到项目起点 + 计数与诊断（`clampedStart`），**不阻断排程、不产出负序号**（[S3 §五.4](../../spikes/g0-s3-cpm-perf/结论.md)） |
+| 负 lag 越到项目起点之前的语义 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §4 + [SCHEDULE.md](SCHEDULE.md) §五）：截断到项目起点 + 计数与诊断（`clampedStart`），**不阻断排程、不产出负序号**（[S3 §五.4（历史实测）](../../spikes/g0-s3-cpm-perf/结论.md)） |
 | 汇总任务（有子任务）与排程的关系 | **G2 已定**（[ADR 0004](../../docs/02-adr/0004-排程契约.md) §3 + [SCHEDULE.md](SCHEDULE.md) §四.1/§四.4）：汇总任务**不参与排程**（派生值由引擎产出：`Schedule.summaryEs/summaryEf/summaryProgress`）；`LINK_SUMMARY_ENDPOINT` 保留 `warning`、该边在传播中**被忽略**（排程侧对应 `summaryIgnored`）；里程碑（工期 0）照常参与 |
 | `constraints[]` 与 `manual` 的语义 | **v0.5**（R-3；本块只留位） |
 | `baselines[].snapshot` 的内容 | **v0.5**（P1-03） |
 | 折叠的渲染行为 | **G4**（本块只承载 `collapsed` 状态） |
-| xlsx 列契约、依赖列语法、导入容差 | **G3 已冻结**（开工前置）：9 列契约、容差闭集、公式只读缓存值、协议层诊断码表见 [ADR 0006](../../docs/02-adr/0006-xlsx-协议契约.md)（证据层见 [S2 结论 §八](../../spikes/g0-s2-xlsx-roundtrip/结论.md)） |
+| xlsx 列契约、依赖列语法、导入容差 | **G3 已冻结**（开工前置）：9 列契约、容差闭集、公式只读缓存值、协议层诊断码表见 [ADR 0006](../../docs/02-adr/0006-xlsx-协议契约.md)（证据层见 [S2 结论 §八（历史实测）](../../spikes/g0-s2-xlsx-roundtrip/结论.md)） |
 | 命令层与事务、撤销栈 | **G1.3 已落地**（[COMMAND.md](COMMAND.md) + [ADR 0003](../../docs/02-adr/0003-命令层与事务契约.md)；本文件只描述文档形状，变更通道见该规范） |
 | 用户自定义排序 | **P1-04** |
 | 多日历生效（v0.1 只有项目日历生效） | **v0.5+**（R-1） |

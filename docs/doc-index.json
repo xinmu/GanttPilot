@@ -315,6 +315,13 @@
       "note": "P-55：精简层构成口径与预算重设（slimKb 100 → 500；generated 不计入）"
     },
     {
+      "path": "docs/00-baseline/裁决R54.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-56：spike 目录的分级处置（探针代码删、结论与证据留档为归档层；DOC-SPEC §4.5 同步改为两条件/两级）"
+    },
+    {
       "path": "docs/00-baseline/轮次导读.md",
       "role": "plan",
       "cap": "plan",
@@ -752,13 +759,209 @@
       "cap": "evidence",
       "layer": "archive",
       "note": "模板 A 演示的 WPS 真机判定报告"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/README.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针目录说明（P2/D9 留档：含\"探针代码已删\"的处置说明）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/powerpoint/README.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针目录说明（P2/D9 留档：含\"探针代码已删\"的处置说明）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/powerpoint/结果.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/structure-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/vision/pixel-quantification.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/vision/判读记录.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/wps/A-absorption-roundtrip-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/wps/C-flat-roundtrip-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/wps/drag-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/wps/人工验证记录.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/结论.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的结论（P2/D9 留档：探针代码已删，结论与证据保留）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/README.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针目录说明（P2/D9 留档：含\"探针代码已删\"的处置说明）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/structure-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/timing.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/wps-edit-save/entry-diff.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/wps-edit-save/roundtrip-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/wps-save/entry-diff.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/wps-save/roundtrip-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/结论.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的结论（P2/D9 留档：探针代码已删，结论与证据保留）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/README.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针目录说明（P2/D9 留档：含\"探针代码已删\"的处置说明）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/breakdown-node24.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/breakdown-node26.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/correctness-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/differential-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/env.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/perf-node24.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/perf-node26.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/结论.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的结论（P2/D9 留档：探针代码已删，结论与证据保留）"
     }
   ],
   "linkCheckAllowlist": [
     {
-      "pathRegex": "^(docs/00-baseline/(证伪实验计划|裁决R.*)\\.md|docs/02-adr/0007-.*\\.md|docs/02-adr/附录/.*\\.md|docs/01-roadmap/首版-记录-.*\\.md|packages/render-core/src/(clipping\\.spec|manifest)\\.ts)$",
+      "pathRegex": "^(docs/00-baseline/(证伪实验计划|裁决R.*)\\.md|docs/02-adr/0007-.*\\.md|docs/02-adr/附录/.*\\.md|docs/01-roadmap/首版-记录-.*\\.md|packages/render-core/src/(clipping\\.spec|manifest)\\.ts|spikes/.*\\.md)$",
       "targetRegex": "^(\\.\\./\\.\\./)?spikes/g0-s4-svg-clipping/",
-      "reason": "G4-S 探针目录已随 G4 落地删除（裁决 P-18）：引用分布在归档层（证伪实验计划、按轮次存档、ADR 0007 与其附录、记录层）与 render-core 的两处注释里，属存量失效，正文不改写。P1-d 把 pathRegex 补齐到全部 12 处（旧实现只把 targetRegex 拿去做两次 test，pathRegex 从未参与）"
+      "reason": "G4-S 探针目录已随 G4 落地删除（裁决 P-18）：引用分布在归档层（证伪实验计划、按轮次存档、ADR 0007 与其附录、记录层）与 render-core 的两处注释里，属存量失效，正文不改写。P1-d 把 pathRegex 补齐到全部 12 处（旧实现只把 targetRegex 拿去做两次 test，pathRegex 从未参与）；P2/D9 把**已登记为归档层的 spike 记录**（`spikes/.*\\.md`）并入同一路径族——S1 结论 §二.2 那处引用**原文已自带**「该目录已随 G4 落地删除」的括注，补的是**继承式**登记，不是给单条引用开口子"
     },
     {
       "pathRegex": "^(docs/00-baseline/裁决R.*\\.md|docs/01-roadmap/首版-记录-.*\\.md|packages/pptx-renderer/evidence/.*\\.md)$",

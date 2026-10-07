@@ -42,7 +42,6 @@ tmp/
 # vitest 输出
 .vitest-reports/
 
-# spike（G0-S）：证据与 fixture 定义入库，但安装产物与生成的 pptx 不入库（工件可再生、证据不可再生）
-# 见 spikes/g0-s1-pptx-connector/README.md
-spikes/*/out/
-spikes/*/node_modules/
+# spike（G0-S）：原探针的安装产物与生成的 pptx 不入库（工件可再生、证据不可再生）。
+# P2/D9 起探针代码（src/、reference/、构建配置）已按裁决 R54 删除，结论与 evidence/ 留档；
+# 原先为它写的 `spikes/*/out/`、`spikes/*/node_modules/` 与上面的 `out/`、`node_modules/` 完全重复（已复核），故随代码一并删除。
