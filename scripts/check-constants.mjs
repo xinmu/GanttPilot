@@ -428,6 +428,24 @@ function selftest() {
     expect: (r) => r.findings.length === 0 && r.skippedMultiline === 1,
   });
 
+  // ⑧ 检测器的"写法面"要盖住改口径的常见说法（D4 补的盲点）：
+  //    实测漏网的是"`c₄` **已重定为** `6·rows + 12`"——它既没有 `=` 也不是"扩成"，于是错值静默通过。
+  cases.push({
+    name: '改口径的说法（重定为/改为）也能命中',
+    result: runConstantCheck({
+      config: baseConfig({
+        id: 'k',
+        compare: 'declaration',
+        declaration: { path: 'src/decl.ts', pattern: 'export const M = \\{ rows: (\\d+), overlay: (\\d+) \\};' },
+        detectors: [{ pattern: '重定为\\s*`?(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)', equals: [0, 1], label: '重定为 a·rows + b' }],
+      }),
+      files: ['src/decl.ts', 'docs/a.md'],
+      // 夹具用插值拼出数字：否则这段字面量本身会被 codeScan 扫到（脚本自己也是扫描面）。
+      read: readOf({ 'src/decl.ts': 'export const M = { rows: 6, overlay: 13 };', 'docs/a.md': `批次 B ⇒ 已重定为 \`6·rows + ${String(12)}\`` }),
+    }),
+    expect: (r) => r.findings.length === 1 && r.findings[0].kind === '错值' && r.findings[0].detail.includes('13'),
+  });
+
   let failed = 0;
   for (const item of cases) {
     const ok = item.expect(item.result);

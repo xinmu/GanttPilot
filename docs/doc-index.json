@@ -327,6 +327,13 @@
       "note": "G5 的落地动作与批次 A/D 四轮返工史"
     },
     {
+      "path": "docs/01-roadmap/首版-记录-归档-G6-G8.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "archive",
+      "note": "G6–G8 的块正文（D4 从路线图 §三 逐字迁入；唯一校订：c₄ 的旧值加标注）"
+    },
+    {
       "path": "docs/01-roadmap/首版-记录-G6-G8.md",
       "role": "record",
       "cap": "record",
@@ -666,6 +673,7 @@
           { "pattern": "c₄\\s*=\\s*(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)", "equals": [0, 1], "label": "c₄ = a·rows + b" },
           { "pattern": "=\\s*\\*{0,2}(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)", "equals": [0, 1], "label": "换行写法：= a·rows + b" },
           { "pattern": "扩成\\s*`?(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)", "equals": [0, 1], "label": "把 c₄ 扩成 a·rows + b" },
+          { "pattern": "(?:重定为|改为|收窄为|改成)\\s*\\*{0,2}`?(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)", "equals": [0, 1], "label": "改口径的说法：重定为/改为 a·rows + b" },
           { "pattern": "每帧固定\\s*\\*{0,2}(\\d+)(?!\\s*个)", "equals": [1], "label": "每帧固定 N" },
           { "pattern": "overlay\\*{0,2}\\s*=\\s*\\*{0,2}(\\d+)(?!\\s*·)", "equals": [1], "label": "overlay = N" },
           { "pattern": "每渲染行\\s*\\*{0,2}(\\d+)\\*{0,2}\\s*\\+\\s*\\*{0,2}每帧固定\\s*\\*{0,2}(\\d+)", "equals": [0, 1], "label": "每渲染行 a + 每帧固定 b" },
