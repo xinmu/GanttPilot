@@ -17,7 +17,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { rowIndexOfOrder, taskBounds, visibleRowOrder } from './domain.js';
-import { buildFixture, DATASETS } from './fixtures.js';
+import { buildFixture } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import {
   ARROW_FILL,
   EDGE_STUB_PX,
@@ -28,7 +29,7 @@ import {
 } from './manifest.js';
 import { arrowDistinguishability, arrowFormsForRelations, previewStubX, rasterizeArrow, routeEdge, routeSides } from './route.js';
 
-const fixture = buildFixture(DATASETS[2]);
+const fixture = buildFixture(datasetOf('dense'));
 
 describe('4 类关系箭头可区分性（S4-d，同尺量化）', () => {
   it('真实渲染尺寸为 12 × 7.2 px（行高 24 × 0.5 / 半宽 × 0.6）', () => {

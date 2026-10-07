@@ -24,8 +24,26 @@ import { describe, expect, it } from 'vitest';
 import { compute, wouldCreateCycle, type ProjectDocument, type Schedule } from '@ganttpilot/engine';
 
 import { buildView, type ViewModel, type Viewport } from './viewModel.js';
-import { HIT_TOLERANCE_PX, ROW_HEIGHT, ROW_BUFFER, SPACING, ZOOM_PX_PER_DAY } from './manifest.js';
-import { buildFixture, DATASETS } from './fixtures.js';
+// `CONNECT_SIZE_PX` 的**声明处是 `manifest.ts`**（`interaction.ts` 只是 import 后自用，并不 re-export）。
+// **P3/C7-c 实测的真缺陷**：本文件原先从 `./interaction.js` import 它 ⇒ vitest 的模块运行器把
+// "找不到的具名导出"降级成 `undefined`，于是本文件里 4 处 `bounds.xRight + CONNECT_SIZE_PX(/2)`、
+// `bounds.xLeft - CONNECT_SIZE_PX/2` 的**指针 x 全成了 `NaN`**。
+//
+// **它为什么仍然全绿（实测核对过的机制，不是猜的）**：这 4 处所在的用例（`:802` / `:813` /
+// `:921` / `:972`，分别是"右点建线 / 左点建线 / 外侧也命中 / 拖出线"）**都显式给了
+// `entryPoint: { taskId, exitSide }`**（`down()` 那个 helper 也一样）——建线状态正是由 `entryPoint`
+// 决定的，`x` 在这几条里根本不参与判定。于是 `NaN` 从未流进任何被判定的值：
+// 断言全是 `state.kind === 'linking'` / `state.exitSide` / `state.fromTaskId`，
+// 外加至多 `x` 的**数值**没被断言（顺带核对：`toBeCloseTo(NaN)` 在 vitest 5 里**是红的**，
+// 不可以用"NaN 与 NaN 判等"解释这条假绿）。
+//
+// 所以这条缺陷的形状是**判据的着力点错位**：这几条用例的**名字**（"连接点建线/命中"）
+// 说的是几何，而**断言**只证明"给了 `entryPoint` 就进 linking"。同一批几何的数值判据落在
+// `interaction.spec.ts`（那里 import 是对的），本文件这几条因此**没有能力**发现
+// `CONNECT_SIZE_PX` 变成了 `NaN`——这正是 `N12` 要抓的"spec 里的错靠运气活着"。
+import { CONNECT_SIZE_PX, HIT_TOLERANCE_PX, ROW_HEIGHT, ROW_BUFFER, SPACING, ZOOM_PX_PER_DAY } from './manifest.js';
+import { buildFixture } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import { workdayCellCenterX } from './domain.js';
 import {
   barHitFor,
@@ -47,10 +65,9 @@ import {
 } from './gesture/index.js';
 import { highlightForCyclePath } from './highlight.js';
 import { taskBounds, type TaskBounds } from './domain.js';
-import { CONNECT_SIZE_PX } from './interaction.js';
 import { linkTypeFor, zoneAt, zonesFor } from './zones.js';
 
-const fixture = buildFixture(DATASETS[2]); // dense：1,000 任务 / 1,500 依赖
+const fixture = buildFixture(datasetOf('dense')); // dense：1,000 任务 / 1,500 依赖
 const viewport: Viewport = {
   width: 1280,
   height: 640,
@@ -1580,6 +1597,12 @@ describe('批次 A 的入口判据（P-22：指针归一化 / 条体命中 / 按
         state: started.state,
       });
 
+      // **P3/C7-c**：`GestureState` 是四支联合（`idle` / `dragging` / `linking` / `released`），
+      // 而 `resolveDragOutcome` 只收 `Extract<GestureState, { kind: 'dragging' }>`。
+      // 此前这里直接把 `moved.state` 传下去——**运行时靠"恰好是 dragging"活着**，静态上则是
+      // "测试自己对状态机的假设从未被校验过"。这条窄化把该假设变成可失败断言
+      // （顺带让下面 `released.commands[0]` 的存在性有了依据）。
+      if (moved.state.kind !== 'dragging') throw new Error('拖动期状态必须是 dragging');
       const preview = dragPreviewFor({
         view: target,
         document: fixture.document,

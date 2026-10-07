@@ -223,12 +223,16 @@ describe('两栏行对齐判读（ADR 0007 §14，P-23）', () => {
   it('R9 左表行外高 ≠ 模型行高（25 vs 24 ⇒ 逐行累积漂移）⇒ `table-row-height-mismatch`', () => {
     const probe = baselineProbe();
     const drift = 1;
+    // 累积漂移以**第一个采样行**为基准。`noUncheckedIndexedAccess` 下 `probe.samples[0]` 可能是
+    // `undefined`，而这里直接写 `.row` 会报 TS2532——旧 program 不含 spec 所以从未被看见。
+    // 空数组时 `map` 不会执行，回落值不参与任何断言，故取 `0` 只影响"不可能发生的分支"。
+    const firstRow = probe.samples[0]?.row ?? 0;
     const verdict = diagnoseRowAlignment({
       ...probe,
       tableRowHeight: ROW_HEIGHT + drift,
       samples: probe.samples.map((sample) => ({
         ...sample,
-        tableCenterY: sample.tableCenterY + (sample.row - probe.samples[0].row) * drift,
+        tableCenterY: sample.tableCenterY + (sample.row - firstRow) * drift,
       })),
     });
     expect(verdict.mechanisms).toContain('table-row-height-mismatch');

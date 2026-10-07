@@ -25,7 +25,8 @@ import { describe, expect, it } from 'vitest';
 
 import type { TaskBounds } from './domain.js';
 import { buildView, type ViewModel, type Viewport } from './viewModel.js';
-import { buildFixture, DATASETS } from './fixtures.js';
+import { buildFixture } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import {
   CONNECT_DIAMETER_GAP_PX,
   CONNECT_HIT_PAD_PX,
@@ -67,7 +68,7 @@ import {
 } from './zones.js';
 import { taskBounds } from './domain.js';
 
-const fixture = buildFixture(DATASETS[2]); // dense：1,000 任务 / 1,500 依赖
+const fixture = buildFixture(datasetOf('dense')); // dense：1,000 任务 / 1,500 依赖
 const viewport: Viewport = {
   width: 1280,
   height: 640,

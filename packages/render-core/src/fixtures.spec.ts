@@ -23,6 +23,10 @@ import {
   SCALE_GRADIENT_TASKS,
   scaleGradient,
 } from './fixtures.js';
+// `datasetOf` 的落点是 `fixtures.testkit.ts`（**不是本文件**）：
+// 实测"把工具放进 `*.spec.ts` 再被别的 spec import"会让 vitest **连那份 spec 自己的用例
+// 一起收**，本包因此从 297 例涨到 387 例。理由与探针数字写在 `fixtures.testkit.ts` 的文件头。
+import { datasetOf } from '../test/fixtures.testkit.js';
 
 describe('夹具生成器（确定性、精确规模）', () => {
   it('mulberry32 同种子逐值复现（零 Math.random）', () => {
@@ -111,7 +115,7 @@ describe('夹具生成器（确定性、精确规模）', () => {
   });
 
   it('密集交叉夹具同时具备三种形态（汇总端点边 / 折叠隐藏边 / 跨屏长边）', () => {
-    const { stats } = generateDocument(DATASETS[2]);
+    const { stats } = generateDocument(datasetOf('dense'));
     expect(stats.longEdgeIds.length).toBeGreaterThan(0);
     expect(stats.summaryEdgeIds.length).toBeGreaterThan(0);
     expect(stats.hiddenEdgeIds.length).toBeGreaterThan(0);
@@ -119,7 +123,7 @@ describe('夹具生成器（确定性、精确规模）', () => {
   });
 
   it('规模梯度保持局部结构一致（每 20 个任务一个汇总 + 固定 maxJump）', () => {
-    const gradient = scaleGradient(DATASETS[2], SCALE_GRADIENT_TASKS, 1.5);
+    const gradient = scaleGradient(datasetOf('dense'), SCALE_GRADIENT_TASKS, 1.5);
     for (const { size, fixture } of gradient) {
       expect(fixture.document.tasks.length).toBe(size);
       expect(fixture.stats.summaryCount).toBe(Math.max(1, Math.round(size / 20)));

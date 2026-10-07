@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { compute } from '@ganttpilot/engine';
 import {
   buildExportView,
+  buildFixture,
   createDemoPlanDocument,
   createScheduleCalendar,
   DATASETS,
@@ -22,10 +23,8 @@ import {
   exportLegendItems,
   exportSummaryLines,
   exportSummaryOf,
-  generateDocument,
   LABEL_CHAR_PX,
   PRIMARY_DATASET_KEY,
-  reindexDocument,
   svgString,
 } from '@ganttpilot/render-core';
 
@@ -43,11 +42,14 @@ function demoFixture() {
 }
 
 function denseFixture() {
-  const document = reindexDocument(generateDocument(DATASETS.find((item) => item.key === PRIMARY_DATASET_KEY)).document);
-  const calendar = createScheduleCalendar(document);
-  const result = compute(document, calendar);
-  if (!result.ok) throw new Error('dense 夹具不可排程');
-  return { document, calendar, schedule: result.schedule };
+  // `noUncheckedIndexedAccess` 下 `DATASETS.find(...)` 是 `FixtureSpec | undefined`，
+  // `generateDocument(spec).document` 于是报 TS2345（旧 program 不含 spec ⇒ 从未被看见）。
+  // 这里改用本包公开的**装配口** `buildFixture`：它做的事与下面三行逐条相同
+  // （`reindexDocument` → `validateDocument` 无 error → `createScheduleCalendar` → `compute`），
+  // 并且直接给出 `{ document, calendar, schedule }`，不需要在 spec 里再写一遍取用逻辑。
+  const found = DATASETS.find((item) => item.key === PRIMARY_DATASET_KEY);
+  if (found === undefined) throw new Error(`未知数据集 key：${String(PRIMARY_DATASET_KEY)}`);
+  return buildFixture(found);
 }
 
 /** 结构自检（判据本体；负向对照直接复用同一份实现 ⇒ 它真的在判"合法性"）。 */
@@ -274,7 +276,7 @@ describe('模板 A · 人工复验四项返工（ADR 0010 增补 §1–§4）', 
      * "刻度线画到了条体区"）。判据：`grid-*` 形状的**高度**必须明显小于 `band-*` 的
      * （带是整高、刻度是表头带里的短线），且刻度线整体落在表头带的上沿附近。
      */
-    const heightOf = (name) =>
+    const heightOf = (name: string): number =>
       Number(new RegExp(`name="${name}"[\\s\\S]{0,300}?<a:ext cx="\\d+" cy="(\\d+)"`).exec(slideXml)?.[1] ?? '-1');
     const bandHeight = heightOf('band-0');
     const gridHeight = heightOf('grid-0');

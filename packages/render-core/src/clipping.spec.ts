@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { countElements, countElementsByEnumeration, countOverlays, hoverRowOf } from './count.js';
 import { buildAxis } from './clip.js';
 import { DATASETS, REFERENCE_DATASET, SCROLL_ROW_OFFSETS, buildFixture, scaleGradient } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import { ELEMENT_MODEL, ROW_HEIGHT, THRESHOLDS, VIEWPORT_DEFAULT, ZOOM_ORDER } from './manifest.js';
 import { buildView } from './viewModel.js';
 import { checkClipSoundness } from './checkers.spec.js';
@@ -73,7 +74,7 @@ describe('元素预算（ADR 0007 §6.7，S4-a）', () => {
 
   it('元素模型与预算常数是同一处声明（`c₁ = 3`、`c₂ = 3`）', () => {
     expect(ELEMENT_MODEL).toStrictEqual({ perRenderedRow: 3, perRenderedEdge: 3 });
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const view = buildView({
       document: fixture.document,
       schedule: fixture.schedule,
@@ -123,7 +124,7 @@ describe('元素预算（ADR 0007 §6.7，S4-a）', () => {
  */
 describe('两级刻度与悬停行带（P-46）', () => {
   it('上级标签随档位：日/周档 `YYYY-MM`、月档 `YYYY`；下级保持既有语义', () => {
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const expectMinor: Record<string, RegExp> = { day: /^\d{2}$/, week: /^\d{2}-\d{2}$/, month: /^\d{4}-\d{2}$/ };
     const expectMajor: Record<string, RegExp> = { day: /^\d{4}-\d{2}$/, week: /^\d{4}-\d{2}$/, month: /^\d{4}$/ };
     for (const zoom of ZOOM_ORDER) {
@@ -149,7 +150,7 @@ describe('两级刻度与悬停行带（P-46）', () => {
   });
 
   it('上级分段带与下级刻度同 x 时不重复发 `gridline`（且没有下级刻度时由上级补发；否则 `c₃` 与 DOM 两路计数对不上）', () => {
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     for (const zoom of ZOOM_ORDER) {
       const view = buildView({
         document: fixture.document,
@@ -173,7 +174,7 @@ describe('两级刻度与悬停行带（P-46）', () => {
   });
 
   it('悬停行带：给定 `hoverRow` 时恰好 1 个元素、**按内容宽贯穿整行**，且计入 `overlay` 而不是 `c₃`', () => {
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const base = {
       document: fixture.document,
       schedule: fixture.schedule,
@@ -243,7 +244,7 @@ describe('两级刻度与悬停行带（P-46）', () => {
   });
 
   it('悬停行在渲染窗口之外时不发射（高亮与"能否交互"同一个行集合）', () => {
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const base = {
       document: fixture.document,
       schedule: fixture.schedule,
@@ -265,7 +266,7 @@ describe('两级刻度与悬停行带（P-46）', () => {
      * 悬停行带是最容易漏掉的一处：它的 `x` 起点在**窗口坐标**、宽度取**内容宽**（画在内容滚动组里
      * ⇒ 横向不翻译），因此横向滚动**不该改变它的任何取值**——本用例就是那个"不该"。
      */
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const hoverRow = 3;
     const base = {
       document: fixture.document,
@@ -338,7 +339,7 @@ describe('裁剪健全性（S4-b 的正面表述）', () => {
 
 describe('NC1 负向对照：端点可见性裁剪必须丢边（ADR 0007 §6.8，S4-b）', () => {
   it('4 个滚动位置分别误裁 33 / 97 / 96 / 88 条，合计 314（其中跨屏长边 268）', () => {
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const expectedLost = [33, 97, 96, 88];
     const expectedSpanning = [32, 84, 81, 71];
     const positions: { lost: number; lostSpanning: number }[] = [];
@@ -383,7 +384,7 @@ describe('NC2 负向对照：关掉窗口裁剪必须随规模增长（ADR 0007 
   it('元素数随规模单调增长，10× 规模跨度的比值 ≈10.8× > 5×', () => {
     const totals: number[] = [];
     const renderedRows: number[] = [];
-    for (const { fixture } of scaleGradient(DATASETS[2])) {
+    for (const { fixture } of scaleGradient(datasetOf('dense'))) {
       const view = buildView({
         document: fixture.document,
         schedule: fixture.schedule,
