@@ -16,11 +16,13 @@
 | 判定 | 「先做什么、怎样才算做完」 | `01-roadmap/首版能力顺序.md` | `plan` |
 | 记录 | 「实际做了什么、实测数字与教训」 | `01-roadmap/首版-记录-*`、`02-adr/附录/*`、`apps/web/evidence/*`、`spikes/*/evidence/*` | `record` |
 | 待定 | 「还没定的事」 | `01-roadmap/首版-待定清单.md`（全仓唯一） | `plan` |
-| 基线（**归档层**） | 「上游原文怎么写的、当时怎么评估的」 | `00-baseline/{需求基线,评估报告,证伪实验计划}.md` | `baseline` |
+| 基线（**归档层**） | 「上游原文怎么写的、当时怎么评估的」 | `00-baseline/{上游原文-产品需求文档与路线图,需求基线,评估报告,证伪实验计划}.md` | `baseline` |
 
 > **五层就是上面第一列的前五行**（`P-27` §2 的原话：登记 / 契约 / 判定 / 记录 / 待定）。第六行是**归档层**的
 > 来源文档——它不在五层之内，使命已完成，只允许作为「原文口径」被引用：`doc-index.json` 里登记为
 > `layer: "archive"`，`contextBudget` 与入口封闭性据此判定（见 §五 与新检查说明）。
+> 其中 `上游原文-*.md` 是**上游原文的逐字入库件**（决策 8）：它**没有规范效力**，只作「可校验来源」，
+> 溯源与保真的规则见 §4.6。
 
 **反重复规则（本规范的核心）**
 1. 同一事实**只允许有一处权威陈述**；其他地方只能写指针（`见 [P-8](…)`），不得复述内容；
@@ -140,8 +142,11 @@
      且**不并列存多版**（`P-3`）；
    - **适用范围**：只有自称提取 / 重建件的文档承担前两条（现为 `需求基线.md`）；`评估报告.md` 承担
      「引用原文处可回溯」；`证伪实验计划.md` 的依据是**评估报告**（§5.1–§5.3、§7 D-3），**不承担**本条。
-2. **入仓原文的来源行**必须记：原始路径、文档版本、获取日期、`sha256`、与重建件的关系
-   （「重建件的保真度以本原文为准」）。
+2. **入仓原文的来源行**（判定见 `sourceLineCheck`）必须记：原始路径、文档版本、获取日期、
+   与重建件的关系（「重建件的保真度以本原文为准」），以及**两个哈希**：
+   - **原始文件 `sha256`**——入库时在本机量得；原始文件在仓库外，**不可在库复算**，只作历史留档；
+   - **入库件正文 `sha256`**——内容起始标记（`sourceLineCheck.contentStartMarker`）**那一行之后**的全部内容、
+     按 LF 归一化；**可在库复算**，改动入库正文会被判错（这就是"冻结"在门禁上的执行面）。
 3. **本机绝对路径不得出现在可复现层**（`layer: slim` 或 `role: baseline`）的正文里
    （`C:\…` / `D:/…` / `~/…` / `/Users/…` / `/home/…`）：换机器、清下载目录、clone 仓库都会让它悬空。
    判定：`check-docs.mjs` §8d ⇒ **error**。归档 / 证据 / spike 层里的本机路径是「当时的机器事实」，
@@ -170,16 +175,19 @@
 | 9 | 策略不变量：`README`/`CONTRIBUTING`/台账文首的「唯一登记处 / 不按版本另存」措辞与 `DOC-SPEC` 一致，且 P-27 例外条目存在 | 规范与实际再次分叉 |
 | 10 | **本机绝对路径**（`C:\` / `D:/` / `~/` / `/Users/` / `/home/`）出现在**可复现层**（`layer: slim` 或 `role: baseline`）⇒ **错误**；出现在归档 / 证据 / spike 层 ⇒ **一条聚合警告** | 基线层被绑死在一台机器的下载目录上（决策 8） |
 | 11 | 引用**被 `.gitignore` 覆盖的临时路径**（`externalPathCheck.temporaryPathPatterns`）且同一行（或紧邻下一行）无声明词 ⇒ **警告** | 把「维护者本机的草稿」当成可复现输入 |
+| 12 | 入仓原文的**来源块**（必填项 + 内容起始标记）齐备、**入库件正文 `sha256` 复算一致**；提取件保留指向原文的链接且带标记词 ⇒ 不符即 **错误** | 「提取件 ↔ 原文」的对应关系被静默摘掉，或入库正文被回改（改写历史） |
 
 > **配置键**（唯一真相源都在 `docs/doc-index.json`）：`caps`、`layer`、`contextBudget`、`pendingList`、
 > `linkCheckAllowlist`（每条带 `reason`）、`crossLayerCheck`（`markers` + `allow`）、`constantCheck`
-> （唯一声明处 + 例外）、`externalPathCheck`（`errorScope` + `markers` + `temporaryPathPatterns` + `allow`）。
+> （唯一声明处 + 例外）、`externalPathCheck`（`errorScope` + `markers` + `temporaryPathPatterns` + `allow`）、
+> `sourceLineCheck`（`contentStartMarker` + `markers` + `archived` + `extractors`）。
 >
-> **P1 建的三条检查与 D1 加的两项守卫**（都在同一步 `pnpm docs:check` 里）：
+> **P1 建的三条检查、D1 的两项守卫与 D2 的溯源守卫**（都在同一步 `pnpm docs:check` 里）：
 > ① 契约常量单点声明（`check-constants.mjs`；纪律见 §4.2）；
 > ② 精简层预算与入口封闭性（`check-docs.mjs` §8b；纪律见 §4.4）；
 > ③ 跨层引用必须带标记词（`check-docs.mjs` §8c：`历史` / `原文口径` / `细则` / `依据` / `存档`；入口页由 §8b 判，不指归档层）；
-> ④ 仓库外路径与被 gitignore 覆盖的临时路径（`check-docs.mjs` §8d；纪律见 §4.6）。
+> ④ 仓库外路径与被 gitignore 覆盖的临时路径（`check-docs.mjs` §8d；纪律见 §4.6）；
+> ⑤ 入仓原文的来源行与保真（`check-docs.mjs` §8e；纪律见 §4.6）。
 >
-> 脚本的 `--selftest`（`node scripts/check-docs.mjs --selftest`，当前 **18 例**；`node scripts/check-constants.mjs --selftest`）
-> 是这四条的**反向保护**：每类判定都配一个「该绿就绿、该红就红」的合成用例。
+> 脚本的 `--selftest`（`node scripts/check-docs.mjs --selftest`，当前 **24 例**；`node scripts/check-constants.mjs --selftest`）
+> 是这五条的**反向保护**：每类判定都配一个「该绿就绿、该红就红」的合成用例。

@@ -229,6 +229,13 @@
       "note": "P-48/P-49：地平线收口（compute 交出日历，契约冻结）+ 离线单文件分发登记（Docker 归 v0.5）"
     },
     {
+      "path": "docs/00-baseline/上游原文-产品需求文档与路线图.md",
+      "role": "baseline",
+      "cap": "baseline",
+      "layer": "archive",
+      "note": "决策 8：上游原文 v1.1 的**逐字入库件**（提取件 需求基线.md 的校验基准）；只此一份、不做多版并存；来源行与正文哈希由 check-docs.mjs 的「来源行与保真」判定"
+    },
+    {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
@@ -795,6 +802,27 @@
         "kind": "来源元信息",
         "reason": "决策 8 §三.1：入库的上游原文必须记「原始路径 + 文档版本 + 获取日期 + sha256」——那是「可校验来源」，不是「可复现引用」。D2 入仓时按本例外登记；命中面收窄到 docs/00-baseline/ 下含「来源」字样的行。"
       }
+    ]
+  },
+  "sourceLineCheck": {
+    "$comment": [
+      "D2 / 决策 8 的溯源守卫（执行者 check-docs.mjs 的「来源行与保真」，规范见 DOC-SPEC §4.6）。",
+      "**可机械判定的只有溯源，不是保真**：原始文件在仓库外，保真比对只能「导入时一次 + 争议时重取」。",
+      "archived：入仓原文必须带来源块——requiredLabels 齐备，且 hashLabel 那行的哈希必须等于 contentStartMarker 之后内容（LF 归一化）的复算值；不符即 error（回改历史会被抓住）。",
+      "extractors：提取件必须保留指向入仓原文的链接且带 markers 里的标记词——这是「提取件 ↔ 原文」对应关系不被静默摘掉的钉子。"
+    ],
+    "contentStartMarker": "<!-- 原文内容开始",
+    "markers": ["原文口径", "依据", "来源"],
+    "archived": [
+      {
+        "path": "docs/00-baseline/上游原文-产品需求文档与路线图.md",
+        "contentStartMarker": "<!-- 原文内容开始",
+        "hashLabel": "入库件正文 sha256",
+        "requiredLabels": ["来源", "文档版本", "获取日期", "原始文件 sha256", "入库件正文 sha256", "与重建件的关系"]
+      }
+    ],
+    "extractors": [
+      { "path": "docs/00-baseline/需求基线.md", "mustLinkTo": "docs/00-baseline/上游原文-产品需求文档与路线图.md" }
     ]
   },
   "pendingList": "docs/01-roadmap/首版-待定清单.md"

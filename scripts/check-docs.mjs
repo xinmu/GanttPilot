@@ -13,6 +13,7 @@
  * - 白名单与上限的唯一真相源是 `docs/doc-index.json`，不在本文件里另留一份。
  */
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -510,7 +511,10 @@ export function evaluateLayers({ rows, budget, entry }) {
         );
       }
       if ((link.unindexed ?? 0) > 0) {
-        warnings.push(`[入口] ${entry.path}:${String(link.line)} 的目录下有 ${String(link.unindexed)} 份未登记文档（分层登记属 P2/D2）：${link.target}`);
+        warnings.push(
+          `[入口] ${entry.path}:${String(link.line)} 的目录下有 ${String(link.unindexed)} 份未登记文档（分层登记属 P2/C8：` +
+            '登记后 L1 → 证据的链接都要带标记词，故与 D6/D7 同批——见 03 §九 C8）',
+        );
       }
     }
   }
@@ -841,6 +845,137 @@ const external = evaluateExternalPaths({ hits: externalHits, markers: externalMa
 for (const message of external.errors) error(message);
 for (const message of external.warnings) warn(message);
 
+// ── 8e. 来源行与保真（D2 / 决策 8） ─────────────────────────────────────────
+//
+// 为什么需要它：基线层的「可校验」= **溯源 + 保真**，而**保真比对不可机械化**（原始文件在仓库外）。
+// 可机械化的只有两件，正好覆盖"假权威"与"改写历史"两个风险：
+// ① 入仓原文必须带来源块，且「入库件正文 sha256」与 marker 之后的内容（LF 归一化）复算值一致
+//    ⇒ 任何人改动入库正文都会被抓住（冻结口径：不得回改；升版按新裁决处理）；
+// ② 提取件必须保留指向入仓原文的链接**并带标记词** ⇒ 「提取件 ↔ 原文」的对应关系不会被静默摘掉，
+//    读者也不会把原文当当前口径。规范见 `docs/DOC-SPEC.md` §4.6。
+
+/**
+ * 来源行与保真的判定（与仓库解耦，便于 `--selftest` 用合成输入驱动）。
+ *
+ * @param {{ archived?: Array<{path: string, exists: boolean, marker: string, hasMarker?: boolean,
+ *            requiredLabels?: string[], labels?: Record<string, string>, hashLabel?: string,
+ *            recordedHash?: string, computedHash?: string}>,
+ *           extractors?: Array<{path: string, mustLinkTo: string, links?: Array<{target: string, linkText?: string, lineText?: string}>}>,
+ *           markers?: string[] }} input
+ * @returns {{ errors: string[], warnings: string[] }}
+ */
+export function evaluateSourceLines({ archived = [], extractors = [], markers = [] }) {
+  const errors = [];
+  for (const file of archived) {
+    if (file.exists !== true) {
+      errors.push(`[溯源] 入仓原文不存在：${file.path}（决策 8 要求上游原文入仓，否则提取件无从校验）`);
+      continue;
+    }
+    if (file.hasMarker !== true) {
+      errors.push(`[溯源] ${file.path} 缺少内容起始标记「${file.marker}」：正文哈希的范围无从确定`);
+    }
+    const missing = (file.requiredLabels ?? []).filter((label) => (file.labels ?? {})[label] === undefined);
+    if (missing.length > 0) {
+      errors.push(`[溯源] ${file.path} 的来源块缺必填项：${missing.join('、')}（来源元信息按决策 8 §三.1 登记）`);
+    }
+    const recorded = file.recordedHash ?? '';
+    if (!/^[0-9a-f]{64}$/.test(recorded)) {
+      errors.push(`[溯源] ${file.path} 的「${file.hashLabel ?? 'sha256'}」不是 64 位十六进制：${recorded === '' ? '（缺失）' : recorded}`);
+    } else if (recorded !== file.computedHash) {
+      errors.push(
+        `[溯源] ${file.path} 的「${String(file.hashLabel)}」与复算值不一致（入库正文被改过？）：` +
+          `登记 ${recorded.slice(0, 12)}… ≠ 复算 ${String(file.computedHash).slice(0, 12)}…——` +
+          '冻结口径要求「不得回改」；原文升版按新裁决处理，不并列存多版（P-3）',
+      );
+    }
+  }
+  for (const file of extractors) {
+    const hits = (file.links ?? []).filter((link) => link.target === file.mustLinkTo);
+    if (hits.length === 0) {
+      errors.push(`[溯源] ${file.path} 没有指向入仓原文的链接（${file.mustLinkTo}）：提取件与原文的对应关系不得被静默摘掉`);
+      continue;
+    }
+    const marked = hits.some((link) => markers.some((word) => (link.linkText ?? '').includes(word) || (link.lineText ?? '').includes(word)));
+    if (!marked) {
+      errors.push(
+        `[溯源] ${file.path} 指向入仓原文的链接没有标记词（${markers.join(' / ')}）：` +
+          '读者要一眼看出这是「原文口径」，而不是当前生效的口径',
+      );
+    }
+  }
+  return { errors, warnings: [] };
+}
+
+// ── 8e. 来源行与保真：输入装配 ──────────────────────────────────────────────
+
+const sourceConfig = index.sourceLineCheck ?? {};
+const sourceMarkers = sourceConfig.markers ?? [];
+const sourceMarkerDefault = sourceConfig.contentStartMarker ?? '';
+
+/** 文件开头的 `| 标签 | 值 |` 表（来源块）解析成 Map；分隔行与表头行跳过。 */
+function tableLabels(lines) {
+  const labels = {};
+  for (const line of lines) {
+    const match = /^\|\s*([^|]+?)\s*\|\s*(.*?)\s*\|\s*$/.exec(line);
+    if (match === null) continue;
+    if (match[1] === '项' || /^-+$/.test(match[1])) continue;
+    labels[match[1]] = match[2];
+  }
+  return labels;
+}
+
+/** 正文哈希的范围：内容起始标记**那一行之后**的全部字节，按 LF 归一化（跨平台稳定）。
+ *  标记必须是**行的开头**（`startsWith`）——否则来源块里引用标记字样的一行会被误当成范围起点。 */
+function contentHashOf(text, marker) {
+  const lines = text.split('\n');
+  const index = marker === '' ? -1 : lines.findIndex((line) => line.startsWith(marker));
+  const content = lines.slice(index + 1).join('\n');
+  return { index, hash: createHash('sha256').update(content, 'utf8').digest('hex') };
+}
+
+const sourceArchived = (sourceConfig.archived ?? []).map((entry) => {
+  const absolute = join(repoRoot, entry.path);
+  if (!existsSync(absolute)) {
+    return { ...entry, path: entry.path, exists: false, marker: entry.contentStartMarker ?? sourceMarkerDefault };
+  }
+  const text = read(absolute).replace(/\r\n/g, '\n');
+  const marker = entry.contentStartMarker ?? sourceMarkerDefault;
+  const { index, hash } = contentHashOf(text, marker);
+  const lines = text.split('\n');
+  const labels = tableLabels(index === -1 ? lines : lines.slice(0, index));
+  return {
+    path: entry.path,
+    exists: true,
+    marker,
+    hasMarker: index !== -1,
+    requiredLabels: entry.requiredLabels ?? [],
+    hashLabel: entry.hashLabel ?? 'sha256',
+    labels,
+    recordedHash: (/([0-9a-f]{64})/.exec(labels[entry.hashLabel] ?? '') ?? [])[1] ?? '',
+    computedHash: hash,
+  };
+});
+
+const sourceExtractors = (sourceConfig.extractors ?? []).map((entry) => {
+  const absolute = join(repoRoot, entry.path);
+  const links = [];
+  if (existsSync(absolute)) {
+    for (const line of read(absolute).replace(/\r\n/g, '\n').split('\n')) {
+      const prose = line.split('`').filter((_, i) => i % 2 === 0).join('');
+      for (const match of prose.matchAll(/\[([^\]]*)\]\(([^()\s]+)\)/g)) {
+        const target = decodeURIComponent(match[2].split('#')[0]);
+        if (target === '' || /^(https?:|mailto:)/.test(target)) continue;
+        links.push({ target: rel(resolve(dirname(absolute), target)), linkText: match[1], lineText: line });
+      }
+    }
+  }
+  return { path: entry.path, mustLinkTo: entry.mustLinkTo, links };
+});
+
+const sourceLines = evaluateSourceLines({ archived: sourceArchived, extractors: sourceExtractors, markers: sourceMarkers });
+for (const message of sourceLines.errors) error(message);
+for (const message of sourceLines.warnings) warn(message);
+
 // ── 9. 策略不变量 ──────────────────────────────────────────────────────────
 
 const POLICY = [
@@ -883,7 +1018,7 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 体量 / 分层预算与入口封闭性 / 跨层引用标记词 / 仓库外路径 / 策略不变量。');
+console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 体量 / 分层预算与入口封闭性 / 跨层引用标记词 / 仓库外路径 / 来源行与保真 / 策略不变量。');
 
 // ── 自检（反向保护的钉子：每类判定都要有"该绿就绿、该红就红"的合成用例） ──
 //
@@ -1046,6 +1181,63 @@ function selftest() {
       return { temporary: ['tmp/x.md', 'a/b/scratch.tmp'].map(temporary), build: ['apps/web/dist/index.html', 'packages/engine/dist/index.js'].map((p) => !temporary(p)) };
     })(),
     expect: (r) => r.temporary.every(Boolean) && r.build.every(Boolean),
+  });
+
+  // §8e：来源行与保真（决策 8）
+  const srcMarkers = ['原文口径', '依据', '来源'];
+  const archivedOk = {
+    path: 'docs/00-baseline/原文.md',
+    exists: true,
+    marker: '<!-- 原文内容开始',
+    hasMarker: true,
+    requiredLabels: ['来源', '入库件正文 sha256'],
+    labels: { 来源: 'x', '入库件正文 sha256': 'a'.repeat(64) },
+    hashLabel: '入库件正文 sha256',
+    recordedHash: 'a'.repeat(64),
+    computedHash: 'a'.repeat(64),
+  };
+  const extractorOk = {
+    path: 'docs/00-baseline/需求基线.md',
+    mustLinkTo: 'docs/00-baseline/原文.md',
+    links: [{ target: 'docs/00-baseline/原文.md', linkText: '上游原文（原文口径）', lineText: '由 [上游原文（原文口径）](原文.md) 提取' }],
+  };
+  cases.push({
+    name: '溯源：入仓原文 + 提取件都合规即绿',
+    result: evaluateSourceLines({ archived: [archivedOk], extractors: [extractorOk], markers: srcMarkers }),
+    expect: (r) => r.errors.length === 0,
+  });
+  cases.push({
+    name: '溯源：入库正文被改（哈希不符）判错',
+    result: evaluateSourceLines({ archived: [{ ...archivedOk, computedHash: 'b'.repeat(64) }], extractors: [], markers: srcMarkers }),
+    expect: (r) => r.errors.length === 1 && r.errors[0].includes('被改过') && r.errors[0].includes('不得回改'),
+  });
+  cases.push({
+    name: '溯源：来源块缺必填项 / 缺内容起始标记判错',
+    result: evaluateSourceLines({
+      archived: [{ ...archivedOk, labels: { 来源: 'x' }, hasMarker: false }],
+      extractors: [],
+      markers: srcMarkers,
+    }),
+    expect: (r) => r.errors.some((m) => m.includes('缺必填项') && m.includes('入库件正文 sha256')) && r.errors.some((m) => m.includes('缺少内容起始标记')),
+  });
+  cases.push({
+    name: '溯源：提取件摘掉指向原文的链接判错',
+    result: evaluateSourceLines({ archived: [archivedOk], extractors: [{ ...extractorOk, links: [] }], markers: srcMarkers }),
+    expect: (r) => r.errors.length === 1 && r.errors[0].includes('没有指向入仓原文的链接'),
+  });
+  cases.push({
+    name: '溯源：提取件指向原文但缺标记词判错',
+    result: evaluateSourceLines({
+      archived: [archivedOk],
+      extractors: [{ ...extractorOk, links: [{ target: 'docs/00-baseline/原文.md', linkText: '上游原文', lineText: '由 [上游原文](原文.md) 提取' }] }],
+      markers: srcMarkers,
+    }),
+    expect: (r) => r.errors.length === 1 && r.errors[0].includes('没有标记词'),
+  });
+  cases.push({
+    name: '溯源：入仓原文不存在判错',
+    result: evaluateSourceLines({ archived: [{ ...archivedOk, exists: false }], extractors: [], markers: srcMarkers }),
+    expect: (r) => r.errors.length === 1 && r.errors[0].includes('入仓原文不存在'),
   });
 
   let failed = 0;
