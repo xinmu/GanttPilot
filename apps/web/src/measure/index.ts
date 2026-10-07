@@ -20,7 +20,7 @@
  *
  * ## 只在 `?measure=` 出现时才加载
  *
- * `App.vue` 用 `await import('./measure/index.js')` 动态引入，因此普通用户的首屏主 chunk
+ * `measureHost.ts`（由 `App.vue` 用 `await import('./measureHost.js')` 动态加载）static import 本门面，
  * **不含**本模块。
  *
  * ## 模块表（P3/C6-a 的拆分）
@@ -206,7 +206,7 @@ export function exposeMeasurement(args: {
             throw new Error(`未知档位：${zoom}（可用：${ZOOM_ORDER.join(' / ')}）`);
           }
           if (alignHost.setZoom === undefined) {
-            throw new Error('对齐宿主没有 setZoom（App.vue 未接线）：无法切档位，拒绝静默用日档');
+            throw new Error('对齐宿主没有 setZoom（measureHost 未接线）：无法切档位，拒绝静默用日档');
           }
           alignHost.setZoom(zoom as ZoomKey);
           await nextTick();

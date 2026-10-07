@@ -1,5 +1,5 @@
 /**
- * 拖动测量（`--drag` / `--persist-drag`）：走`App.vue` 的**真实指针入口**，不另开测试后门。
+ * 拖动测量（`--drag` / `--persist-drag`）：走 `useChartPointer.ts` 的**真实指针入口**，不另开测试后门。
  *
  * 判据见 ADR 0008 §11 与 [附录 §3（细则）](../../../docs/02-adr/附录/0008-增补.md)：
  * 抓取点自证（`gestureMode`）、位移、下游跟随、预览不落库、手柄/光标/连接点三类读数。
@@ -39,7 +39,7 @@ import { STABLE_READ_BUDGET_FRAMES, percentile, round, scrollFingerprint, settle
  */
 const RESIZE_GRAB_INSET_PX = 4;
 
-/** 拖动测量的宿主：由 `App.vue` 提供的实时状态与真实指针入口。 */
+/** 拖动测量的宿主：由 `measureHost.ts`（应用侧接线）提供的实时状态与真实指针入口。 */
 export interface DragMeasurementHost {
   /** 当前渲染的视图模型（含 `scrollTop` / `pxPerDay` / 行序），用于把任务换算成屏幕坐标。 */
   readonly view: () => ViewModel | null;

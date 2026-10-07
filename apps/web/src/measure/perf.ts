@@ -60,7 +60,7 @@ export interface MeasureResult {
   readonly frameBudgetP95Ms: number;
 }
 
-/** 测量控制器：由 `App.vue` 注入（它持有文档与"把 ViewModel 画出来"的能力）。 */
+/** 测量控制器：由 `measureHost.ts` 注入（它持有文档与"把 ViewModel 画出来"的能力）。 */
 export interface MeasureController {
   readonly document: ProjectDocument;
   /**

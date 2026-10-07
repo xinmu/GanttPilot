@@ -13,7 +13,7 @@ import { dragScreenPoint, type DragMeasurementHost } from './drag.js';
 
 // ---------------------------------------------------------------- G6：持久化测量（记录制，ADR 0009 §5）
 
-/** 持久化测量的宿主：由 `App.vue` 提供的**只读**入口。 */
+/** 持久化测量的宿主：由 `measureHost.ts`（应用侧接线）提供的**只读**入口。 */
 export interface PersistenceMeasurementHost {
   /** 是否已接入持久化（`?persist=0` 时为假——它就是"关掉自动保存"的对照组）。 */
   readonly enabled: () => boolean;

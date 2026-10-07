@@ -3,7 +3,7 @@
  *
  * **规模口径与演示口径是两件事**（见 `useProject` 的说明）：本文件只管前者；
  * `dense-2000` 这个键**只在这里**被认识（G6 出口条件④ 的载体），因此
- * `App.vue` 的 `buildFixtureDocument` 必须走 {@link specOfDataset}，否则会静默退回主口径。
+ * `measureHost.ts` 的 `buildFixtureDocument` 必须走 {@link specOfDataset}，否则会静默退回主口径。
  */
 
 import { DATASETS, PRIMARY_DATASET_KEY, REFERENCE_DATASET, scaleGradient, type FixtureSpec } from '@ganttpilot/render-core';

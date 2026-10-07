@@ -12,14 +12,14 @@ import { ZOOM_UNIT_DAYS, type PointerInput, type ViewModel, type ZoomKey } from 
 
 import { CHART_ROW_SELECTOR, STABLE_READ_BUDGET_FRAMES, boxOf, scrollFingerprint, settleStableRead } from './dom.js';
 
-/** 对齐测量的宿主：由 `App.vue` 提供（除 `setZoom` 外全部**只读**）。 */
+/** 对齐测量的宿主：由 `measureHost.ts`（应用侧接线）提供（除 `setZoom` 外全部**只读**）。 */
 export interface AlignMeasurementHost {
   /** 当前渲染的视图模型（提供行序、行高、条形的**内容坐标**）。 */
   readonly view: () => ViewModel | null;
   /** 滚动容器（绘制区）元素。 */
   readonly pane: () => HTMLElement | null;
   /**
-   * 屏幕坐标 → 内容坐标（**与用户操作同一条路**：`App.vue` 的 `pointerFrom` 走的纯函数）。
+   * 屏幕坐标 → 内容坐标（**与用户操作同一条路**：`useChartPointer.ts` 的 `pointerFrom` 走的纯函数）。
    * **只读**：不派发事件、不进入手势状态机。
    */
   readonly pointerFromClientOf: (clientX: number, clientY: number) => PointerInput | null;

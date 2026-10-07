@@ -27,7 +27,7 @@ import { type ViewModel, type ZoomKey } from '@ganttpilot/render-core';
  *   ① SVG 里有没有 `.hover-row`、② 它的纵向范围是否落在那一行、③ 左表对应行是否真的变了底色。
  */
 export interface AxisHoverMeasurementHost {
-  /** 指针挪到第 N 个可见行的竖向中心（走 `App.vue` 与用户同一条 hover 入口）。 */
+  /** 指针挪到第 N 个可见行的竖向中心（走与用户同一条 hover 入口：`measureHost` → `useHover.updateHover`）。 */
   readonly hoverRowAt: (rowIndex: number) => void;
   /** 清掉指针（读"没有高亮"的对照）。 */
   readonly clearHover: () => void;

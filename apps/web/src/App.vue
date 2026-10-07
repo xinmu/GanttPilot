@@ -4,15 +4,28 @@
  * + **拖拽三语义 / 建线 / 撤销重做 / 冲突与成环标记 / 诊断清单**
  * + **自动保存与跨会话恢复**（G6：策略在引擎、时序与 DOM 在 `usePersistence`，本文件只接线）。
  *
- * ## 分工（G5 的落地口径，ADR 0008 §4）
+ * ## 分工：本文件只做接线（P3/C6-f 起）
+ *
+ * 各块逻辑各有住所，本文件**不重复它们的口径**：
+ *
+ * | 块 | 住所 |
+ * |---|---|
+ * | 会话 / 排程 / 诊断（三层） | `useProject` + `useDiagnostics` |
+ * | 视口与几何（`ViewModel`、滚动、档位） | `useChart` |
+ * | 指针换算与窗格上的指针事件 | `useChartPointer` |
+ * | 悬停三态（连接点显形 / 行带 / 左表联动） | `useHover` |
+ * | 手势（拖动 / 建线 / 预检拒绝） | `useGesture`（纯内核在 `render-core`） |
+ * | 键盘快捷键 | `useKeyboardShortcuts` |
+ * | 导入接线与重置为演示 | `useImport` |
+ * | 持久化与恢复 | `usePersistence` |
+ * | 测量钩子（`?measure=` 才加载） | `measureHost`（**懒 chunk**） |
+ *
+ * ## 两条不变的口径
  *
  * - **手势逻辑在 `render-core`**（纯函数、进门禁）：本文件只把窗格矩形与滚动位置喂给
- *   `pointerFromClient`（屏幕坐标 → 内容坐标，ADR 0008 §13），再把 `PointerInput`
- *   交给 `useGesture`；
+ *   `pointerFromClient`（屏幕坐标 → 内容坐标，ADR 0008 §13），再把 `PointerInput` 交给 `useGesture`；
  * - **拖动期不写文档**：位置经**会话锚点**进 `compute`（`useProject` 的 `anchors`），
- *   松手才提交命令（一次手势 = 一层撤销，IX-03）；
- * - **冲突与成环的判据来自引擎**：`anchorConflict` 诊断 / `wouldCreateCycle` 的 `path`，
- *   本层只做样式映射（不新开诊断码、不自己判"算不算冲突"）。
+ *   松手才提交命令（一次手势 = 一层撤销，IX-03）。
  *
  * ## 滚动与坐标（唯一真相源）
  *
@@ -21,35 +34,32 @@
  * 因此 `ViewModel.scrollTop` / `scrollLeft` 就是真实滚动位置，反算函数（`dayAtX`/`ordinalAtX`）自洽。
  */
 
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import {
   collapseToCommand,
   countElements,
-  generateDocument,
-  reindexDocument,
   countOverlays,
-  cursorForPointer,
   dragPreviewFor,
   editToCommand,
   formatProgress,
   HEADER_HEIGHT_PX,
-  linkEntryFor,
-  pointerFromClient,
-  resolvePointerTarget,
   RENDER_CORE_VERSION,
   ROW_HEIGHT,
   type ColumnKey,
-  type CursorHint,
   type DocumentLink,
-  type PointerInput,
   type ZoomKey,
 } from '@ganttpilot/render-core';
 import GanttChart from './components/GanttChart.vue';
 import TaskTable from './components/TaskTable.vue';
 import Toolbar from './components/Toolbar.vue';
 import { useChart } from './composables/useChart.js';
+import { useChartPointer } from './composables/useChartPointer.js';
+import { useDiagnostics } from './composables/useDiagnostics.js';
 import { useExport } from './composables/useExport.js';
-import { conflictTaskIdsOf, useGesture } from './composables/useGesture.js';
+import { useGesture } from './composables/useGesture.js';
+import { useHover } from './composables/useHover.js';
+import { useImport } from './composables/useImport.js';
+import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts.js';
 import { usePersistence } from './composables/usePersistence.js';
 import { useProject, type DispatchResult } from './composables/useProject.js';
 import { useTemplate } from './composables/useTemplate.js';
@@ -87,9 +97,20 @@ const {
   setNotice,
 } = project;
 
+/** 状态栏提示条的唯一出口（`useProject` 的 `setNotice`）。 */
+function show(level: 'info' | 'error', text: string): void {
+  setNotice({ level, text });
+}
+
+/**
+ * 诊断面板（三层拼接 + 冲突行集合）。P3/C6-f 从本文件迁出。
+ */
+const diagnostics = useDiagnostics({ documentDiagnostics, scheduleDiagnostics });
+const { diagnostics: allDiagnostics, diagnosticCount, conflictTaskIds, open: diagnosticsOpen } = diagnostics;
+
 /**
  * 导出接线（G7，ADR 0010）：几何与 SVG 来自 `render-core`，PPTX 来自 `pptx-renderer`（**动态导入**），
- * DOM 只在本文件的 composable 里（PNG 光栅化、下载）。`zoom` 来自图表 composable ⇒ 导出跟随当前档位。
+ * DOM 只在 `useExport` 里（PNG 光栅化、下载）。`zoom` 来自图表 composable ⇒ 导出跟随当前档位。
  */
 const exporter = useExport({
   document,
@@ -107,7 +128,19 @@ const exporter = useExport({
 const template = useTemplate({ notify: show });
 
 /**
- * 手势接线（G5）：**DOM 只到这里为止**，其余交给 `render-core` 的纯内核。
+ * 命令派发：成功且真的改了，就把"受影响行 + 受影响边"标出来（ADR 0007 §8）。
+ *
+ * **提示条不在这里管**：它由 `useProject()` 的 `commit()` 统一迁移（`noticeAfterDispatch`，裁决 P-30 / P-31）——
+ * 那样连手势自己的回调（拖动与建线的松手提交）也跑不掉；本层只负责渲染。
+ */
+function applyCommandResult(result: DispatchResult): void {
+  if (!result.ok) return;
+  if (!result.changed) return; // 无操作（恒等 patch）不压撤销栈，也不需要重绘
+  chart.markEdited(result.touchedTaskIds);
+}
+
+/**
+ * 手势接线（G5）：**DOM 只到 `useChartPointer` 为止**，其余交给 `render-core` 的纯内核。
  *
  * 落库走命令层唯一通道：`task.update` 与 `link.insert` 各一条命令 ⇒ 一次手势 = 一层撤销（IX-03）。
  */
@@ -123,7 +156,7 @@ const gesture = useGesture({
   clearAnchors: project.clearAnchors,
   /**
    * P-45：拖动期的**未提交文档副本**。`patch` 的唯一来源是内核的 `GestureUpdate.dragOutcome`
-   * （本文件不推第二份"这次拖动改了几天"），落库仍然只有下面 `dispatch` 那条路。
+   * （本文件不推第二份"这次拖动改了几天"），落库仍然只有上面 `dispatch` 那条路。
    */
   setPreviewPatch: project.setPreviewPatch,
   notify: (commit) => {
@@ -143,11 +176,18 @@ const gesture = useGesture({
   },
 });
 
-const {
-  anchorMode,
-  highlight,
-  preview,
-} = gesture;
+const { anchorMode, highlight, preview } = gesture;
+
+/**
+ * 悬停三态（连接点显形 / 行带 / 左表联动）。P3/C6-f 从本文件迁出。
+ *
+ * 它必须**先于** `useChartPointer`（后者把 `updateHover` 当作入参）。
+ */
+const hover = useHover({ view, document, schedule, renderCalendar, hoverRow });
+const { hoverTaskId, hoverX } = hover;
+
+/** 指针换算与窗格上的指针事件（P3/C6-f 从本文件迁出）。 */
+const pointer = useChartPointer({ view, document, schedule, renderCalendar, paneRef, gesture, updateHover: hover.updateHover });
 
 /**
  * **测量旁路**（`?persist=0` / `localStorage['ganttpilot:persist']='0'`）：关掉自动保存。
@@ -185,7 +225,7 @@ const persistence = usePersistence({
   },
   enabled: persistenceEnabled,
 });
-const { status: persistenceStatus, probe: persistenceProbe } = persistence;
+const { status: persistenceStatus } = persistence;
 
 /** 手势活动态 → 策略（回到 `idle` 时若还有积压会立刻补写，见 `usePersistence.setGesture`）。 */
 watch(
@@ -224,112 +264,7 @@ const persistenceText = computed(() => {
  */
 const tableVisible = ref(true);
 
-/**
- * 窗格上的 `mousemove`：**一条事件、两件事**（顺序不可换）。
- *
- * 1. **光标提示**（R3 后半）：只有 `idle` 时才更新——拖动/建线期间光标必须保持"正在操作"的语义，
- *    否则拖到端点区会被 `col-resize` 打断；
- * 2. **手势推进**（拖动中的候选）：`useGesture` 只在非 `idle` 时才会真正重算。
- *
- * 光标提示（ADR 0008 §16.2 的 R3 后半）**不走 Vue 响应式**：它是逐 `mousemove` 变化的 DOM 表现，
- * 由 `onMouseMoveHint` 直接写 `pane.style.cursor`（放进响应式会让拖拽帧预算为此付费，
- * ADR 0008 §11 的判据）。因此模板上**不**绑 `:style`——两处都写会互相打架。
- */
-
-/** 诊断清单是否展开（G-8 的**受控收口**：计数 + 可展开列表；完整向导形态归后续）。 */
-/**
- * 指针所在的渲染行与内容坐标（**只驱动连接点的显形**，不参与命中判定）。
- *
- * 为什么放两个 ref 而不是一个对象：赋值时可以做**相等短路**（同一行 + 同一个 x 就不触发更新），
- * 否则每次 `mousemove` 都会让 `GanttChart` 的那一行重算，拖拽帧预算要为"没变化"付费
- * （ADR 0008 §11 的判据）。
- */
-const hoverTaskId = ref<string | null>(null);
-const hoverX = ref<number | null>(null);
-const diagnosticsOpen = ref(false);
-
-/**
- * 协议层诊断（**导入那一刻的快照**）。
- *
- * 为什么必须存下来：`importXlsx` 的诊断只在导入时存在（成环丢弃、未识别列、公式无缓存值…），
- * 而文档校验层与排程层的诊断是**每帧重算**的。G5 出口条件⑤要求"导入的成环边进问题清单"，
- * 但此前应用层只把**条数**写进提示、没有保留数组，于是 `XLSX_CYCLE_EDGE_DROPPED` 从未进过面板
- * （P-22 由第 13 条的记录制导入当场抓出）。
- *
- * 类型写成**结构子集**而不是 `import type { XlsxDiagnostic }`：对协议包的静态 import 会在
- * 类型图上造出指向 `exceljs` 的边（ADR 0008 §1 的候选 B 正是因此被否），而本层只消费四个字段。
- */
-interface ImportDiagnostic {
-  readonly severity: 'error' | 'warning' | 'info';
-  readonly code: string;
-  readonly message: string;
-  readonly taskId?: string;
-}
-
-const importDiagnostics = shallowRef<readonly ImportDiagnostic[]>([]);
-
-/** 全部诊断（**三层拼接**：协议层 = 上一次导入的快照，后两层每帧重算；ADR 0006 §7）。 */
-const diagnostics = computed(() => [
-  ...importDiagnostics.value,
-  ...documentDiagnostics.value,
-  ...scheduleDiagnostics.value,
-]);
-/**
- * `anchorConflict` 的行（**判据来自引擎**，ADR 0008 §6）——冲突标红的唯一来源。
- *
- * 过滤器本体在 `useGesture.ts` 的 `conflictTaskIdsOf`（P3/C6-e）：它与"哪个码、哪个字段是
- * 任务 id"这条知识绑定，散成两份就会**静默漂**（引擎改码之后不报错，只是不再标红）。
- */
-const conflictTaskIds = computed(() => conflictTaskIdsOf(scheduleDiagnostics.value));
-
-/** 渲染窗口内的元素计数（含 G5 覆盖层；判据本体在 `render-core` 的 spec 里）。 */
-const counts = computed(() => {
-  const current = view.value;
-  if (current === null) return null;
-  const overlays = {
-    dragOverlay: gesture.state.value.kind === 'dragging',
-    linkPreview: preview.value !== null,
-    conflict: conflictTaskIds.value.length > 0,
-    highlightRows: highlight.value.rows.length,
-    highlightEdges: highlight.value.edges.length,
-  };
-  return { ...countElements(current, overlays), overlays: countOverlays(overlays) };
-});
-
-const diagnosticCount = computed(() => diagnostics.value.length);
-
-/** `compute` 失败时不画条形与连线，只显示占位（ADR 0007 §7）；G5 额外给出成环路径摘要。 */
-const cycleMessage = computed(() => scheduleError.value?.message ?? null);
-const cyclePath = computed(() => scheduleError.value?.cyclePath ?? []);
-
-/**
- * 成环路径的**可读标注**（`compute` 失败时没有 `ViewModel`，因此没有行/边可高亮——
- * 这一份列表就是"高亮成环路径"在不可排程态下的等价物；出口条件⑤的可判定形式）。
- */
-const cycleLabels = computed(() =>
-  cyclePath.value.map((taskId) => {
-    const task = document.value.tasks.find((item) => item.id === taskId);
-    if (task === undefined) return taskId;
-    return `${task.outlineNumber} ${task.name}`;
-  }),
-);
-
-function show(level: 'info' | 'error', text: string): void {
-  setNotice({ level, text });
-}
-
-/**
- * 命令派发：成功且真的改了，就把"受影响行 + 受影响边"标出来（ADR 0007 §8）。
- *
- * **提示条不在这里管**：它由 `useProject()` 的 `commit()` 统一迁移（`noticeAfterDispatch`，裁决 P-30 / P-31）——
- * 那样连手势自己的回调（拖动与建线的松手提交）也跑不掉；本层只负责渲染。
- */
-function applyCommandResult(result: DispatchResult): void {
-  if (!result.ok) return;
-  if (!result.changed) return; // 无操作（恒等 patch）不压撤销栈，也不需要重绘
-  chart.markEdited(result.touchedTaskIds);
-}
-
+/** 行内编辑（G4）：值 → 命令的映射只有一处（`editToCommand`）。 */
 function onCellEdit(payload: { readonly taskId: string; readonly column: ColumnKey; readonly text: string }): void {
   const outcome = editToCommand({
     document: document.value,
@@ -346,6 +281,7 @@ function onCellEdit(payload: { readonly taskId: string; readonly column: ColumnK
   applyCommandResult(project.dispatch(outcome.command));
 }
 
+/** 折叠开关（G4）：同样映射成 `task.update`（因此可撤销）。 */
 function onToggleCollapse(payload: { readonly taskId: string }): void {
   const outcome = collapseToCommand({ document: document.value, taskId: payload.taskId });
   if (!outcome.ok) {
@@ -359,53 +295,37 @@ function onZoom(next: ZoomKey): void {
   chart.setZoom(next);
 }
 
-// ---------------------------------------------------------------- G5：指针 → 手势
+// ---------------------------------------------------------------- G5：撤销 / 重做
 
-/**
- * 屏幕坐标 → **归一化指针**（内容坐标）的唯一实现。
- *
- * **只有一条路**：`pointerFromClient`（`render-core` 的纯函数，ADR 0008 §13）。
- * 本函数只负责把窗格的 `getBoundingClientRect()` 与滚动位置喂给它——
- * 绝不用 `event.offsetX/offsetY`：它们**相对事件目标元素**，`mousedown` 落在条体 `<rect>` 上时
- * 会被当成内容坐标（P-21 §2 的 R1：按下即跳位、条体外点击改日期）。
- * 返回 `null` = 窗格或视图还没就绪，调用方直接丢弃这次事件。
- *
- * **测量钩子（G5 批次 D）与用户操作共用本函数**：`--align` 的"所见 = 所点"判据必须走同一条换算，
- * 否则它证明的只是一条平行的公式。
- */
-function pointerFromClientPoint(
-  clientX: number,
-  clientY: number,
-  buttons: number,
-  modifiers: { readonly shiftKey?: boolean } = {},
-): PointerInput | null {
-  const pane = paneRef.value;
-  const current = view.value;
-  if (pane === null || current === null) return null;
-  const rect = pane.getBoundingClientRect();
-  return pointerFromClient({
-    clientX,
-    clientY,
-    paneLeft: rect.left,
-    paneTop: rect.top,
-    scrollLeft: current.scrollLeft,
-    scrollTop: current.scrollTop,
-    buttons,
-    ...(modifiers.shiftKey === true ? { shiftKey: true } : {}),
-  });
+function undo(): void {
+  applyCommandResult(project.undo());
 }
 
-/**
- * DOM 事件 → 归一化指针。松手（`mouseup` 挂在 window 上）走**同一个**换算——
- * 拖出窗格时坐标仍然自洽。
- */
-function pointerFrom(event: MouseEvent): PointerInput | null {
-  // `Alt` **不是**手势修饰键（P-32 的复验已把它删除）：它被 Windows 的"移动窗口"占用，
-  // 事件到不了页面 ⇒ 只保留 `shiftKey`（将来"约束拖动"之类会用到）。
-  return pointerFromClientPoint(event.clientX, event.clientY, event.buttons, {
-    ...(event.shiftKey ? { shiftKey: true } : {}),
-  });
+function redo(): void {
+  applyCommandResult(project.redo());
 }
+
+/** `Esc` / `Ctrl+Z` / `Ctrl+Y`（编辑态优先；监护 window 的登记在模块内）。 */
+useKeyboardShortcuts({ undo, redo, cancel: gesture.cancel });
+
+/**
+ * **导入接线 + 重置为演示**（P3/C6-f 从本文件迁出）。
+ *
+ * 它与诊断面板是一对：协议层诊断的快照落点是 `diagnostics.setImportDiagnostics`。
+ */
+const importer = useImport({
+  document,
+  ingestDocument: project.ingestDocument,
+  scheduleError,
+  showCyclePath: gesture.showCyclePath,
+  applyCommandResult,
+  setImportDiagnostics: diagnostics.setImportDiagnostics,
+  reset: () => {
+    // 不带参数 ⇒ `useProject` 走**演示口径**（`render-core/demoPlan.ts` 的小型计划，裁决 P-34）。
+    project.reset();
+  },
+  notify: show,
+});
 
 /**
  * 拖动预览几何（ADR 0008 §13）：**与松手提交同源**的纯函数产物。
@@ -424,305 +344,35 @@ const dragPreview = computed(() =>
       }),
 );
 
-/**
- * **建线的起手位置**（ADR 0008 §16.3／裁决 P-32）：指针落在某行的**连接点**上时非空。
- *
- * 纯函数在 `render-core` 的 `linkEntryFor`（进门禁），这里只负责调用——与 `pointerFromClient`
- * 同一条纪律："入口层算出来的输入"必须落在可断言的地方（P-19/P-21 两次的教训）。
- */
-function linkEntryOf(pointer: PointerInput): { readonly taskId: string; readonly exitSide: 'left' | 'right' } | null {
+/** 渲染窗口内的元素计数（含 G5 覆盖层；判据本体在 `render-core` 的 spec 里）。 */
+const counts = computed(() => {
   const current = view.value;
-  const currentSchedule = schedule.value;
-  if (current === null || currentSchedule === null) return null;
-  const entry = linkEntryFor({
-    point: pointer,
-    view: current,
-    document: document.value,
-    schedule: currentSchedule,
-    calendar: renderCalendar.value,
-  });
-  return entry === null ? null : { taskId: entry.taskId, exitSide: entry.exitSide };
-}
+  if (current === null) return null;
+  const overlays = {
+    dragOverlay: gesture.state.value.kind === 'dragging',
+    linkPreview: preview.value !== null,
+    conflict: conflictTaskIds.value.length > 0,
+    highlightRows: highlight.value.rows.length,
+    highlightEdges: highlight.value.edges.length,
+  };
+  return { ...countElements(current, overlays), overlays: countOverlays(overlays) };
+});
+
+/** `compute` 失败时不画条形与连线，只显示占位（ADR 0007 §7）；G5 额外给出成环路径摘要。 */
+const cycleMessage = computed(() => scheduleError.value?.message ?? null);
+const cyclePath = computed(() => scheduleError.value?.cyclePath ?? []);
 
 /**
- * 光标提示（ADR 0008 §16.2 的 R3 后半）：**纯函数给枚举，本层只做赋值**。
- *
- * 为什么不留响应式状态：它是逐 `mousemove` 变化的 DOM 表现，放进 Vue 响应式会让拖拽帧预算
- * 为此付费（ADR 0008 §11 的判据）。因此这里写的是原始 DOM 元素（`HTMLElement` 之外的用法不收）。
+ * 成环路径的**可读标注**（`compute` 失败时没有 `ViewModel`，因此没有行/边可高亮——
+ * 这一份列表就是"高亮成环路径"在不可排程态下的等价物；出口条件⑤的可判定形式）。
  */
-function onMouseMoveHint(event: MouseEvent): void {
-  const pane = paneRef.value;
-  if (pane === null) return;
-  const current = view.value;
-  const currentSchedule = schedule.value;
-  if (current === null || currentSchedule === null) {
-    pane.style.cursor = 'default';
-    return;
-  }
-  const pointer = pointerFromClientPoint(event.clientX, event.clientY, event.buttons);
-  if (pointer === null) return;
-  updateHover(pointer);
-  // 顺序与 `cursorForPointer` 一致：**连接点（建线）优先**于条体上的判定区。
-  const hint: CursorHint =
-    linkEntryFor({
-      point: pointer,
-      view: current,
-      document: document.value,
-      schedule: currentSchedule,
-      calendar: renderCalendar.value,
-    }) !== null
-      ? 'crosshair'
-      : cursorForPointer({
-          point: pointer,
-          view: current,
-          document: document.value,
-          schedule: currentSchedule,
-          calendar: renderCalendar.value,
-        });
-  pane.style.cursor = hint;
-}
-
-/**
- * **指针捕获**（第四次人工复验的修法之二）：在 `pointerdown` 时把指针捕获到窗格上。
- *
- * 捕获之后，浏览器把**后续所有** `pointermove`/`pointerup` 都派发给该元素，
- * 与"指针下面现在是哪个元素""那些元素有没有被重建"完全无关——
- * 这正是拖动建线需要的行为（拖动期行元素会因为连接点显形/消失被 Vue 重建）。
- * 用 `try` 包住：合成事件（记录制脚本）没有真实指针，`setPointerCapture` 会抛。
- */
-function onPanePointerDown(event: PointerEvent): void {
-  const pane = paneRef.value;
-  if (pane === null || event.button !== 0) return;
-  try {
-    pane.setPointerCapture(event.pointerId);
-  } catch {
-    // 合成事件没有可捕获的指针：忽略（拖动仍由 window 级 mousemove 兜住）。
-  }
-}
-
-function onChartPointerDown(event: MouseEvent): void {
-  if (event.button !== 0) return;
-  /**
-   * **必须阻止原生行为**（第四次人工复验的修法）。
-   *
-   * 不阻止时 `mousedown` 会启动浏览器的**文本选择**（实测事件顺序 `mousedown → selectstart → mousemove …`），
-   * 随后 `mousemove` 不再按窗格路径派发：实测"按下之后只收到 1 次移动"，
-   * 表现即"能从连接点起手势、但拖不出线"（`mouseup` 同样收不到，连接预览停住不动）。
-   */
-  event.preventDefault();  const pointer = pointerFrom(event);
-  if (pointer === null) return;
-  const entry = linkEntryOf(pointer);
-  gesture.onPointerDown(entry === null ? { pointer } : { pointer, entryPoint: entry });
-}
-
-function onChartPointerMove(event: MouseEvent): void {
-  if (gesture.state.value.kind === 'idle') return;
-  const pointer = pointerFrom(event);
-  if (pointer === null) return;
-  gesture.onPointerMove(pointer);
-}
-
-/**
- * 记录"指针在哪一行、x 是多少"（**只驱动连接点的显形**）。
- *
- * 行号走 `resolvePointerTarget`（渲染窗口内的可见行；缓冲行与折叠行不可交互），
- * 因此"连接点显形"与"能不能点中"用的是**同一个行集合**。
- * 相等短路是必需的：`mousemove` 的频率远高于"行或 x 真的变了"的频率。
- */
-function updateHover(pointer: PointerInput): void {
-  const current = view.value;
-  const currentSchedule = schedule.value;
-  if (current === null || currentSchedule === null) {
-    // 没有视图（不可排程）时把悬停行带一并清掉，免得它挂在上一帧的行号上。
-    if (hoverRow.value !== null) hoverRow.value = null;
-    return;
-  }
-  const target = resolvePointerTarget({
-    view: current,
-    document: document.value,
-    schedule: currentSchedule,
-    calendar: renderCalendar.value,
-    x: pointer.x,
-    y: pointer.y,
-  });
-  const nextId = target === null ? null : target.taskId;
-  const nextX = target === null ? null : Math.round(pointer.x);
-  if (hoverTaskId.value !== nextId) hoverTaskId.value = nextId;
-  if (hoverX.value !== nextX) hoverX.value = nextX;
-  /**
-   * **悬停行带**（P-46 §2.2）：只认"`rows` 里真的有一行"的情况（`row` 是**可见行序号**，
-   * `ViewModel.hoverBand` 与 `view.axis` 的 `hover-band` 都以它为准）。
-   * 缓冲行/折叠行的 `taskId` 不在 `rows` 里 ⇒ 自然不高亮（高亮与"能否交互"同一个行集合）。
-   */
-  const nextRow = nextId === null ? null : (current.rows.find((row) => row.id === nextId)?.row ?? null);
-  if (hoverRow.value !== nextRow) hoverRow.value = nextRow;
-}
-
-/**
- * 建线期推进"指针所在行"（**只影响可见性**，不参与命中判定）。
- *
- * 与 `updateHover` 的差别只有一处：空闲时靠窗格的 `mousemove` 就够，而建线期必须**同时**在
- * window 级推进——拖动期行的 `<g>` 会因为连接点显隐被重建，窗格路径的派发可能中断（见 `onWindowPointerMove`）。
- */
-function advanceLinkHover(event: MouseEvent): void {
-  const pointer = pointerFromClientPoint(event.clientX, event.clientY, 1);
-  if (pointer !== null) updateHover(pointer);
-}
-
-/** 指针离开窗格：连接点立刻消失（不留"悬空的方块"），悬停行带一并清掉（P-46）。 */
-function clearHover(): void {
-  hoverTaskId.value = null;
-  hoverX.value = null;
-  hoverRow.value = null;
-}
-
-/**
- * **指针落在左表某一行**时的悬停推进（G8 第二次复验第 ② 条：反向联动）。
- *
- * 它做的事与 `updateHover` 的"命中某一行"分支**完全一样**（设 `hoverTaskId` + `hoverRow`），
- * 但**判据来源完全不同**：`updateHover` 从坐标反解（`resolvePointerTarget`），
- * 这里直接用左表告诉我们的行 id。**不合并成一条路**的理由是硬的：
- * 左表行在**图表坐标系之外**（它在另一栏），拿它的屏幕坐标去 `resolvePointerTarget`
- * 只会得到 `null`（或误命中相邻行）——那是把"两栏对齐"这件事重新算一遍，而不是复用既有事实。
- *
- * `hoverX` 明确置 `null`：连接点（`connectVisible`）要求"指针靠近该行的**条端**"，
- * 而指针根本不在图上 ⇒ 不显示才是对的（否则左表悬停会在图上凭空冒出白框）。
- */
-function setHoverFromTable(taskId: string | null): void {
-  const nextRow = taskId === null ? null : (view.value?.rows.find((row) => row.id === taskId)?.row ?? null);
-  /**
-   * 缓冲行/折叠行的 id 不在 `rows` 里 ⇒ `nextRow === null` ⇒ **整条不清**：
-   * 这与 `updateHover` 的口径一致（"高亮与能否交互同一个行集合"），也避免"图上有带、左表没有行"
-   * 这种半亮状态。注意此时 `hoverTaskId` 也一并清掉，否则左表会留一条 `.hovered` 底色。
-   */
-  hoverTaskId.value = nextRow === null ? null : taskId;
-  hoverRow.value = nextRow;
-  hoverX.value = null;
-}
-/** 窗格 `mousemove` 的**唯一入口**（模板上只能有一个 `@mousemove`，否则 Vue 报重复属性）。 */
-function onChartMouseMove(event: MouseEvent): void {
-  const kind = gesture.state.value.kind;
-  if (kind === 'idle') onMouseMoveHint(event);
-  else if (kind === 'linking') advanceLinkHover(event);
-  onChartPointerMove(event);
-}
-
-/**
- * 手势期的 `mousemove` 同时挂在 `window` 上（与 `mouseup` 同一手法，第二道保险）。
- *
- * 拖动期行的 `<g>` 会因为"指针所在行"改变（连接点按需显形）被 Vue 重建，
- * 绑在窗格路径上的派发可能随之中断；挂 `window` 不依赖任何行元素的生命周期。
- */
-function onWindowPointerMove(event: MouseEvent): void {
-  const kind = gesture.state.value.kind;
-  if (kind === 'idle') return;
-  // 建线期也要推进"指针所在行"：可落点因此跟着指针走（第五次人工复验第 1 条）。
-  if (kind === 'linking') advanceLinkHover(event);
-  onChartPointerMove(event);
-}
-
-function onWindowPointerUp(event: MouseEvent): void {
-  if (gesture.state.value.kind === 'idle') return;
-  // 松手可能在图表之外（拖出窗格），因此监听挂在 window 上；坐标仍按内容坐标系换算。
-  const pointer = pointerFrom(event);
-  if (pointer === null) {
-    gesture.cancel();
-    return;
-  }
-  gesture.onPointerUp({ ...pointer, buttons: 0 });
-}
-
-// ---------------------------------------------------------------- G5：撤销 / 重做
-
-function undo(): void {
-  applyCommandResult(project.undo());
-}
-
-function redo(): void {
-  applyCommandResult(project.redo());
-}
-
-/**
- * `Ctrl+Z` / `Ctrl+Y`（`Ctrl+Shift+Z` 等价）。
- *
- * **编辑态优先**：左表单元格正在编辑时（焦点在 `input` / `textarea` 上）把快捷键让给输入框的
- * 原生撤销——否则用户想撤掉刚敲的字，结果整份文档回退了一步（ADR 0008 §10）。
- */
-function onKeyDown(event: KeyboardEvent): void {
-  const target = event.target;
-  const editing =
-    target instanceof HTMLElement && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
-  if (event.key === 'Escape') {
-    gesture.cancel();
-    return;
-  }
-  if (!(event.ctrlKey || event.metaKey)) return;
-  const key = event.key.toLowerCase();
-  if (key === 'z' && editing) return;
-  if (key === 'z' && event.shiftKey) {
-    event.preventDefault();
-    redo();
-    return;
-  }
-  if (key === 'z') {
-    event.preventDefault();
-    undo();
-    return;
-  }
-  if (key === 'y') {
-    event.preventDefault();
-    redo();
-  }
-}
-
-/**
- * xlsx 导入（G3 的协议层 + 本块的接线）。
- *
- * - 入口是**用户动作**，因此 925 KB 的 `exceljs` **只准动态 `import()`**（ADR 0006 §11）；
- * - 导入产物经 `document.replace` 落库（命令层唯一通道）；
- * - 问题清单进**诊断面板**（G-8 的受控收口：计数 + 可展开列表）。
- */
-async function onImportFile(file: File): Promise<void> {
-  show('info', `正在导入 ${file.name}…`);
-  try {
-    const { importXlsx } = await import('@ganttpilot/xlsx-protocol');
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const result = await importXlsx(bytes);
-    // 协议层诊断**必须留下来**（见 `importDiagnostics` 的说明）——它只在导入那一刻存在。
-    importDiagnostics.value = result.diagnostics;
-    const problems = result.diagnostics.length;
-    if (!result.ok) {
-      show('error', `导入失败：${String(problems)} 条问题 —— 详见诊断清单`);
-      return;
-    }
-    applyCommandResult(project.ingestDocument(result.document));
-    show(
-      'info',
-      `已导入 ${file.name}：${String(result.document.tasks.length)} 个任务、${String(result.document.links.length)} 条依赖；问题 ${String(problems)} 条`,
-    );
-    // 导入的成环边已由 G3 按确定性顺序丢弃（ADR 0006 §1）——这里把"是否还有环"如实呈现：
-    // 若导入产物仍不可排程，`scheduleError` 会带出 `cyclePath`，由图表层高亮。
-    const failed = project.scheduleError.value;
-    if (failed !== null && failed.cyclePath.length > 0) {
-      gesture.showCyclePath(failed.cyclePath);
-      show('error', `导入产物仍不可排程：${failed.message}`);
-    }
-  } catch (error) {
-    show('error', `导入出错：${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-function resetToDemo(): void {
-  // 不带参数 ⇒ `useProject` 走**演示口径**（`render-core/demoPlan.ts` 的小型计划，裁决 P-34）。
-  project.reset();
-  // 重置会换掉整份文档：上一次导入的协议层诊断随之作废（否则面板会显示别份文档的问题）。
-  importDiagnostics.value = [];
-  // 数字一律从**实际文档**派生：写死的"1,000 任务 / 1,500 依赖"在演示口径变更后立刻变成假话。
-  show(
-    'info',
-    `已重置为演示计划：${String(document.value.tasks.length)} 个任务 / ${String(document.value.links.length)} 条依赖`,
-  );
-}
+const cycleLabels = computed(() =>
+  cyclePath.value.map((taskId) => {
+    const task = document.value.tasks.find((item) => item.id === taskId);
+    if (task === undefined) return taskId;
+    return `${task.outlineNumber} ${task.name}`;
+  }),
+);
 
 /**
  * 折叠/展开会改变**可见行集合**，因此窗口必须重算——这不是出口条件禁止的"整表重建"
@@ -740,260 +390,45 @@ watch(
   },
 );
 
-/**
- * **悬停行号必须与当前视图一致**（P-46 §2.2 的收尾条件）。
- *
- * `hoverRow` 是"指针在哪一行"的**上一帧**读数，而 `view` 会因为滚动/折叠/编辑瞬时重建：
- * 旧行号可能指到别的任务上（或指到渲染窗口之外）。`ViewModel` 侧已经夹了一道
- * （`visibleHoverRow` 只认渲染窗口），这里再按"该行号上的行是否还在 `rows` 里"收一次口——
- * 否则会留下一条**高亮错任务**的行带（比"没有高亮"更坏：它看起来像选中）。
- *
- * **`flush: 'post'` 是必需的**：默认的 `pre` flush 会让本回调在"指针读数已更新、
- * 而视图尚未重建"的中间态上跑，于是它会把一次**刚发生的**悬停当成过期读数清掉
- * （实测：`updateHover` 刚设好 `hoverRow`，本回调立刻把它置回 `null` ⇒
- * 图表侧与左表侧的高亮都不出现）。`post` 表示"等 DOM 更新之后再判"，那时视图与指针同源。
- */
-watch(
-  () => view.value,
-  (current) => {
-    const row = hoverRow.value;
-    if (row === null) return;
-    if (current === null || !current.rows.some((item) => item.row === row)) hoverRow.value = null;
-  },
-  { flush: 'post' },
-);
-
 onMounted(() => {
   const params = new URLSearchParams(window.location.search);
   // `?table=0` 隐藏左表（全宽图表）。测量脚本用它对齐 ADR 0007 §11 的图表宽度口径。
   if (params.get('table') === '0') tableVisible.value = false;
 
-  // 测量钩子：只在 `?measure=` 出现时动态加载（普通首屏主 chunk 不含它）。
+  /**
+   * 测量钩子：只在 `?measure=` 出现时**动态**加载（普通首屏主 chunk 不含它）。
+   *
+   * 宿主本体（约 250 行）住在 `measureHost.ts`，它自己 static import `./measure/index.js`
+   * ⇒ 整条测量链都只挂在这次动态 import 之下。P3/C6-f 从本文件迁出。
+   */
   if (!params.has('measure')) return;
   void (async () => {
     try {
-      const { exposeMeasurement, specOfDataset } = await import('./measure/index.js');
-
-      /**
-       * **记录制专用的"强制收口"入口**：不等去抖窗口就把当前状态写下去。
-       *
-       * 与产品路径同一个函数（`persistence.flushNow`：松手 / 文档隐藏 / `pagehide` 都走它），
-       * 因此"重启恢复"这条对照测的是产品行为；只是由测量脚本显式触发，免得依赖定时器时机。
-       */
-      (window as unknown as { __GANTTPILOT_MEASURE_PERSIST_FLUSH__?: () => Promise<boolean> })
-        .__GANTTPILOT_MEASURE_PERSIST_FLUSH__ = () => persistence.flushNow();
-      // G5：拖动测量的宿主——**走真实指针入口**（`useGesture`），不另开测试后门。
-      const dragHost = {
-      view: () => view.value,
-      document: () => document.value,
-      schedule: () => schedule.value,
-      calendar: () => renderCalendar.value,
-      pointer: {
-        down: (event: MouseEvent) => {
-          const pointer = pointerFrom(event);
-          if (pointer === null) return;
-          const entry = linkEntryOf(pointer);
-          gesture.onPointerDown(entry === null ? { pointer } : { pointer, entryPoint: entry });
-        },
-        move: (event: MouseEvent) => {
-          const pointer = pointerFrom(event);
-          if (pointer !== null) gesture.onPointerMove(pointer);
-        },
-        up: (event: MouseEvent) => {
-          const pointer = pointerFrom(event);
-          if (pointer !== null) gesture.onPointerUp({ ...pointer, buttons: 0 });
-        },
-      },          gestureKind: () => gesture.state.value.kind,
-      /** 建线入口的判定（**与用户操作同一条路**：linkEntryFor 的纯函数）。 */
-      entryPointOf: (clientX: number, clientY: number) => {
-        const pointer = pointerFromClientPoint(clientX, clientY, 1);
-        return pointer === null ? null : linkEntryOf(pointer);
-      },
-      /** 把"指针在某屏幕点"交给应用（触发连接点的显形判定；记录制先 hover 再读 DOM）。 */
-      hoverAt: (clientX: number, clientY: number) => {
-        const pointer = pointerFromClientPoint(clientX, clientY, 1);
-        if (pointer !== null) updateHover(pointer);
-      },
-      clearHover: () => {
-        clearHover();
-      },
-      /** 光标提示的分类（记录制用它核对"手柄/连接点/判定区"的光标真的不同）。 */
-      cursorAt: (clientX: number, clientY: number) => {
-        const pointer = pointerFromClientPoint(clientX, clientY, 1);
-        const current = view.value;
-        const currentSchedule = schedule.value;
-        if (pointer === null || current === null || currentSchedule === null) return 'default';
-        if (
-          linkEntryFor({
-            point: pointer,
-            view: current,
-            document: document.value,
-            schedule: currentSchedule,
-            calendar: renderCalendar.value,
-          }) !== null
-        ) {
-          return 'crosshair';
-        }
-        return cursorForPointer({
-          point: pointer,
-          view: current,
-          document: document.value,
-          schedule: currentSchedule,
-          calendar: renderCalendar.value,
-        });
-      },
-      anchors: () => anchors.value.length,
-      startDateOf: (taskId: string) =>
-        document.value.tasks.find((task) => task.id === taskId)?.startDate ?? null,
-      /** P-45：`resize-duration` 轮的位移基准（工期，不是 `startDate`）。 */
-      durationOf: (taskId: string) =>
-        document.value.tasks.find((task) => task.id === taskId)?.durationDays ?? null,
-      /**
-       * P-45 的"预览不落库"判据：**已提交**修订号（命令/事务才前进）。
-       *
-       * 读 `session.revision` 而不是"文档对象是否变了"——副本每帧都是新对象，
-       * 而修订号只有真的落库才动（ADR 0003）。两者一个说"喂给 compute 的是什么"，
-       * 一个说"文档事实是什么"，判据要的正是这个区分。
-       */
-      revision: () => revision.value,
-      /** P-45：自证抓取点真的被判成了 `resize-duration`（否则探针会退化成整体移动）。 */
-      gestureMode: () => (gesture.state.value.kind === 'dragging' ? gesture.state.value.mode : null),
-      };
-
-      // G5 批次 D：两栏行对齐的**只读**采数入口（判读在 `render-core` 的 `diagnoseRowAlignment`）。
-      // `pointerFromClientOf` 走**用户操作的同一个换算**（`pointerFromClientPoint`）——
-      // "所见 = 所点"判据因此不是一条平行公式（ADR 0007 §14）。
-      const alignHost = {
-      view: () => view.value,
-      pane: () => paneRef.value,
-      pointerFromClientOf: (clientX: number, clientY: number) =>
-        pointerFromClientPoint(clientX, clientY, 1),
-      /**
-       * P-40 批次②：`--align` 必须能覆盖周/月档，而档位住在页面状态里 ⇒
-       * 记录制走**用户点工具栏的同一个** `chart.setZoom`（`onZoom` 也走它），不另开测试后门。
-       */
-      setZoom: (next: ZoomKey) => {
-        chart.setZoom(next);
-      },
-      };
-
-      /**
-       * **两级刻度与悬停行带**的读数入口（P-46；原文写 "G8 读数入口"——能力块代号不是功能语义，P3/C6-c）。
-       *
-       * 两条口径（与既有记录制一致）：
-       * - `hoverRowAt` 走 `updateHover`（**用户 `mousemove` 的同一个函数**），不另开后门——
-       *   否则"悬停高亮"测的是一条平行公式；
-       * - `setZoom` 复用 `alignHost` 的同一个 `chart.setZoom`（档位住在页面状态里）。
-       */
-      const axisHoverHost = {
-        view: () => view.value,
-        zoom: () => zoom.value,
-        revision: () => revision.value,
-        setZoom: (next: ZoomKey) => {
-          chart.setZoom(next);
-        },
-        hoverRowAt: (rowIndex: number) => {
-          const current = view.value;
-          const pane = paneRef.value;
-          if (current === null || pane === null) return;
-          const row = current.rows[rowIndex];
-          if (row === undefined) return;
-          const rect = pane.getBoundingClientRect();
-          const contentX = Math.max(0, row.xLeft + current.pxPerDay / 2);
-          const contentY = row.row * current.rowHeight + current.rowHeight / 2;
-          const pointer = pointerFromClientPoint(
-            rect.left + contentX - current.scrollLeft,
-            rect.top + contentY - current.scrollTop,
-            1,
-          );
-          if (pointer !== null) updateHover(pointer);
-        },
-        clearHover: () => {
-          clearHover();
-        },
-      };
-      exposeMeasurement({
-        // G6：测量用的夹具解析必须与 `measure/` 的 `specOfDataset` 同源——
-        // 否则 `dense-2000`（2,000 任务）会静默退回主口径（**出口条件④就测错规模了**）。
-        buildFixtureDocument: (key) => {
-          const spec = specOfDataset(key);
-          // 由 spec 现场产文档：**规模口径**的键表只由 `specOfDataset` 认识（含 `dense-2000`）；
-          // 页面初始的**演示口径**文档（`demoPlan.ts`，P-34）是另一回事，不能拿来当 2,000 任务用。
-          return reindexDocument(generateDocument(spec).document);
-        },
-        loadDocument: async (nextDocument) => {
-          /**
-           * **N11 的修法（P3/C6-b）**：夹具必须是**最后一个写入者**。
-           *
-           * 初始会话恢复是**异步**的（IndexedDB），而它会 `project.restore(...)` 整份换会话。
-           * 若那次恢复在夹具之后落地，页面就回到**上一次持久化的那份文档**——测量方的模型与
-           * 页面上的 DOM 于是是两份文档（实测报文：`DOM 行/边 = 15/14`（演示计划）vs
-           * `模型 = 31/41`（夹具））。**为什么同一轮里必然存在这个风险**：IndexedDB 按
-           * **origin** 隔离，而同一轮测量里多次导航共用同一个 origin ⇒ **第一次导航**
-           * （演示计划）写下的"全新会话基线"会被**第二次导航**恢复回来。
-           *
-           * 因此这里等"恢复已结算"再装夹具——`await` 发生在 `runMeasurement` 的计时起点
-           * **之前**，所以**不动任何口径**（`primaryMs` 仍是"装好夹具 → 含依赖线首帧"）。
-           */
-          await persistence.restoreSettled;
+      const { installMeasurementHost } = await import('./measureHost.js');
+      installMeasurementHost({
+        view,
+        document,
+        schedule,
+        renderCalendar,
+        revision,
+        zoom,
+        anchors,
+        paneRef,
+        gesture,
+        pointer,
+        hover,
+        persistence,
+        persistenceEnabled,
+        setZoom: chart.setZoom,
+        reset: (nextDocument) => {
           project.reset(nextDocument);
-          await nextTick();
         },
-        controllerOf: (nextDocument) => ({
-          document: nextDocument,
-          /**
-           * 把 `ViewModel` 交给**真实渲染路径**。
-           *
-           * `awaitFrame = false` 时只等 Vue 的 DOM 更新（`nextTick`）——
-           * 这样测量方能量到"主线程上的同步工作量"；帧等待由测量方显式施加，
-           * **不混进"每帧耗时"**（否则双 rAF 的约 33 ms 会被算成工作量）。
-           */
-          applyView: async (_next, nextScrollTop, awaitFrame = false) => {
-            const pane = paneRef.value;
-            if (pane !== null) pane.scrollTop = nextScrollTop;
-            await nextTick();
-            if (awaitFrame) {
-              await new Promise<void>((resolve) => {
-                requestAnimationFrame(() => {
-                  requestAnimationFrame(() => resolve());
-                });
-              });
-            }
-          },
-        }),
-        drag: dragHost,
-        // G6：持久化测量（记录制）。`drag` **复用同一个宿主**——同一条真实指针路径，
-        // 因此"拖拽期间不产生可见掉帧"测的是产品行为，不是平行公式。
-        persist: {
-          enabled: () => persistenceEnabled,
-          ready: () => persistence.ready.value,
-          flush: () => persistence.flushNow(),
-          writeRecord: () => persistence.writeRecordNow(),
-          rebase: () => persistence.rebaseNow(),
-          probe: () => persistenceProbe.value,
-          drag: dragHost,
-        },
-        // 两级刻度与悬停行带（P-46）。判据走 `smoke:build`（门禁）+ 记录制（打包产物）。
-        axisHover: axisHoverHost,
-        align: alignHost
+        notify: show,
       });
-      window.__GANTTPILOT_READY__ = true;
     } catch (error) {
       show('error', `测量钩子加载失败：${error instanceof Error ? error.message : String(error)}`);
     }
   })();
-});
-
-// G5：`Esc` 取消手势、`Ctrl+Z` / `Ctrl+Y` 撤销重做；松手监听挂 window（拖出窗格也能收尾）。
-onMounted(() => {
-  window.addEventListener('keydown', onKeyDown);
-  window.addEventListener('mouseup', onWindowPointerUp);
-  window.addEventListener('mousemove', onWindowPointerMove);
-});
-onUnmounted(() => {
-  window.removeEventListener('keydown', onKeyDown);
-  window.removeEventListener('mouseup', onWindowPointerUp);
-  window.removeEventListener('mousemove', onWindowPointerMove);
 });
 </script>
 
@@ -1015,14 +450,14 @@ onUnmounted(() => {
       :exporting="exporter.busy.value"
       :template-busy="template.busy.value"
       @zoom="onZoom"
-      @import-file="onImportFile"
+      @import-file="importer.onImportFile"
       @template="template.downloadTemplate"
-      @reset="resetToDemo"
+      @reset="importer.resetToDemo"
       @toggle-table="tableVisible = !tableVisible"
       @undo="undo"
       @redo="redo"
       @set-anchor-mode="gesture.setAnchorMode"
-      @toggle-diagnostics="diagnosticsOpen = !diagnosticsOpen"
+      @toggle-diagnostics="diagnostics.toggleOpen"
       @set-export-format="exporter.format.value = $event"
       @set-export-png-scale="exporter.pngScale.value = $event"
       @set-export-with-sidebar="exporter.includeSidebar.value = $event"
@@ -1044,7 +479,7 @@ onUnmounted(() => {
         :disabled="false"
         @cell-edit="onCellEdit"
         @toggle-collapse="onToggleCollapse"
-        @hover-row="(payload: { taskId: string | null }) => setHoverFromTable(payload.taskId)"
+        @hover-row="(payload: { taskId: string | null }) => hover.setHoverFromTable(payload.taskId)"
         @rejected="(message: string) => show('error', message)"
       />
       <div
@@ -1071,10 +506,10 @@ onUnmounted(() => {
             ref="paneRef"
             class="chart-pane"
             @scroll="chart.handleScroll()"
-            @mousemove="onChartMouseMove"
-            @mouseleave="clearHover"
-            @pointerdown="onPanePointerDown"
-            @mousedown="onChartPointerDown"
+            @mousemove="pointer.onChartMouseMove"
+            @mouseleave="hover.clearHover"
+            @pointerdown="pointer.onPanePointerDown"
+            @mousedown="pointer.onChartPointerDown"
           >
             <div
               class="chart-spacer"
@@ -1108,7 +543,7 @@ onUnmounted(() => {
       </header>
       <ul>
         <li
-          v-for="(item, index) in diagnostics"
+          v-for="(item, index) in allDiagnostics"
           :key="`diag-${String(index)}`"
           :class="item.severity"
         >
@@ -1118,7 +553,7 @@ onUnmounted(() => {
         </li>
       </ul>
       <p
-        v-if="diagnostics.length === 0"
+        v-if="allDiagnostics.length === 0"
         class="hint"
       >
         没有诊断。
@@ -1162,6 +597,7 @@ onUnmounted(() => {
     </footer>
   </div>
 </template>
+
 
 <style>
 html,
