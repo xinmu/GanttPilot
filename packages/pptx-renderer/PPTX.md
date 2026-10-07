@@ -50,7 +50,7 @@ renderTemplateA({
 |---|---|---|---|
 | 任务条 | `prstGeom prst="roundRect"` | `bar-<taskId>` | 蓝色 `2E75B6` |
 | 阶段汇总条 | `prstGeom prst="rect"` | `bar-<summaryId>` | 灰 `7A8699`、更矮——高度来自 `render-core` 的 `ViewModel`（比例常量 `SPACING.summaryBarHeightRatio` 定义在 `render-core/src/manifest.ts`、在 `render-core` 侧生效；**本包不 import `SPACING`**） |
-| 进度 | `prstGeom prst="rect"` | `prog-<taskId>` | 深蓝 `1F4E79`，左缘对齐；**高度内缩在 EMU 上做 `y+1` / `cy−2`（≈ 0 px，实际不可见）**——与 SVG 孪生实现的 **1 px** 内缩**不一致**，已登记为 v0.5 统一（本轮只如实描述，**不改行为**：统一必然改变本包 golden 字节） |
+| 进度 | `prstGeom prst="rect"` | `progress-<taskId>` | 深蓝 `1F4E79`，左缘对齐；**高度内缩在 EMU 上做 `y+1` / `cy−2`（≈ 0 px，实际不可见）**——与 SVG 孪生实现的 **1 px** 内缩**不一致**，已登记为 v0.5 统一（本轮只如实描述，**不改行为**：统一必然改变本包 golden 字节）。**前缀是 P3/C7-h 由 `prog-` 改成的 `progress-`**：形状名既是唯一定位锚点、又是 WPS 里人工核对时要读的标识（`NAMES` 的口径），读全词才不用猜；其余短前缀（`grp-` / `ms-` / `dep-` / `lbl-`）不动 |
 | 里程碑 | `prstGeom prst="diamond"` | `ms-<taskId>` | 橙 `ED7D31` + 描边 |
 | 依赖线 | `<p:cxnSp>` + `bentConnector3` | `dep-<linkId>` | 双端吸附 + **`a:tailEnd` 箭头**（见下） |
 | 一级组 | `<p:grpSp>` | `grp-<summaryId>` | 汇总行 + 其**直接**子行形状 |
@@ -161,7 +161,7 @@ pptxgenjs（版面/母版/主题 + 文本）→ write({outputType:'uint8array'})
 |---|---|---|---|
 | ① 结构 | `template.spec.ts` 的 `structureViolations` | `p:sldSz` == 声明；形状 id 全树唯一；`stCxn/endCxn` 的 `idx ∈ 0..3` 且指向存在的形状；`grpSp` 有显式 `off/ext` 与 `chOff/chExt` 且等比；**无 `cxnSpLocks`** | **进** |
 | ② 几何同源 | `template.spec.ts` | 依赖线两端吸附在 `bar-*`/`ms-*` 上、站点与 P-8 的侧向表一致（FS ⇒ 右出 3 → 左入 1；SS ⇒ 左出 1） | **进** |
-| ③ golden | `template.spec.ts` | 同一文档两次导出**逐字节相等**；`docProps/core.xml` 的时间字段为常量；全部条目日期为 2000-01-01。**登记值**（模板 A · 演示计划 · 周档）：**16,169 字节**，sha256 `a13f17bec2dc48ca294c7f31d68dbd7308f7c0fca4073a758f9d4ac8b6426352`（P-46 收口时为 15,984 字节；差额对应上表的三层拆分——新增 `-edge` / `-head` 两段图形、刻度由整高改为短刻度）。**注意**：这个字节数/哈希是**记录值**，当前**没有任何用例钉住它**（判据只有"两次导出相等"）——是否加钉子由 P4 的 ② 项决定；P3/C3 的拆分已实测**逐字节不变**（周档与日档的字节数与 sha256 都与拆分前一致） | **进** |
+| ③ golden | `template.spec.ts` | 同一文档两次导出**逐字节相等**；`docProps/core.xml` 的时间字段为常量；全部条目日期为 2000-01-01。**登记值**（模板 A · 演示计划）：**周档 16,175 字节**，sha256 `f843f2d0987d88fcaada6168c3162dfa83ada55129e40740443a7090f6fb25b2`；**日档 17,635 字节**，sha256 `269bdc1e175b3291da7414d47dbe1018815ce81d92a340b42fcde55e57ccbb5d`（两档都是 `scripts/export-pptx.mjs --zoom week|day` 实测，`twoRunIdentical: true`）。**这次为什么变了**：P3/C7-h 把进度条形状名前缀由 `prog-` 改成 `progress-`（见 §三），而形状名进 XML ⇒ 产物字节**必然**变（周档 +6、日档 +8 字节；把新产物的 `slide1.xml` 逐字改回旧名后重打包，得到的就是下表的历史锚值**逐位不差**，因此差额 100% 来自这次改名）。**历史锚值**：P-46 收口时为 **15,984 字节**（sha256 `9e130786…94d7`，差额对应上表的三层拆分——新增 `-edge` / `-head` 两段图形、刻度由整高改为短刻度）；P3/C3 拆分前后为 **16,169 字节**（sha256 `a13f17be…6352`）、日档 **17,627 字节**（sha256 `78aa0773…4ae8`），拆分实测**逐字节不变**。**注意**：这个字节数/哈希是**记录值**，当前**没有任何用例钉住它**（判据只有"两次导出相等"）——是否加钉子由 P4 的 ② 项决定 | **进** |
 | ④ 负向对照 | `template.spec.ts` | 站点越界 / 引用不存在的形状 / 复用 id / 组非等比 —— **逐条必须被检出** | **进** |
 | ⑤ 降级 | `template.spec.ts` | `degradeConnectors: true` ⇒ 无 `cxnSp`、有 14 处 `custGeom` 与 28 处 `lnTo`、结构仍合法 | **进** |
 | ⑥ 可读性纪律 | `template.spec.ts` | 演示计划：行标签有效字号 ≥ 6 pt 且标签形状存在；1,000 行：< 6 pt 且**不生成**任何 `lbl-*` | **进** |

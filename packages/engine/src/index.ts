@@ -27,8 +27,13 @@ export const ENGINE_VERSION = '0.0.0';
  * 命令层见 G1.3；传播内核见 G2；持久化见 G6）。分解依据见裁决 P-10。
  *
  * 注意语义：它是"最新一个"，不是"唯一一个"——完整清单见 `COMPLETED_GATES`。
+ *
+ * 名字里的两处都改过（P3/C7-h；改的是**名字在说谎**，不是语义）：
+ * - 旧名 `PLANNED_GATE` 的 `PLANNED` 是错的——它的值跟踪的是**最新一个已完成**的能力块（现为 `'G8'`）；
+ * - `GATE` **刻意丢掉**：本仓的 GATE 专指**质量门禁**（`pnpm gate` 九步，ADR 0001），
+ *   沿用会让人误以为这个常量是门禁的一环。
  */
-export const PLANNED_GATE = 'G8' as const;
+export const LATEST_COMPLETED_BLOCK = 'G8' as const;
 
 /** 已落地能力块清单（G0 的护栏不在本包内，故不计入；G6 的应用侧接线在 `apps/web`）。 */
 export const COMPLETED_GATES = ['G1.1', 'G1.2', 'G1.3', 'G2', 'G6', 'G8'] as const;

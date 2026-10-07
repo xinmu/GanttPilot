@@ -33,12 +33,19 @@ export function siteForSide(side: RouteSide): number {
   return side === 'right' ? SITES.right : SITES.left;
 }
 
-/** 形状名（**唯一定位锚点**；也是 WPS 里人工核对时可读的标识）。 */
+/**
+ * 形状名（**唯一定位锚点**；也是 WPS 里人工核对时可读的标识）。
+ *
+ * 前缀是"人工核对时读得出来"与"机器定位得住"两件事的交点，因此**进度条用 `progress-` 而不是
+ * `prog-`**（P3/C7-h）：这份标识会随产物一起进 WPS 的形状列表，读全词才不至于让人猜。
+ * 其余短前缀（`grp-` / `ms-` / `dep-` / `lbl-`）保持原样——它们要么已是通行缩写、要么是既有判据的计数锚。
+ * **注意**：改前缀会改变产物字节（golden 与记录制证据的锚值，见 `PPTX.md` §③）。
+ */
 export const NAMES = {
   title: 'title',
   group: (summaryTaskId: string): string => `grp-${summaryTaskId}`,
   bar: (taskId: string): string => `bar-${taskId}`,
-  progress: (taskId: string): string => `prog-${taskId}`,
+  progress: (taskId: string): string => `progress-${taskId}`,
   milestone: (taskId: string): string => `ms-${taskId}`,
   edge: (linkId: string): string => `dep-${linkId}`,
   label: (taskId: string): string => `lbl-${taskId}`,

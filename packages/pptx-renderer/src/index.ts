@@ -13,8 +13,13 @@
 
 export const PPTX_RENDERER_VERSION = '0.0.0';
 
-/** 本包能力落地的能力块编号。 */
-export const PLANNED_GATE = 'G8' as const;
+/**
+ * 本包**最新完成**的能力块编号。
+ *
+ * 旧名 `PLANNED_GATE` 有两处说谎（P3/C7-h 只改名、不改语义）：`PLANNED` 与"已完成"相反；
+ * `GATE` 在本仓专指**质量门禁**（`pnpm gate`，ADR 0001），不该被这个常量占用。
+ */
+export const LATEST_COMPLETED_BLOCK = 'G8' as const;
 
 /** 已落地能力块清单（G0 的护栏不在本包内）。 */
 export const COMPLETED_GATES = ['G7', 'G8'] as const;

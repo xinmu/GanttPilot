@@ -635,7 +635,7 @@ $lines += @(
   $(if ($wpsShapeTree.Count -gt 0) { $wpsShapeTree -join "`n" } else { '(未取到：会话 2 未打开)' }),
   '```',
   '',
-  '（注意：顶层只有文本框、`grp-s*` 与 `dep-*`；`bar-*`/`prog-*`/`ms-*` 在组内。',
+  '（注意：顶层只有文本框、`grp-s*` 与 `dep-*`；`bar-*`/`progress-*`/`ms-*` 在组内。',
   'XML 里同样如此：它们是 `<p:grpSp>` 的子元素，而 connector 在**顶层**引用这些子形状的 id',
   '——这正是 S7-a 所说的"跨组吸附"，WPS 打开与另存后都认这个引用。）',
   '',

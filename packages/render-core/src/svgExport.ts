@@ -109,18 +109,23 @@ export function escapeXml(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
-function round(value: number): number {
+/**
+ * **整数 px 舍入**（导出坐标的口径，ADR 0010 §4：浮点串会让 golden 比对变成噪声探测）。
+ *
+ * 别与 `align.ts` 的 `roundSubPx`（保留 3 位小数的亚像素舍入）混用——两者曾经同名异义。
+ */
+function roundPx(value: number): number {
   return Math.round(value);
 }
 
 /** 点串 → `<polygon points>`（整数化）。 */
 function pointsAttr(points: readonly (readonly [number, number])[]): string {
-  return points.map(([x, y]) => `${String(round(x))},${String(round(y))}`).join(' ');
+  return points.map(([x, y]) => `${String(roundPx(x))},${String(roundPx(y))}`).join(' ');
 }
 
 /** 折线点列 → `<path d>`（整数化）。 */
 function pathData(points: readonly (readonly [number, number])[]): string {
-  return points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${String(round(x))} ${String(round(y))}`).join('');
+  return points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${String(roundPx(x))} ${String(roundPx(y))}`).join('');
 }
 
 /** 箭头填充形态：SS/SF 空心、FS/FF 实心（`ARROW_FILL` 的口径）。 */
@@ -145,7 +150,7 @@ function legendEdgeSwatch(x: number, y: number, styleKey: string): string {
     [tipX + right[0], y + right[1]],
   ]);
   return (
-    `<line x1="${String(round(x))}" y1="${String(round(y))}" x2="${String(round(tipX - 8))}" y2="${String(round(y))}" stroke="${COLOR.edge}" stroke-width="1"/>` +
+    `<line x1="${String(roundPx(x))}" y1="${String(roundPx(y))}" x2="${String(roundPx(tipX - 8))}" y2="${String(roundPx(y))}" stroke="${COLOR.edge}" stroke-width="1"/>` +
     `<polygon points="${arrow}" fill="${fill === 'hollow' ? COLOR.hollowFill : COLOR.edge}" stroke="${COLOR.edge}" stroke-width="1"/>`
   );
 }
@@ -176,21 +181,21 @@ function sidebarSvg(args: {
   const { options } = args;
   let y = HEADER_HEIGHT_PX + 8;
   parts.push(
-    `<rect x="${String(round(args.x))}" y="0" width="${String(EXPORT_SIDEBAR_WIDTH_PX)}" height="${String(round(args.height))}" fill="${COLOR.legendBg}"/>`,
+    `<rect x="${String(roundPx(args.x))}" y="0" width="${String(EXPORT_SIDEBAR_WIDTH_PX)}" height="${String(roundPx(args.height))}" fill="${COLOR.legendBg}"/>`,
   );
 
   if (options.includeLegend === true) {
     parts.push(
       `<g class="legend">` +
-        `<text x="${String(round(args.x + 8))}" y="${String(round(y + 10))}" font-size="${String(EXPORT_LABEL_FONT_PX)}" fill="${COLOR.rowText}">图例</text>`,
+        `<text x="${String(roundPx(args.x + 8))}" y="${String(roundPx(y + 10))}" font-size="${String(EXPORT_LABEL_FONT_PX)}" fill="${COLOR.rowText}">图例</text>`,
     );
     y += 22;
     for (const item of exportLegendItems()) {
       const swatch =
         item.styleKey === 'bar'
-          ? `<rect x="${String(round(args.x + 8))}" y="${String(round(y - 8))}" width="18" height="10" rx="2" fill="${COLOR.bar}"/>`
+          ? `<rect x="${String(roundPx(args.x + 8))}" y="${String(roundPx(y - 8))}" width="18" height="10" rx="2" fill="${COLOR.bar}"/>`
           : item.styleKey === 'bar-summary'
-            ? `<rect x="${String(round(args.x + 8))}" y="${String(round(y - 8))}" width="18" height="6" fill="${COLOR.barSummary}"/>`
+            ? `<rect x="${String(roundPx(args.x + 8))}" y="${String(roundPx(y - 8))}" width="18" height="6" fill="${COLOR.barSummary}"/>`
             : item.styleKey === 'milestone'
               ? `<polygon points="${pointsAttr([
                   [args.x + 17, y - 12],
@@ -201,7 +206,7 @@ function sidebarSvg(args: {
               : legendEdgeSwatch(args.x + 8, y - 4, item.styleKey);
       parts.push(
         `<g class="legend-item" data-style-key="${escapeXml(item.styleKey)}">${swatch}` +
-          `<text x="${String(round(args.x + 32))}" y="${String(round(y))}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.rowText}">${escapeXml(item.label)}</text>` +
+          `<text x="${String(roundPx(args.x + 32))}" y="${String(roundPx(y))}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.rowText}">${escapeXml(item.label)}</text>` +
           `</g>`,
       );
       y += 16;
@@ -215,12 +220,12 @@ function sidebarSvg(args: {
     const lines = exportSummaryLines(summary);
     parts.push(
       `<g class="summary">` +
-        `<text x="${String(round(args.x + 8))}" y="${String(round(y + 10))}" font-size="${String(EXPORT_LABEL_FONT_PX)}" fill="${COLOR.rowText}">摘要</text>`,
+        `<text x="${String(roundPx(args.x + 8))}" y="${String(roundPx(y + 10))}" font-size="${String(EXPORT_LABEL_FONT_PX)}" fill="${COLOR.rowText}">摘要</text>`,
     );
     y += 24;
     for (const line of [...lines.headline, ...lines.milestones]) {
       parts.push(
-        `<text x="${String(round(args.x + 8))}" y="${String(round(y))}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.rowText}">${escapeXml(line)}</text>`,
+        `<text x="${String(roundPx(args.x + 8))}" y="${String(roundPx(y))}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.rowText}">${escapeXml(line)}</text>`,
       );
       y += 14;
     }
@@ -310,7 +315,7 @@ export function svgString(args: SvgExportArgs): string {
     const x = Math.min(Math.max(element.x, 0), chartWidth);
     const width = Math.max(1, Math.min(element.width, chartWidth - x));
     chunks.push(
-      `<rect x="${String(round(offsetX + x))}" y="${String(offsetY)}" width="${String(round(width))}" height="${String(rowsHeight)}" fill="${COLOR.majorBody}"/>`,
+      `<rect x="${String(roundPx(offsetX + x))}" y="${String(offsetY)}" width="${String(roundPx(width))}" height="${String(rowsHeight)}" fill="${COLOR.majorBody}"/>`,
     );
   }
   // ② 周末/假日色带——画在月份分组底**之后**，因此永远看得见
@@ -319,7 +324,7 @@ export function svgString(args: SvgExportArgs): string {
     // 裁到绘制区右缘（不裁会露进侧栏/间隙）；**计数仍与 `view.axis` 一致**（夹到 ≥1 px，不跳过）
     const width = Math.max(1, Math.min(element.width, chartWidth - Math.max(0, element.x)));
     chunks.push(
-      `<rect x="${String(round(offsetX + element.x))}" y="${String(offsetY)}" width="${String(round(width))}" height="${String(rowsHeight)}" fill="${COLOR.band}"/>`,
+      `<rect x="${String(roundPx(offsetX + element.x))}" y="${String(offsetY)}" width="${String(roundPx(width))}" height="${String(rowsHeight)}" fill="${COLOR.band}"/>`,
     );
   }
   // ③ 上级分段的边界（全高）与表头底
@@ -328,8 +333,8 @@ export function svgString(args: SvgExportArgs): string {
     const x = Math.min(Math.max(element.x, 0), chartWidth);
     const width = Math.max(1, Math.min(element.width, chartWidth - x));
     chunks.push(
-      `<line x1="${String(round(offsetX + x))}" x2="${String(round(offsetX + x))}" y1="0" y2="${String(offsetY + rowsHeight)}" stroke="${COLOR.majorEdge}" stroke-width="1"/>`,
-      `<rect x="${String(round(offsetX + x))}" y="0" width="${String(round(width))}" height="${String(HEADER_HEIGHT_PX)}" fill="${COLOR.majorHeader}"/>`,
+      `<line x1="${String(roundPx(offsetX + x))}" x2="${String(roundPx(offsetX + x))}" y1="0" y2="${String(offsetY + rowsHeight)}" stroke="${COLOR.majorEdge}" stroke-width="1"/>`,
+      `<rect x="${String(roundPx(offsetX + x))}" y="0" width="${String(roundPx(width))}" height="${String(HEADER_HEIGHT_PX)}" fill="${COLOR.majorHeader}"/>`,
     );
   }
   chunks.push(`</g>`);
@@ -338,7 +343,7 @@ export function svgString(args: SvgExportArgs): string {
     if (element.kind !== 'gridline') continue;
     const x = Math.min(Math.max(element.x, 0), chartWidth);
     chunks.push(
-      `<line class="axis-tick" x1="${String(round(offsetX + x))}" x2="${String(round(offsetX + x))}" y1="${String(HEADER_HEIGHT_PX - EXPORT_TICK_LENGTH_PX)}" y2="${String(HEADER_HEIGHT_PX)}" stroke="${COLOR.gridline}" stroke-width="1"/>`,
+      `<line class="axis-tick" x1="${String(roundPx(offsetX + x))}" x2="${String(roundPx(offsetX + x))}" y1="${String(HEADER_HEIGHT_PX - EXPORT_TICK_LENGTH_PX)}" y2="${String(HEADER_HEIGHT_PX)}" stroke="${COLOR.gridline}" stroke-width="1"/>`,
     );
   }
 
@@ -356,7 +361,7 @@ export function svgString(args: SvgExportArgs): string {
     if (element.kind !== 'label') continue;
     const baseline = element.level === 1 ? MAJOR_LABEL_BASELINE_PX : MINOR_LABEL_BASELINE_PX;
     chunks.push(
-      `<text x="${String(round(offsetX + element.x + 2))}" y="${String(baseline)}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.axisText}">${escapeXml(element.text)}</text>`,
+      `<text x="${String(roundPx(offsetX + element.x + 2))}" y="${String(baseline)}" font-size="${String(EXPORT_AXIS_FONT_PX)}" fill="${COLOR.axisText}">${escapeXml(element.text)}</text>`,
     );
   }
   chunks.push(`</g>`);
@@ -366,24 +371,24 @@ export function svgString(args: SvgExportArgs): string {
   for (const row of view.rows) {
     const task = document.tasks[row.docIndex];
     const label = exportLabelOf({ task, fallback: row.id });
-    const y = round(offsetY + row.y);
+    const y = roundPx(offsetY + row.y);
     chunks.push(
       `<g class="row" data-task-id="${escapeXml(row.id)}" data-kind="${row.kind}">` +
         `<title>${escapeXml(label.text)}</title>` +
-        `<text x="${String(round(8 + label.indentPx))}" y="${String(y + view.rowHeight - 8)}" font-size="${String(EXPORT_LABEL_FONT_PX)}"${label.bold ? ' font-weight="bold"' : ''} fill="${COLOR.rowText}">${escapeXml(label.text)}</text>`,
+        `<text x="${String(roundPx(8 + label.indentPx))}" y="${String(y + view.rowHeight - 8)}" font-size="${String(EXPORT_LABEL_FONT_PX)}"${label.bold ? ' font-weight="bold"' : ''} fill="${COLOR.rowText}">${escapeXml(label.text)}</text>`,
     );
     if (row.isMilestone && row.milestone !== null) {
       chunks.push(
         `<polygon class="milestone" points="${diamondPoints({ ...row.milestone, cx: offsetX + row.milestone.cx, cy: offsetY + row.milestone.cy })}" fill="${COLOR.milestone}" stroke="${COLOR.milestoneStroke}" stroke-width="1"/>`,
       );
     } else {
-      const barWidth = Math.max(1, round(row.xRight - row.xLeft));
+      const barWidth = Math.max(1, roundPx(row.xRight - row.xLeft));
       chunks.push(
-        `<rect class="bar" x="${String(round(offsetX + row.xLeft))}" y="${String(round(offsetY + row.barY))}" width="${String(barWidth)}" height="${String(round(row.barHeight))}" rx="${row.kind === 'summary' ? '0' : '2'}" fill="${row.kind === 'summary' ? COLOR.barSummary : COLOR.bar}"/>`,
+        `<rect class="bar" x="${String(roundPx(offsetX + row.xLeft))}" y="${String(roundPx(offsetY + row.barY))}" width="${String(barWidth)}" height="${String(roundPx(row.barHeight))}" rx="${row.kind === 'summary' ? '0' : '2'}" fill="${row.kind === 'summary' ? COLOR.barSummary : COLOR.bar}"/>`,
       );
       if (row.hasProgress) {
         chunks.push(
-          `<rect class="bar-progress" x="${String(round(offsetX + row.xLeft))}" y="${String(round(offsetY + row.barY + 1))}" width="${String(Math.max(0, round((row.xRight - row.xLeft) * row.progressRatio)))}" height="${String(Math.max(0, round(row.barHeight - 2)))}" fill="${COLOR.progress}"/>`,
+          `<rect class="bar-progress" x="${String(roundPx(offsetX + row.xLeft))}" y="${String(roundPx(offsetY + row.barY + 1))}" width="${String(Math.max(0, roundPx((row.xRight - row.xLeft) * row.progressRatio)))}" height="${String(Math.max(0, roundPx(row.barHeight - 2)))}" fill="${COLOR.progress}"/>`,
         );
       }
     }

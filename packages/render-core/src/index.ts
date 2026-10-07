@@ -18,8 +18,13 @@
 /** 本包按 semver 独立发版（见 README「文档约定」）。 */
 export const RENDER_CORE_VERSION = '0.0.0';
 
-/** 本包最新完成的能力块编号（完整清单见 `COMPLETED_GATES`）。 */
-export const PLANNED_GATE = 'G8' as const;
+/**
+ * 本包**最新完成**的能力块编号（完整清单见 `COMPLETED_GATES`）。
+ *
+ * 旧名 `PLANNED_GATE` 有两处说谎（P3/C7-h 只改名、不改语义）：`PLANNED` 与"已完成"相反；
+ * `GATE` 在本仓专指**质量门禁**（`pnpm gate`，ADR 0001），不该被这个常量占用。
+ */
+export const LATEST_COMPLETED_BLOCK = 'G8' as const;
 
 /** 已落地能力块清单（G4 的几何与裁剪 + G7 的导出投影与 SVG 序列化）。 */
 export const COMPLETED_GATES = ['G4', 'G7', 'G8'] as const;
