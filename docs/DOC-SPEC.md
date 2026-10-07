@@ -200,18 +200,23 @@
 | 10 | **本机绝对路径**（`C:\` / `D:/` / `~/` / `/Users/` / `/home/`）出现在**可复现层**（`layer: slim` 或 `role: baseline`）⇒ **错误**；出现在归档 / 证据 / spike 层 ⇒ **一条聚合警告** | 基线层被绑死在一台机器的下载目录上（决策 8） |
 | 11 | 引用**被 `.gitignore` 覆盖的临时路径**（`externalPathCheck.temporaryPathPatterns`）且同一行（或紧邻下一行）无声明词 ⇒ **警告** | 把「维护者本机的草稿」当成可复现输入 |
 | 12 | 入仓原文的**来源块**（必填项 + 内容起始标记）齐备、**入库件正文 `sha256` 复算一致**；提取件保留指向原文的链接且带标记词 ⇒ 不符即 **错误** | 「提取件 ↔ 原文」的对应关系被静默摘掉，或入库正文被回改（改写历史） |
+| 13 | **生成物与来源一致**：`generated: true` 的文档**就地从来源重算**并**逐字节比对**；标了 `generated` 却没有渲染器 ⇒ **错误** | 生成物静默变旧（先跑生成器、后改来源），而检查读的是索引（C7-i 的 `N10`） |
+| 14 | **证据层的「原始读数」所有权**：每条 `-raw.json` 必须在 `evidenceRawCheck.rawOf` 里登记（raw → 与它成对的那份 `.md`）⇒ 未登记**警告**；登记的 raw / of 不存在 ⇒ **错误**；两侧都有 `采集时刻` 时**逐位相等**（否则这份 raw 不是那份 `.md` 的读数）⇒ **错误**；有一侧没有（schema 不同）时**必须写 note** 说明配对依据 ⇒ 否则**警告** | 记录制证据的原始读数变成「文件在、没人指」的孤儿；或 raw 被下一次运行覆盖后，指向悄悄错位（C8-a） |
 
 > **配置键**（唯一真相源都在 `docs/doc-index.json`）：`caps`、`layer`、`contextBudget`、`pendingList`、
 > `linkCheckAllowlist`（每条带 `reason`）、`crossLayerCheck`（`markers` + `allow`）、`constantCheck`
 > （唯一声明处 + 例外）、`externalPathCheck`（`errorScope` + `markers` + `temporaryPathPatterns` + `allow`）、
-> `sourceLineCheck`（`contentStartMarker` + `markers` + `archived` + `extractors`）。
+> `sourceLineCheck`（`contentStartMarker` + `markers` + `archived` + `extractors`）、
+> `evidenceRawCheck`（`rawOf`：`{ raw, of, note? }`）。
 >
-> **P1 建的三条检查、D1 的两项守卫与 D2 的溯源守卫**（都在同一步 `pnpm docs:check` 里）：
+> **P1 建的三条检查、D1 的两项守卫、D2 的溯源守卫与 P3 补的两条**（都在同一步 `pnpm docs:check` 里）：
 > ① 契约常量单点声明（`check-constants.mjs`；纪律见 §4.2）；
 > ② 精简层预算与入口封闭性（`check-docs.mjs` §8b；纪律见 §4.4）；
 > ③ 跨层引用必须带标记词（`check-docs.mjs` §8c：`历史` / `原文口径` / `细则` / `依据` / `存档`；入口页由 §8b 判，不指归档层）；
 > ④ 仓库外路径与被 gitignore 覆盖的临时路径（`check-docs.mjs` §8d；纪律见 §4.6）；
-> ⑤ 入仓原文的来源行与保真（`check-docs.mjs` §8e；纪律见 §4.6）。
+> ⑤ 入仓原文的来源行与保真（`check-docs.mjs` §8e；纪律见 §4.6）；
+> ⑥ 生成物与来源一致（`check-docs.mjs` §8f；`GENERATED_ARTIFACTS` 在 `scripts/doc-artifacts.mjs`）；
+> ⑦ 证据层的原始读数所有权（`check-docs.mjs` §8g；C8-a）。
 >
-> 脚本的 `--selftest`（`node scripts/check-docs.mjs --selftest`，当前 **24 例**；`node scripts/check-constants.mjs --selftest`）
-> 是这五条的**反向保护**：每类判定都配一个「该绿就绿、该红就红」的合成用例。
+> 脚本的 `--selftest`（`node scripts/check-docs.mjs --selftest`，当前 **30 例**；`node scripts/check-constants.mjs --selftest`）
+> 是这几条的**反向保护**：每类判定都配一个「该绿就绿、该红就红」的合成用例。

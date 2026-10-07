@@ -1002,6 +1002,108 @@ for (const artifact of GENERATED_ARTIFACTS) {
   }
 }
 
+// ── 8g. 证据层的「原始读数」所有权（P3/C8-a） ───────────────────────────────
+//
+// 为什么需要它：`-raw.json` 是记录制证据的**机器可读孪生件**——`measure-render.mjs` 与
+// `offline-artifact-probe.mjs` 每写一份 `.md` 就成对写一份 raw（实测 9/9 与某份 `.md` 的
+// `采集时刻` 逐位相等）。病在**引用方向不可解析**：`.md` 正文只写「逐行值见 raw JSON」
+// 「单列在原始 JSON 的 `prepareMs`」，不写文件名 ⇒ 6/9 份 raw 在链接图里是彻底的孤儿
+//（「文件在、没人指」）。判据因此不看"有没有人链接"，而看"**有没有可解析的所有者**"。
+//
+// **为什么是登记所有权、不是删**（计划原文的「删 4 份零引用 raw / 95 KB」在实测下站不住，见
+// 批次记录 §C8-a 的逐条证据）：① DOC-SPEC §4.5 把「真机落盘的 XML、渲染 PNG、**计时原始数据**」
+// 列为**不可再生的外部工具观测**（P2/D9 的两级处置：可再生的代码删、结论与证据留档）；
+// ② 生成器用**不带版本号**的文件名 ⇒ 同名 raw 被下一次运行覆盖，现存这份是**那一次运行的唯一全量记录**
+//（`chart-align*.md` 自述"证据表只列首 10 + 末 4 行，逐行值见 raw JSON"、`render-timing-*.md`
+// 自述"`compute` 单列在原始 JSON 的 `prepareMs`"）；③ 「零引用」只看链接图，漏掉了**孪生配对**
+// （时刻相等）与**兄弟 .md 的明文 deferral**（不带文件名）这两种"所有者存在"的形态。
+//
+// 判定：
+//   ① 每条 `-raw.json` 必须在 `evidenceRawCheck.rawOf` 里登记（raw → 与它成对的那份 `.md`）⇒ 否则**警告**；
+//   ② 登记的 raw / of 必须存在 ⇒ 否则**错误**（删文件要同时删登记）；
+//   ③ 两侧都有 `采集时刻` ⇒ 必须**逐位相等**（不等就说明这份 raw 不是那份 `.md` 的读数）⇒ **错误**；
+//   ④ 有一侧没有 `采集时刻`（schema 不同，如 `offline-single-file`）⇒ 必须写 `note` 说明配对依据 ⇒ 否则**警告**。
+
+/**
+ * 证据层「原始读数」的所有权与新鲜度判定（与仓库解耦，便于 `--selftest` 用合成输入驱动）。
+ *
+ * @param {{ raws: string[],
+ *           declared: Array<{raw: string, of?: string, note?: string}>,
+ *           exists: (path: string) => boolean,
+ *           stampOfRaw: (path: string) => string | null,
+ *           stampOfMd: (path: string) => string | null }} input
+ * @returns {{ errors: string[], warnings: string[] }}
+ */
+export function evaluateEvidenceRaw({ raws, declared, exists, stampOfRaw, stampOfMd }) {
+  const errors = [];
+  const warnings = [];
+  const declaredPaths = new Set(declared.map((item) => item.raw));
+  for (const raw of raws) {
+    if (declaredPaths.has(raw)) continue;
+    warnings.push(
+      `[证据] ${raw} 没有登记所有者（docs/doc-index.json 的 evidenceRawCheck.rawOf：raw → 与它成对的那份 .md）` +
+        '——原始读数本身是不可再生的留档物（DOC-SPEC §4.5），"没人指"才是病；登记或删除二选一',
+    );
+  }
+  for (const item of declared) {
+    const { raw } = item;
+    if (!exists(raw)) {
+      errors.push(`[证据] rawOf 登记了不存在的原始读数：${raw}（删文件要同时删登记）`);
+      continue;
+    }
+    if (typeof item.of !== 'string' || item.of === '') {
+      errors.push(`[证据] ${raw} 的 rawOf 没写 of（必须指向与它成对的那份 .md）`);
+      continue;
+    }
+    if (!exists(item.of)) {
+      errors.push(`[证据] ${raw} 登记的所有者不存在：${item.of}`);
+      continue;
+    }
+    const rawStamp = stampOfRaw(raw);
+    const mdStamp = stampOfMd(item.of);
+    if (rawStamp !== null && mdStamp !== null) {
+      if (rawStamp !== mdStamp) {
+        errors.push(
+          `[证据] ${raw} 与 ${item.of} 不是同一次运行：raw 的采集时刻 ${rawStamp} ≠ .md 的采集时刻 ${mdStamp}` +
+            '（生成器用不带版本号的文件名 ⇒ 同名 raw 会被下一次运行覆盖，指向要跟着改）',
+        );
+      }
+    } else if (typeof item.note !== 'string' || item.note === '') {
+      warnings.push(
+        `[证据] ${raw} 无法按采集时刻自动配对（raw ${rawStamp ?? '无'} / .md ${mdStamp ?? '无'}）⇒ 必须在 rawOf 里写 note 说明配对依据`,
+      );
+    }
+  }
+  return { errors, warnings };
+}
+
+// ── 8g. 证据层的原始读数：输入装配 ──────────────────────────────────────────
+
+const evidenceRawConfig = index.evidenceRawCheck ?? {};
+const evidenceRawRaws = walkFiles(repoRoot, ['-raw.json']).map((absolute) => rel(absolute));
+const rawStampOf = (path) => {
+  try {
+    const parsed = JSON.parse(read(join(repoRoot, path)));
+    const stamp = parsed?.env?.['采集时刻'];
+    return typeof stamp === 'string' ? stamp : null;
+  } catch {
+    return null; // 解析不了就当"没有采集时刻"，由 ④ 要求写 note（不静默跳过）
+  }
+};
+const mdStampOf = (path) => {
+  const match = /^\|\s*采集时刻\s*\|\s*(.+?)\s*\|/m.exec(read(join(repoRoot, path)));
+  return match === null ? null : match[1];
+};
+const evidenceRaw = evaluateEvidenceRaw({
+  raws: evidenceRawRaws,
+  declared: evidenceRawConfig.rawOf ?? [],
+  exists: (path) => existsSync(join(repoRoot, path)),
+  stampOfRaw: rawStampOf,
+  stampOfMd: mdStampOf,
+});
+for (const message of evidenceRaw.errors) error(message);
+for (const message of evidenceRaw.warnings) warn(message);
+
 // ── 9. 策略不变量 ──────────────────────────────────────────────────────────
 
 const POLICY = [
@@ -1029,7 +1131,8 @@ console.log(
   `[docs] 已索引文档 ${index.docs.length} 份，合计 ${Math.round(totalKb)} KB；` +
     `精简层 ${layered.slimKb.toFixed(1)}/${budget.slimKb} KB（另：用户手册 ${layered.userFacingKb.toFixed(1)} KB、临时计划 ${layered.exemptKb.toFixed(1)} KB）、` +
     `必读 ${layered.mustReadKb.toFixed(1)}/${budget.mustReadKb} KB；台账条目 ${ledgerEntries.length} 条；` +
-    `存档覆盖轮次 ${roundOwners.size} 个（上界 R${ledgerMaxRound === null ? '?' : String(ledgerMaxRound)} 由台账推导，旧实现硬编码 26）`,
+    `存档覆盖轮次 ${roundOwners.size} 个（上界 R${ledgerMaxRound === null ? '?' : String(ledgerMaxRound)} 由台账推导，旧实现硬编码 26）；` +
+    `证据原始读数 ${String(evidenceRawRaws.length)} 份（rawOf 登记 ${String((index.evidenceRawCheck?.rawOf ?? []).length)} 条）`,
 );
 
 if (warnings.length > 0) {
@@ -1044,7 +1147,7 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 生成物与来源一致 / 体量 / 分层预算与入口封闭性 / 跨层引用标记词 / 仓库外路径 / 来源行与保真 / 策略不变量。');
+console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 生成物与来源一致 / 体量 / 分层预算与入口封闭性 / 跨层引用标记词 / 仓库外路径 / 来源行与保真 / 证据原始读数所有权 / 策略不变量。');
 
 // ── 自检（反向保护的钉子：每类判定都要有"该绿就绿、该红就红"的合成用例） ──
 //
@@ -1277,6 +1380,55 @@ function selftest() {
     name: '溯源：入仓原文不存在判错',
     result: evaluateSourceLines({ archived: [{ ...archivedOk, exists: false }], extractors: [], markers: srcMarkers }),
     expect: (r) => r.errors.length === 1 && r.errors[0].includes('入仓原文不存在'),
+  });
+
+  // §8g：证据层的原始读数所有权与新鲜度（C8-a）
+  const rawInput = (over) => ({
+    raws: ['apps/web/evidence/t-raw.json'],
+    declared: [{ raw: 'apps/web/evidence/t-raw.json', of: 'apps/web/evidence/t-chrome154.md' }],
+    exists: () => true,
+    stampOfRaw: () => '2026-10-06T13:17:08.512Z',
+    stampOfMd: () => '2026-10-06T13:17:08.512Z',
+    ...over,
+  });
+  cases.push({
+    name: '证据 raw：登记齐备且采集时刻逐位相等即绿',
+    result: evaluateEvidenceRaw(rawInput({})),
+    expect: (r) => r.errors.length === 0 && r.warnings.length === 0,
+  });
+  cases.push({
+    name: '证据 raw：没登记所有者只警告（"没人指"才是病，不是"文件多余"）',
+    result: evaluateEvidenceRaw(rawInput({ declared: [] })),
+    expect: (r) => r.errors.length === 0 && r.warnings.length === 1 && r.warnings[0].includes('rawOf') && r.warnings[0].includes('留档物'),
+  });
+  cases.push({
+    name: '证据 raw：采集时刻不一致判错（这份 raw 不是那份 .md 的读数）',
+    result: evaluateEvidenceRaw(rawInput({ stampOfMd: () => '2026-10-04T08:30:37.287Z' })),
+    expect: (r) =>
+      r.errors.length === 1 &&
+      r.errors[0].includes('不是同一次运行') &&
+      r.errors[0].includes('2026-10-06T13:17:08.512Z') &&
+      r.errors[0].includes('2026-10-04T08:30:37.287Z'),
+  });
+  cases.push({
+    name: '证据 raw：无法自动配对时必须写 note，写了即绿',
+    result: [
+      evaluateEvidenceRaw(rawInput({ stampOfRaw: () => null, stampOfMd: () => null })),
+      evaluateEvidenceRaw(
+        rawInput({
+          stampOfRaw: () => null,
+          stampOfMd: () => null,
+          declared: [{ raw: 'apps/web/evidence/t-raw.json', of: 'apps/web/evidence/t-chrome154.md', note: 'schema 不同，按文件名配对' }],
+        }),
+      ),
+    ],
+    expect: (r) =>
+      r[0].errors.length === 0 && r[0].warnings.length === 1 && r[0].warnings[0].includes('note') && r[1].errors.length === 0 && r[1].warnings.length === 0,
+  });
+  cases.push({
+    name: '证据 raw：登记了不存在的 raw 判错（删文件要同时删登记）',
+    result: evaluateEvidenceRaw(rawInput({ exists: (path) => path !== 'apps/web/evidence/t-raw.json' })),
+    expect: (r) => r.errors.length === 1 && r.errors[0].includes('不存在的原始读数'),
   });
 
   let failed = 0;

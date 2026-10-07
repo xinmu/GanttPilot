@@ -574,6 +574,15 @@
       "note": "P3 各批次的实测、判据、踩坑与计划订正（C1–C8）。从 03-代码重构.md 迁出（2026-10-08：03 触到 plan 的 60 KB 上限 63.7 KB，规范要求拆分/迁移而不是提高上限）；03 只留批次表与验收标准，两边的节标题一一对应"
     },
     {
+      "path": "docs/04-refactor/08-批次记录-P3-C8.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P3/C8（证据卫生）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 07：C8 与 C7 主题无关（07 已 46.7 KB 记了 C7 十批）；record 层 80 KB 上限的口径不变"
+    },
+    {
       "path": "docs/04-refactor/07-批次记录-P3-C7.md",
       "role": "record",
       "cap": "record",
@@ -1435,6 +1444,57 @@
       {
         "path": "docs/00-baseline/需求基线.md",
         "mustLinkTo": "docs/00-baseline/上游原文-产品需求文档与路线图.md"
+      }
+    ]
+  },
+  "evidenceRawCheck": {
+    "$comment": [
+      "P3/C8-a：证据层「原始读数」（`-raw.json`）的**所有权**登记（执行者 check-docs.mjs 的「证据原始读数所有权」）。",
+      "为什么需要它：`-raw.json` 是记录制证据的机器可读孪生件——`measure-render.mjs` 与 `offline-artifact-probe.mjs` 每写一份 .md 就成对写一份 raw（实测 9/9 与某份 .md 的 `采集时刻` 逐位相等）。",
+      "但**引用方向不可解析**：.md 正文只写「逐行值见 raw JSON」「单列在原始 JSON 的 prepareMs」，不写文件名 ⇒ 6/9 份 raw 在链接图里是孤儿。判据因此不看「有没有人链接」，而看「**有没有可解析的所有者**」。",
+      "**为什么登记而不是删**（计划原文的「删 4 份零引用 raw / 95 KB」在实测下站不住，逐条证据见 08-批次记录-P3-C8 §C8-a）：① DOC-SPEC §4.5 把「真机落盘的 XML、渲染 PNG、**计时原始数据**」列为**不可再生的外部工具观测**（P2/D9 的两级处置：可再生的代码删、结论与证据留档）；② 生成器用**不带版本号**的文件名 ⇒ 同名 raw 被下一次运行覆盖，现存这份是**那一次运行的唯一全量记录**；③「零引用」只看链接图，漏掉了**孪生配对**（采集时刻相等）与**兄弟 .md 的明文 deferral**（不带文件名）这两种「所有者存在」的形态。",
+      "rawOf：`{ raw, of, note? }` —— raw 必须存在、of 必须是与它成对的 .md；两侧都有 `采集时刻` 时**逐位相等**（否则 error：这份 raw 不是那份 .md 的读数），有一侧没有（schema 不同）时**必须写 note** 说明配对依据。",
+      "删文件要同时删登记；新增 raw（如 P4 的 `chart-axis-hover-raw.json`）未登记 ⇒ **警告**（留档物不该变成孤儿）。"
+    ],
+    "rawOf": [
+      {
+        "raw": "apps/web/evidence/chart-align-diagnostic-before-fix-raw.json",
+        "of": "apps/web/evidence/chart-align-diagnostic-before-fix-chrome152.md"
+      },
+      {
+        "raw": "apps/web/evidence/chart-align-raw.json",
+        "of": "apps/web/evidence/chart-align-chrome154.md",
+        "note": "生成器用不带版本号的文件名 ⇒ 现存这份是 154 那一次的读数；`chart-align-chrome152.md` 里那 6 处「逐行值见 raw JSON」指的是已被覆盖掉的那一份（原文按归档层不改写，指向以本登记为准）"
+      },
+      {
+        "raw": "apps/web/evidence/drag-timing-dense-2000-raw.json",
+        "of": "apps/web/evidence/drag-timing-dense-2000-chrome154.md"
+      },
+      {
+        "raw": "apps/web/evidence/drag-timing-raw.json",
+        "of": "apps/web/evidence/drag-timing-chrome154.md"
+      },
+      {
+        "raw": "apps/web/evidence/import-cyclic-sample-raw.json",
+        "of": "apps/web/evidence/import-cyclic-sample-chrome152.md"
+      },
+      {
+        "raw": "apps/web/evidence/offline-single-file-raw.json",
+        "of": "apps/web/evidence/offline-single-file-chrome154.md",
+        "note": "schema 不同（顶层是 chromeMajor/artifact/flows*，没有 env.采集时刻）⇒ 无法按时刻自动配对；配对依据是生成器成对写出 + 该 .md 第 43 行的「原始读数」链接"
+      },
+      {
+        "raw": "apps/web/evidence/persist-drag-timing-raw.json",
+        "of": "apps/web/evidence/persist-drag-timing-chrome154.md"
+      },
+      {
+        "raw": "apps/web/evidence/persist-storage-2000-raw.json",
+        "of": "apps/web/evidence/persist-storage-2000-chrome154.md"
+      },
+      {
+        "raw": "apps/web/evidence/render-timing-raw.json",
+        "of": "apps/web/evidence/render-timing-chrome154.md",
+        "note": "同上：不带版本号的名字 ⇒ 现存这份是 154 那一次的读数；`render-timing-chrome152.md` 的同句 deferral（「compute 单列在原始 JSON 的 prepareMs」）指的是被覆盖掉的那一份"
       }
     ]
   },
