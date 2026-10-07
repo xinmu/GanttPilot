@@ -17,6 +17,7 @@
  * | ② | **构建产物**（`dist/*.js`）零 `exceljs` 引用 | 类型擦除没生效 / 传递依赖经 `dist` 泄漏 |
  * | ③ | 本包 `lint-boundary` 夹具被铁律拦下 | 本包受约束这件事不是口头约定（ADR 0007 §2） |
  * | ④ | 真实配置下本包源码零报错 | 限制规则没有误伤正常代码 |
+ * | ⑤ | **lint 规则**也拦下 `import '@ganttpilot/xlsx-protocol'`，而 `engine` 不被误伤 | P3/C7-a：①②是**文本扫描**（只看得见本包、只看得见字面量），方向图此前没有进 `eslint.config.mjs`——在 `engine` 里 import `render-core` 曾全绿 |
  *
  * 手法与 `packages/engine/src/boundary.spec.ts` 同源：断言用的规则集 import 自
  * `eslint-rules.mjs`，也就是 `pnpm lint` 真正加载的那一份定义（不是测试里抄的副本）。
@@ -29,6 +30,7 @@ import { fileURLToPath } from 'node:url';
 import { ESLint, Linter } from 'eslint';
 import { describe, expect, it } from 'vitest';
 
+import { WORKSPACE_DEPENDENCY_RULE_MESSAGE } from '../../../eslint-rules.mjs';
 import config from '../../../eslint.config.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -88,6 +90,16 @@ describe('P-19 §5 ②：依赖方向（engine ← render-core ← xlsx-protocol
       if (moduleEdge.test(code)) offenders.push(entry);
     }
     expect(offenders).toStrictEqual([]);
+  });
+
+  it('**lint 规则**同样守住这条方向：拦下 `xlsx-protocol`，不误伤 `engine`（P3/C7-a）', () => {
+    const restricted = lintAsCalculationLayer("import { parseXlsx } from '@ganttpilot/xlsx-protocol';\n");
+    const allowed = lintAsCalculationLayer("import { compute } from '@ganttpilot/engine';\n");
+
+    const hit = restricted.find((message) => message.message.includes(WORKSPACE_DEPENDENCY_RULE_MESSAGE));
+    expect(hit?.severity).toBe(2);
+    expect(hit?.message).toContain('@ganttpilot/xlsx-protocol');
+    expect(allowed.filter((message) => message.ruleId === 'no-restricted-imports')).toStrictEqual([]);
   });
 });
 

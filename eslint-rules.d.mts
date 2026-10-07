@@ -27,5 +27,42 @@ export declare const LINT_FIXTURE_PATTERN: string;
 /** 被 ESLint 全局忽略的构建产物与生成物。 */
 export declare const LINT_IGNORES: readonly string[];
 
+/** 计算层方向契约的一条（`allowed` 之外的工作区包一律不许 import）。 */
+export interface CalculationLayerPackage {
+  /** 包名（与 `package.json` 的 `name` 一致）。 */
+  readonly name: string;
+  /** 仓库相对目录（`packages/<name>`），用于生成 ESLint 的 `files` 模式。 */
+  readonly dir: string;
+  /** 允许 import 的工作区包；其余一律报错（含子路径导入）。 */
+  readonly allowed: readonly string[];
+  /** 这条方向在文档里的依据（进报错文案，便于就地判断"该不该改"）。 */
+  readonly note: string;
+}
+
+/** 计算层各包的依赖方向契约（声明顺序即层级顺序：越靠前越底层）。 */
+export declare const CALCULATION_LAYER_PACKAGES: readonly CalculationLayerPackage[];
+
+/** 依赖方向的报错文案片段。 */
+export declare const WORKSPACE_DEPENDENCY_RULE_MESSAGE: string;
+
+/** 按包名取契约条目（未登记即抛）。 */
+export declare function calculationLayerPackage(name: string): CalculationLayerPackage;
+
+/** 某包不许 import 的工作区包。 */
+export declare function forbiddenWorkspacePackagesFor(name: string): readonly CalculationLayerPackage[];
+
+/** `no-restricted-imports` 的 `patterns` 项。 */
+export interface RestrictedImportPattern {
+  /** 受限的模块名 glob（含子路径，如 `@ganttpilot/render-core/*`）。 */
+  readonly group: readonly string[];
+  /** 命中时的报错文案。 */
+  readonly message: string;
+}
+
+/** 某包的 `no-restricted-imports` **完整取值**（框架 + 该包的方向契约）。 */
+export declare function restrictedImportsFor(
+  name: string,
+): readonly [string, { readonly patterns: readonly RestrictedImportPattern[] }];
+
 /** 计算层（三包）的完整限制规则集。 */
 export declare const CALCULATION_LAYER_RESTRICTIONS: Linter.RulesRecord;
