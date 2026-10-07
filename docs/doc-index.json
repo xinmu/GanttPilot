@@ -1313,13 +1313,13 @@
       },
       {
         "id": "bar-colors",
-        "title": "条形 / 汇总条填充色（屏幕 SVG 与导出 SVG 同值）",
+        "title": "条形 / 汇总条填充色（屏幕 SVG / 导出 SVG / PPTX 同值）",
         "compare": "site",
         "declaration": {
-          "path": "packages/render-core/src/svgExport.ts",
+          "path": "packages/render-core/src/manifest.ts",
           "patterns": [
-            "  bar: '(#[0-9a-f]{6})',",
-            "  barSummary: '(#[0-9a-f]{6})',"
+            "export const BAR_FILL = '(#[0-9a-f]{6})';",
+            "export const BAR_SUMMARY_FILL = '(#[0-9a-f]{6})';"
           ]
         },
         "detectors": [
@@ -1335,7 +1335,7 @@
           "apps/web/src/components/GanttChart.vue"
         ],
         "$scope": "只扫绘制侧（render-core / pptx / 图表组件）；Toolbar.vue 的按钮底色复用 #2e75b6 属主题色，是否同一语义留 P3/C7。",
-        "$comment": "03 §C5 要求这一族最终由 manifest.ts 声明；本表暂以现存的 svgExport.ts COLOR 表为声明处——C5 迁移时必须同步改这里（否则检查会指向已删除的声明）。"
+        "$comment": "声明处 = render-core/src/manifest.ts（P3/C5 从 svgExport.ts 的 COLOR 表迁来）；改声明处必须同步改本表的 declaration.path 与 patterns，否则检查会指向已删除的声明。"
       }
     ]
   },

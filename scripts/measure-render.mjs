@@ -18,7 +18,9 @@
  * - **首屏**：`文档与 Schedule 就绪 → 含依赖线的首帧完成`，对 1,000 任务 ≤ 1,000 ms；
  * - **10× 滚动**：总墙钟、主线程 p50/p95、连续 rAF 帧间隔、longtask、空白行
  *   ——与《评估报告》§5.4 的"2,200 边 / 约 2.0 s"**同尺**对照；
- * - **元素预算**：渲染行/边与元素总数、`c₃`、是否在 `c₁·rows + c₂·edges + c₃ + c₄` 之内（`c₄ = 6·rows + 13`，ADR 0008 §16.4 + P-46 的悬停行带）。
+ * - **元素预算**：渲染行/边与元素总数、`c₃`、是否在 `c₁·rows + c₂·edges + c₃ + c₄` 之内
+ *   （`c₄` 的系数与逐档位锚值**只在声明处**：`render-core` 的 `manifest.ts` 的 `ELEMENT_MODEL_G5`
+ *   与 `clipping.spec.ts` 的 `expectedC3`；ADR 0008 §16.4 + P-46 的悬停行带）。
  *
  * 用法：
  *   node scripts/measure-render.mjs                  # 主口径（dense·日档）+ 2,200 边对照
@@ -242,9 +244,10 @@ function renderEvidence({ env, runs, options }) {
   lines.push('> "渲染行/边"来自元素模型，"DOM 行/边"是页面上真实存在的 `<g>` 数：');
   lines.push('> 两者必须相等，否则"元素预算"就是恒真式（脚本把不一致直接记进 `errors`）。');
   lines.push('> **`c₃` 与 G4-S 的回填值可比，但不是同一个数**：本轮页面用 `?table=0` 把图表放成全宽');
-  lines.push('> （1265 px，比 G4-S 探针页的 1280 px 少一条滚动条宽），因此日/周/月的 `c₃` 是');
-  lines.push('> **120 / 88 / 93**（P-46 两级刻度后重锚；单级口径原为 114 / 69 / 88），与 ADR 0007 §11 的单级回填值 **116 / 70 / 89** 差 1–2（就是那点宽度差）；');
-  lines.push('> 分屏下（隐藏左表之前）同一页面的 `c₃` 只有 35 / 21 / 26——`c₃` 只取决于"窗格宽 ÷ `pxPerDay`"，');
+  lines.push('> （本页窗格宽见上面的实测列，比 G4-S 探针页的视口少一条滚动条宽），因此日/周/月的 `c₃`');
+  lines.push('> 比 ADR 0007 §11 的单级回填值小 1–2（就是那点宽度差）；**逐档位锚值只在声明处**');
+  lines.push('> （`render-core/src/clipping.spec.ts` 的 `expectedC3`），本文件的表格里给的是**本次实测值**；');
+  lines.push('> 分屏下（隐藏左表之前）同一页面的 `c₃` 只有全宽口径的约三分之一——`c₃` 只取决于"窗格宽 ÷ `pxPerDay`"，');
   lines.push('> 与文档总规模无关，这是 §11.1 ③ 那条口径的直接后果。');
   lines.push('');
   lines.push('## 10× 滚动');
@@ -270,7 +273,7 @@ function renderEvidence({ env, runs, options }) {
   const blankOk = runs.every((run) => (run.result?.scroll?.blankRowGaps ?? 1) === 0);
   const frameOk = runs.every((run) => (run.result?.scroll?.p95WorkMs ?? Number.POSITIVE_INFINITY) <= 16.7);
   lines.push(`- **1,000 任务首屏 ≤ 1 s**：最差 ${ms(firstScreenWorst)} ⇒ ${budgetOk ? '**通过**' : '**不通过（按 ADR 0007 §9 分层定位后再决定降级）**'}；`);
-  lines.push(`- **元素预算**：${budgetInAll ? '**全部在 `c₁·rows + c₂·edges + c₃ + c₄` 之内**（`c₄ = 6·rows + 13`，ADR 0008 §16.4 + P-46 的悬停行带）' : '**有超预算项**'}；`);
+  lines.push(`- **元素预算**：${budgetInAll ? '**全部在 `c₁·rows + c₂·edges + c₃ + c₄` 之内**（`c₄` 的系数与 `c₃` 的锚值只在声明处：`render-core` 的 `manifest.ts` 的 `ELEMENT_MODEL_G5` 与 `clipping.spec.ts` 的 `expectedC3`；ADR 0008 §16.4 + P-46 的悬停行带）' : '**有超预算项**'}；`);
   lines.push(`- **零空白行**：${blankOk ? '**成立**' : '**出现空白行**'}；`);
   lines.push(`- **主线程 p95 ≤ 16.7 ms**（记录制候选）：${frameOk ? '**成立**' : '**超出**'}。`);
   const collectErrors = runs.flatMap((run) =>

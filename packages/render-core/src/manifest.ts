@@ -118,6 +118,15 @@ export const AXIS_GRIDLINE_STROKE = '#e4e7ec';
 export const HOVER_ROW_FILL = '#cfe3fa';
 
 /**
+ * 条形与汇总条的填充（ADR 0010 §4 的"三投影同源"）。
+ *
+ * **声明处就在本文件**（P3/C5 从 `svgExport.ts` 的 `COLOR` 表迁来）：屏幕 SVG、导出 SVG 与 PPTX
+ * 消费同一个值；`constantCheck` 的 `bar-colors` 条目按这里判位置。
+ */
+export const BAR_FILL = '#2e75b6';
+export const BAR_SUMMARY_FILL = '#7a8699';
+
+/**
  * 两级刻度的**文本基线**（表头带内的 y，px；**屏幕 SVG / 导出 SVG / PPTX 共用同值**）。
  *
  * 两级刻度是"一个带子里的两行文本"，因此基线必须有单点声明——否则屏幕画在上半、

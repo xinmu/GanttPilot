@@ -147,8 +147,8 @@ export function connectDiameterFor(bounds: TaskBounds, rowHeight: number): numbe
  * | 端点手柄 | 2 | **有条形端**的行（非汇总、非里程碑） |
  * | 连接点 | 2 | **有可画条形的行**（含汇总行、含里程碑） |
  *
- * **每渲染行 ≤ 3 个元素**——这正是 `ELEMENT_MODEL_G5.perRenderedRow = 3` 的来源
- * （`count.ts` 的两路计数必须与本函数逐项对应）。
+ * **每行的实际发射量 = 手柄 + 连接点**（两者都随行型变化）——它与 `c₁` 的口径合起来就是
+ * `manifest.ts` 的 `ELEMENT_MODEL_G5.perRenderedRow`（**声明处**；`count.ts` 的两路计数必须与本函数逐项对应）。
  */
 export function rowHandlesFor(args: {
   readonly taskId: string;

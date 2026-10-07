@@ -14,6 +14,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./align": {
+      "types": "./dist/align.d.ts",
+      "default": "./dist/align.js"
     }
   },
   "publishConfig": {

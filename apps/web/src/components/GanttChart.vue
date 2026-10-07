@@ -40,12 +40,16 @@ import { computed } from 'vue';
 import {
   arrowPolygons,
   AXIS_BAND_FILL,
+  BAR_FILL,
+  BAR_SUMMARY_FILL,
   AXIS_GRIDLINE_STROKE,
   AXIS_MAJOR_BODY_FILL,
   AXIS_MAJOR_EDGE,
   AXIS_MAJOR_HEADER_FILL,
   drawnBarForRow,
+  EDGE_STUB_PX,
   emptyHighlight,
+  EXPORT_TICK_LENGTH_PX,
   HEADER_HEIGHT_PX,
   HOVER_ROW_FILL,
   MAJOR_LABEL_BASELINE_PX,
@@ -118,9 +122,10 @@ type Row = ViewModel['rows'][number];
  * **它是"刻度线只属于刻度区"的可执行形式**（G8 人工复验第 ⑤ 条）：
  * 轴元素 `gridline` 的语义是"这一天的位置"，画成表头带内的一段短线即可；
  * 绘制区里只保留周末色带与月边界线（"刻度归刻度区、背景归背景区"）。
- * 取 6 px——足够看见，又不与表头两行文本抢空间。
+ * 长度取自 `render-core` 的 `EXPORT_TICK_LENGTH_PX`（**声明处**；屏幕、导出 SVG 与 PPTX 同一个值），
+ * 本文件**不复述数值**。
  */
-const TICK_LENGTH_PX = 6;
+const TICK_LENGTH_PX = EXPORT_TICK_LENGTH_PX;
 
 // ---------------------------------------------------------------- G5 覆盖层（元素计入 `c₄`）
 
@@ -152,7 +157,8 @@ const conflictRows = computed<Row[]>(() => {
 /**
  * 建线预览的正交路径：出端 → 竖直段 → 入端。
  *
- * STUB 用固定 8 px（与 `EDGE_STUB_PX` 同值、同样**不随 `pxPerDay` 缩放**）：
+ * STUB 用 `EDGE_STUB_PX`（**声明处**：`render-core` 的 `manifest.ts`，与路由侧同一个值、同样
+ * **不随 `pxPerDay` 缩放**）：
  * 预览只是"将从哪里连到哪里"的示意，真正的几何在提交后由 `routeEdge` 给出。
  */
 const previewPath = computed(() => {
@@ -160,7 +166,7 @@ const previewPath = computed(() => {
   if (preview === null) return '';
   const [ex, ey] = preview.exitPoint;
   const [nx, ny] = preview.enterPoint;
-  const midX = nx >= ex ? Math.min(ex + 8, Math.max(ex, nx)) : Math.max(ex - 8, Math.min(ex, nx));
+  const midX = nx >= ex ? Math.min(ex + EDGE_STUB_PX, Math.max(ex, nx)) : Math.max(ex - EDGE_STUB_PX, Math.min(ex, nx));
   return `M${String(ex)} ${String(ey)}H${String(midX)}V${String(ny)}H${String(nx)}`;
 });
 
@@ -561,7 +567,7 @@ const drawnRows = computed(() =>
               :y="item.drawn.barY"
               :width="Math.max(1, item.drawn.xRight - item.drawn.xLeft)"
               :height="item.drawn.barHeight"
-              :fill="item.row.kind === 'summary' ? '#7a8699' : '#2e75b6'"
+              :fill="item.row.kind === 'summary' ? BAR_SUMMARY_FILL : BAR_FILL"
               :rx="item.row.kind === 'summary' ? 0 : 2"
             />
             <rect

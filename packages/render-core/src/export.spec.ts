@@ -33,7 +33,7 @@ import {
 } from './exportLabels.js';
 import { DATASETS, PRIMARY_DATASET_KEY, generateDocument } from './fixtures.js';
 import { createScheduleCalendar, buildView } from './index.js';
-import { HEADER_HEIGHT_PX, LABEL_CHAR_PX, ROW_HEIGHT } from './manifest.js';
+import { AXIS_BAND_FILL, AXIS_GRIDLINE_STROKE, HEADER_HEIGHT_PX, LABEL_CHAR_PX, ROW_HEIGHT } from './manifest.js';
 import { svgInnerSizeOf, svgString } from './svgExport.js';
 
 function fixtureOfDemo(): {
@@ -300,8 +300,8 @@ describe('导出标签样式（人工复验第 3 条：父节点加粗、子节�
     const grids = projection.view.axis.filter((element) => element.kind === 'gridline').length;
     const labels = projection.view.axis.filter((element) => element.kind === 'label').length;
     expect(bands).toBeGreaterThan(0);
-    expect(svg.match(/fill="#f4f6f8"/g)).toHaveLength(bands);
-    expect(svg.match(/stroke="#e4e7ec"/g)).toHaveLength(grids);
+    expect(svg.match(new RegExp(`fill="${AXIS_BAND_FILL}"`, 'g'))).toHaveLength(bands);
+    expect(svg.match(new RegExp(`stroke="${AXIS_GRIDLINE_STROKE}"`, 'g'))).toHaveLength(grids);
     expect(svg.match(/<g class="axis-labels">/g)).toHaveLength(1);
     expect(labels).toBeGreaterThan(0);
     for (const element of projection.view.axis) {

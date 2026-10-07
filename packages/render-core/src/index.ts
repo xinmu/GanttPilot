@@ -34,6 +34,8 @@ export {
   AXIS_MAJOR_BODY_FILL,
   AXIS_MAJOR_EDGE,
   AXIS_MAJOR_HEADER_FILL,
+  BAR_FILL,
+  BAR_SUMMARY_FILL,
   CONNECT_HIT_PAD_PX,
   CONNECT_INSET_PX,
   CONNECT_REVEAL_FACTOR,
@@ -237,20 +239,6 @@ export {
 } from './interaction.js';
 
 // ---------------------------------------------------------------- 两栏行对齐（ADR 0007 §14 / 裁决 P-23；覆盖度与迁移见 P-40）
-export {
-  diagnoseResizeMigration,
-  diagnoseRowAlignment,
-  diagnoseScrollCoverage,
-  summarizeAlignment,
-  type AlignMechanism,
-  type ResizeMigrationVerdict,
-  type RowAlignDelta,
-  type RowAlignProbe,
-  type RowAlignSample,
-  type RowAlignVerdict,
-  type ScrollCoverage,
-  type ScrollPositionFact,
-} from './align.js';
 
 // ---------------------------------------------------------------- 列身份（ADR 0008 §1–§3；唯一真相源）
 export {

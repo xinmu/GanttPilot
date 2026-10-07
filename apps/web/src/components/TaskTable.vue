@@ -27,9 +27,11 @@
 
 import { computed, ref, watch } from 'vue';
 import {
+  AXIS_GRIDLINE_STROKE,
   cellText,
   COLUMN_SPECS,
   HEADER_HEIGHT_PX,
+  HOVER_ROW_FILL,
   isEditStale,
   rawCellText,
   TABLE_COLUMNS,
@@ -39,6 +41,16 @@ import {
   type ViewModel,
 } from '@ganttpilot/render-core';
 import type { Calendar } from '@ganttpilot/engine';
+
+/**
+ * 与图表**同值**的两枚样式令牌（P3/C5）：值只在 `render-core` 的 `manifest.ts` 声明，
+ * 这里只把它注入成 CSS 变量——左表是 CSS 渲染的，没法直接引用 TS 常量，
+ * 而"值的第二份"正是常量检查（`constantCheck` 的 `axis-colors`）要挡的东西。
+ */
+const styleTokens = {
+  '--axis-gridline-stroke': AXIS_GRIDLINE_STROKE,
+  '--hover-row-fill': HOVER_ROW_FILL,
+} as const;
 
 const props = defineProps<{
   readonly view: ViewModel;
@@ -235,7 +247,7 @@ void emit;
 <template>
   <div
     class="table-pane"
-    :style="{ height: `${String(columnHeight)}px`, '--header-h': `${String(HEADER_HEIGHT_PX)}px` }"
+    :style="{ height: `${String(columnHeight)}px`, '--header-h': `${String(HEADER_HEIGHT_PX)}px`, ...styleTokens }"
   >
     <div class="table-header">
       <!--
@@ -353,7 +365,7 @@ void emit;
   flex-direction: column;
   /* 左表宽度 = 列宽之和（`COLUMN_SPECS` 的 9 列），**不参与拉伸**；剩余宽度全给图表。 */
   flex: 0 0 auto;
-  border-right: 1px solid #e4e7ec;
+  border-right: 1px solid var(--axis-gridline-stroke);
   background: #ffffff;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 12px;
@@ -378,7 +390,7 @@ void emit;
   box-sizing: border-box;
   height: var(--header-h);
   background: #f9fafb;
-  border-bottom: 1px solid #e4e7ec;
+  border-bottom: 1px solid var(--axis-gridline-stroke);
   font-weight: 600;
   color: #475467;
 }
@@ -393,7 +405,7 @@ void emit;
 
 /* 第二行留白（P-46 §3）：只画一条行间分隔线，**不放任何文字**。 */
 .header-row-blank {
-  border-top: 1px solid #e4e7ec;
+  border-top: 1px solid var(--axis-gridline-stroke);
 }
 
 .cell-blank {
@@ -442,8 +454,9 @@ void emit;
  * | `.row.hovered` | **图表**的指针在这一行上（`GanttChart.hoverTaskId`） | 由父级传 `hoverTaskId` 派生 |
  *
  * 颜色与图表侧那 1 个 `hover-band` 覆盖层**同值**（`render-core` 的 `HOVER_ROW_FILL`），
- * 因此"条体 ↔ 左表"的对照成立（P-46 的复验反馈第 ⑥ 条：原来的 `#e8f1fb` 太浅、
- * 与周末灰度带 `#f4f6f8` 混在一起 ⇒ 加深到 `#cfe3fa`；第 ⑦ 条要求跨两栏一致）。
+ * 因此"条体 ↔ 左表"的对照成立（P-46 的复验反馈第 ⑥ 条：原来的浅蓝太接近周末灰度带的
+ * `AXIS_BAND_FILL` ⇒ 加深到 `HOVER_ROW_FILL`；第 ⑦ 条要求跨两栏一致）。**色值不在本文件复述**——
+ * 上面两枚 CSS 变量就是它的注入通道。
  *
  * 三条 CSS 规则的**优先级是刻意写清的**（都是单类 + 单伪类，同级）：
  * ① `.row.summary` 的底色比 `.row` 更具体 ⇒ 汇总行的悬停要**同等具体**才生效；
@@ -451,12 +464,12 @@ void emit;
  */
 .row:hover,
 .row.hovered {
-  background: #cfe3fa;
+  background: var(--hover-row-fill);
 }
 
 .row.summary:hover,
 .row.summary.hovered {
-  background: #cfe3fa;
+  background: var(--hover-row-fill);
 }
 
 .row.conflict:hover,

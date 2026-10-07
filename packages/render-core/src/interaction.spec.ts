@@ -249,7 +249,7 @@ describe('端点手柄与连接点（ADR 0008 §16.2／裁决 P-32 的 R3）', (
     for (const bounds of cases) {
       const handles = rowHandlesFor({ taskId: 't', bounds, rowHeight: ROW_HEIGHT });
       // 手柄 + 连接点 ≤ 4；但"最胖的行"是**有进度的叶子**：条 1 + 进度 1 + 手柄 2 + 连接点 2 = 6
-      // （进度是 c₁ 的老口径，不在这里）。三者的**上界**不变（`perRenderedRow = 3` 是上界）。
+      // （进度是 c₁ 的老口径，不在这里）。上界即 `ELEMENT_MODEL_G5.perRenderedRow`（声明处见 `manifest.ts`）。
       expect(handles.handles.length + handles.connectPoints.length).toBeLessThanOrEqual(4);
     }
     // 汇总行：**没有手柄、也没有连接点**（P-43：汇总端点上的依赖在传播中"等同不存在"）。

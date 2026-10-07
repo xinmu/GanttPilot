@@ -23,7 +23,18 @@ import { EXPORT_LABEL_FONT_PX, EXPORT_LABEL_WIDTH_PX } from './exportView.js';
 import { EXPORT_AXIS_FONT_PX } from './exportView.js';
 import { exportLabelOf } from './exportLabels.js';
 import { exportLegendItems, exportSummaryLines, type ExportSummary } from './exportSummary.js';
-import { HEADER_HEIGHT_PX, MAJOR_LABEL_BASELINE_PX, MINOR_LABEL_BASELINE_PX } from './manifest.js';
+import {
+  AXIS_BAND_FILL,
+  AXIS_GRIDLINE_STROKE,
+  AXIS_MAJOR_BODY_FILL,
+  AXIS_MAJOR_EDGE,
+  AXIS_MAJOR_HEADER_FILL,
+  BAR_FILL,
+  BAR_SUMMARY_FILL,
+  HEADER_HEIGHT_PX,
+  MAJOR_LABEL_BASELINE_PX,
+  MINOR_LABEL_BASELINE_PX,
+} from './manifest.js';
 import { arrowPolygons } from './route.js';
 import type { EdgeGeom, RowBox, ViewModel } from './viewModel.js';
 
@@ -36,18 +47,18 @@ import type { EdgeGeom, RowBox, ViewModel } from './viewModel.js';
  * `gridline` = `AXIS_GRIDLINE_STROKE`）——**谁是整高、谁先画**见 `svgString` 的轴注释。
  */
 const COLOR = {
-  band: '#f4f6f8',
-  gridline: '#e4e7ec',
+  band: AXIS_BAND_FILL,
+  gridline: AXIS_GRIDLINE_STROKE,
   axisText: '#667085',
   /** 上级分段带的**正文**（近乎白：它整高覆盖全宽，不能与周末带抢对比度）。 */
-  majorBody: '#fafbfc',
+  majorBody: AXIS_MAJOR_BODY_FILL,
   /** 上级分段带的**表头底**（比正文明显一档，一眼看出"这是哪个月"）。 */
-  majorHeader: '#e4e9f0',
+  majorHeader: AXIS_MAJOR_HEADER_FILL,
   /** 上级分段的**边界线**（全高；"月的边界"比刻度线醒目）。 */
-  majorEdge: '#b9c0cb',
+  majorEdge: AXIS_MAJOR_EDGE,
   rowText: '#1f2933',
-  bar: '#2e75b6',
-  barSummary: '#7a8699',
+  bar: BAR_FILL,
+  barSummary: BAR_SUMMARY_FILL,
   progress: '#1f4e79',
   milestone: '#ed7d31',
   milestoneStroke: '#b1551a',
