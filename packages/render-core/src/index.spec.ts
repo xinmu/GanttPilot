@@ -29,7 +29,7 @@ describe('@ganttpilot/render-core 公共入口', () => {
     expect(typeof renderCore.routeEdge).toBe('function');
     expect(typeof renderCore.selectEdges).toBe('function');
     expect(typeof renderCore.rowWindow).toBe('function');
-    expect(typeof renderCore.isRenderedRow).toBe('function');
+    expect(typeof renderCore.isRowRendered).toBe('function');
     expect(typeof renderCore.buildAxis).toBe('function');
     expect(typeof renderCore.axisOriginDayFor).toBe('function');
     expect(typeof renderCore.visibleRowOrder).toBe('function');

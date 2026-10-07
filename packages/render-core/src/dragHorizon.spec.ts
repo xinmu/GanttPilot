@@ -12,7 +12,7 @@
  * ```
  *
  * **(a) 可判定的一半**（[P-47](../../docs/00-baseline/裁决R46.md)，已修）：夹取方向猜错——
- * `gesture.ts` 的 `ordinalAtClamped` 旧实现在 `day < baseDay` 抛错后按 `x <= 0` 猜方向，
+ * `ordinalAtClamped`（现住 `gesture/pointer.ts`）的旧实现在 `day < baseDay` 抛错后按 `x <= 0` 猜方向，
  * 而 `baseDay` 左侧在屏幕上**不是 `x <= 0`**（轴线起点 = `dayOfOrdinal(projectStart) − AXIS_LEFT_GUTTER_DAYS`），
  * 于是"向左拖一点点"被判成"向右越界"，候选被甩到**最右序号**（4 → 94）。
  *
@@ -36,7 +36,7 @@ import { compute, createScheduleCalendar, type Calendar, type ProjectDocument, t
 import { createDemoPlanDocument } from './demoPlan.js';
 import { buildView, type ViewModel, type Viewport } from './viewModel.js';
 import { ROW_BUFFER, ROW_HEIGHT } from './manifest.js';
-import { beginGesture, ordinalAtClamped, previewDocumentFor, resolveDragOutcome, type GestureState } from './gesture.js';
+import { beginGesture, ordinalAtClamped, previewDocumentFor, resolveDragOutcome, type GestureState } from './gesture/index.js';
 
 const viewport: Viewport = {
   width: 1280,

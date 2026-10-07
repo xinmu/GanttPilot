@@ -111,7 +111,6 @@ export {
 export {
   axisOriginDayFor,
   buildAxis,
-  isRenderedRow,
   rowWindow,
   selectEdges,
   type AxisCalendarLike,
@@ -183,7 +182,7 @@ export {
   type PointerInput,
   type ReduceGestureArgs,
   type ResolvePointerArgs,
-} from './gesture.js';
+} from './gesture/index.js';
 
 // ---------------------------------------------------------------- 交互态高亮（ADR 0008 §8/§9）
 export {
@@ -210,7 +209,6 @@ export {
   translateZone,
   translateZones,
   zoneAt,
-  zoneContains,
   zonesFor,
   type CursorHint,
   type DragZone,

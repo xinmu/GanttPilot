@@ -13,7 +13,6 @@ import type { Calendar, ProjectDocument, Schedule } from '@ganttpilot/engine';
 import {
   axisOriginDayFor,
   buildAxis,
-  isRenderedRow,
   rowWindow,
   selectEdges,
   type AxisElement,
@@ -472,9 +471,17 @@ export function ordinalAtX(view: ViewModel, x: number, calendar: Calendar): numb
   return calendar.ordinalOfDay(Math.floor(dayAtX(view, x)));
 }
 
-/** 某个文档序索引是否在渲染窗口内（左表按需取景用）。 */
+/**
+ * 某个文档序索引是否在渲染窗口内（左表按需取景用；窗口口径见 `clip.ts` 的 `rowWindow`）。
+ *
+ * 与 `clip.ts` 的分工（P3/C5-b）：**只有这一个名字**。此前 `clip.ts` 另有同义的
+ * `isRenderedRow(rowOfDocIndex, renderFirst, renderLast, docIndex)`，而它唯一的调用方就是本函数
+ * ——那是同一个判据的两个名字、两条公共路径；现在判据住在这里（`ViewModel` 的三个字段就是入参），
+ * 视图层拿 `ViewModel` 直接调，不再需要把内部字段拆开传。
+ */
 export function isRowRendered(view: ViewModel, docIndex: number): boolean {
-  return isRenderedRow(view.rowOfDocIndex, view.renderFirst, view.renderLast, docIndex);
+  const row = view.rowOfDocIndex[docIndex];
+  return row !== undefined && row >= view.renderFirst && row <= view.renderLast;
 }
 
 /** 某可见行序号的竖向中心（内容坐标）。 */

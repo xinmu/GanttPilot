@@ -43,7 +43,7 @@ import {
   snapCandidate,
   type BeginGestureArgs,
   type GestureState,
-} from './gesture.js';
+} from './gesture/index.js';
 import { highlightForCyclePath } from './highlight.js';
 import { taskBounds, type TaskBounds } from './domain.js';
 import { CONNECT_SIZE_PX } from './interaction.js';

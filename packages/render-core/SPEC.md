@@ -31,13 +31,13 @@
 | `manifest.ts` | **常量与判据的唯一声明处**（ADR §11 七项回填值 + `evaluateScaleCriteria()` 复推） |
 | `route.ts` | 出/入边策略的可执行副本、正交折点 `routeEdge`、4 类箭头几何与可区分性度量 |
 | `domain.ts` | 行序（树序经折叠过滤）、`barXRange`、`milestoneCenterX`、`taskBounds` |
-| `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点。**轴元素是两级结构**（[ADR 0007 附录 §3（细则）](../../docs/02-adr/附录/0007-增补.md)／P-46）：`band` / `gridline` / `label`（下级，`level` 缺省或 2）+ **`major-band` / `label(level: 1)`（上级分段带：段内只在左端写一次、段的左边界即竖线、与下级刻度同 x 时不重复发 `gridline`）** + **`hover-band`（悬停行带，窗口坐标、每帧 1 个覆盖层元素）** |
-| `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges` |
+| `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点。**轴元素是两级结构**（[ADR 0007 附录 §3（细则）](../../docs/02-adr/附录/0007-增补.md)／P-46）：`band` / `gridline` / `label`（下级，`level` 缺省或 2）+ **`major-band` / `label(level: 1)`（上级分段带：段内只在左端写一次、段的左边界即竖线；该 `x` 处**至多一条** `gridline`——下级刻度发过就不重复发、没发过则由上级**补发**）** + **`hover-band`（悬停行带，窗口坐标、每帧 1 个覆盖层元素）** |
+| `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges`、`isRowRendered`（该行是否在**渲染**窗口内；P3/C5-b 起是这一判据的唯一名字） |
 | `count.ts` | 元素计数（两路互证）与预算判定；G5 的 **`c₄ = perRenderedRow·rows + overlay`**（ADR 0008 §16.4；**两个系数只在 `manifest.ts` 的 `ELEMENT_MODEL_G5` 声明一次，本文件不复述数字**；`countOverlays` 只承担"每帧固定"那一半，不随文档总规模增长；`overlay` 含 P-46 的悬停行带，`hoverRowOf(view)` 是它的唯一输入来源） |
 | `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出） |
 | `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19）；**行内编辑的基线文本与陈旧判定** `rawCellText` / `isEditStale`（P-21 批次 C 的 R5）；**提示条的迁移** `noticeAfterDispatch` / `rejectionNotice` / `StatusNotice`（P-30，唯一实现处） |
-| `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13** + §16.3/§16.8 + **附录 §3**：连接点入口、建线四格表、**重复边预检拒绝**、**拖动期的未提交副本**）：屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、位移与候选 `deltaFor` / `candidateOrdinalFor`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture`、结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor`、**未提交副本 `previewDocumentFor`** |
-| `zones.ts` | **判定区的唯一公式**（ADR 0008 §16.1／[P-32](../../docs/00-baseline/裁决记录.md)；**行类型的例外见 [P-43（依据）](../../docs/00-baseline/裁决R42.md)**：**汇总条整条无判定区**、**里程碑整条 `move`**）：`zonesFor`（随条宽收缩）、`zoneAt` / `zoneContains` / `dragModeOfZones`、`cursorForZone`、`translateZone` / `translateZones`，以及建线四格表 `linkTypeFor` / `linkEnterSideFor` / `exitXFor` / `enterXFor`。**单独一层**：公式的消费者在环上（`gesture` 要语义、`interaction` 要手柄与光标） |
+| `gesture/` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13** + §16.3/§16.8 + **附录 §3**：连接点入口、建线四格表、**重复边预检拒绝**、**拖动期的未提交副本**）。**P3/C5-b 起是目录**（原 `gesture.ts` 1,358 行 / 11 项职责；公共面逐符号不变，模块表见 `gesture/index.ts`）：`gesture/pointer.ts`（屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、位移与候选 `deltaFor` / `candidateOrdinalFor` / `ordinalAtClamped`）、`gesture/candidates.ts`（入边约束 `entryConstraintFor`、吸附 `snapCandidate`）、`gesture/outcome.ts`（结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor`、**未提交副本 `previewDocumentFor`**）、`gesture/linking.ts`（建线与预检）、`gesture/state.ts`（状态机 `beginGesture` / `reduceGesture`、判定区 `dragModeFor`） |
+| `zones.ts` | **判定区的唯一公式**（ADR 0008 §16.1／[P-32](../../docs/00-baseline/裁决记录.md)；**行类型的例外见 [P-43（依据）](../../docs/00-baseline/裁决R42.md)**：**汇总条整条无判定区**、**里程碑整条 `move`**）：`zonesFor`（随条宽收缩）、`zoneAt` / `dragModeOfZones`、`cursorForZone`、`translateZone` / `translateZones`、**`DragMode`（语义联合的声明处，P3/C5-b 起）**，以及建线四格表 `linkTypeFor` / `linkEnterSideFor` / `exitXFor` / `enterXFor`。**单独一层**：公式的消费者在环上（`gesture/` 要语义、`interaction.ts` 要手柄与光标）。`zoneContains` 是模块内私有（P3/C5-b 撤出公共面：全仓零消费者） |
 | `interaction.ts` | **交互几何**（ADR 0008 §16.2/§16.3，**落点与可见性按 §16.7/§16.8 的人工复验返工**：建线期"指针所在行"一律显形连接点；**可见图形按 P-42 批次③ 改为圆**；**汇总条按 P-43 撤下全部交互面**）：`rowHandlesFor`（端点手柄 2×4 px + 两侧连接点，内缘贴条端、竖向居中、**圆点直径略小于条高且 ≤ 命中盒边长**）、`handleXFor`、`barHeightOf`、**`connectDiameterFor`**、`connectSideAt`（**显示区 ⊇ 命中区**）、`connectRevealFor` / `rowConnectVisibleAt`（按需显形）、`cursorForPointer`（光标枚举）、`linkEntryFor`（建线起手位置；**汇总行返回 `null`**）、`handleOffsetsFor`（记录制核对） |
 | `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
 | `affected.ts` | `affectedRenderSet`：受影响行 + 受影响边（编辑重绘的判据） |
@@ -113,7 +113,9 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
   （上级 `level: 1`，日/周档 `YYYY-MM`、月档 `YYYY`）放在下半（33）、**细**的那一层放在上半（17），
   与"粗的在上"相反；两级对调后两基线间距 17 px > 字号 10 ⇒ 不重叠；
 - **上级按分段带表达**：段内**只在左端**发一次文本（`major-band` 的左边界即竖线）；
-  段与下级刻度同 `x` 时**不重复发 `gridline`**（否则两路计数对不上）；
+  该 `x` 处**至多一条** `gridline`——下级刻度已经发过就**不重复发**，没发过（周档的月初往往不是周一）
+  则由**上级这一层补发**（否则两路计数对不上）。判据是**双向**的：`gridline` 的 `x` 互不相同
+  **且**每条 `major-band` 的左边界都有一条 `gridline` 与它重合（除非它落在水平裁剪之外）——见 `clipping.spec.ts`；
 - 上级标签字面：日/周档 `YYYY-MM`、月档 `YYYY`（下级仍是 §11 第 6 项的 `DD` / `MM-DD` / `YYYY-MM`）；
 - 两级元素**共用同一处水平窗口裁剪** ⇒ `c₃` 仍与文档总规模无关（§6.1 ③）。
 
@@ -147,7 +149,7 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
   **旧名 `AXIS_MAJOR_FILL` 随分层删除**——它当初把"正文"与"表头底"混成了一色；
 - **元素模型未动**：分层只改"**每个轴元素投影出几个图形**"（一个 `major-band` → 正文 + 全高边界 +
   表头底；一个 `gridline` → 一条短刻度，取代原先那条整高竖线），
-  `c₁` / `c₂` / `c₃` / `c₄` 逐个不变（§九）。
+  `c₁` / `c₂` / `c₃` / `c₄` 逐个不变（**本文件 §九** 的「元素预算的常数与实测」与 `count.ts` 的两路计数）。
 
 ## 四、行模型
 
@@ -348,7 +350,7 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
 | G5 ⑦ 拖动期画的是结果（P-24） | `gesture.spec.ts`（该 spec 文件当前 **39 例**） | 三语义下 `drawnBarForRow` == 落库重算后的 `taskBounds`；与**锚点视图**的对照（`resize-start` 的右端固定）；未被拖行不受影响 | **进** | [ADR 0008 §14（细则）](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑫ 拖动期的**下游**也所见即所提交（P-45） | `gesture.spec.ts`（**+3 例**） | `previewDocumentFor`：只改那一个任务、其余**按引用共享**、原文档一字不动、两种 `null`；**下游同源**——`resize-duration` 拖动期 `compute(副本, 锚点)` 与落库后重算的后继行开始序号**逐位一致**（**负向对照写在同一条断言里**：只喂锚点必然给出另一个值；并以"至少一个样本"自证前提）；`GestureUpdate.dragOutcome.patch` 与松手命令的 `patch` **逐字段相等** | **进** | [ADR 0008 附录 §3（细则）](../../docs/02-adr/附录/0008-增补.md) |
 | G5 ⑫ 拖动期的下游（记录制） | `scripts/measure-render.mjs --drag`（**两种语义 × 两个滚动状态**；`--drag-dataset=` 可换规模） | **抓取点自证**（`gestureMode === 'resize-duration'`）、位移判据（**工期** = 拖动前 + N）、**下游跟随**（拖动期 == 松手后 **且** ≠ 拖动前）、**预览不落库**（拖动期 `revision` 不变、松手后 +1）；两族共用同一个聚合函数 ⇒ 数字可比 | **不进**（记录制，需本机 Chrome） | [P-45（依据）](../../docs/00-baseline/裁决R44.md) |
-| **G8 ① 两级刻度**（P-46） | `clipping.spec.ts` + `scaleInvariance.spec.ts` + `pptx-renderer/template.spec.ts` | 上级标签随档位（日/周 `YYYY-MM`、月 `YYYY`；下级仍 `DD`/`MM-DD`/`YYYY-MM`）；**上级标签数 == 上级分段带数**且（日档）严格少于下级标签数（"段内只写一次"的判别力）；**同 `x` 处只有一条 `gridline`**；`c₃` 逐档位**重锚**（新锚值见 `clipping.spec.ts` 的 `expectedC3`）且"同档位恒定"仍成立；PPTX 侧 `major-band-N` 数 == `view.axis` 的 `major-band` 数（**绘制区正文 / 全高边界 `-edge` / 表头底 `-head` 三个投影都在**）、**上级标签的 `y` 严格小于下级**（大刻度在上，**G8 人工复验第 ③ 条订正**）、短刻度的高度 < 灰度带的 1/4 且绘制顺序 `major-band-N` < `band-N` < `grid-N` < 条形（刻度只在表头带内，**第 ⑤ 条**） | **进** | [P-46（依据）](../../docs/00-baseline/裁决R45.md) |
+| **G8 ① 两级刻度**（P-46） | `clipping.spec.ts` + `scaleInvariance.spec.ts` + `pptx-renderer/template.spec.ts` | 上级标签随档位（日/周 `YYYY-MM`、月 `YYYY`；下级仍 `DD`/`MM-DD`/`YYYY-MM`）；**上级标签数 == 上级分段带数**且（日档）严格少于下级标签数（"段内只写一次"的判别力）；**同 `x` 处只有一条 `gridline`**（且每条上级分段带的左边界都有一条）；`c₃` 逐档位**重锚**（新锚值见 `clipping.spec.ts` 的 `expectedC3`）且"同档位恒定"仍成立；PPTX 侧 `major-band-N` 数 == `view.axis` 的 `major-band` 数（**绘制区正文 / 全高边界 `-edge` / 表头底 `-head` 三个投影都在**）、**上级标签的 `y` 严格小于下级**（大刻度在上，**G8 人工复验第 ③ 条订正**）、短刻度的高度 < 灰度带的 1/4 且绘制顺序 `major-band-N` < `band-N` < `grid-N` < 条形（刻度只在表头带内，**第 ⑤ 条**） | **进** | [P-46（依据）](../../docs/00-baseline/裁决R45.md) |
 | **G8 ② 悬停行带**（P-46；**宽度口径见 G8 第二次复验第 ① 条**） | `clipping.spec.ts` + `viewModel.spec.ts` | 给定 `hoverRow` 时**恰好 1 个** `hover-band`（`x=0`、**宽 = `contentWidth`**、`y = row × 行高`、高=行高）；外加**判别力**前提（`contentWidth` 必须严格大于视口宽）与**负向对照**（把视口宽当内容宽喂进 `buildAxis` ⇒ 得到一屏宽，两者必须不等）；**计入 `overlay`（+1）、不计入 `c₃`**；两路计数仍逐项相等且**没有双重计数**（`axis-hover-band` 必须不存在、`overlay-hover-row` 恰 1）；**负向对照**：不传 `hoverRow` 时 `overlays`/`total` 各少 1；渲染窗口外的行号 ⇒ 不发射 | **进** | [P-46（依据）](../../docs/00-baseline/裁决R45.md) |
 | **G8 ③ 渲染地平线收口**（P-48） | `dragHorizon.spec.ts`（**4 例**） | 夹取方向（左侧一律 0、右侧夹到末日）；向左拖五个距离逐帧都能建出视图；**向右拖 90 个工作日必须能建出视图**（看门人已由"必须抛错"改写而来）；**`renderCalendar` 覆盖 `projectFinish − 1`**（入参日历缩到 30 天时它严格更大、且能翻译）；守卫型负向对照（把越界序号交回入参日历必须现形） | **进** | [P-47（依据）](../../docs/00-baseline/裁决R46.md) / [P-48（依据）](../../docs/00-baseline/裁决R47.md) |
 | G5 ⑧ 滚动状态下的反算与命中（P-25） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** | [ADR 0007 §16（细则）](../../docs/02-adr/附录/0007-增补.md) / [ADR 0008 §15（细则）](../../docs/02-adr/附录/0008-增补.md) |

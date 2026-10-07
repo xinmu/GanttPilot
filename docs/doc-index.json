@@ -972,6 +972,11 @@
       "pathRegex": "^docs/00-baseline/裁决R.*\\.md$",
       "targetRegex": "apps/web/src/(shared|edit)\\.ts$",
       "reason": "这两个文件已由 P-20 的迁落点删除（逻辑迁入 packages/render-core）；存档里的历史引用保留原样"
+    },
+    {
+      "pathRegex": "^docs/00-baseline/裁决R.*\\.md$",
+      "targetRegex": "^(\\.\\./\\.\\./)?packages/render-core/src/gesture\\.ts$",
+      "reason": "render-core 的 gesture.ts 由 **P3/C5-b 拆成 gesture/ 目录**（1,358 行 / 11 项职责；公共面逐符号不变）：两处归档裁决（R19-21 的 R2/R4 表、R42 的依据行）里的历史链接按「归档层逐字不改写」保留原样，只登记这处**目标已改名**的存量；活的指向（`CONTRIBUTING.md`、`SPEC.md` §二、代码注释）都已改为 `src/gesture/index.ts`。与上一条不同：这条不是「目标已删除」，而是「目标已搬迁」，故不新增任何未被引用的破链，白名单条目只覆盖这两处"
     }
   ],
   "contextBudget": {

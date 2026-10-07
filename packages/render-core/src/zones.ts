@@ -4,13 +4,13 @@
  * ## 为什么它独立成一个模块
  *
  * ADR 0008 §16.1 把"判定区随条宽收缩"定为**唯一一条公式**，而它的消费者分布在一个环上：
- * `gesture.ts` 需要它决定拖动语义（`dragModeFor`），`interaction.ts` 需要它决定手柄位置与光标提示。
+ * `gesture/` 需要它决定拖动语义（`dragModeFor`），`interaction.ts` 需要它决定手柄位置与光标提示。
  * 若把公式放在两者之一，就必然出现"谁 import 谁"的环。因此公式自己住一层：
  *
  * ```
  * manifest ── domain ──┐
- *                      ├── zones.ts ──┬── gesture.ts
- *                      └──────────────┴── interaction.ts
+ *                      ├── zones.ts ──┬── gesture/（拖动语义）
+ *                      └──────────────┴── interaction.ts（手柄 / 连接点 / 光标）
  * ```
  *
  * 本模块**零 DOM、零框架、零副作用**，只做纯算术（因此它的判据可以在 Node 侧逐值断言）。
@@ -34,6 +34,16 @@ import { DRAG_EDGE_PX, MIN_MOVE_ZONE_PX } from './manifest.js';
 
 /** 判定区的语义（`link-out` 是 §16.3 的建线连接点，不是条体上的区）。 */
 export type DragZoneKind = 'resize-start' | 'move' | 'resize-duration' | 'link-out';
+
+/**
+ * 拖拽语义（ADR 0008 §5）：判定区决定 `mode`——即 {@link DragZoneKind} 去掉 `link-out`
+ * （连接点不是"条体上的区"，它按 §16.3 走建线）。
+ *
+ * **声明在本模块**（P3/C5-b）：它是"判定区 → 语义"这一步的产物类型，而这一步的公式只有
+ * {@link dragModeOfZones} 一处；`gesture/` 一侧（`dragModeFor` 的转发、候选序号、状态机）
+ * 与包入口都从这里取，因此这个联合**只写一遍**。
+ */
+export type DragMode = 'move' | 'resize-start' | 'resize-duration';
 
 /** 一段判定区（**闭区间**，内容坐标）。 */
 export interface DragZone {
@@ -77,8 +87,13 @@ export function zonesFor(bounds: TaskBounds): DragZones {
   };
 }
 
-/** 判定区是否包含 `x`（**闭区间**）。 */
-export function zoneContains(zone: DragZone, x: number): boolean {
+/**
+ * 判定区是否包含 `x`（**闭区间**）。
+ *
+ * **模块内私有**（P3/C5-b）：全仓零消费者（`index.ts` 此前只是把它转发出去），但 {@link zoneAt}
+ * 有三处调用——内联会把同一条闭区间判据抄三遍，反而是第二份真相源。故"撤出公共面"而不是删函数。
+ */
+function zoneContains(zone: DragZone, x: number): boolean {
   return x >= zone.x1 && x <= zone.x2;
 }
 
@@ -119,13 +134,9 @@ export function zoneAt(zones: DragZones, x: number): DragZone | null {
  * 再改工期——那里有 `editToCommand` 的一致性判据守着。
  *
  * `x` 落在判定区之外（条外、空白）时返回 `'move'`——调用方必须先过 `barHitFor`/连接点判定，
- * 本函数**不承担命中检查**（那是 `gesture.ts` 的前置）。
+ * 本函数**不承担命中检查**（那是 `gesture/` 的前置）。
  */
-export function dragModeOfZones(
-  bounds: TaskBounds,
-  zones: DragZones,
-  x: number,
-): 'move' | 'resize-start' | 'resize-duration' {
+export function dragModeOfZones(bounds: TaskBounds, zones: DragZones, x: number): DragMode {
   if (bounds.isMilestone) return 'move';
   const zone = zoneAt(zones, x);
   if (zone === null) return 'move';

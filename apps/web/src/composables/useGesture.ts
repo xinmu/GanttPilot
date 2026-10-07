@@ -5,7 +5,7 @@
  *
  * | 层 | 职责 |
  * |---|---|
- * | `packages/render-core/src/gesture.ts` | 指针（归一化）→ 状态机 → `{anchors, commands, link}`（**纯函数、进门禁**） |
+ * | `packages/render-core/src/gesture/index.ts`（+ 同目录的 `pointer` / `candidates` / `outcome` / `linking` / `state` 五块） | 指针（归一化）→ 状态机 → `{anchors, commands, link}`（**纯函数、进门禁**） |
  * | 本文件 | 事件 → 归一化指针；把产出落到会话（`applyToSession` 唯一通道）；维护高亮集合 |
  * | `GanttChart.vue` | 把数字写成 SVG 属性（覆盖层） |
  *
