@@ -827,7 +827,7 @@
       "role": "record",
       "cap": "evidence",
       "layer": "archive",
-      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）。P3/C8-b 在文首加了「证据卫生说明」：① 清单里的 `A-wps-repro0-render.png` 盘上不存在、实际落盘的是 `A-wps-repro1-render.png`（此前零引用）；② 判读五的 `repro2` 无对应文件；③ 5 张 PNG 里 4 张逐字节相同**不是重复**，而是判读四命题 2 / 判读五命题 1 的结论本身 ⇒ 按 R54 全部保留（计划原文的「保留 2 张」订正）"
     },
     {
       "path": "spikes/g0-s1-pptx-connector/evidence/wps/A-absorption-roundtrip-report.md",
