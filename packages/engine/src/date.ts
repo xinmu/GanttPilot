@@ -125,6 +125,26 @@ export function dayNumberToIso(day: DayNumber): string {
  * 或 `isoToDayNumber`——日期在编排逻辑里不应变成毫秒。
  * @throws RangeError 同 `isoToDayNumber`
  */
+/**
+ * 文本是否是合法的 \`YYYY-MM-DD\` 日期——**唯一实现**（P3/C4 收敛：此前 \`schema.ts\` 与
+ * \`command.ts\` 各有一份等价判定）。
+ *
+ * 用先正则后解析的写法：正则挡掉绝大多数非法输入（快路径），\`parseIsoDate\` 负责日历合法性
+ * （拒绝 \`2026-02-31\`）。两条路径**共用同一个 \`ISO_DATE_PATTERN\`**，因此"形状合法"与"日历合法"
+ * 不会分叉。
+ */
+export function isIsoDateText(value: string): boolean {
+  if (!ISO_DATE_PATTERN.test(value)) {
+    return false;
+  }
+  try {
+    parseIsoDate(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function parseIsoDate(iso: string): number {
   return isoToDayNumber(iso) * MS_PER_DAY;
 }
@@ -205,11 +225,11 @@ interface NormalizedCalendar {
 /**
  * 抛出 `RangeError`。
  *
- * 返回类型是 `never`，因此在构造函数里写 `return fail(...)` 能让 TS 的控制流分析
+ * 返回类型是 `never`，因此在构造函数里写 `return throwRangeError(...)` 能让 TS 的控制流分析
  * 认出「后面的属性赋值不会执行」——否则 `strictPropertyInitialization` 会对
  * `Calendar` 的每个字段报 TS2564。
  */
-function fail(message: string): never {
+function throwRangeError(message: string): never {
   throw new RangeError(message);
 }
 
@@ -218,7 +238,7 @@ function assertDayNumber(day: number, label: string): DayNumber {
   if (Number.isInteger(day)) {
     return day;
   }
-  return fail(`${label} 不是整数日序号：${String(day)}`);
+  return throwRangeError(`${label} 不是整数日序号：${String(day)}`);
 }
 
 /** 传进来的"工作日序号"必须是非负整数。 */
@@ -226,17 +246,24 @@ function assertOrdinal(ordinal: number, label: string): number {
   if (Number.isInteger(ordinal) && ordinal >= 0) {
     return ordinal;
   }
-  return fail(`${label} 不是非负整数工作日序号：${String(ordinal)}`);
+  return throwRangeError(`${label} 不是非负整数工作日序号：${String(ordinal)}`);
 }
 
-/** 校验并规范化 `workDays`（要求 0–6 的整数、至少一项）。 */
-function assertWorkDays(workDays: readonly number[]): readonly number[] {
+/**
+ * 校验并**规范化** `workDays`（要求 0–6 的整数、至少一项）——**唯一实现**。
+ *
+ * 返回的是去重排序后的副本：产品侧（`Calendar`）与测试侧的互证日历都用它，因此"同一份 spec
+ * 在两个实现里被理解成同一个工作日集合"不由两处代码各自保证（P3/C4 收敛；此前
+ * `test/loopCalendar.ts` 有一份**不去重排序**的副本 ⇒ 语义已分叉）。
+ * 规范化只影响 `workDays` 的**顺序与重复**，不改变 `includes(...)` 的判定结果。
+ */
+export function assertWorkDays(workDays: readonly number[]): readonly number[] {
   if (workDays.length === 0) {
-    return fail('workDays 为空：至少需要一个工作日（如默认的周一至周五）');
+    return throwRangeError('workDays 为空：至少需要一个工作日（如默认的周一至周五）');
   }
   for (const candidate of workDays) {
     if (!Number.isInteger(candidate) || candidate < 0 || candidate > DAYS_IN_WEEK - 1) {
-      return fail(`workDays 含非法日序号：${String(candidate)}（要求 0–6 的整数）`);
+      return throwRangeError(`workDays 含非法日序号：${String(candidate)}（要求 0–6 的整数）`);
     }
   }
   return [...new Set(workDays)].sort((left, right) => left - right);
@@ -385,10 +412,10 @@ export class Calendar implements CalendarLike {
     );
     const spanDays = options.spanDays ?? DEFAULT_HORIZON_DAYS;
     if (!Number.isInteger(spanDays) || spanDays <= 0) {
-      fail(`地平线天数必须为正整数，收到 ${String(spanDays)}`);
+      throwRangeError(`地平线天数必须为正整数，收到 ${String(spanDays)}`);
     }
     if (spanDays > HORIZON_GUARD_DAYS) {
-      fail(
+      throwRangeError(
         `地平线天数 ${String(spanDays)} 超过上限 ${String(HORIZON_GUARD_DAYS)}（HORIZON_GUARD_DAYS）`,
       );
     }
@@ -439,7 +466,7 @@ export class Calendar implements CalendarLike {
   dayOfOrdinal(ordinal: WorkdayCount | number): DayNumber {
     const k = assertOrdinal(ordinal, 'dayOfOrdinal 的序号');
     if (k > this.workdayCount) {
-      return fail(
+      return throwRangeError(
         `工作日序号越界：${String(k)}（合法范围 0..${String(this.workdayCount)}；` +
           '容量不足时用 withHorizon() 扩容后重算）',
       );
@@ -454,7 +481,7 @@ export class Calendar implements CalendarLike {
         }
         cursor += 1;
       }
-      return fail(`工作日序号 ${String(k)} 之后找不到工作日（日历无工作日？）`);
+      return throwRangeError(`工作日序号 ${String(k)} 之后找不到工作日（日历无工作日？）`);
     }
     return this.ordinalToDay[k]!;
   }
@@ -510,11 +537,11 @@ export class Calendar implements CalendarLike {
 
   private shiftedOrdinal(day: DayNumber, delta: number, label: string): number {
     if (!Number.isInteger(delta)) {
-      return fail(`${label} 的偏移量不是整数：${String(delta)}`);
+      return throwRangeError(`${label} 的偏移量不是整数：${String(delta)}`);
     }
     const shifted = this.ordinalOfDay(day) + delta;
     if (shifted < 0) {
-      return fail(
+      return throwRangeError(
         `${label} 会把工作日序号推到 0 之前（${String(shifted)}）：` +
           '负数序号无定义，请把 baseDay 前移或改用 G2 的截断语义',
       );
@@ -525,12 +552,12 @@ export class Calendar implements CalendarLike {
   private assertWithinHorizon(day: DayNumber, label: string): number {
     const offset = assertDayNumber(day, `${label} 的 day`) - this.baseDay;
     if (offset < 0) {
-      return fail(
+      return throwRangeError(
         `${label}：日期 ${dayNumberToIso(day)} 早于地平线起点 ${dayNumberToIso(this.baseDay)}（负数序号无定义）`,
       );
     }
     if (offset > this.spanDays) {
-      return fail(
+      return throwRangeError(
         `${label}：日期 ${dayNumberToIso(day)} 超出地平线（${String(this.spanDays)} 天，` +
           `终点 ${dayNumberToIso(this.lastDay)}）；用 withHorizon() 扩容后重算`,
       );
@@ -553,7 +580,7 @@ export function isWorkday(
   workDays: readonly number[] = DEFAULT_WORK_DAYS,
 ): boolean {
   if (!Number.isFinite(timestampUtcMs)) {
-    return fail(`时间戳不是有限数：${String(timestampUtcMs)}`);
+    return throwRangeError(`时间戳不是有限数：${String(timestampUtcMs)}`);
   }
   const valid = assertWorkDays(workDays);
   return valid.includes(weekdayOf(Math.floor(timestampUtcMs / MS_PER_DAY)));

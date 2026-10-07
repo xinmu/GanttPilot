@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { applyCommand, applyToSession, compute, createSession, DEFAULT_PROJECT_BASE_DAY_ISO, isoDateToDayNumber, MAX_DURATION_DAYS, undoSession, type DocumentCommand, type ProjectDocument } from '@ganttpilot/engine';
+import { applyCommand, applyToSession, compute, createSession, DEFAULT_PROJECT_BASE_DAY_ISO, isoToDayNumber, MAX_DURATION_DAYS, undoSession, type DocumentCommand, type ProjectDocument } from '@ganttpilot/engine';
 
 import { createScheduleCalendar } from './index.js';
 import { buildTextFixture, unanchoredCalendar } from './textFixtures.spec.js';
@@ -34,7 +34,7 @@ const fixture = buildTextFixture();
 
 /** 桩：ISO → 日序号（测试侧只读）。 */
 function dayOfIso(iso: string): number {
-  return isoDateToDayNumber(iso);
+  return isoToDayNumber(iso);
 }
 
 /** 找一行"有文档开始日期、且是叶子"的任务（编辑 `start`/`duration` 的目标）。 */

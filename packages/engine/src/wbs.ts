@@ -56,9 +56,24 @@ export interface DiagnosticLike {
 
 // ---------------------------------------------------------------- 通用谓词
 
-/** 判定"普通 JSON 对象"（排除 `null` 与数组）。 */
+/** 判定"对象"（**宽松**：`Date`/`Map`/类实例都算）——形状校验用。 */
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * 判定"**普通** JSON 对象"（**严格**）：原型必须是 `Object.prototype` 或 `null`——
+ * `Date`/`Map`/类实例一律不算，因为它们无法被 JSON 无损表达（P3/C4 从 `journal.ts` 收上来）。
+ *
+ * 与 {@link isRecord} 的分工：**形状校验**用宽松的那条（输入来自 `JSON.parse` 时两者等价），
+ * **JSON 值校验**必须用严格的这一条——否则 `Date` 会被静默收成 `{}`。
+ */
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const prototype: unknown = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 // ---------------------------------------------------------------- 编号
@@ -89,16 +104,6 @@ export function isValidOutlineNumber(value: string): boolean {
 /** 编号深度（段数）；**形式非法**时返回 0（深度只对合法形式有意义）。 */
 export function outlineDepth(value: string): number {
   return value === '' ? 0 : value.split(OUTLINE_SEPARATOR).length;
-}
-
-/** 校验并抛错（供调用方在构造自己的文档时尽早失败）。 */
-export function assertOutlineNumber(value: string): string {
-  if (!isValidOutlineNumber(value)) {
-    throw new RangeError(
-      `非法 WBS 编号：${JSON.stringify(value)}（要求 \`1\`/\`1.2\`/\`1.2.3\`，深度 ≤ ${String(MAX_OUTLINE_DEPTH)}）`,
-    );
-  }
-  return value;
 }
 
 /** 编号的父编号（`1.2.3` → `1.2`；顶层返回 `null`）。 */
@@ -232,6 +237,31 @@ export function computeOutlineNumbersByScan(
 
 // ---------------------------------------------------------------- 诊断（供 schema.ts 调用）
 
+/**
+ * 诊断入栈的**唯一实现**（P3/C4 收敛：此前 `wbs.ts` / `schema.ts` / `schedule.ts` 各写一份
+ * "push 一个带可选定位字段的诊断对象"）。
+ *
+ * 可选字段按 `path` → `taskId` → `linkId` 的顺序展开——三个调用点的**键序因此一致**，
+ * 诊断数组序列化后逐字节可比。
+ */
+export function pushDiagnostic(
+  diagnostics: DiagnosticLike[],
+  code: string,
+  severity: DiagnosticLike['severity'],
+  message: string,
+  extra: { readonly path?: string; readonly taskId?: string; readonly linkId?: string } = {},
+): void {
+  diagnostics.push({
+    code,
+    severity,
+    message,
+    ...(extra.path === undefined ? {} : { path: extra.path }),
+    ...(extra.taskId === undefined ? {} : { taskId: extra.taskId }),
+    ...(extra.linkId === undefined ? {} : { linkId: extra.linkId }),
+  });
+}
+
+/** 本模块的位置参数糖（调用点多是"位置 + 任务 id"两参，不必各写对象字面量）。 */
 function push(
   diagnostics: DiagnosticLike[],
   code: string,
@@ -240,10 +270,7 @@ function push(
   path?: string,
   taskId?: string,
 ): void {
-  diagnostics.push({
-    code,
-    severity,
-    message,
+  pushDiagnostic(diagnostics, code, severity, message, {
     ...(path === undefined ? {} : { path }),
     ...(taskId === undefined ? {} : { taskId }),
   });
@@ -436,7 +463,7 @@ export type WbsResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly code: WbsFailureCode; readonly message: string };
 
-function fail<T>(code: WbsFailureCode, message: string): WbsResult<T> {
+function failureOf<T>(code: WbsFailureCode, message: string): WbsResult<T> {
   return { ok: false, code, message };
 }
 
@@ -468,20 +495,20 @@ function applyMove<T extends TaskHierarchyInput>(
 ): WbsResult<readonly T[]> {
   const moving = tasks.find((task) => task.id === id);
   if (moving === undefined) {
-    return fail('WBS_TASK_NOT_FOUND', `任务不存在：${id}`);
+    return failureOf('WBS_TASK_NOT_FOUND', `任务不存在：${id}`);
   }
   if (target.parentId !== null && !tasks.some((task) => task.id === target.parentId)) {
-    return fail('WBS_TARGET_NOT_FOUND', `目标父任务不存在：${target.parentId}`);
+    return failureOf('WBS_TARGET_NOT_FOUND', `目标父任务不存在：${target.parentId}`);
   }
   if (target.afterTaskId !== undefined && !tasks.some((task) => task.id === target.afterTaskId)) {
-    return fail('WBS_TARGET_NOT_FOUND', `落点任务不存在：${target.afterTaskId}`);
+    return failureOf('WBS_TARGET_NOT_FOUND', `落点任务不存在：${target.afterTaskId}`);
   }
   const index = target.index ?? 0;
   if (target.afterTaskId === undefined && (!Number.isInteger(index) || index < 0)) {
-    return fail('WBS_TARGET_INDEX_OUT_OF_RANGE', `目标位置必须是非负整数，收到 ${String(index)}`);
+    return failureOf('WBS_TARGET_INDEX_OUT_OF_RANGE', `目标位置必须是非负整数，收到 ${String(index)}`);
   }
   if (target.parentId === id) {
-    return fail('WBS_CYCLE', '不能把任务移动到自身之下');
+    return failureOf('WBS_CYCLE', '不能把任务移动到自身之下');
   }
 
   const byId = new Map(tasks.map((task) => [task.id, task]));
@@ -500,7 +527,7 @@ function applyMove<T extends TaskHierarchyInput>(
     }
   }
   if (target.parentId !== null && subtree.has(target.parentId)) {
-    return fail('WBS_CYCLE', `不能把任务移动到它的后代 ${target.parentId} 之下`);
+    return failureOf('WBS_CYCLE', `不能把任务移动到它的后代 ${target.parentId} 之下`);
   }
 
   const block = tasks.filter((task) => subtree.has(task.id)) as readonly T[];
@@ -510,7 +537,7 @@ function applyMove<T extends TaskHierarchyInput>(
   const hasAfterTask = target.afterTaskId !== undefined;
   const siblingsAfterRemoval = rest.filter((task) => task.parentId === target.parentId);
   if (!hasAfterTask && index > siblingsAfterRemoval.length) {
-    return fail(
+    return failureOf(
       'WBS_TARGET_INDEX_OUT_OF_RANGE',
       `目标位置 ${String(index)} 超出同级范围 0..${String(siblingsAfterRemoval.length)}`,
     );
@@ -573,7 +600,7 @@ function applyMove<T extends TaskHierarchyInput>(
   if (moving.parentId === target.parentId) {
     const unchanged = proposed.every((entry, index) => tasks[index]?.id === entry.id);
     if (unchanged) {
-      return fail('WBS_SAME_POSITION', '移动前后位置相同');
+      return failureOf('WBS_SAME_POSITION', '移动前后位置相同');
     }
   }
 
@@ -581,7 +608,7 @@ function applyMove<T extends TaskHierarchyInput>(
   const seen = new Set<string>();
   for (const entry of proposed) {
     if (entry.parentId !== null && byId.has(entry.parentId) && !seen.has(entry.parentId)) {
-      return fail('WBS_CYCLE', `内部不变量被破坏：${entry.id} 出现在其父节点之前`);
+      return failureOf('WBS_CYCLE', `内部不变量被破坏：${entry.id} 出现在其父节点之前`);
     }
     seen.add(entry.id);
   }
@@ -628,7 +655,7 @@ export function indentTask<T extends TaskHierarchyInput>(
 ): WbsResult<readonly T[]> {
   const moving = tasks.find((task) => task.id === id);
   if (moving === undefined) {
-    return fail('WBS_TASK_NOT_FOUND', `任务不存在：${id}`);
+    return failureOf('WBS_TASK_NOT_FOUND', `任务不存在：${id}`);
   }
   const siblings = tasks.filter((task) => task.parentId === moving.parentId);
   const position = siblings.findIndex((task) => task.id === id);
@@ -637,16 +664,16 @@ export function indentTask<T extends TaskHierarchyInput>(
     // 已经到位了——这种情况报 `WBS_SAME_POSITION`（无操作）比报"没有前一个同级任务"更准确，
     // 否则 UI 会把一次正常的无操作降级显示成失败。
     if (moving.parentId !== null && siblings.length === 1) {
-      return fail('WBS_SAME_POSITION', '任务已是其父节点的唯一子节点（Tab 降级无操作）');
+      return failureOf('WBS_SAME_POSITION', '任务已是其父节点的唯一子节点（Tab 降级无操作）');
     }
-    return fail('WBS_NO_PREVIOUS_SIBLING', '没有前一个同级任务可作父节点（Tab 降级失败）');
+    return failureOf('WBS_NO_PREVIOUS_SIBLING', '没有前一个同级任务可作父节点（Tab 降级失败）');
   }
   const previous = siblings[position - 1];
   if (previous === undefined) {
-    return fail('WBS_NO_PREVIOUS_SIBLING', '没有前一个同级任务可作父节点（Tab 降级失败）');
+    return failureOf('WBS_NO_PREVIOUS_SIBLING', '没有前一个同级任务可作父节点（Tab 降级失败）');
   }
   if (moving.parentId === previous.id) {
-    return fail('WBS_SAME_POSITION', '任务已是前一个同级任务的子节点（无操作）');
+    return failureOf('WBS_SAME_POSITION', '任务已是前一个同级任务的子节点（无操作）');
   }
 
   // 落点 = 前一个兄弟的**整棵子树之后** → 成为它的最后一个子节点。
@@ -668,14 +695,14 @@ export function outdentTask<T extends TaskHierarchyInput>(
 ): WbsResult<readonly T[]> {
   const moving = tasks.find((task) => task.id === id);
   if (moving === undefined) {
-    return fail('WBS_TASK_NOT_FOUND', `任务不存在：${id}`);
+    return failureOf('WBS_TASK_NOT_FOUND', `任务不存在：${id}`);
   }
   if (moving.parentId === null) {
-    return fail('WBS_ALREADY_AT_ROOT', '任务已在顶层，无法再升级（Shift+Tab 升级失败）');
+    return failureOf('WBS_ALREADY_AT_ROOT', '任务已在顶层，无法再升级（Shift+Tab 升级失败）');
   }
   const parent = tasks.find((task) => task.id === moving.parentId);
   if (parent === undefined) {
-    return fail('WBS_TARGET_NOT_FOUND', `父任务不存在：${moving.parentId}`);
+    return failureOf('WBS_TARGET_NOT_FOUND', `父任务不存在：${moving.parentId}`);
   }
 
   // 落点 = **原父任务的整棵子树之后**：这样任务在文档序里落在原父节点的最后一个后代之后，
@@ -712,11 +739,11 @@ function guardDepth<T extends TaskHierarchyInput>(
 ): WbsResult<readonly T[]> {
   const moving = tasks.find((task) => task.id === id);
   if (moving === undefined) {
-    return fail('WBS_TASK_NOT_FOUND', `任务不存在：${id}`);
+    return failureOf('WBS_TASK_NOT_FOUND', `任务不存在：${id}`);
   }
   const ownDepth = depthOf(tasks, id);
   if (ownDepth > MAX_OUTLINE_DEPTH) {
-    return fail(
+    return failureOf(
       'WBS_DEPTH_EXCEEDED',
       `任务 ${id} 的层级深度 ${String(ownDepth)} 超过上限 ${String(MAX_OUTLINE_DEPTH)}`,
     );
@@ -744,7 +771,7 @@ function guardDepth<T extends TaskHierarchyInput>(
       break;
     }
     if (current.depth > MAX_OUTLINE_DEPTH) {
-      return fail(
+      return failureOf(
         'WBS_DEPTH_EXCEEDED',
         `调级后层级深度 ${String(current.depth)} 超过上限 ${String(MAX_OUTLINE_DEPTH)}（任务 ${current.id}）`,
       );

@@ -47,6 +47,7 @@ import {
   validateDocument,
   type ProjectDocument,
 } from './schema.js';
+import { isRecord } from './wbs.js';
 import {
   restoreSession,
   type DocumentSession,
@@ -466,7 +467,7 @@ function checkRestorableDocument(document: unknown): string | null {
 
 /** 一步的形状守卫（命令形状复用 `checkCommandShape`；日志形状由 `applyDocumentJournal` 兜底）。 */
 function checkStep(step: unknown, label: string): PersistResult<SessionStep> {
-  if (!isRecordLike(step)) {
+  if (!isRecord(step)) {
     return failure('PERSIST_RECORD_INVALID', `${label} 不是对象`);
   }
   const commands = step['commands'];
@@ -499,7 +500,7 @@ function checkStep(step: unknown, label: string): PersistResult<SessionStep> {
  * 这里只挡住"连判别标签都不对"的输入，让错误信息能指出是哪一步。
  */
 export function checkJournalShape(journal: unknown): string | null {
-  if (!isRecordLike(journal)) {
+  if (!isRecord(journal)) {
     return 'journal 不是对象';
   }
   const kind = journal['kind'];
@@ -562,19 +563,14 @@ export function decodeCandidates(raw: {
   return { candidates: { latest, snapshots }, invalid };
 }
 
-/** 读一个"记录样式"的对象（数组与 `null` 不算）。 */
-function isRecordLike(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
 function decodeSnapshot(value: unknown): StoredSnapshot | null {
-  if (!isRecordLike(value)) return null;
+  if (!isRecord(value)) return null;
   const { id, docId, rev, undoDepth, createdAtMs, document } = value;
   if (typeof id !== 'number' || typeof docId !== 'string' || typeof rev !== 'number') {
     return null;
   }
   if (typeof undoDepth !== 'number') return null;
-  if (typeof createdAtMs !== 'number' || !isRecordLike(document)) return null;
+  if (typeof createdAtMs !== 'number' || !isRecord(document)) return null;
   return {
     id,
     docId,
@@ -586,7 +582,7 @@ function decodeSnapshot(value: unknown): StoredSnapshot | null {
 }
 
 function decodeRecord(value: unknown): StoredSession | null {
-  if (!isRecordLike(value)) return null;
+  if (!isRecord(value)) return null;
   const { recordVersion, docId, rev, undoDepth, base, post, redo, writerId, updatedAtMs } = value;
   if (typeof recordVersion !== 'number' || typeof docId !== 'string' || typeof rev !== 'number') {
     return null;
@@ -598,12 +594,12 @@ function decodeRecord(value: unknown): StoredSession | null {
   if (base !== null && base !== undefined && decodedBase === null) return null;
   const steps: StoredStep[] = [];
   for (const item of post) {
-    if (!isRecordLike(item)) return null;
+    if (!isRecord(item)) return null;
     steps.push({ commands: item['commands'] as DocumentCommand[], journal: item['journal'] as DocumentJournal });
   }
   const redoSteps: StoredStep[] = [];
   for (const item of redo) {
-    if (!isRecordLike(item)) return null;
+    if (!isRecord(item)) return null;
     redoSteps.push({
       commands: item['commands'] as DocumentCommand[],
       journal: item['journal'] as DocumentJournal,
@@ -822,11 +818,14 @@ function tickReduce(policy: RetentionPolicy, state: PolicyState, atMs: number): 
 /**
  * 内存适配器（**测试与浏览器降级共用同一实现**）。
  *
- * 两条纪律与 IndexedDB 实现一致（因此它换上去行为不变）：
+ * 两条纪律：
  * - 写入**深拷贝后冻结**：读出来的记录与写进去的对象零共享引用（否则测试里
  *   "改一下再读"会假绿）；
- * - **多标签防护在这里也要成立**（不能只在浏览器实现里做）：已有记录的 `writerId`
- *   与本次不同、且更旧，则拒绝本次写入 —— 否则"降级后互相覆盖"就成了新缺陷。
+ * - **多标签防护只在这一条降级路径上成立**：已有记录的 `writerId` 与本次不同、且**更新**
+ *   （`existing.updatedAtMs > record.updatedAtMs`）时拒绝本次写入。**IndexedDB 路径暂不做
+ *   互斥写保护**（`apps/web` 的 `saveLatest` 是裸 `put`，`PERSIST_BLOCKED_BY_OTHER_TAB`
+ *   在正常浏览器路径不可达）——这是**已登记**的差异，归 v0.5 实现，见 `PERSISTENCE.md`
+ *   的「多标签与已知限制」一节。
  */
 export function createMemorySnapshotStore(): SnapshotStore {
   const latest = new Map<string, StoredSession>();

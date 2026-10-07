@@ -62,11 +62,9 @@ export {
   canonicalizeDocument,
   createEmptyDocument,
   CURRENT_DOCUMENT_VERSION,
-  dayNumberToIsoDate,
   DocumentError,
   DocumentVersionError,
   hasDocumentErrors,
-  isoDateToDayNumber,
   LINK_TYPES,
   MAX_DURATION_DAYS,
   MAX_LAG_DAYS,
@@ -94,7 +92,6 @@ export {
 
 // ---------------------------------------------------------------- G1.2 WBS 层级
 export {
-  assertOutlineNumber,
   buildTaskTree,
   computeDepths,
   computeOutlineNumbers,

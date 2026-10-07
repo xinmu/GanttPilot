@@ -35,7 +35,7 @@ import {
   type DayNumber,
 } from './date.js';
 import { type DocumentLink, type LinkType, type ProjectDocument } from './schema.js';
-import { summaryTaskIds, type DiagnosticLike } from './wbs.js';
+import { pushDiagnostic, summaryTaskIds, type DiagnosticLike } from './wbs.js';
 
 /** 汇总任务（不参与排程）在 `es`/`ef` 与 `summary*` 里的哨兵；不是合法序号（负数序号无定义）。 */
 export const LEAF_SENTINEL = -1;
@@ -167,7 +167,7 @@ function report(
   message: string,
   extra: { readonly taskId?: string; readonly linkId?: string } = {},
 ): void {
-  diagnostics.push({ code, severity, message, ...extra });
+  pushDiagnostic(diagnostics, code, severity, message, extra);
 }
 
 function resolveLinks(

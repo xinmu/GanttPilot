@@ -10,7 +10,7 @@ import {
   weekdayOf,
   type WorkdayCount,
 } from './date.js';
-import { LoopCalendar } from './loopCalendar.js';
+import { LoopCalendar } from '../test/loopCalendar.js';
 
 /**
  * G1.1 出口条件「索引前缀和与逐日循环两套实现互证一致」的证据层。

@@ -53,7 +53,17 @@ interface SessionAnchor {
 
 ```ts
 type ScheduleResult =
-  | { readonly ok: true; readonly schedule: Schedule }
+  | {
+      readonly ok: true;
+      readonly schedule: Schedule;
+      /**
+       * `compute` 本次调用**真正用到**的日历（ADR 0005 附录 §1，裁决 P-48）：
+       * 入参日历按 `expandToCoverDates` 覆盖到"本次调用里出现过的全部文档日期"之后的那一份。
+       * **凡把序号翻译成日期（或反之）一律用它**；它是派生量，不落盘、不进导出物，
+       * 且 `ok: false` 时不产出。见 §七 的 `createScheduleCalendar`。
+       */
+      readonly renderCalendar: Calendar;
+    }
   | {
       readonly ok: false;
       readonly code: 'cycle';

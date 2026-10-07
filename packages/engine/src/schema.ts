@@ -25,12 +25,14 @@
  * 本文件零 DOM、零框架依赖，只依赖 `./date.js` 与 `./wbs.js`。
  */
 
-import { Calendar, type CalendarSpec, dayNumberToIso, isoToDayNumber, parseIsoDate } from './date.js';
+import { Calendar, type CalendarSpec, isIsoDateText, isoToDayNumber } from './date.js';
 import {
   type DiagnosticLike,
   type JsonValue,
+  isPlainObject,
   isRecord,
   OUTLINE_SEPARATOR,
+  pushDiagnostic,
   reindexTasks,
   validateHierarchy,
   validateTasksShape,
@@ -90,7 +92,6 @@ export type DocumentDiagnosticCode =
   // calendars
   | 'CALENDAR_MISSING'
   | 'CALENDAR_INVALID'
-  | 'CALENDAR_NOT_REFERENCED'
   // tasks
   | 'TASK_MISSING'
   | 'TASK_ID_INVALID'
@@ -314,12 +315,9 @@ function report(
   path?: string,
   identity?: { readonly taskId?: string; readonly linkId?: string },
 ): void {
-  context.diagnostics.push({
-    code,
-    severity,
-    message,
+  pushDiagnostic(context.diagnostics, code, severity, message, {
     ...(path === undefined ? {} : { path }),
-    ...(identity === undefined ? {} : identity),
+    ...(identity ?? {}),
   });
 }
 
@@ -387,25 +385,6 @@ function readBoolean(
   return fallback;
 }
 
-const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-/**
- * 校验 ISO 日期文本。
- *
- * 用 G1.1 的 `parseIsoDate`（而非本地重写正则判定）是为了让
- * "文档里的合法日期"与"日历能接受的日期"**是同一个集合**——两侧不会分叉。
- */
-function isIsoDateText(value: string): boolean {
-  if (!ISO_DATE_PATTERN.test(value)) {
-    return false;
-  }
-  try {
-    parseIsoDate(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** 读可空 ISO 日期；缺失 → `null`，非法 → 报码并归一为 `null`。 */
 function readIsoDate(
@@ -475,8 +454,8 @@ function coerceJsonValue(
     });
     return items;
   }
-  if (!isRecord(value)) {
-    report(context, code, 'error', `${label}含非 JSON 对象`, path);
+  if (!isPlainObject(value)) {
+    report(context, code, 'error', `${label}含非普通对象（JSON 不可表达）`, path);
     return undefined;
   }
   const entries: Record<string, JsonValue> = {};
@@ -1498,14 +1477,4 @@ export function createEmptyDocument(name = '未命名项目'): ProjectDocument {
  */
 export function reindexDocument(document: ProjectDocument): ProjectDocument {
   return { ...document, tasks: reindexTasks(document.tasks) };
-}
-
-/** ISO 日期文本 → 日序号（供调用方做轻量比较，不引入 `Calendar` 的容量概念）。 */
-export function isoDateToDayNumber(iso: string): number {
-  return isoToDayNumber(iso);
-}
-
-/** 日序号 → ISO 日期文本（与 `isoDateToDayNumber` 互逆）。 */
-export function dayNumberToIsoDate(day: number): string {
-  return dayNumberToIso(day);
 }

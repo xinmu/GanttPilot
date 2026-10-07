@@ -7,42 +7,31 @@
  * 2. **常数因子对照**：算法刻意写"笨"（`ordinalOfDay` 逐日累加、`dayOfOrdinal` 逐日扫描），
  *    是 S3 结论 §三.4 NC1（索引日历 vs 逐日循环，实测 2,360×）在主干的对应物。
  *
- * 它与 `Calendar` **只共享规格校验、不共享任何索引算法**——否则互证就是恒真式。
- * 本文件**不经 `index.ts` 导出**：它不是公共 API，只是验证手段。
+ * 它与 `Calendar` **只共享规格校验、不共享任何索引算法**——否则互证就是恒真式
+ * （因此这里 import `assertWorkDays` 是刻意的：规格校验属于"可共享的输入口径"）。
+ *
+ * ## 位置（P3/C4）
+ *
+ * 本文件住 `test/`（**不在 `src/`**）：它不是发布面，此前靠 `tsconfig.json` 的 `exclude`
+ * 才不进产物——那让"测试件住在发布目录"成了一处含糊。迁出后 build 的 `include` 只覆盖 `src` 下的 TS，
+ * 天然不覆盖它；它由 Vitest（经 spec 引用）与 `pnpm lint` 覆盖，与 `*.spec.ts` 同一档待遇。
  */
 
 import {
+  assertWorkDays,
   type CalendarLike,
   type CalendarSpec,
   type DayNumber,
   dayNumberToIso,
   DEFAULT_WORK_DAYS,
   isoToDayNumber,
+  throwRangeError,
   weekdayOf,
   type WorkdayCount,
-} from './date.js';
-
-const DAYS_IN_WEEK = 7;
+} from '../src/date.js';
 
 /** 逐日扫描的搜索上限（防病态日历导致死循环）。 */
 const SCAN_LIMIT_DAYS = 4_000_000;
-
-/** 抛出 `RangeError`（`never` 返回类型让构造函数里的校验不干扰字段的确定性赋值分析）。 */
-function fail(message: string): never {
-  throw new RangeError(message);
-}
-
-function assertWorkDays(workDays: readonly number[]): readonly number[] {
-  if (workDays.length === 0) {
-    return fail('workDays 为空：至少需要一个工作日（如默认的周一至周五）');
-  }
-  for (const candidate of workDays) {
-    if (!Number.isInteger(candidate) || candidate < 0 || candidate > DAYS_IN_WEEK - 1) {
-      return fail(`workDays 含非法日序号：${String(candidate)}（要求 0–6 的整数）`);
-    }
-  }
-  return workDays;
-}
 
 /**
  * 逐日循环的日历实现。
@@ -64,7 +53,7 @@ export class LoopCalendar implements CalendarLike {
     const baseDay = options.baseDay ?? isoToDayNumber('2025-01-01');
     const spanDays = options.spanDays ?? 1460;
     if (!Number.isInteger(spanDays) || spanDays <= 0) {
-      fail(`地平线天数必须为正整数，收到 ${String(spanDays)}`);
+      throwRangeError(`地平线天数必须为正整数，收到 ${String(spanDays)}`);
     }
     const workDays = assertWorkDays(spec.workDays ?? DEFAULT_WORK_DAYS);
     const nonWorkingDays = (spec.exceptions?.nonWorking ?? []).map((iso) => isoToDayNumber(iso));
@@ -105,7 +94,7 @@ export class LoopCalendar implements CalendarLike {
 
   ordinalOfDay(day: DayNumber): WorkdayCount {
     if (day < this.baseDay) {
-      return fail(`日期 ${dayNumberToIso(day)} 早于地平线起点 ${dayNumberToIso(this.baseDay)}`);
+      return throwRangeError(`日期 ${dayNumberToIso(day)} 早于地平线起点 ${dayNumberToIso(this.baseDay)}`);
     }
     let count = 0;
     for (let cursor = this.baseDay; cursor < day; cursor += 1) {
@@ -119,7 +108,7 @@ export class LoopCalendar implements CalendarLike {
   dayOfOrdinal(ordinal: WorkdayCount | number): DayNumber {
     const k = ordinal as number;
     if (!Number.isInteger(k) || k < 0 || k > this.workdayCount) {
-      return fail(`工作日序号越界：${String(k)}（合法范围 0..${String(this.workdayCount)}）`);
+      return throwRangeError(`工作日序号越界：${String(k)}（合法范围 0..${String(this.workdayCount)}）`);
     }
     // 逐日扫描到第 k 个工作日；k === workdayCount 时自然落在「最后一个工作日之后的首个工作日」，
     // 与 `Calendar` 的边界语义相同（这是互证能覆盖 `k = workdayCount` 的前提）。
@@ -132,7 +121,7 @@ export class LoopCalendar implements CalendarLike {
         remaining -= 1;
       }
     }
-    return fail(`工作日序号 ${String(k)} 超出逐日循环的搜索上限`);
+    return throwRangeError(`工作日序号 ${String(k)} 超出逐日循环的搜索上限`);
   }
 
   /** 与 `Calendar.workdaysBetween` 同口径：区间为空或倒置时返回 0。 */
