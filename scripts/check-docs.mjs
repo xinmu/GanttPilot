@@ -26,6 +26,9 @@ const error = (message) => errors.push(message);
 const warn = (message) => warnings.push(message);
 const rel = (absolute) => relative(repoRoot, absolute).split(sep).join('/');
 
+// 自检模式：只跑判定引擎的合成用例（不读仓库），见文件末尾的 selftest()
+if (process.argv.includes('--selftest')) selftest();
+
 // ── 遍历 ────────────────────────────────────────────────────────────────────
 
 /** 目录级排除（与 `.gitignore` 的语义一致，但本脚本不读 .gitignore）。 */
@@ -371,6 +374,146 @@ for (const entry of index.docs) {
   }
 }
 
+// ── 8b. 分层预算与入口封闭性（P1-b） ────────────────────────────────────────
+//
+// 为什么需要它：没有它就只是"口头分层"。`docs/doc-index.json` 的 `layer` 与 `contextBudget`
+// 是唯一真相源；这里只做机械判定——(a) 精简层与必读的体量预算；(b) **入口页（L0）只能引用精简层**
+// （归档物可以出现在 L1 正文的"依据/细则/历史"上下文里，但入口页不指过去）。
+//
+// 两类目标的规则不同：
+// - **文件链接**：目标必须是已登记且 `layer === 'slim'` 的文档（非 .md 目标不判，那是数据/资产）；
+// - **目录链接**：目录下的**已登记**文档必须都是 slim（否则报错：要么改到具体文件，要么把归档物移出目录）；
+//   目录下**未登记**的 .md 只警告（evidence 一类历史存量的分层登记属 P2）。
+
+/**
+ * 分层预算与入口封闭性的判定（与仓库解耦，便于 `--selftest` 用合成输入驱动）。
+ *
+ * @param {{ rows: Array<{path: string, layer: string, userFacing?: boolean, mustRead?: boolean, budgetExempt?: boolean, kb: number}>,
+ *           budget: {slimKb: number, mustReadKb: number, entryCapKb: number},
+ *           entry: {path: string, kb: number, links: Array<object>} }} input
+ * @returns {{ errors: string[], warnings: string[], slimKb: number, mustReadKb: number, exemptKb: number }}
+ */
+export function evaluateLayers({ rows, budget, entry }) {
+  const errors = [];
+  const warnings = [];
+  const sum = (list) => list.reduce((total, row) => total + row.kb, 0);
+  const listOf = (list, limit) => {
+    const sorted = list.slice().sort((a, b) => b.kb - a.kb);
+    const shown = sorted.slice(0, limit);
+    const lines = shown.map((row) => `[分层·清单] ${row.kb.toFixed(1).padStart(7)} KB  ${row.path}`);
+    if (sorted.length > shown.length) {
+      lines.push(`[分层·清单] …另有 ${String(sorted.length - shown.length)} 份（合计 ${(sum(sorted) - sum(shown)).toFixed(1)} KB），完整清单见 docs/01-roadmap/首版-文档索引.md`);
+    }
+    return lines;
+  };
+
+  for (const row of rows) {
+    if (row.layer !== 'slim' && row.layer !== 'archive') {
+      errors.push(`[分层] ${row.path} 的 layer 不在闭集内（slim|archive）：${String(row.layer)}`);
+    }
+  }
+
+  const slimRows = rows.filter((row) => row.layer === 'slim' && row.userFacing !== true && row.budgetExempt !== true);
+  const slimKb = sum(slimRows);
+  const exemptKb = sum(rows.filter((row) => row.layer === 'slim' && row.budgetExempt === true));
+  const userFacingKb = sum(rows.filter((row) => row.layer === 'slim' && row.userFacing === true));
+  if (slimKb > budget.slimKb) {
+    errors.push(
+      `[分层] 精简层超预算：${slimKb.toFixed(1)} KB > ${budget.slimKb} KB（不含用户手册 ${userFacingKb.toFixed(1)} KB 与临时计划 ${exemptKb.toFixed(1)} KB）；动作是拆分或迁归档层，不是提高上限`,
+    );
+    errors.push(...listOf(slimRows, 12));
+  }
+
+  const mustReadRows = rows.filter((row) => row.mustRead === true);
+  const mustReadKb = sum(mustReadRows);
+  if (mustReadKb > budget.mustReadKb) {
+    errors.push(`[分层] 必读层超预算：${mustReadKb.toFixed(1)} KB > ${budget.mustReadKb} KB（台账 + 当前规划 + 待定清单）`);
+    errors.push(...listOf(mustReadRows, 6));
+  }
+
+  if (entry.kb > budget.entryCapKb) {
+    errors.push(`[入口] L0 入口超上限：${entry.path} ${entry.kb.toFixed(1)} KB > ${budget.entryCapKb} KB（入口要能整份注入）`);
+  }
+
+  for (const link of entry.links) {
+    if (link.kind === 'file') {
+      if (link.layer === undefined) {
+        errors.push(`[入口] ${entry.path}:${String(link.line)} 指向未登记分层的文档：${link.target}（登记 layer 之后才能引用）`);
+      } else if (link.layer !== 'slim') {
+        errors.push(`[入口] ${entry.path}:${String(link.line)} 指向归档层：${link.target}（归档物只允许出现在 L1 正文的"依据/细则/历史"上下文里，入口页不指过去）`);
+      }
+    } else if (link.kind === 'directory') {
+      const nestedArchive = (link.nested ?? []).filter((item) => item.layer !== 'slim');
+      if (nestedArchive.length > 0) {
+        const names = nestedArchive.slice(0, 3).map((item) => item.path).join('、');
+        errors.push(
+          `[入口] ${entry.path}:${String(link.line)} 的目录里含 ${String(nestedArchive.length)} 份归档层文档（${names}${nestedArchive.length > 3 ? ' 等' : ''}）：目录链接要么改到具体文件，要么把归档物移出该目录`,
+        );
+      }
+      if ((link.unindexed ?? 0) > 0) {
+        warnings.push(`[入口] ${entry.path}:${String(link.line)} 的目录下有 ${String(link.unindexed)} 份未登记文档（分层登记属 P2/D2）：${link.target}`);
+      }
+    }
+  }
+
+  return { errors, warnings, slimKb, mustReadKb, exemptKb, userFacingKb };
+}
+
+// ── 8b. 分层预算与入口封闭性：输入装配 ─────────────────────────────────────
+
+const budget = index.contextBudget ?? { entry: 'docs/README.md', slimKb: 100, mustReadKb: 25, entryCapKb: 6 };
+const entryPath = budget.entry ?? 'docs/README.md';
+const entryAbsolute = join(repoRoot, entryPath);
+const layerRows = sizeRows.map((row) => {
+  const meta = index.docs.find((entry) => entry.path === row.path) ?? {};
+  return { path: row.path, kb: row.kb, layer: meta.layer, userFacing: meta.userFacing, mustRead: meta.mustRead, budgetExempt: meta.budgetExempt };
+});
+
+const entryLinks = [];
+if (existsSync(entryAbsolute)) {
+  const entryLines = read(entryAbsolute).split('\n');
+  let entryInFence = false;
+  entryLines.forEach((line, i) => {
+    if (/^\s*```/.test(line)) {
+      entryInFence = !entryInFence;
+      return;
+    }
+    if (entryInFence) return;
+    const prose = line.split('`').filter((_, index) => index % 2 === 0).join('');
+    for (const match of prose.matchAll(/\]\(([^()\s]+)\)/g)) {
+      const raw = match[1];
+      if (/^(https?:|mailto:)/.test(raw)) continue;
+      const target = decodeURIComponent(raw.split('#')[0]);
+      if (target === '') continue;
+      const absolute = resolve(dirname(entryAbsolute), target);
+      if (!existsSync(absolute)) continue; // 不存在的目标由 §2 报错，这里不重复
+      const repoRel = rel(absolute);
+      if (statSync(absolute).isDirectory()) {
+        const prefix = repoRel.endsWith('/') ? repoRel.slice(0, -1) : repoRel;
+        const nested = index.docs
+          .filter((entry) => entry.path.startsWith(`${prefix}/`))
+          .map((entry) => ({ path: entry.path, layer: entry.layer }));
+        const indexedPaths = new Set(nested.map((item) => item.path));
+        const unindexed = walkMarkdown(absolute)
+          .map((path) => rel(path))
+          .filter((path) => !indexedPaths.has(path)).length;
+        entryLinks.push({ line: i + 1, target: raw, kind: 'directory', nested, unindexed });
+      } else if (repoRel.endsWith('.md')) {
+        const indexedEntry = indexed.get(repoRel);
+        entryLinks.push({ line: i + 1, target: raw, kind: 'file', layer: indexedEntry?.layer });
+      }
+    }
+  });
+}
+
+const layered = evaluateLayers({
+  rows: layerRows,
+  budget,
+  entry: { path: entryPath, kb: existsSync(entryAbsolute) ? statSync(entryAbsolute).size / 1024 : 0, links: entryLinks },
+});
+for (const message of layered.errors) error(message);
+for (const message of layered.warnings) warn(message);
+
 // ── 9. 策略不变量 ──────────────────────────────────────────────────────────
 
 const POLICY = [
@@ -394,7 +537,11 @@ if (!seenIds.has('P-27')) {
 // ── 报告 ───────────────────────────────────────────────────────────────────
 
 const totalKb = sizeRows.reduce((sum, row) => sum + row.kb, 0);
-console.log(`[docs] 已索引文档 ${index.docs.length} 份，合计 ${Math.round(totalKb)} KB；台账条目 ${ledgerEntries.length} 条；存档覆盖轮次 ${roundOwners.size} 个`);
+console.log(
+  `[docs] 已索引文档 ${index.docs.length} 份，合计 ${Math.round(totalKb)} KB；` +
+    `精简层 ${layered.slimKb.toFixed(1)}/${budget.slimKb} KB（另：用户手册 ${layered.userFacingKb.toFixed(1)} KB、临时计划 ${layered.exemptKb.toFixed(1)} KB）、` +
+    `必读 ${layered.mustReadKb.toFixed(1)}/${budget.mustReadKb} KB；台账条目 ${ledgerEntries.length} 条；存档覆盖轮次 ${roundOwners.size} 个`,
+);
 
 if (warnings.length > 0) {
   console.log(`\n[docs] 警告 ${warnings.length} 条（不阻断）：`);
@@ -408,4 +555,81 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 体量 / 策略不变量。');
+console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 体量 / 分层预算与入口封闭性 / 策略不变量。');
+
+// ── 自检（反向保护的钉子：每类判定都要有"该绿就绿、该红就红"的合成用例） ──
+//
+// 它不读仓库：合成输入直接喂给 evaluateLayers()，因此"预算内即绿"这条钉子不会随时间失效。
+
+function selftest() {
+  const budget = { slimKb: 100, mustReadKb: 25, entryCapKb: 6 };
+  const entry = (links = []) => ({ path: 'docs/README.md', kb: 3, links });
+  const cases = [];
+
+  cases.push({
+    name: '精简层超预算被点名并列出清单',
+    result: evaluateLayers({ rows: [{ path: 'a.md', layer: 'slim', kb: 150 }], budget, entry: entry() }),
+    expect: (r) => r.errors.some((m) => m.includes('精简层超预算')) && r.errors.some((m) => m.includes('a.md')) && r.slimKb === 150,
+  });
+  cases.push({
+    name: '必读层超预算被点名',
+    result: evaluateLayers({ rows: [{ path: 'r.md', layer: 'slim', mustRead: true, kb: 30 }], budget, entry: entry() }),
+    expect: (r) => r.errors.some((m) => m.includes('必读层超预算')),
+  });
+  cases.push({
+    name: '入口指向归档层判错、指向精简层通过',
+    result: evaluateLayers({
+      rows: [{ path: 'a.md', layer: 'slim', kb: 1 }],
+      budget,
+      entry: entry([
+        { line: 3, target: 'x.md', kind: 'file', layer: 'archive' },
+        { line: 4, target: 'a.md', kind: 'file', layer: 'slim' },
+      ]),
+    }),
+    expect: (r) => r.errors.length === 1 && r.errors[0].includes('指向归档层'),
+  });
+  cases.push({
+    name: '入口指向未登记分层的文档判错',
+    result: evaluateLayers({ rows: [], budget, entry: entry([{ line: 1, target: 'x.md', kind: 'file', layer: undefined }]) }),
+    expect: (r) => r.errors.some((m) => m.includes('未登记分层')),
+  });
+  cases.push({
+    name: '目录链接含归档物判错、含未登记文档只警告',
+    result: evaluateLayers({
+      rows: [],
+      budget,
+      entry: entry([{ line: 2, target: 'dir/', kind: 'directory', nested: [{ path: 'dir/a.md', layer: 'archive' }], unindexed: 2 }]),
+    }),
+    expect: (r) => r.errors.some((m) => m.includes('归档层文档')) && r.warnings.some((m) => m.includes('未登记文档')),
+  });
+  cases.push({
+    name: 'userFacing 与 budgetExempt 不计入精简层预算',
+    result: evaluateLayers({
+      rows: [
+        { path: 'g.md', layer: 'slim', userFacing: true, kb: 50 },
+        { path: 'p.md', layer: 'slim', budgetExempt: true, kb: 50 },
+      ],
+      budget,
+      entry: entry(),
+    }),
+    expect: (r) => r.errors.length === 0 && r.slimKb === 0,
+  });
+  cases.push({
+    name: 'layer 不在闭集内判错',
+    result: evaluateLayers({ rows: [{ path: 'a.md', layer: 'temp', kb: 1 }], budget, entry: entry() }),
+    expect: (r) => r.errors.some((m) => m.includes('不在闭集内')),
+  });
+
+  let failed = 0;
+  for (const item of cases) {
+    const ok = item.expect(item.result);
+    if (!ok) failed += 1;
+    console.log(`[docs] 自检 ${ok ? '✅' : '❌'} ${item.name}`);
+  }
+  if (failed > 0) {
+    console.error(`[docs] 自检未通过：${failed}/${cases.length} 例`);
+    process.exit(1);
+  }
+  console.log(`[docs] 自检通过 ${cases.length}/${cases.length} 例`);
+  process.exit(0);
+}

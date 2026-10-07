@@ -19,433 +19,528 @@
       "path": "docs/DOC-SPEC.md",
       "role": "baseline",
       "cap": "root",
+      "layer": "slim",
       "note": "文档分层与检查规范（本文件不是契约）"
     },
     {
       "path": "docs/README.md",
       "role": "baseline",
       "cap": "root",
+      "layer": "slim",
       "note": "文档导航入口"
     },
     {
       "path": "docs/00-baseline/裁决记录.md",
       "role": "register",
       "cap": "registerEntry",
+      "layer": "slim",
+      "mustRead": true,
       "note": "唯一权威登记处：条目表 + 轮次导读表"
     },
     {
       "path": "docs/00-baseline/裁决R01-02.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R03-06.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R07-12.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R13-15.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R16-18.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R19-21.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R22-23.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R24-26.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R27.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R28.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R29.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R30.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R31.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-32：G5 批次 B 的契约先行与落地（ADR 0008 §16）"
     },
     {
       "path": "docs/00-baseline/裁决R32.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-33：G6 的落地口径与两项待定的收口"
     },
     {
       "path": "docs/00-baseline/裁决R33.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-34：演示口径＝小型手写演示计划（1,000 任务夹具退为规模口径）"
     },
     {
       "path": "docs/00-baseline/裁决R34.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-35：G7 的开工前置（ADR 0010 冻结 + S-G7 四门禁判定）"
     },
     {
       "path": "docs/00-baseline/裁决R35.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-36：G7 的落地口径、实测数字与出口条件判定"
     },
     {
       "path": "docs/00-baseline/裁决R36.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-37：G7 人工复验报文与四项功能缺口 + 一项样式的返工"
     },
     {
       "path": "docs/00-baseline/裁决R37.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-38：G7 二次复验的排版/形态返工与 P-26 的收口"
     },
     {
       "path": "docs/00-baseline/裁决R38.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-39：G7 第三次人工复验通过与 G7 收口"
     },
     {
       "path": "docs/00-baseline/裁决R39.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-40：首版待定清单批次①（承诺环境 / 应用层判据入口 / 复核口径 / G-7·G-8 UI 归属）"
     },
     {
       "path": "docs/00-baseline/裁决R40.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-41：批次②（--align 档位与覆盖度 / resize 迁移 / 稳定读数）"
     },
     {
       "path": "docs/00-baseline/裁决R41.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-42：批次③（表头带内容口径 / 连接点圆点形状 / 键盘入口归 v0.5）"
     },
     {
       "path": "docs/00-baseline/裁决R42.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-43：人工复核的三个缺陷（汇总/里程碑的交互面 · 里程碑工期不变量 · 状态栏自激环）"
     },
     {
       "path": "docs/00-baseline/裁决R43.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-44：抖动续查（滚动条 ⇄ 窗格客户区的自引用环 ⇒ 常驻滚动条）"
     },
     {
       "path": "docs/00-baseline/裁决R44.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-45：批次④（不扩锚点形状；拖动期下游跟随改由未提交文档副本承担 ⇒ 未决归零）"
     },
     {
       "path": "docs/00-baseline/裁决R45.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-46：G8 收尾前的三项范围裁定（两级刻度 / 悬停行高亮 / 模板下载全部纳入 v0.1，同批一次复验）"
     },
     {
       "path": "docs/00-baseline/裁决R46.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-47：拖动预览越过渲染地平线 ⇒ 整页空白（夹取方向已修；日历容量缺口待契约面裁决）"
     },
     {
       "path": "docs/00-baseline/裁决R47.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-48/P-49：地平线收口（compute 交出日历，契约冻结）+ 离线单文件分发登记（Docker 归 v0.5）"
     },
     {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
+      "layer": "archive",
       "note": "原文提取 + 状态标注；不是当前生效值"
     },
     {
       "path": "docs/00-baseline/评估报告.md",
       "role": "baseline",
       "cap": "baseline",
+      "layer": "archive",
       "note": "带日期的历史评估记录"
     },
     {
       "path": "docs/00-baseline/证伪实验计划.md",
       "role": "baseline",
       "cap": "baseline",
+      "layer": "archive",
       "note": "spike 协议与门禁"
     },
     {
       "path": "docs/01-roadmap/首版能力顺序.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "mustRead": true,
       "note": "能力边界、出口条件与延后规则"
     },
     {
       "path": "docs/01-roadmap/首版-待定清单.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "mustRead": true,
       "note": "全仓唯一未决项清单"
     },
     {
       "path": "docs/01-roadmap/首版-文档索引.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
       "generated": "node scripts/make-doc-index.mjs"
     },
     {
       "path": "docs/01-roadmap/首版-记录-归档-G0-G3.md",
       "role": "record",
-      "cap": "record"
+      "cap": "record",
+      "layer": "archive"
     },
     {
       "path": "docs/01-roadmap/首版-记录-归档-G4-G5.md",
       "role": "record",
-      "cap": "record"
+      "cap": "record",
+      "layer": "archive"
     },
     {
       "path": "docs/01-roadmap/首版-记录-G5.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "G5 的落地动作与批次 A/D 四轮返工史"
     },
     {
       "path": "docs/01-roadmap/首版-记录-G6-G8.md",
       "role": "record",
-      "cap": "record"
+      "cap": "record",
+      "layer": "archive"
     },
     {
       "path": "docs/03-guide/导入与Excel准备.md",
       "role": "guide",
       "cap": "guide",
+      "layer": "slim",
+      "userFacing": true,
       "note": "用户手册①：怎么准备 Excel、导入会给什么反馈（G8）"
     },
     {
       "path": "docs/03-guide/依赖列语法与排程规则.md",
       "role": "guide",
       "cap": "guide",
+      "layer": "slim",
+      "userFacing": true,
       "note": "用户手册②：前置任务列语法、四类关系、拖拽语义（G8）"
     },
     {
       "path": "docs/03-guide/导出与离线单文件.md",
       "role": "guide",
       "cap": "guide",
+      "layer": "slim",
+      "userFacing": true,
       "note": "用户手册③：三种导出物、兼容性承诺边界、离线单文件（G8）"
     },
     {
       "path": "docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/附录/0001-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "§1：门禁步骤顺序修正（build 前移到 typecheck 之前），裁决登记待补"
     },
     {
       "path": "docs/02-adr/0002-文档模型与序列化契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0003-命令层与事务契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0004-排程契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0005-排程内核落地补齐与结果形状.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0006-xlsx-协议契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0007-渲染几何与裁剪契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0008-列身份所有权与拖拽交互契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0009-持久化契约.md",
       "role": "contract",
       "cap": "contract",
+      "layer": "slim",
       "note": "G6 持久化契约：记录形状、SnapshotStore、恢复语义、失败码闭集"
     },
     {
       "path": "docs/02-adr/0010-导出契约.md",
       "role": "contract",
       "cap": "contract",
+      "layer": "slim",
       "note": "G7 导出契约：三层落点、全量渲染、适配公式、SVG 形态、PPTX 形状映射、降级序列、golden 口径"
     },
     {
       "path": "docs/02-adr/附录/0007-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-23/P-24/P-25/P-41/P-46 的增补节与落地段"
     },
     {
       "path": "docs/02-adr/附录/0005-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-48 的增补节：ScheduleResult 交出真正用到的日历（只增字段）"
     },
     {
       "path": "docs/02-adr/附录/0006-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-46 的增补节：模板文件的三页签形态（结构冻结、字面名实现轮定稿）"
     },
     {
       "path": "docs/02-adr/附录/0004-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-38 的增补节：性能 DoD 的断言口径拆为「中位数 + 尾部」"
     },
     {
       "path": "docs/02-adr/附录/0008-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-22/P-24/P-25 的增补节与落地段"
     },
     {
       "path": "docs/02-adr/附录/0010-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-37 的增补节：图面要素清单、箭头强制口径、标签样式与文案单一来源"
     },
     {
       "path": "docs/04-refactor/README.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
       "note": "v0.2 重构计划入口：阶段总览、按需注入指引、不变量与分支口径（临时物，合流后按 05 收口）"
     },
     {
       "path": "docs/04-refactor/01-基线与决策.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
       "note": "实测基线 + 七项决策 + 两条行为变更的降级目标措辞 + P0 证据索引"
     },
     {
       "path": "docs/04-refactor/02-文档重构.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
       "note": "P2：目标分层、逐文件处置、D1–D10 批次、关键手术细则（契约归位 / 常量收口 / R48–R50 / spike 生命周期）"
     },
     {
       "path": "docs/04-refactor/03-代码重构.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
       "note": "P3：C1–C8 批次（scripts / xlsx / pptx / engine / render-core / web / 工程配套 / 证据卫生）与每批验收"
     },
     {
       "path": "docs/04-refactor/04-验收与门禁.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
       "note": "P1 三条新检查的设计与负向对照、各阶段验收、「稳定」的五条可判定定义、记录制证据纪律"
     },
     {
       "path": "docs/04-refactor/05-登记与本轮不做.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
       "note": "本轮不做项（N1–N8）、CI 补两步、两项只读验证的落点、待裁决开放项、风险与回滚、本计划自身的收口"
     },
     {
       "path": "packages/engine/SCHEMA.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/engine/COMMAND.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/engine/SCHEDULE.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/engine/PERSISTENCE.md",
       "role": "spec",
       "cap": "spec",
+      "layer": "slim",
       "note": "G6 持久化的数值、公共 API 与验证矩阵（形状在 ADR 0009）"
     },
     {
       "path": "packages/render-core/SPEC.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/xlsx-protocol/PROTOCOL.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/pptx-renderer/PPTX.md",
       "role": "spec",
       "cap": "spec",
+      "layer": "slim",
       "note": "G7 模板 A：形状映射、吸附站点、补丁与归一化、验证矩阵"
     },
     {
       "path": "README.md",
       "role": "baseline",
-      "cap": "root"
+      "cap": "root",
+      "layer": "slim"
     },
     {
       "path": "CONTRIBUTING.md",
       "role": "baseline",
-      "cap": "root"
+      "cap": "root",
+      "layer": "slim"
     }
   ],
   "linkCheckAllowlist": [
@@ -460,6 +555,13 @@
       "reason": "这两个文件已由 P-20 的迁落点删除（逻辑迁入 packages/render-core）；存档里的历史引用保留原样"
     }
   ],
+  "contextBudget": {
+    "$comment": "决策 2 的预算：精简层 ≤ 100 KB，其中必读（台账 + 当前规划 + 待定清单）≤ 25 KB；entryCapKb 是 L0 入口的自主上限（02 §一）。判定见 check-docs.mjs 的「分层预算与入口封闭性」。userFacing（用户手册）与 budgetExempt（v0.2 临时施工计划）不计入精简层预算，但仍列在报告里。",
+    "entry": "docs/README.md",
+    "slimKb": 100,
+    "mustReadKb": 25,
+    "entryCapKb": 6
+  },
   "constantCheck": {
     "$comment": [
       "契约常量的「唯一声明处」表（P1-a）。执行者是 scripts/check-constants.mjs，本表是唯一真相源。",
