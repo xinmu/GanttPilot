@@ -20,7 +20,7 @@
     "smoke:build:file": "node scripts/smoke-build.mjs --file",
     "bundle:offline": "node scripts/bundle-offline.mjs",
     "probe:offline": "node scripts/offline-artifact-probe.mjs",
-    "docs:index": "node scripts/make-doc-index.mjs",
+    "docs:index": "node scripts/make-doc-index.mjs && node scripts/make-round-index.mjs",
     "sample:cyclic": "node scripts/make-sample.mjs",
     "license:check": "node scripts/check-licenses.mjs --prod",
     "license:check:all": "node scripts/check-licenses.mjs --all",

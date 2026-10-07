@@ -301,6 +301,27 @@
       "note": "全仓唯一未决项清单"
     },
     {
+      "path": "docs/00-baseline/裁决R52.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-54：必读层口径与预算调整（mustReadKb 25 → 34；采 A：先迁移可推导/历史内容）"
+    },
+    {
+      "path": "docs/00-baseline/轮次导读.md",
+      "role": "plan",
+      "cap": "plan",
+      "layer": "slim",
+      "note": "生成物（`pnpm docs:index`）：轮次 → 主题 → 条目 → 细则；D7.5 从台账移出，不再是第二处真相源"
+    },
+    {
+      "path": "docs/01-roadmap/首版-记录-待定清单.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "archive",
+      "note": "待定清单的「已闭」结转行（D7.5 逐字迁出；未决行永远只登记在清单里）"
+    },
+    {
       "path": "docs/01-roadmap/首版-文档索引.md",
       "role": "plan",
       "cap": "plan",
@@ -603,10 +624,10 @@
     }
   ],
   "contextBudget": {
-    "$comment": "决策 2 的预算：精简层 ≤ 100 KB，其中必读（台账 + 当前规划 + 待定清单）≤ 25 KB；entryCapKb 是 L0 入口的自主上限（02 §一）。判定见 check-docs.mjs 的「分层预算与入口封闭性」。userFacing（用户手册）与 budgetExempt（v0.2 临时施工计划）不计入精简层预算，但仍列在报告里。",
+    "$comment": "决策 2 的预算，**必读口径与上限由 P-54（R52）调整**：必读 = 台账登记本体（条目表 + 未决摘要）+ 当前规划 + 待定清单 ⇒ 精简层 ≤ 100 KB、必读 ≤ 34 KB；entryCapKb 是 L0 入口的自主上限（02 §一）。判定见 check-docs.mjs 的「分层预算与入口封闭性」。userFacing（用户手册）与 budgetExempt（v0.2 临时施工计划）不计入精简层预算，但仍列在报告里。",
     "entry": "docs/README.md",
     "slimKb": 100,
-    "mustReadKb": 25,
+    "mustReadKb": 34,
     "entryCapKb": 6
   },
   "crossLayerCheck": {
