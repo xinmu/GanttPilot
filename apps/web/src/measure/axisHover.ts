@@ -49,6 +49,13 @@ export interface AxisHoverMeasurementHost {
 
 /** `__GANTTPILOT_MEASURE_AXIS_HOVER__` 的产出（**全是 DOM 真值 + 一个结构性读数**）。 */
 export interface AxisHoverMeasureResult {
+  /**
+   * 读数期的**自证失败**原因（空 = 全部自证通过：档位切换与三次悬停后的读数都在稳定读预算内稳定）。
+   *
+   * **为什么不走 `window` 上的错误槽**（P3/C6-d 的订正）：那要求调用方读两处状态（返回值 + 全局），
+   * 而"这一轮到底稳不稳"是**这一轮结果的一部分**。字段跟着结果一起回，读数口就只有一处出口。
+   */
+  readonly errors: readonly string[];
   readonly zoom: string;
   /** 读这几个读数时**已提交**的会话修订号（松手前后各读一次即可证明"真的落库了"）。 */
   readonly revision: number;

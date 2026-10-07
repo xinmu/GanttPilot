@@ -11,9 +11,6 @@ import { estimateStorage } from '../composables/usePersistence.js';
 import { percentile, round } from './dom.js';
 import { dragScreenPoint, type DragMeasurementHost } from './drag.js';
 
-/** 供 CDP 侧核对：本测量钩子的版本标记（避免与旧产物混淆）。 */
-export const MEASURE_HOOK_VERSION = 'g5-2';
-
 // ---------------------------------------------------------------- G6：持久化测量（记录制，ADR 0009 §5）
 
 /** 持久化测量的宿主：由 `App.vue` 提供的**只读**入口。 */

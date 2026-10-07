@@ -54,6 +54,20 @@ import { runAlignMeasurement, type AlignMeasureResult, type AlignMeasurementHost
 import { runPersistMeasurement, type PersistMeasureResult, type PersistenceMeasurementHost } from './persist.js';
 
 /**
+ * **测量钩子的版本标记**（P3/C6-d 从 `persist.ts` 挪到门面：它标的是**整个钩子**，不是某一族）。
+ *
+ * 用途是兑现那条一直没兑现的承诺——**"避免与旧产物混淆"**：记录制最容易出的错不是数字不准，
+ * 而是**测了一个不是当前代码的产物**。因此 CDP 侧（`scripts/measure-render.mjs` 的
+ * `openMeasuredPage`）在等就绪时会**要求页面报出版本**（报不出来 = 你在测更旧的产物），
+ * 并把它随证据的 `环境` 块登记。
+ *
+ * **值只在"钩子与脚本的契约变了"时前进**；脚本**不硬编码**它（那会变成又一处常量分叉），
+ * 只核对"页面报了一个版本"。值里也不带能力块编号（原为 `g5-2`）——能力块代号不是功能语义
+ * （P3/C6-c 的口径）。
+ */
+export const MEASURE_HOOK_VERSION = '2026-10-08';
+
+/**
  * 在 `window` 上暴露测量入口；CDP 侧用 `Runtime.evaluate` 直接 `await` 它。
  *
  * `buildFixtureDocument` 由调用方给出（通常是"生成演示夹具"的同一个函数），
@@ -79,7 +93,13 @@ export function exposeMeasurement(args: {
     __GANTTPILOT_MEASURE_PERSIST__?: unknown;
     __GANTTPILOT_MEASURE_AXIS_HOVER__?: unknown;
     __GANTTPILOT_MEASURE_AXIS_HOVER_META__?: unknown;
+    __GANTTPILOT_MEASURE_VERSION__?: string;
   };
+  /**
+   * **先报版本**：CDP 侧的"等就绪"会连带核对它（报不出来 = 测的是比脚本更旧的产物，直接判红）。
+   * 与各族的钩子分开挂，是因为它必须在**任何**钩子被调用之前就可读。
+   */
+  host.__GANTTPILOT_MEASURE_VERSION__ = MEASURE_HOOK_VERSION;
   host.__GANTTPILOT_MEASURE__ = async (options: {
     readonly dataset?: string;
     readonly zoom?: string;
@@ -301,12 +321,13 @@ export function exposeMeasurement(args: {
       errors.push(...(await settle()));
       const onThirdRow = readHoverFacts(3);
       axisHoverHost.clearHover();
-      if (errors.length > 0) {
-        // 读数不稳定 ⇒ 把失败原因原样带出去（调用方判红），不在这里抛。
-        (window as unknown as { __GANTTPILOT_MEASURE_AXIS_HOVER_ERRORS__?: readonly string[] }).__GANTTPILOT_MEASURE_AXIS_HOVER_ERRORS__ =
-          errors;
-      }
-      return { zoom: axisHoverHost.zoom(), revision: axisHoverHost.revision(), axis: readAxisFacts(), hover: { idle, onRow, onThirdRow } };
+      return {
+        errors,
+        zoom: axisHoverHost.zoom(),
+        revision: axisHoverHost.revision(),
+        axis: readAxisFacts(),
+        hover: { idle, onRow, onThirdRow },
+      };
     };
   }
 }
@@ -320,4 +341,4 @@ export { runMeasurement, type MeasureController, type MeasureResult } from './pe
 export { runDragMeasurement, type DragMeasureResult, type DragMeasurementHost } from './drag.js';
 export { type AxisHoverMeasureResult, type AxisHoverMeasurementHost, type HoverReading } from './axisHover.js';
 export { runAlignMeasurement, type AlignMeasureResult, type AlignMeasurementHost, type AlignPositionSpec, type AlignProbeResult } from './align.js';
-export { MEASURE_HOOK_VERSION, runPersistMeasurement, type PersistMeasureResult, type PersistenceMeasurementHost, type StorageMeasurement } from './persist.js';
+export { runPersistMeasurement, type PersistMeasureResult, type PersistenceMeasurementHost, type StorageMeasurement } from './persist.js';

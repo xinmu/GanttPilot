@@ -87,6 +87,8 @@ function parseArgs(argv) {
     align: false,
     /** `--align=<label>`：证据文件名后缀（诊断与复测互不覆盖）。 */
     alignLabel: '',
+    /** **两级刻度与悬停行带**的记录制快照（写 `chart-axis-hover-chrome<大版本>.md`；见 `--axis-hover`）。 */
+    axisHover: false,
     /**
      * P-40 批次②：`--align` 覆盖的档位（默认全档）。
      * 档位盲区是 P-25 遗留的那一处——`pxPerDay` 变小 ⇒ 条宽进入 3 px 区、命中容差到边界。
@@ -146,9 +148,69 @@ function parseArgs(argv) {
       options.align = true;
       const label = arg.slice('--align'.length).replace(/^=/, '');
       if (label !== '') options.alignLabel = label;
+    } else if (arg === '--axis-hover') {
+      /**
+       * **两级刻度与悬停行带**的记录制快照（P-46 的事实；判据本体在 `smoke:build` 的门禁侧）。
+       *
+       * 页面的读数口是 `__GANTTPILOT_MEASURE_AXIS_HOVER__`
+       * （`apps/web/src/measure/axisHover.ts`）——它在 P3/C6-d 之前**零调用方**（见
+       * [登记与本轮不做](../docs/04-refactor/05-登记与本轮不做.md) §四.16 的 `N15`），本模式就是它的驱动器。
+       */
+      options.axisHover = true;
     }
   }
   return options;
+}
+
+/**
+ * 本次运行里页面报告的**钩子版本**（由 {@link openMeasuredPage} 记录）。
+ *
+ * 为什么要它：记录制最容易出的错不是数字不准，而是**测了一个不是当前代码的产物**
+ * （页面装的钩子是旧的、或压根没装上）。脚本**不硬编码版本**（那会变成又一处常量分叉），
+ * 只要求"页面报出版本"并把它登记进证据的 `环境` 块（P3/C6-d 兑现 `MEASURE_HOOK_VERSION`
+ * 那条一直没人核对的承诺）。
+ */
+let measuredHookVersion = '';
+/** 证据的 `环境` 块统一带这一行（见 {@link measuredHookVersion}）。 */
+const hookVersionEnv = () => ({ 钩子版本: measuredHookVersion === '' ? '(未记录)' : measuredHookVersion });
+
+/**
+ * **记录制入口（唯一）**：导航 → 等钩子就绪 → **核对页面报告的钩子版本**。
+ *
+ * 为什么收成一个函数（P3/C6-d）：这段循环此前在**四处**各写一遍（主口径 / `--align` / `--persist` /
+ * `--drag` 的预热），而"等的是什么"只有一处能写对；更要紧的是它顺带承担版本核对——
+ * 这正是记录制与门禁的差别所在：门禁测的是刚构建的产物，记录制可能测**任何**产物。
+ *
+ * @param {object} cdp
+ * @param {string} url
+ * @param {{ hook: string, timeoutMs?: number, label?: string }} options `hook` 是钩子在 `window` 上的名字（含 `__` 前后缀）
+ * @returns {Promise<{ version: string }>}
+ */
+async function openMeasuredPage(cdp, url, { hook, timeoutMs = 20_000, label = '测量钩子' }) {
+  await cdp.navigate(url);
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const state = await cdp.evaluate(`(() => ({
+      ready: Boolean(window.__GANTTPILOT_READY__),
+      hook: typeof window.${hook} === 'function',
+      version: window.__GANTTPILOT_MEASURE_VERSION__ ?? null,
+    }))()`);
+    if (state.ready === true && state.hook === true) {
+      if (typeof state.version !== 'string' || state.version === '') {
+        throw new Error(
+          `${label}没有报告版本（window.__GANTTPILOT_MEASURE_VERSION__ 为空）` +
+            '——测的可能是比本脚本更旧的产物（见 apps/web/src/measure/index.ts 的 MEASURE_HOOK_VERSION）',
+        );
+      }
+      measuredHookVersion = state.version;
+      return { version: state.version };
+    }
+    if (Date.now() > deadline) {
+      const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
+      throw new Error(`${label}未就绪（${hook}）：${String(captured)}`);
+    }
+    await new Promise((settle) => setTimeout(settle, 100));
+  }
 }
 
 /**
@@ -157,25 +219,12 @@ function parseArgs(argv) {
  * 注意两点：
  * 1. `?table=0` 隐藏左表 —— 元素预算的 `c₃` 只取决于"图表窗格宽 ÷ `pxPerDay`"，
  *    只有**全宽图表**才与 ADR 0007 §11 的回填口径可比（分屏下 `c₃` 必然更小，是布局差异）；
- * 2. `?measure=` 的钩子是**动态 `import()`** 装上去的，`Page.loadEventFired` 之后还没就绪，
- *    因此这里轮询等它出现，而不是假定"加载完就有"。
+ * 2. `?measure=` 的钩子是**动态 `import()`** 装上去的 ⇒ 就绪由 {@link openMeasuredPage} 轮询等待
+ *    （并顺带核对钩子版本）。
  */
 async function measureOne(cdp, origin, args) {
   const url = `${origin}/?measure=1&table=0&dataset=${encodeURIComponent(args.dataset)}&zoom=${String(args.zoom)}`;
-  await cdp.navigate(url);
-  const deadline = Date.now() + 20_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    ready = await cdp.evaluate(
-      'Boolean(window.__GANTTPILOT_READY__) && typeof window.__GANTTPILOT_MEASURE__ === "function"',
-    );
-    if (ready === true) break;
-    await new Promise((settle) => setTimeout(settle, 100));
-  }
-  if (ready !== true) {
-    const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
-    throw new Error(`测量钩子未就绪：${String(captured)}`);
-  }
+  await openMeasuredPage(cdp, url, { hook: '__GANTTPILOT_MEASURE__' });
   return cdp.evaluate(
     `window.__GANTTPILOT_MEASURE__({ dataset: ${JSON.stringify(args.dataset)}, zoom: ${JSON.stringify(args.zoom)}, rounds: ${String(args.rounds)}, scrollSteps: ${String(args.scrollSteps)} })`,
   );
@@ -708,20 +757,7 @@ function num(value, digits = 2) {
  * （`align.spec.ts` 进 `pnpm gate`），本函数只负责驱动页面、取回数字。
  */
 async function alignProbe(cdp, origin, args, { navigate = true } = {}) {
-  if (navigate) await cdp.navigate(`${origin}/?measure=1`);
-  const deadline = Date.now() + 20_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    ready = await cdp.evaluate(
-      'typeof window.__GANTTPILOT_MEASURE_ALIGN__ === "function" && Boolean(window.__GANTTPILOT_READY__)',
-    );
-    if (ready === true) break;
-    await new Promise((settle) => setTimeout(settle, 100));
-  }
-  if (ready !== true) {
-    const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
-    throw new Error(`对齐测量钩子未就绪：${String(captured)}`);
-  }
+  if (navigate) await openMeasuredPage(cdp, `${origin}/?measure=1`, { hook: '__GANTTPILOT_MEASURE_ALIGN__', label: '对齐测量钩子' });
   return cdp.evaluate(`window.__GANTTPILOT_MEASURE_ALIGN__(${JSON.stringify(args)})`);
 }
 
@@ -976,20 +1012,7 @@ const STORAGE_DATASET = 'dense-2000';
 /** 导航到应用并等持久化钩子就绪（应用级错误抓手与其它模式同口径）。 */
 async function persistNavigate(cdp, url) {
   // 注意：URL 必须带 `dataset`——夹具是在**页面里**按 `?dataset=` 建的，钩子参数不能替代它。
-  await cdp.navigate(url);
-  const deadline = Date.now() + 30_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    ready = await cdp.evaluate(
-      'typeof window.__GANTTPILOT_MEASURE_PERSIST__ === "function" && Boolean(window.__GANTTPILOT_READY__)',
-    );
-    if (ready === true) break;
-    await new Promise((settle) => setTimeout(settle, 100));
-  }
-  if (ready !== true) {
-    const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
-    throw new Error(`持久化测量钩子未就绪：${String(captured)}`);
-  }
+  await openMeasuredPage(cdp, url, { hook: '__GANTTPILOT_MEASURE_PERSIST__', timeoutMs: 30_000, label: '持久化测量钩子' });
 }
 
 /** 读回页面上的当前 `revision` 镜像（`null` = 还没暴露）。 */
@@ -1215,6 +1238,111 @@ function renderStorageMetricsEvidence({ env, run }) {
   return lines.join('\n');
 }
 
+/**
+ * `--axis-hover` 的**前提自证**（不是判据本体）。
+ *
+ * 判据本体在**门禁**里：`smoke-build.mjs` 的 `probeAxisAndHover` 在打包产物上直接读 DOM
+ * （两级刻度的行序/上下、短刻度只落在表头带、悬停行带跟着指针走、左右表联动）。
+ * 本函数只回答一件事：**这一轮快照有没有可读性**——即"两行刻度真的分成两行且大刻度在上"、
+ * "未悬停时没有行带（对照存在）"、"指针换行时行带真的动了"、"两栏表头同高（坐标基准）"。
+ * 少了任一条，文件里的数字就没有解释力（而它们看起来仍然"很整齐"）。
+ *
+ * @returns {{ problems: string[], checks: { name: string, ok: boolean, detail: string }[] }}
+ */
+function judgeAxisHoverSnapshot(run) {
+  const result = run?.result ?? {};
+  const axis = result.axis ?? {};
+  const hover = result.hover ?? {};
+  const idle = hover.idle ?? {};
+  const onRow = hover.onRow ?? {};
+  const onThird = hover.onThirdRow ?? {};
+  const checks = [
+    {
+      name: '钩子自证（三次悬停 + 可能的切档位都在稳定读预算内）',
+      ok: (result.errors ?? []).length === 0,
+      detail: (result.errors ?? []).length === 0 ? 'errors 空' : (result.errors ?? []).join('；'),
+    },
+    {
+      name: '两级刻度真的分成两行、且**大刻度在上**',
+      ok:
+        typeof axis.majorY === 'number' &&
+        typeof axis.minorY === 'number' &&
+        Number(axis.minorY) > Number(axis.majorY),
+      detail: `majorY=${String(axis.majorY)} minorY=${String(axis.minorY)}（上级样本 ${(axis.majorSamples ?? []).slice(0, 2).join('/')}；下级 ${(axis.minorSamples ?? []).slice(0, 2).join('/')}）`,
+    },
+    {
+      name: '两栏表头同高（悬停读数的坐标基准）',
+      ok: Number(axis.headerTable) === Number(axis.headerChart) && Number(axis.headerTable) > 0,
+      detail: `左表 ${String(axis.headerTable)} / 图表 ${String(axis.headerChart)}`,
+    },
+    {
+      name: '未悬停时**没有**行带（否则"跟着指针走"没有对照）',
+      ok: Number(idle.svgHoverRows) === 0,
+      detail: `svgHoverRows=${String(idle.svgHoverRows)}`,
+    },
+    {
+      name: '指针换行时行带**真的动了**（第 1 行 vs 第 3 行）',
+      ok:
+        onRow.svgRect !== null &&
+        onThird.svgRect !== null &&
+        Math.abs(Number(onRow.svgRect?.top) - Number(onThird.svgRect?.top)) > 1,
+      detail: `top=${String(onRow.svgRect?.top)} vs ${String(onThird.svgRect?.top)}；左表底色 ${String(idle.tableBackground)} → ${String(onRow.tableBackground)}`,
+    },
+  ];
+  return { problems: checks.filter((check) => !check.ok).map((check) => check.name), checks };
+}
+
+/** 两级刻度与悬停行带的记录制证据（`--axis-hover`）。 */
+function renderAxisHoverEvidence({ env, runs }) {
+  const lines = [];
+  lines.push('# 两级刻度与悬停行带（记录制，不进 `pnpm gate`）');
+  lines.push('');
+  lines.push('> 由 `node scripts/measure-render.mjs --axis-hover` 采集；**这是测量快照，不是门禁**');
+  lines.push('> （[ADR 0007 §三](../../../docs/02-adr/0007-渲染几何与裁剪契约.md)、[裁决 P-46](../../../docs/00-baseline/裁决R45.md)）。');
+  lines.push('> **判据本体在门禁里**：`scripts/smoke-build.mjs` 的 `probeAxisAndHover` 在打包产物上直接读 DOM');
+  lines.push('> （两行刻度的行序与上下、短刻度只落在表头带内、悬停行带跟着指针走、左右表联动）。');
+  lines.push('> 本文件提供的是**同族读数的可复现快照** + **前提自证**（见下），用来在改动前后做对照。');
+  lines.push('');
+  lines.push('## 环境');
+  lines.push('');
+  lines.push('| 项 | 值 |');
+  lines.push('|---|---|');
+  for (const [key, value] of Object.entries(env)) lines.push(`| ${key} | ${String(value)} |`);
+  lines.push('');
+  lines.push('## 读数');
+  lines.push('');
+  lines.push('| 档位 | 上级行 y | 上级样本 | 下级行 y | 下级样本 | 上级分段带 | 表头（左表/图表） | 表头第二行文本 | 未悬停行带 | 第 1 行行带 | 第 3 行行带 | 左表底色（未悬停 → 第 1 行） | revision |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+  for (const run of runs) {
+    const axis = run.result?.axis ?? {};
+    const hover = run.result?.hover ?? {};
+    const box = (reading) =>
+      reading?.svgRect === null || reading?.svgRect === undefined
+        ? `—（${String(reading?.svgHoverRows ?? '?')} 个）`
+        : `top ${String(reading.svgRect.top)}–${String(reading.svgRect.bottom)}`;
+    lines.push(
+      `| ${String(run.zoom)} | ${String(axis.majorY)} | ${(axis.majorSamples ?? []).slice(0, 3).join(' / ')} | ` +
+        `${String(axis.minorY)} | ${(axis.minorSamples ?? []).slice(0, 3).join(' / ')} | ${String(axis.majorBands)} | ` +
+        `${String(axis.headerTable)} / ${String(axis.headerChart)} | ${JSON.stringify(String(axis.tableHeaderSecondRowText ?? ''))} | ` +
+        `${box(hover.idle)} | ${box(hover.onRow)} | ${box(hover.onThirdRow)} | ` +
+        `${String(hover.idle?.tableBackground ?? '')} → ${String(hover.onRow?.tableBackground ?? '')} | ${String(run.result?.revision)} |`,
+    );
+  }
+  lines.push('');
+  lines.push('## 前提自证（不是判据；缺一条则上面的数字没有解释力）');
+  lines.push('');
+  for (const run of runs) {
+    const verdict = judgeAxisHoverSnapshot(run);
+    lines.push(`**${String(run.zoom)}**：${verdict.problems.length === 0 ? '✅ 全部通过' : `❌ ${verdict.problems.join('；')}`}`);
+    lines.push('');
+    lines.push('| 前提 | 结果 | 读数 |');
+    lines.push('|---|---|---|');
+    for (const check of verdict.checks) lines.push(`| ${check.name} | ${check.ok ? '✅' : '❌'} | ${check.detail} |`);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (!existsSync(join(distRoot, 'index.html'))) {
@@ -1306,6 +1434,7 @@ async function main() {
         DPR: 1,
         视口: '1280×800',
         样本: 'cyclic-dependency.xlsx（三列 / 6 行 / t5→t6 成环）',
+        ...hookVersionEnv(),
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       const evidencePath = join(evidenceDir, `import-cyclic-sample-chrome${major}.md`);
@@ -1430,6 +1559,7 @@ async function main() {
         迁移: options.alignResize === null
           ? '未做（--align-resize=off）'
           : `${String(BASE_VIEWPORT.width)}×${String(BASE_VIEWPORT.height)} → ${String(options.alignResize.width)}×${String(options.alignResize.height)}（不重设滚动）`,
+        ...hookVersionEnv(),
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       const suffix = options.alignLabel === '' ? '' : `-${options.alignLabel}`;
@@ -1447,22 +1577,54 @@ async function main() {
       return;
     }
 
+    // ---------------------------------------------------------------- 两级刻度与悬停行带（记录制）
+    if (options.axisHover) {
+      const runs = [];
+      for (const zoom of options.zooms) {
+        // **左表必须在场**：悬停读数要读"左表那一行的底色"（`?table=0` 会让它恒为空串）。
+        const url = `${origin}/?measure=1&table=1&dataset=${PRIMARY_DATASET}&zoom=${String(zoom)}`;
+        await openMeasuredPage(cdp, url, { hook: '__GANTTPILOT_MEASURE_AXIS_HOVER__', label: '两级刻度与悬停读数钩子' });
+        const result = await cdp.evaluate(
+          `window.__GANTTPILOT_MEASURE_AXIS_HOVER__({ zoom: ${JSON.stringify(zoom)} })`,
+        );
+        runs.push({ dataset: PRIMARY_DATASET, zoom, result });
+        const verdict = judgeAxisHoverSnapshot({ result });
+        console.log(
+          `[axis-hover] ${String(zoom)}：上级 ${String(result?.axis?.majorY ?? '?')} / 下级 ${String(result?.axis?.minorY ?? '?')}、` +
+            `行带 ${String(result?.hover?.idle?.svgHoverRows ?? '?')} → ${String(result?.hover?.onRow?.svgHoverRows ?? '?')}、` +
+            `前提自证 ${verdict.problems.length === 0 ? '✅' : `❌ ${verdict.problems.join('；')}`}`,
+        );
+      }
+      const env = {
+        采集时刻: new Date().toISOString(),
+        机器: process.env.COMPUTERNAME ?? 'local',
+        系统: `${process.platform} ${process.arch}`,
+        Node: process.version,
+        Chrome: chromeVersion,
+        'Chrome 模式': '--headless=new',
+        DPR: 1,
+        基视口: `${String(BASE_VIEWPORT.width)}×${String(BASE_VIEWPORT.height)}（Emulation.setDeviceMetricsOverride）`,
+        数据集: PRIMARY_DATASET,
+        左表: '在场（不带 ?table=0）——悬停读数要读左表那一行的底色',
+        档位: options.zooms.join(' / '),
+        ...hookVersionEnv(),
+      };
+      const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
+      const evidencePath = join(evidenceDir, `chart-axis-hover-chrome${major}.md`);
+      writeFileSync(evidencePath, renderAxisHoverEvidence({ env, runs }), 'utf8');
+      writeFileSync(
+        join(evidenceDir, 'chart-axis-hover-raw.json'),
+        `${JSON.stringify({ env, runs }, null, 2)}\n`,
+        'utf8',
+      );
+      if (runs.some((run) => judgeAxisHoverSnapshot(run).problems.length > 0)) process.exitCode = 1;
+      console.log(`[measure] 刻度与悬停证据已写入 ${evidencePath}`);
+      return;
+    }
+
     // 预热一次导航（模块加载与首次布局的冷启动不进数字）。
-    await cdp.navigate(`${origin}/?measure=1`);
+    await openMeasuredPage(cdp, `${origin}/?measure=1`, { hook: '__GANTTPILOT_MEASURE__' });
     await new Promise((settle) => setTimeout(settle, 600));
-    // 先读"应用级错误"抓手，再判断就绪——否则 `evaluate` 自身抛错会把抓手埋掉。
-    let captured = '';
-    try {
-      captured = String(await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? ""'));
-    } catch (error) {
-      captured = `(读取抓手失败：${error instanceof Error ? error.message : String(error)})`;
-    }
-    const ready = await cdp.evaluate(
-      'Boolean(window.__GANTTPILOT_READY__) && typeof window.__GANTTPILOT_MEASURE__ === "function"',
-    );
-    if (ready !== true) {
-      throw new Error(`测量钩子未就绪。应用级错误抓手：${captured === '' ? '(空)' : captured}`);
-    }
 
     const plans = [];
     for (const zoom of options.zooms) plans.push({ dataset: PRIMARY_DATASET, zoom });
@@ -1482,6 +1644,7 @@ async function main() {
         数据集: options.storageMetrics ? STORAGE_DATASET : PERSIST_DATASET,
         拖动天数: options.dayDelta,
         测试帧数: options.dragFrames,
+        ...hookVersionEnv(),
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
 
@@ -1655,6 +1818,7 @@ async function main() {
         数据集: options.dragDataset,
         拖动天数: options.dayDelta,
         测试帧数: options.dragFrames,
+        ...hookVersionEnv(),
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       // 非主口径的数据集**不覆盖**主口径快照（同一次采集可以留多份规模对照；与 `--align=<label>` 同精神）。
@@ -1731,6 +1895,7 @@ async function main() {
       数据集: plans.map((plan) => plan.dataset).join(' / '),
       轮数: options.rounds,
       滚动步数: options.scrollSteps,
+        ...hookVersionEnv(),
     };
 
     const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';

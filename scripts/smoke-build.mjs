@@ -514,7 +514,7 @@ async function exerciseExports(cdp, downloadDir = null, formats = ['svg', 'png',
  *    ① 指针落在**左表**上（纯 CSS `:hover`，CDP 的 `Input.dispatchMouseEvent` 会真的产生命中）；
  *    ② 指针落在**图表**上（`.row.hovered`，跟着 `hoverTaskId` 走，G8 复验第 ⑦ 条）。
  */
-async function probeG8AxisAndHover(cdp) {
+async function probeAxisAndHover(cdp) {
   const problems = [];
   const read = async (expression) => {
     const result = await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
@@ -1309,15 +1309,15 @@ try {
    * 顺序刻意放在导出之后：模板与拖动的判据都会**改变文档/下载目录外的状态**，
    * 而导出那三条依赖"页面上还是演示计划"这个前提（导出物会落进同一个下载目录）。
    */
-  const g8Problems = [];
-  g8Problems.push(...(await probeG8AxisAndHover(cdp)));
-  g8Problems.push(...(await probeRightDragHorizon(cdp)));
-  g8Problems.push(...(await probeTemplateDownload(cdp, repoRoot)));
+  const releaseSurfaceProblems = [];
+  releaseSurfaceProblems.push(...(await probeAxisAndHover(cdp)));
+  releaseSurfaceProblems.push(...(await probeRightDragHorizon(cdp)));
+  releaseSurfaceProblems.push(...(await probeTemplateDownload(cdp, repoRoot)));
   cdp.close();
 
   const problems = [];
   problems.push(...layoutProblems);
-  problems.push(...g8Problems);
+  problems.push(...releaseSurfaceProblems);
   // G7：导出库的分包纪律（首屏主 chunk 不得含 pptxgenjs；且某个 chunk 里必须真有它）
   problems.push(...checkExportChunking());
   // G7：三条导出路径端到端（真的点、真的落盘）
