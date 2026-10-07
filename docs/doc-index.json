@@ -773,5 +773,29 @@
       }
     ]
   },
+  "externalPathCheck": {
+    "$comment": [
+      "D1 / 决策 8 的两项机械守卫（执行者是 check-docs.mjs 的「仓库外路径与 gitignore 引用」，规范见 DOC-SPEC §4.6）。",
+      "① 盘符 / 家目录绝对路径：在可复现层（errorScope 的 layers/roles 命中）⇒ error；判定面之外的记录 / 证据 / spike 文档 ⇒ 只聚合成一条存量警告（记录制证据不改写，执行落 C8 与 D9）。",
+      "② 指向被 .gitignore 覆盖的**临时/草稿**路径（temporaryPathPatterns，必须与根 .gitignore 逐字一致）：只在可复现层判，且**同一行**必须出现 markers 里的声明词（说明这份东西本就不入库、要自己生成），否则 warning。可再生的构建产物（dist/ / node_modules/ / out/）不在判定内——文档引用它们是正常口径。",
+      "allow 是例外表：每条必须带 kind（环境观测 | 来源元信息 | 产物说明 | 规范示例）与 reason——kind 回答「这条本机路径为什么可以留」。"
+    ],
+    "errorScope": { "layers": ["slim"], "roles": ["baseline"] },
+    "markers": ["gitignore", "不入库", "不进库", "可再生", "再生", "临时"],
+    "temporaryPathPatterns": ["tmp/", "*.tmp"],
+    "allow": [
+      {
+        "path": "docs/DOC-SPEC.md",
+        "kind": "规范示例",
+        "reason": "规范本体必须写出被禁止的路径形态（§4.6 的纪律与 §五 检查表的第 10 行），否则「不得出现盘符/家目录」这条规定无法表达；命中面收窄到本文件。"
+      },
+      {
+        "pathRegex": "^docs/00-baseline/",
+        "lineRegex": "来源",
+        "kind": "来源元信息",
+        "reason": "决策 8 §三.1：入库的上游原文必须记「原始路径 + 文档版本 + 获取日期 + sha256」——那是「可校验来源」，不是「可复现引用」。D2 入仓时按本例外登记；命中面收窄到 docs/00-baseline/ 下含「来源」字样的行。"
+      }
+    ]
+  },
   "pendingList": "docs/01-roadmap/首版-待定清单.md"
 }

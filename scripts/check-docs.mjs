@@ -647,6 +647,200 @@ export function evaluateCrossLayer({ links, markers, allow = [], maxRound, round
   return { errors, warnings };
 }
 
+// ── 8d. 仓库外路径与 gitignore 引用（D1 / 决策 8） ──────────────────────────
+//
+// 为什么需要它：基线层与计划层把上游原文写成**个人机器上的绝对路径**（基线层自称"结构化重建"，
+// 原文是它唯一的校验基准），换机器 / 清下载目录 / clone 仓库即全部悬空；记录制证据则把复现输入
+// 写成 `tmp/`（被 `.gitignore` 覆盖）下的绝对路径——读者照着做必然复现不出来。两类都是
+// "引用看着在、实际不可复现"。规范见 `docs/DOC-SPEC.md` §4.6。
+//
+// 口径：
+// - **可复现层**（`layer: slim` 或 `role: baseline`）里的盘符 / 家目录绝对路径 ⇒ **错误**；
+// - 可复现层里指向**被 `.gitignore` 覆盖的临时/草稿路径**（`tmp/` 一类，模式由 `temporaryPathPatterns`
+//   指定）、且**同一行没有声明词**（`不入库` / `可再生` 一类，即"这份东西本就不在仓库里、要自己生成"）
+//   ⇒ **警告**。可再生的构建产物（`dist/` / `node_modules/` / `out/`）**不在判定内**：文档里引用它们
+//   是正常口径（有再生命令），而 `tmp/` 是维护者本机的草稿，读者照做必然复现不出来。
+// - 判定面之外的文档（记录层 / 证据 / spike）**不判错**：那里的本机路径是"当时的机器事实"，
+//   记录制证据按先例不改写（`P-41 §9(a)` / `P-44 §9(a)`）⇒ 只聚合成**一条存量警告**（执行落 C8 / D9）；
+// - 例外表 `externalPathCheck.allow`：每条必须带 `kind`（环境观测 | 来源元信息 | 产物说明 | 规范示例）与 `reason`。
+
+/** `.gitignore` 的最小匹配器（本仓库只有根 `.gitignore`；嵌套 `.gitignore` 不在判定内）。
+ *  覆盖本仓库实际用到的形态：目录 `dir/`、后缀 `*.ext`、裸名 `name`、带通配的路径（如 `spikes` + 通配 + `out/`）、
+ *  `!` 反选（后匹配者胜）。 */
+export function makeGitignoreMatcher(text) {
+  const rules = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (line === '' || line.startsWith('#')) continue;
+    const negated = line.startsWith('!');
+    const pattern = (negated ? line.slice(1) : line).trim();
+    if (pattern === '') continue;
+    const directory = pattern.endsWith('/');
+    const body = directory ? pattern.slice(0, -1) : pattern;
+    const anchored = body.startsWith('/');
+    const bare = anchored ? body.slice(1) : body;
+    const core = bare
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .split('**')
+      .map((part) => part.replace(/\*/g, '[^/]*'))
+      .join('.*');
+    // 「含斜杠」要按**原始**模式判（变换后的 core 里 `[^/]` 也含斜杠，会把 `*.tmp` 误判成锚定）。
+    const prefix = anchored || bare.includes('/') ? '^' : '^(?:.*/)?';
+    rules.push({ negated, regex: new RegExp(`${prefix}${core}${directory ? '(?:/.*)?$' : '$'}`) });
+  }
+  return (path) => {
+    let ignored = false;
+    for (const rule of rules) if (rule.regex.test(path)) ignored = !rule.negated;
+    return ignored;
+  };
+}
+
+/** 例外表的 `kind` 是闭集：它回答"这条本机路径为什么可以留"。 */
+const EXTERNAL_PATH_KINDS = new Set(['环境观测', '来源元信息', '产物说明', '规范示例']);
+
+/**
+ * 仓库外路径与 gitignore 引用的判定（与仓库解耦，便于 `--selftest` 用合成输入驱动）。
+ *
+ * @param {{ hits: Array<{path: string, line: number, kind: 'absolute'|'temporary', scope: 'reproducible'|'archive',
+ *            text?: string, target?: string, lineText?: string, declared?: boolean}>,
+ *           markers?: string[],
+ *           allow?: Array<{path?: string, pathRegex?: string, lineRegex?: string, kind: string, reason: string}> }} input
+ * @returns {{ errors: string[], warnings: string[] }}
+ */
+export function evaluateExternalPaths({ hits, markers = [], allow = [] }) {
+  const errors = [];
+  const warnings = [];
+  const isAllowed = (hit) =>
+    allow.some((rule) => {
+      const byPath =
+        rule.path !== undefined
+          ? rule.path === hit.path
+          : rule.pathRegex === undefined
+            ? true
+            : new RegExp(rule.pathRegex).test(hit.path);
+      if (!byPath) return false;
+      return rule.lineRegex === undefined || new RegExp(rule.lineRegex).test(hit.lineText ?? '');
+    });
+  const group = (list) => {
+    const grouped = new Map();
+    for (const hit of list) {
+      if (!grouped.has(hit.path)) grouped.set(hit.path, []);
+      grouped.get(hit.path).push(hit);
+    }
+    return grouped;
+  };
+  const tail = (own) => (own.length > 3 ? ` …（共 ${String(own.length)} 处）` : '');
+
+  const absolute = hits.filter((hit) => hit.kind === 'absolute' && !isAllowed(hit));
+  for (const [path, own] of group(absolute.filter((hit) => hit.scope === 'reproducible'))) {
+    const samples = own.slice(0, 3).map((hit) => `${path}:${String(hit.line)} → ${hit.text ?? ''}`).join('；');
+    errors.push(
+      `[外部路径] ${path}：${String(own.length)} 处本机绝对路径（盘符 / 家目录）——可复现层不得把引用绑死在一台机器上：` +
+        `${samples}${tail(own)}（决策 8：基线层必须可被本仓库内的原文校验，执行落 D2）`,
+    );
+  }
+  const archived = group(absolute.filter((hit) => hit.scope !== 'reproducible'));
+  if (archived.size > 0) {
+    const total = [...archived.values()].reduce((sum, own) => sum + own.length, 0);
+    const names = [...archived.entries()]
+      .slice(0, 4)
+      .map(([path, own]) => `${path}(${String(own.length)})`)
+      .join('、');
+    warnings.push(
+      `[外部路径] 归档 / 证据层有 ${String(archived.size)} 份文档含本机绝对路径（共 ${String(total)} 处）：${names}` +
+        `${archived.size > 4 ? ' 等' : ''}——记录制证据按先例不改写（P-41 §9(a)），执行落 C8（证据卫生）与 D9（spike 批次）`,
+    );
+  }
+  const ignored = hits.filter((hit) => hit.kind === 'temporary' && hit.scope === 'reproducible' && hit.declared !== true && !isAllowed(hit));
+  for (const [path, own] of group(ignored)) {
+    const samples = own.slice(0, 3).map((hit) => `${path}:${String(hit.line)} → ${hit.target ?? ''}`).join('；');
+    warnings.push(
+      `[外部路径] ${path}：${String(own.length)} 处引用被 .gitignore 覆盖的临时路径、同一行（或紧邻下一行）没有声明词（${markers.join(' / ')}）：` +
+        `${samples}${tail(own)}——这些路径不入库、也不由脚本再生，读者照做复现不出来；改法是补声明词或改写成「由脚本再生」`,
+    );
+  }
+
+  return { errors, warnings };
+}
+
+// ── 8d. 仓库外路径与 gitignore 引用：输入装配 ───────────────────────────────
+
+const externalConfig = index.externalPathCheck ?? {};
+const externalScope = externalConfig.errorScope ?? { layers: ['slim'], roles: ['baseline'] };
+const externalMarkers = externalConfig.markers ?? [];
+const externalAllow = externalConfig.allow ?? [];
+const gitignoreText = existsSync(join(repoRoot, '.gitignore')) ? read(join(repoRoot, '.gitignore')) : '';
+const gitignoreLines = new Set(gitignoreText.split('\n').map((line) => line.trim()));
+const temporaryPatterns = externalConfig.temporaryPathPatterns ?? [];
+for (const pattern of temporaryPatterns) {
+  // 口径必须与 `.gitignore` 挂钩：配置里写了一个仓库根本没忽略的模式，等于这条守卫在自说自话。
+  if (!gitignoreLines.has(pattern)) {
+    error(`[外部路径] temporaryPathPatterns 的 "${pattern}" 不在根 .gitignore 里（临时路径口径必须与 .gitignore 一致）`);
+  }
+}
+for (const rule of externalAllow) {
+  if (!EXTERNAL_PATH_KINDS.has(rule.kind)) {
+    error(`[外部路径] 例外表 externalPathCheck.allow 的 kind 不在闭集内（${[...EXTERNAL_PATH_KINDS].join(' | ')}）：${String(rule.kind)}`);
+  }
+  if (typeof rule.reason !== 'string' || rule.reason === '') {
+    error('[外部路径] 例外表 externalPathCheck.allow 的每条例外都必须写 reason（没有理由的例外等于没有门禁）');
+  }
+  if (rule.path === undefined && rule.pathRegex === undefined) {
+    error('[外部路径] 例外表的每条规则至少要写 path 或 pathRegex（否则它会把整份守卫关掉）');
+  }
+}
+
+/** 盘符（`C:\` / `D:/`，含 `file:///D:/…`）与家目录（`~/` / `/Users/` / `/home/`）的完整路径 token。 */
+const ABSOLUTE_PATH_PATTERN = /(?<![A-Za-z0-9])([A-Za-z]:[\\/][^\s`'"，。、）)】]*|~[\\/][^\s`'"，。、）)】]*|\/(?:Users|home)\/[^\s`'"，。、）)】]*)/g;
+
+const isIgnoredPath = makeGitignoreMatcher(gitignoreText);
+const isTemporaryPath = makeGitignoreMatcher(temporaryPatterns.join('\n'));
+const externalHits = [];
+for (const absolute of markdownForLinks) {
+  const path = rel(absolute);
+  const entry = indexed.get(path);
+  if (entry?.budgetExempt === true) continue; // v0.2 临时计划：合流后整体删除
+  const scope =
+    entry !== undefined && ((externalScope.layers ?? []).includes(entry.layer) || (externalScope.roles ?? []).includes(entry.role))
+      ? 'reproducible'
+      : 'archive';
+  const lines = read(absolute).split('\n');
+  let inFence = false;
+  lines.forEach((line, i) => {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence;
+      return;
+    }
+    if (inFence) return;
+    for (const match of line.matchAll(ABSOLUTE_PATH_PATTERN)) {
+      externalHits.push({ path, line: i + 1, kind: 'absolute', text: match[1], scope, lineText: line });
+    }
+    const candidates = new Set();
+    for (const match of line.matchAll(/\]\(([^()\s]+)\)/g)) candidates.add(decodeURIComponent(match[1].split('#')[0]));
+    for (const match of line.matchAll(/`([^`\n]+)`/g)) candidates.add(match[1]);
+    for (const candidate of candidates) {
+      const target = candidate.trim().replace(/^\.\//, '');
+      if (target === '' || /^(https?:|mailto:|#)/.test(target)) continue;
+      if (!isIgnoredPath(target) || !isTemporaryPath(target)) continue;
+      // 声明词允许落在**紧邻的下一行**：本仓库的写法常把"（不入库二进制）"折到下一行（如 CONTRIBUTING §记录制实测）。
+      const window = `${line}\n${lines[i + 1] ?? ''}`;
+      externalHits.push({
+        path,
+        line: i + 1,
+        kind: 'temporary',
+        target,
+        scope,
+        declared: externalMarkers.some((word) => window.includes(word)),
+        lineText: line,
+      });
+    }
+  });
+}
+
+const external = evaluateExternalPaths({ hits: externalHits, markers: externalMarkers, allow: externalAllow });
+for (const message of external.errors) error(message);
+for (const message of external.warnings) warn(message);
+
 // ── 9. 策略不变量 ──────────────────────────────────────────────────────────
 
 const POLICY = [
@@ -689,7 +883,7 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 体量 / 分层预算与入口封闭性 / 策略不变量。');
+console.log('[docs] 检查通过：链接 / 锚点 / 台账 / 存档覆盖 / 体量 / 分层预算与入口封闭性 / 跨层引用标记词 / 仓库外路径 / 策略不变量。');
 
 // ── 自检（反向保护的钉子：每类判定都要有"该绿就绿、该红就红"的合成用例） ──
 //
@@ -776,6 +970,82 @@ function selftest() {
     name: '超出台账上界的轮次引用只警告',
     result: evaluateCrossLayer({ links: [], markers, maxRound: 47, roundMentions: [{ path: 'docs/a.md', line: 304, round: 50 }] }),
     expect: (r) => r.errors.length === 0 && r.warnings.some((m) => m.includes('R50') && m.includes('R47')),
+  });
+
+  // §8d：仓库外路径与 gitignore 引用（决策 8）
+  const extMarkers = ['gitignore', '不入库', '可再生'];
+  const externalAllow = [{ pathRegex: '^docs/00-baseline/', lineRegex: '来源', kind: '来源元信息', reason: '来源行必须记原始路径 + sha256' }];
+  cases.push({
+    name: '可复现层的本机绝对路径判错（按文档聚合）',
+    result: evaluateExternalPaths({
+      hits: [
+        { path: 'docs/a.md', line: 3, kind: 'absolute', scope: 'reproducible', text: 'D:\\Downloads\\x.md', lineText: '由 `D:\\Downloads\\x.md` 提取' },
+        { path: 'docs/a.md', line: 9, kind: 'absolute', scope: 'reproducible', text: '~/x.md', lineText: '见 ~/x.md' },
+      ],
+      markers: extMarkers,
+    }),
+    expect: (r) => r.errors.length === 1 && r.errors[0].includes('docs/a.md') && r.errors[0].includes('2 处') && r.warnings.length === 0,
+  });
+  cases.push({
+    name: '归档 / 证据层的绝对路径只聚合成一条存量警告',
+    result: evaluateExternalPaths({
+      hits: [
+        { path: 'spikes/s/结论.md', line: 1, kind: 'absolute', scope: 'archive', text: 'C:\\Program Files', lineText: 'x' },
+        { path: 'apps/web/evidence/e.md', line: 26, kind: 'absolute', scope: 'archive', text: 'D:\\w\\tmp\\a.xlsx', lineText: 'x' },
+      ],
+      markers: extMarkers,
+    }),
+    expect: (r) => r.errors.length === 0 && r.warnings.length === 1 && r.warnings[0].includes('2 份文档') && r.warnings[0].includes('C8'),
+  });
+  cases.push({
+    name: 'gitignore 的临时路径引用缺声明词判警告、带声明词通过',
+    result: evaluateExternalPaths({
+      hits: [
+        { path: 'CONTRIBUTING.md', line: 70, kind: 'temporary', scope: 'reproducible', target: 'tmp/<profile>/<ts>', declared: false, lineText: '起浏览器时一律用 `tmp/…` 做 --user-data-dir' },
+        { path: 'CONTRIBUTING.md', line: 92, kind: 'temporary', scope: 'reproducible', target: 'tmp/samples/x.xlsx', declared: true, lineText: '（已 gitignore，不入库二进制）' },
+      ],
+      markers: extMarkers,
+    }),
+    expect: (r) => r.errors.length === 0 && r.warnings.length === 1 && r.warnings[0].includes('CONTRIBUTING.md') && r.warnings[0].includes('声明词'),
+  });
+  cases.push({
+    name: '归档层的临时路径引用不判（记录制不改写）',
+    result: evaluateExternalPaths({
+      hits: [{ path: 'docs/01-roadmap/首版-记录-G5.md', line: 97, kind: 'temporary', scope: 'archive', target: 'tmp/nc-evidence/', declared: false, lineText: '工件在 `tmp/nc-evidence/`' }],
+      markers: extMarkers,
+    }),
+    expect: (r) => r.errors.length === 0 && r.warnings.length === 0,
+  });
+  cases.push({
+    name: '例外表（来源元信息）压住命中，且可按 lineRegex 收窄',
+    result: evaluateExternalPaths({
+      hits: [
+        { path: 'docs/00-baseline/原文.md', line: 2, kind: 'absolute', scope: 'reproducible', text: 'D:\\Downloads\\x.md', lineText: '> 来源：`D:\\Downloads\\x.md`（sha256 …）' },
+        { path: 'docs/00-baseline/需求基线.md', line: 3, kind: 'absolute', scope: 'reproducible', text: 'D:\\Downloads\\x.md', lineText: '由 `D:\\Downloads\\x.md` 提取并重编号' },
+      ],
+      markers: extMarkers,
+      allow: externalAllow,
+    }),
+    expect: (r) => r.errors.length === 1 && r.errors[0].includes('需求基线.md'),
+  });
+  cases.push({
+    name: '.gitignore 匹配器：目录 / 通配 / 锚定 / 反选',
+    result: (() => {
+      const ignored = makeGitignoreMatcher(['node_modules/', 'dist/', 'dist-offline/', '!dist/keep.txt', 'spikes/*/out/', 'tmp/', '*.tmp'].join('\n'));
+      return {
+        ignored: ['tmp/samples/a.xlsx', 'apps/web/dist-offline/index.html', 'spikes/g0-s1/out/a.pptx', 'a/b/x.tmp', 'node_modules/x'].map(ignored),
+        kept: ['README.md', 'docs/a.md', 'dist/keep.txt'].map((p) => !ignored(p)),
+      };
+    })(),
+    expect: (r) => r.ignored.every(Boolean) && r.kept.every(Boolean),
+  });
+  cases.push({
+    name: '临时路径判定面只收 tmp/ 一类：可再生构建产物（dist/）不在内',
+    result: (() => {
+      const temporary = makeGitignoreMatcher(['tmp/', '*.tmp'].join('\n'));
+      return { temporary: ['tmp/x.md', 'a/b/scratch.tmp'].map(temporary), build: ['apps/web/dist/index.html', 'packages/engine/dist/index.js'].map((p) => !temporary(p)) };
+    })(),
+    expect: (r) => r.temporary.every(Boolean) && r.build.every(Boolean),
   });
 
   let failed = 0;
