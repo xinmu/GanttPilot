@@ -13,7 +13,7 @@ import { COLUMN_SPECS, HEADER_ROW, SHEET_NAME } from './columns.js';
 import { XLSX_DIAGNOSTIC_CODES } from './diagnostics.js';
 import { importXlsx } from './import.js';
 import { detectColumns } from './import.js';
-import { writeWorkbook } from './fixtures.spec.js';
+import { writeWorkbook, type WriteRow } from './fixtures.spec.js';
 import type { XlsxDiagnostic, XlsxDiagnosticCode } from './diagnostics.js';
 
 /** 诊断的可比对投影（顺序不在契约里 → 排序；`message` 不参与断言）。 */
@@ -29,8 +29,16 @@ function expectDiags(diagnostics: readonly XlsxDiagnostic[]): { code: XlsxDiagno
     .sort((a, b) => `${a.code}${String(a.row ?? '')}`.localeCompare(`${b.code}${String(b.row ?? '')}`));
 }
 
+/**
+ * 造一张表并导入。
+ *
+ * 行类型是 `WriteRow`（`fixtures.spec.ts` 里 `writeWorkbook` 的入参形状）而**不是**
+ * `Record<string, unknown>`：原先那个宽签名把"这张表写得出来"这件事挡在类型之外
+ * ——`writeWorkbook` 内部 `value as ExcelJS.CellValue` 的断言，正是靠这层宽松**免检**的。
+ * 收窄成真实形状后，下面每个字面量（含 `{ formula, result }` 的公式形态）都要自己站得住。
+ */
 async function importRows(
-  rows: readonly Record<string, unknown>[],
+  rows: readonly WriteRow[],
   headers?: readonly (string | null)[],
 ): Promise<Awaited<ReturnType<typeof importXlsx>>> {
   const bytes = await writeWorkbook({ rows, ...(headers === undefined ? {} : { headers }) });
@@ -200,7 +208,11 @@ describe('G3 ① 表头定位：脏形态给明确诊断而非崩溃', () => {
 describe('G3 ① 容差闭集：日期', () => {
   const cases: readonly {
     readonly name: string;
-    readonly start: unknown;
+    // 这一列**刻意**收 `WriteRow[string]`（= `exceljs` 的 `CellValue`，含 null/undefined）而不是
+    // `unknown`：容差闭集要试的是"工作簿里真能出现的取值形态"，而 `unknown` 连"这个字面量写得进
+    // 单元格吗"也一起免检（`writeWorkbook` 内部那句 `value as ExcelJS.CellValue` 的断言因此
+    // 从来没被查过）。
+    readonly start: WriteRow[string];
     readonly expectIso: string | null;
     /** 期望出现的信息级/警告级码（导入仍然成功）。 */
     readonly expectCode?: XlsxDiagnosticCode;

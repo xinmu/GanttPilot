@@ -175,6 +175,10 @@ describe('G3 ④ 跨语言差分：JS 协议 ↔ openpyxl 参照实现', () => {
       });
 
       const expectedRows = derivedByReference.map((row) => ({
+        // `wbs` 不参与下面的深比较（编号由层级那一段单独断言），但**失败信息要用**：
+        // 原先这里漏了它，于是断言模板里的 `expected.wbs` 取到 `undefined`
+        // ——错误行号成了"第 3 行（WBS ）"，一条只在测试失败时才看得见的缺陷。
+        wbs: row.wbs,
         // 公式无缓存值 → 文档里必须是 `null`（按值缺失），且诊断另有 info
         startDate: row.start === 'FORMULA_WITHOUT_CACHE' ? null : row.start,
         endDate: row.end === 'FORMULA_WITHOUT_CACHE' ? null : row.end,
