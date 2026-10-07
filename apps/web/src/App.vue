@@ -20,7 +20,8 @@
  * 因此 `ViewModel.scrollTop` / `scrollLeft` 就是真实滚动位置，反算函数（`dayAtX`/`ordinalAtX`）自洽。
  */
 
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';import {
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import {
   collapseToCommand,
   countElements,
   generateDocument,
@@ -874,14 +875,14 @@ onMounted(() => {
       };
 
       /**
-       * **G8：两级刻度与悬停行带**的读数入口（P-46）。
+       * **两级刻度与悬停行带**的读数入口（P-46；原文写 "G8 读数入口"——能力块代号不是功能语义，P3/C6-c）。
        *
        * 两条口径（与既有记录制一致）：
        * - `hoverRowAt` 走 `updateHover`（**用户 `mousemove` 的同一个函数**），不另开后门——
        *   否则"悬停高亮"测的是一条平行公式；
        * - `setZoom` 复用 `alignHost` 的同一个 `chart.setZoom`（档位住在页面状态里）。
        */
-      const g8Host = {
+      const axisHoverHost = {
         view: () => view.value,
         zoom: () => zoom.value,
         revision: () => revision.value,
@@ -969,8 +970,8 @@ onMounted(() => {
           probe: () => persistenceProbe.value,
           drag: dragHost,
         },
-        // G8：两级刻度与悬停行带（P-46）。判据走 `smoke:build`（门禁）+ 记录制（打包产物）。
-        g8: g8Host,
+        // 两级刻度与悬停行带（P-46）。判据走 `smoke:build`（门禁）+ 记录制（打包产物）。
+        axisHover: axisHoverHost,
         align: alignHost
       });
       window.__GANTTPILOT_READY__ = true;

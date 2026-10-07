@@ -306,9 +306,12 @@ async function probeMainFlows(cdp, downloadDir) {
      * **失败时的诊断读数**（只写进原始 JSON，不改变判据）：拖完之后若文本没变，
      * 需要能区分三类原因——① 手势没起来；② 手势被中止且没有提交；③ 命令被拒（提示条里有失败码）。
      *
-     * 修订号走**测量钩子**（`__GANTTPILOT_MEASURE_G8__().revision`，即 `session.revision`）而**不是**
+     * 修订号走**测量钩子**（`__GANTTPILOT_MEASURE_AXIS_HOVER_META__().revision`，即 `session.revision`）而**不是**
      * 从状态栏文案里正则解析：文案是给人看的、会随措辞变，而"松手真的落了库"必须有一个结构性读数
      * （与 `--drag`/`--persist-drag` 的"预览不落库"判据同源，P-45）。
+     *
+     * 注意用的是**元读数**（`_META__`，只读：档位 + 修订号），不是同族的那个"读一次两级刻度与悬停"的
+     * 入口——后者会**切档位、挪指针**（有个会改状态的副作用），不适合"随手读一次"。
      */
     const diagnostics = JSON.parse(
       await read(
@@ -316,8 +319,8 @@ async function probeMainFlows(cdp, downloadDir) {
         `(() => {
           const status = (document.querySelector('.status') || {}).textContent || '';
           const notice = (document.querySelector('.status .notice') || {}).textContent || '';
-          const meta = typeof window.__GANTTPILOT_MEASURE_G8_META__ === 'function'
-            ? window.__GANTTPILOT_MEASURE_G8_META__()
+          const meta = typeof window.__GANTTPILOT_MEASURE_AXIS_HOVER_META__ === 'function'
+            ? window.__GANTTPILOT_MEASURE_AXIS_HOVER_META__()
             : null;
           return JSON.stringify({
             error: window.__GANTTPILOT_ERROR__ ?? null,

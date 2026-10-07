@@ -1,12 +1,17 @@
 /**
- * G8 读数（两级刻度与悬停行带）：**全是 DOM 真值**，判据侧在
- * `smoke:build`（门禁）+ 记录制（本族）两条通道共用这一份读数口（P-40 的两条通道口径）。
+ * **两级刻度与悬停行带**的读数（DOM 真值）。判据侧在 `smoke:build`（门禁）与
+ * `scripts/offline-artifact-probe.mjs`（记录制）两条通道共用这一份读数口（P-40 的两条通道口径）。
+ *
+ * **命名**（P3/C6-c）：本模块原叫 `g8.ts`——按**能力块编号**命名。能力块代号（G0–G8）
+ * 是**工程阶段**的编号，不是功能语义：G8 那一块是"发布面（刻度 / 悬停带 / 模板 / 离线单文件）"，
+ * 而本模块只负责**它的两条读数的读数口**。代号随版本消失，读数对象不会 ⇒ 按读数对象改名。
+ * 文档里的"G8 复验第 ③ 条"一类措辞**保留**：那里的代号是**记录指针**（指哪一轮裁决/复验），不是标识符。
  */
 
 import { type ViewModel, type ZoomKey } from '@ganttpilot/render-core';
 
 /**
- * **G8 的可判定读数**（P-46 的「刻度行两级」与「指针所在整行高亮」）。
+ * **两级刻度与悬停行带的可判定读数**（P-46 的「刻度行两级」与「指针所在整行高亮」）。
  *
  * ## 为什么这两条需要入口
  *
@@ -21,7 +26,7 @@ import { type ViewModel, type ZoomKey } from '@ganttpilot/render-core';
  * - `hover.at`：把指针放到第 N 个**可见行**的条体上（走用户同一条 `hoverAt`），再读三件事：
  *   ① SVG 里有没有 `.hover-row`、② 它的纵向范围是否落在那一行、③ 左表对应行是否真的变了底色。
  */
-export interface G8MeasurementHost {
+export interface AxisHoverMeasurementHost {
   /** 指针挪到第 N 个可见行的竖向中心（走 `App.vue` 与用户同一条 hover 入口）。 */
   readonly hoverRowAt: (rowIndex: number) => void;
   /** 清掉指针（读"没有高亮"的对照）。 */
@@ -42,8 +47,8 @@ export interface G8MeasurementHost {
   readonly revision: () => number;
 }
 
-/** `__GANTTPILOT_MEASURE_G8__` 的产出（**全是 DOM 真值 + 一个结构性读数**）。 */
-export interface G8MeasureResult {
+/** `__GANTTPILOT_MEASURE_AXIS_HOVER__` 的产出（**全是 DOM 真值 + 一个结构性读数**）。 */
+export interface AxisHoverMeasureResult {
   readonly zoom: string;
   /** 读这几个读数时**已提交**的会话修订号（松手前后各读一次即可证明"真的落库了"）。 */
   readonly revision: number;
@@ -97,7 +102,7 @@ function roundRect(box: { top: number; bottom: number; left: number; right: numb
 }
 
 /** 从 DOM 读一次"两级刻度"的证据（**判据要的是 DOM 真值**）。 */
-export function readAxisFacts(): G8MeasureResult['axis'] {
+export function readAxisFacts(): AxisHoverMeasureResult['axis'] {
   /**
    * 两行刻度的证据取自**文本盒的竖向中心**（不是 `y` 属性）：文字盒反映的是"屏幕上真的分了两行"
    * 这件事本身，而 `y` 只是它的因；两者取其一就够，取盒更接近判据要回答的问题。

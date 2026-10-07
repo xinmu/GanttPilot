@@ -497,7 +497,13 @@ async function exerciseExports(cdp, downloadDir = null, formats = ['svg', 'png',
  *
  * "刻度画成了两行""指针所在行有浅色底"是 **DOM 事实**（SVG 文本盒的竖向中心、
  * `getComputedStyle` 的底色），按 [P-40](../../docs/00-baseline/裁决R39.md) 的两条通道口径，
- * 这类事实的**门禁侧**就在 `smoke:build`（记录制侧是 `measure-render.mjs --g8`）。
+ * 这类事实的**门禁侧**就在本函数（`smoke:build`，打包产物上真的读 DOM）。
+ *
+ * **记录制那一侧目前没有驱动器**（P3/C6-c 实测）：页面里确实有读数口
+ * （`__GANTTPILOT_MEASURE_AXIS_HOVER__`，`apps/web/src/measure/axisHover.ts`），
+ * 但 `scripts/measure-render.mjs` **没有** `--g8` 模式（本注释此前写作"记录制侧是
+ * `measure-render.mjs --g8`"，那句话从来没有兑现过）⇒ 该入口零调用方，已登记（见
+ * `docs/04-refactor/05-登记与本轮不做.md` §四.16）。
  *
  * ## 三条对照缺一不可
  *

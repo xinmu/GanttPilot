@@ -544,8 +544,8 @@ export function dragScreenPoint(
     scrollTop: pane.scrollTop,
     scrollLeft: pane.scrollLeft,
     handles,
-  };}
-
+  };
+}
 /**
  * 记录制挑出来的目标行（`move` 与 `resize-duration` 共用这个形状）。
  *
@@ -877,6 +877,5 @@ function emptyDragResult(
     scrollTop: args.scrollTop ?? 0,
     scrollLeft: args.scrollLeft ?? 0,
     handles: null,
-  };}
-
-// ---------------------------------------------------------------- G8：两级刻度与悬停行带（记录制 + 打包产物冒烟）
+  };
+}

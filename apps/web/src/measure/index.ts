@@ -33,7 +33,7 @@
  * | `dom.ts` | 采样原语：帧等待、稳定即止、滚动指纹、统计 |
  * | `perf.ts` | 主口径：首屏 + 10× 滚动 |
  * | `drag.ts` | 拖动族：目标挑选、抓取点、手柄/光标/连接点读数 |
- * | `g8.ts` | G8：两级刻度与悬停行带的 DOM 读数 |
+ * | `axisHover.ts` | **两级刻度与悬停行带**的 DOM 读数（原 `g8.ts`：能力块代号不是功能语义，P3/C6-c 改名） |
  * | `align.ts` | 两栏行对齐的采数（判读在 `render-core/align`） |
  * | `persist.ts` | 持久化：开/关同尺对照与存储占用 |
  *
@@ -49,7 +49,7 @@ import { specOfDataset } from './spec.js';
 import { STABLE_READ_BUDGET_FRAMES, scrollFingerprint, settleStableRead } from './dom.js';
 import { runMeasurement, type MeasureController, type MeasureResult } from './perf.js';
 import { runDragMeasurement, type DragMeasureResult, type DragMeasurementHost } from './drag.js';
-import { readAxisFacts, readHoverFacts, type G8MeasureResult, type G8MeasurementHost } from './g8.js';
+import { readAxisFacts, readHoverFacts, type AxisHoverMeasureResult, type AxisHoverMeasurementHost } from './axisHover.js';
 import { runAlignMeasurement, type AlignMeasureResult, type AlignMeasurementHost } from './align.js';
 import { runPersistMeasurement, type PersistMeasureResult, type PersistenceMeasurementHost } from './persist.js';
 
@@ -69,16 +69,16 @@ export function exposeMeasurement(args: {
   readonly align?: AlignMeasurementHost;
   /** G6：持久化所需的只读入口（不传则 `__GANTTPILOT_MEASURE_PERSIST__` 不存在）。 */
   readonly persist?: PersistenceMeasurementHost;
-  /** G8：两级刻度与悬停行带的读数入口（不传则 `__GANTTPILOT_MEASURE_G8__` 不存在）。 */
-  readonly g8?: G8MeasurementHost;
+  /** 两级刻度与悬停行带的读数入口（不传则 `__GANTTPILOT_MEASURE_AXIS_HOVER__` 不存在）。 */
+  readonly axisHover?: AxisHoverMeasurementHost;
 }): void {
   const host = window as unknown as {
     __GANTTPILOT_MEASURE__?: unknown;
     __GANTTPILOT_MEASURE_DRAG__?: unknown;
     __GANTTPILOT_MEASURE_ALIGN__?: unknown;
     __GANTTPILOT_MEASURE_PERSIST__?: unknown;
-    __GANTTPILOT_MEASURE_G8__?: unknown;
-    __GANTTPILOT_MEASURE_G8_META__?: unknown;
+    __GANTTPILOT_MEASURE_AXIS_HOVER__?: unknown;
+    __GANTTPILOT_MEASURE_AXIS_HOVER_META__?: unknown;
   };
   host.__GANTTPILOT_MEASURE__ = async (options: {
     readonly dataset?: string;
@@ -138,7 +138,8 @@ export function exposeMeasurement(args: {
 
   if (args.align !== undefined) {
     const alignHost = args.align;
-    host.__GANTTPILOT_MEASURE_ALIGN__ = async (options: {      readonly dataset?: string;
+    host.__GANTTPILOT_MEASURE_ALIGN__ = async (options: {
+      readonly dataset?: string;
       /** 档位（`day`/`week`/`month`）：走**用户点工具栏的同一个** `setZoom`。 */
       readonly zoom?: string;
       /** `positions`（默认）= 重载夹具 + 逐位置设滚动；`reread` = 不重载、不设滚动（resize 迁移第二步）。 */
@@ -241,30 +242,30 @@ export function exposeMeasurement(args: {
     };
   }
 
-  if (args.g8 !== undefined) {
-    const g8Host = args.g8;
+  if (args.axisHover !== undefined) {
+    const axisHoverHost = args.axisHover;
     /**
-     * **G8 的只读元读数**（当前档位 + 已提交修订号）——**无副作用**，因此可以在任意时刻读。
+     * **只读元读数**（当前档位 + 已提交修订号）——**无副作用**，因此可以在任意时刻读。
      *
      * 为什么与下面那个"读一次两级刻度与悬停"的入口分开：下面那个会**切档位、挪指针**，
      * 而"松手真的落了库"这类判据需要的是一个**随手可读、不改动任何状态**的读数
      * （与 `--drag`/`--persist-drag` 的"预览不落库"判据同源，P-45 的口径）。
      */
-    host.__GANTTPILOT_MEASURE_G8_META__ = (): { readonly zoom: string; readonly revision: number } => ({
-      zoom: g8Host.zoom(),
-      revision: g8Host.revision(),
+    host.__GANTTPILOT_MEASURE_AXIS_HOVER_META__ = (): { readonly zoom: string; readonly revision: number } => ({
+      zoom: axisHoverHost.zoom(),
+      revision: axisHoverHost.revision(),
     });
     /**
-     * **G8 的两级刻度与悬停行带**（P-46）。
+     * **两级刻度与悬停行带**（P-46）。
      *
      * 一次调用读三组对照：**未悬停** / 指针在第 1 个可见行 / 指针在第 3 个可见行——
      * 三条一起读才说明"高亮**跟着指针走**"（只有一个读数无法区分"跟着指针"与"画了一条固定带"）。
      * 档位可切（上级标签随档位变化是 §3 的定值），左右表表头高与"第二行留白"一并登记。
      */
-    host.__GANTTPILOT_MEASURE_G8__ = async (options: {
+    host.__GANTTPILOT_MEASURE_AXIS_HOVER__ = async (options: {
       /** 以哪个档位读刻度（默认 `day`）。 */
       readonly zoom?: string;
-    } = {}): Promise<G8MeasureResult> => {
+    } = {}): Promise<AxisHoverMeasureResult> => {
       const requested = (options.zoom ?? 'day') as ZoomKey;
       const zoom: ZoomKey = ZOOM_ORDER.includes(requested) ? requested : 'day';
       /** 等应用把这一帧处理完（**全仓唯一**的稳定读实现；不稳定则判红，不静默用中间态）。 */
@@ -273,7 +274,7 @@ export function exposeMeasurement(args: {
         if (pane === null) return ['找不到图表窗格（#chart-pane）'];
         const settled = await settleStableRead({
           fingerprint: () => {
-            const current = g8Host.view();
+            const current = axisHoverHost.view();
             return scrollFingerprint(pane, {
               scrollTop: current?.scrollTop ?? -1,
               scrollLeft: current?.scrollLeft ?? -1,
@@ -286,26 +287,26 @@ export function exposeMeasurement(args: {
           : [`读数在 ${String(STABLE_READ_BUDGET_FRAMES)} 帧内未稳定（应用未在预算内处理完）`];
       };
       const errors: string[] = [];
-      if (g8Host.zoom() !== zoom) {
-        g8Host.setZoom(zoom);
+      if (axisHoverHost.zoom() !== zoom) {
+        axisHoverHost.setZoom(zoom);
         errors.push(...(await settle()));
       }
-      g8Host.clearHover();
+      axisHoverHost.clearHover();
       errors.push(...(await settle()));
       const idle = readHoverFacts(1);
-      g8Host.hoverRowAt(1);
+      axisHoverHost.hoverRowAt(1);
       errors.push(...(await settle()));
       const onRow = readHoverFacts(1);
-      g8Host.hoverRowAt(3);
+      axisHoverHost.hoverRowAt(3);
       errors.push(...(await settle()));
       const onThirdRow = readHoverFacts(3);
-      g8Host.clearHover();
+      axisHoverHost.clearHover();
       if (errors.length > 0) {
         // 读数不稳定 ⇒ 把失败原因原样带出去（调用方判红），不在这里抛。
-        (window as unknown as { __GANTTPILOT_MEASURE_G8_ERRORS__?: readonly string[] }).__GANTTPILOT_MEASURE_G8_ERRORS__ =
+        (window as unknown as { __GANTTPILOT_MEASURE_AXIS_HOVER_ERRORS__?: readonly string[] }).__GANTTPILOT_MEASURE_AXIS_HOVER_ERRORS__ =
           errors;
       }
-      return { zoom: g8Host.zoom(), revision: g8Host.revision(), axis: readAxisFacts(), hover: { idle, onRow, onThirdRow } };
+      return { zoom: axisHoverHost.zoom(), revision: axisHoverHost.revision(), axis: readAxisFacts(), hover: { idle, onRow, onThirdRow } };
     };
   }
 }
@@ -317,6 +318,6 @@ export { STABLE_READ_BUDGET_FRAMES, type StableReadResult } from './dom.js';
 export { STORAGE_METRICS_DATASET_KEY, specOfDataset } from './spec.js';
 export { runMeasurement, type MeasureController, type MeasureResult } from './perf.js';
 export { runDragMeasurement, type DragMeasureResult, type DragMeasurementHost } from './drag.js';
-export { type G8MeasureResult, type G8MeasurementHost, type HoverReading } from './g8.js';
+export { type AxisHoverMeasureResult, type AxisHoverMeasurementHost, type HoverReading } from './axisHover.js';
 export { runAlignMeasurement, type AlignMeasureResult, type AlignMeasurementHost, type AlignPositionSpec, type AlignProbeResult } from './align.js';
 export { MEASURE_HOOK_VERSION, runPersistMeasurement, type PersistMeasureResult, type PersistenceMeasurementHost, type StorageMeasurement } from './persist.js';
