@@ -247,4 +247,4 @@ export {
   type StoredSession,
   type StoredSnapshot,
   type StoredStep,
-} from './persistence.js';
+} from './persistence/index.js';

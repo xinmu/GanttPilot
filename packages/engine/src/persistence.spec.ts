@@ -29,7 +29,7 @@ import {
   type RetentionPolicy,
   type StoredSession,
   type StoredSnapshot,
-} from './persistence.js';
+} from './persistence/index.js';
 import { applyToSession, createSession, type DocumentSession } from './session.js';
 import { redoSession, undoSession } from './session.js';
 import type { ProjectDocument } from './schema.js';
