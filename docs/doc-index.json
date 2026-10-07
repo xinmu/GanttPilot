@@ -562,6 +562,16 @@
     "mustReadKb": 25,
     "entryCapKb": 6
   },
+  "crossLayerCheck": {
+    "$comment": "P1-c 的可判定那一半：L1 正文指向归档层的链接，其链接文本或同一行必须出现标记词（读者一眼知道这是历史口径，而不是当前契约）。入口页（L0）由 contextBudget 的入口封闭性负责，不在这里重复报。判定见 check-docs.mjs 的「跨层引用必须带标记词」。",
+    "markers": ["历史", "原文口径", "细则", "依据", "存档"],
+    "allow": [
+      {
+        "path": "docs/01-roadmap/首版-文档索引.md",
+        "reason": "生成物：逐份列出全部文档（含归档层），链接文本就是文件名，不构成「把归档物当当前值引用」"
+      }
+    ]
+  },
   "constantCheck": {
     "$comment": [
       "契约常量的「唯一声明处」表（P1-a）。执行者是 scripts/check-constants.mjs，本表是唯一真相源。",

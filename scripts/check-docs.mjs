@@ -147,6 +147,9 @@ const markdownForLinks = [
 
 
 
+/** 跨层引用（L1 → 归档层）的链接记录，供 §8c 的标记词判定使用。 */
+const crossLayerLinks = [];
+
 for (const absolute of markdownForLinks) {
   const path = rel(absolute);
   const lines = read(absolute).split('\n');
@@ -160,8 +163,9 @@ for (const absolute of markdownForLinks) {
     if (inFence) return; // 代码块里的示例不是链接
     // 行内 code span 里的 `[x](y)` 是**示例文本**，不是链接（规范本身就在举例）。
     const prose = line.split('`').filter((_, index) => index % 2 === 0).join('');
-    for (const match of prose.matchAll(/\]\(([^()\s]+)\)/g)) {
-      const raw = match[1];
+    for (const match of prose.matchAll(/\[([^\]]*)\]\(([^()\s]+)\)/g)) {
+      const linkText = match[1];
+      const raw = match[2];
       if (/^(https?:|mailto:)/.test(raw)) continue;
       const [target, anchor] = raw.split('#');
       if (/[（）？：；。！]/.test(target) || /[（）？：；。！]/.test(anchor ?? '')) {
@@ -180,6 +184,8 @@ for (const absolute of markdownForLinks) {
             error(`[链接] 锚点不存在：${path}:${lineNo} → ${raw}`);
           }
         }
+        // 跨层引用（P1-c）：L1 正文指向归档层的链接要记下来，供"必须带标记词"的判定用。
+        crossLayerLinks.push({ path, line: lineNo, target: rel(targetAbsolute), raw, linkText, lineText: line });
       } else if (anchor !== undefined && anchor !== '') {
         // 同文件锚点
         const slugs = slugsOf(absolute);
@@ -346,8 +352,44 @@ for (const entry of archiveEntries) {
   if (text.split('\n')[0].trim() === '---') error(`[存档] 首行不得是 ---：${entry.path}`);
 }
 
-for (let round = 2; round <= 26; round += 1) {
-  if (!roundOwners.has(round)) error(`[存档] 第${round}轮没有任何存档覆盖（迁移缺口）`);
+// 轮次上界**由台账推导**（P1-c）：旧实现硬编码 `round <= 26`，于是 R27 以后的存档不受覆盖检查
+// （P0 的实测缺口）。推导失败必须报错——否则上界会静默变成 0，覆盖检查就成了恒真式。
+const ledgerRounds = [];
+for (const entry of ledgerEntries) {
+  for (const match of entry.round.matchAll(/(\d+)/g)) ledgerRounds.push(Number(match[1]));
+}
+const ledgerMaxRound = ledgerRounds.length > 0 ? Math.max(...ledgerRounds) : null;
+if (ledgerMaxRound === null) {
+  error('[存档] 台账「轮次」列解析不出任何轮次 ⇒ 覆盖上界无法推导（旧实现的硬编码 26 已删除）');
+} else {
+  for (let round = 2; round <= ledgerMaxRound; round += 1) {
+    if (!roundOwners.has(round)) error(`[存档] 第${round}轮没有任何存档覆盖（迁移缺口）`);
+  }
+  if (ledgerMaxRound < 2) error(`[存档] 台账推导出的轮次上界是 R${String(ledgerMaxRound)}（至少应有 R02）`);
+}
+
+/** 文档里提到的"超出台账上界"的轮次（漏登记/漏存档的机械信号，见 §8c 的警告）。 */
+const beyondBoundMentions = [];
+if (ledgerMaxRound !== null) {
+  for (const entry of index.docs) {
+    if (entry.layer !== 'slim' || entry.budgetExempt === true) continue;
+    const absolute = join(repoRoot, entry.path);
+    if (!existsSync(absolute)) continue;
+    const lines = read(absolute).split('\n');
+    let inFence = false;
+    lines.forEach((line, i) => {
+      if (/^\s*```/.test(line)) {
+        inFence = !inFence;
+        return;
+      }
+      if (inFence) return;
+      const prose = line.split('`').filter((_, index) => index % 2 === 0).join('');
+      for (const match of prose.matchAll(/(?<![A-Za-z0-9])R(\d{1,2})(?![0-9])/g)) {
+        const round = Number(match[1]);
+        if (round > ledgerMaxRound && round < 100) beyondBoundMentions.push({ path: entry.path, line: i + 1, round });
+      }
+    });
+  }
 }
 
 /** 中文数字（本仓库只用到「二」…「二十六」）。 */
@@ -514,6 +556,80 @@ const layered = evaluateLayers({
 for (const message of layered.errors) error(message);
 for (const message of layered.warnings) warn(message);
 
+// ── 8c. 跨层引用必须带标记词：输入装配 ─────────────────────────────────────
+
+const crossLayerConfig = index.crossLayerCheck ?? {};
+const crossLayer = evaluateCrossLayer({
+  links: crossLayerLinks.filter((link) => {
+    const source = indexed.get(link.path);
+    const target = indexed.get(link.target);
+    if (source?.layer !== 'slim' || source.path === entryPath) return false; // L0 入口由 §8b 判
+    if (source.budgetExempt === true) return false; // v0.2 临时计划：合流后整体删除
+    return target?.layer === 'archive';
+  }),
+  markers: crossLayerConfig.markers ?? ['历史', '原文口径', '细则', '依据', '存档'],
+  allow: crossLayerConfig.allow ?? [],
+  maxRound: ledgerMaxRound,
+  roundMentions: beyondBoundMentions,
+});
+for (const message of crossLayer.errors) error(message);
+for (const message of crossLayer.warnings) warn(message);
+
+// ── 8c. 跨层引用必须带标记词（P1-c 的可判定那一半） ─────────────────────────
+//
+// 为什么需要它：归档层（按轮次存档、附录、记录层、三份基线）是**历史**，而"历史里写的当前值"
+// 是这一轮分叉的主要来源。判定不做语义判断，只要求 L1 正文指向归档层的链接**在链接文本或同一行**
+// 出现标记词（`历史` / `原文口径` / `细则` / `依据` / `存档`）——即"读者一眼知道这是历史口径"，
+// 而不是被当成当前契约。入口页（L0）由 §8b 的封闭性判定负责，不在这里重复报。
+
+/**
+ * 跨层引用的标记词判定（与仓库解耦，便于 `--selftest` 用合成输入驱动）。
+ *
+ * @param {{ links: Array<{path: string, line: number, target: string, linkText: string, lineText: string}>,
+ *           markers: string[], allow?: Array<{path?: string, pathRegex?: string, reason: string}>,
+ *           maxRound?: number, roundMentions?: Array<{path: string, line: number, round: number}> }} input
+ * @returns {{ errors: string[], warnings: string[] }}
+ */
+export function evaluateCrossLayer({ links, markers, allow = [], maxRound, roundMentions = [] }) {
+  const errors = [];
+  const warnings = [];
+  const isAllowed = (path) => allow.some((rule) => (typeof rule.path === 'string' ? rule.path === path : new RegExp(rule.pathRegex).test(path)));
+
+  const violations = new Map();
+  for (const link of links) {
+    if (isAllowed(link.path)) continue;
+    const marked = markers.some((word) => link.linkText.includes(word) || link.lineText.includes(word));
+    if (marked) continue;
+    if (!violations.has(link.path)) violations.set(link.path, []);
+    violations.get(link.path).push(link);
+  }
+  for (const [path, own] of violations) {
+    const samples = own.slice(0, 3).map((link) => `${path}:${String(link.line)} → ${link.raw}`).join('；');
+    errors.push(
+      `[跨层] ${path}：${String(own.length)} 处指向归档层的链接没有标记词（${markers.join(' / ')}）——` +
+        `归档物只能作为"历史/原文口径/细则/依据/存档"被引用：${samples}${own.length > 3 ? ` …（共 ${String(own.length)} 处）` : ''}`,
+    );
+  }
+
+  if (typeof maxRound === 'number') {
+    const beyond = roundMentions.filter((mention) => mention.round > maxRound);
+    const byPath = new Map();
+    for (const mention of beyond) {
+      if (!byPath.has(mention.path)) byPath.set(mention.path, []);
+      byPath.get(mention.path).push(mention);
+    }
+    for (const [path, own] of byPath) {
+      const rounds = [...new Set(own.map((mention) => `R${String(mention.round)}`))].sort().join('、');
+      warnings.push(
+        `[存档] ${path} 提到超出台账上界（R${String(maxRound)}）的轮次 ${rounds}（${String(own.length)} 处，最早 ${path}:${String(own[0].line)}）——` +
+          '可能是漏登记或漏存档（补登记见 P2/D3）',
+      );
+    }
+  }
+
+  return { errors, warnings };
+}
+
 // ── 9. 策略不变量 ──────────────────────────────────────────────────────────
 
 const POLICY = [
@@ -540,7 +656,8 @@ const totalKb = sizeRows.reduce((sum, row) => sum + row.kb, 0);
 console.log(
   `[docs] 已索引文档 ${index.docs.length} 份，合计 ${Math.round(totalKb)} KB；` +
     `精简层 ${layered.slimKb.toFixed(1)}/${budget.slimKb} KB（另：用户手册 ${layered.userFacingKb.toFixed(1)} KB、临时计划 ${layered.exemptKb.toFixed(1)} KB）、` +
-    `必读 ${layered.mustReadKb.toFixed(1)}/${budget.mustReadKb} KB；台账条目 ${ledgerEntries.length} 条；存档覆盖轮次 ${roundOwners.size} 个`,
+    `必读 ${layered.mustReadKb.toFixed(1)}/${budget.mustReadKb} KB；台账条目 ${ledgerEntries.length} 条；` +
+    `存档覆盖轮次 ${roundOwners.size} 个（上界 R${ledgerMaxRound === null ? '?' : String(ledgerMaxRound)} 由台账推导，旧实现硬编码 26）`,
 );
 
 if (warnings.length > 0) {
@@ -618,6 +735,30 @@ function selftest() {
     name: 'layer 不在闭集内判错',
     result: evaluateLayers({ rows: [{ path: 'a.md', layer: 'temp', kb: 1 }], budget, entry: entry() }),
     expect: (r) => r.errors.some((m) => m.includes('不在闭集内')),
+  });
+
+  // §8c：跨层引用的标记词
+  const markers = ['历史', '原文口径', '细则', '依据', '存档'];
+  const link = (over) => ({ path: 'docs/a.md', line: 7, target: 'docs/00-baseline/裁决R31.md', raw: '裁决R31.md', linkText: 'P-32', lineText: '见 [P-32](裁决R31.md)', ...over });
+  cases.push({
+    name: '跨层引用缺标记词判错（按文档聚合）',
+    result: evaluateCrossLayer({ links: [link({}), link({ line: 9 }), link({ line: 11 })], markers }),
+    expect: (r) => r.errors.length === 1 && r.errors[0].includes('docs/a.md') && r.errors[0].includes('3 处'),
+  });
+  cases.push({
+    name: '链接文本或同行带标记词即通过',
+    result: evaluateCrossLayer({ links: [link({ linkText: 'P-32 细则' }), link({ lineText: '依据：[P-32](裁决R31.md)' })], markers }),
+    expect: (r) => r.errors.length === 0,
+  });
+  cases.push({
+    name: '带 reason 的例外压住跨层命中',
+    result: evaluateCrossLayer({ links: [link({})], markers, allow: [{ path: 'docs/a.md', reason: '生成物：逐份列出全部文档' }] }),
+    expect: (r) => r.errors.length === 0,
+  });
+  cases.push({
+    name: '超出台账上界的轮次引用只警告',
+    result: evaluateCrossLayer({ links: [], markers, maxRound: 47, roundMentions: [{ path: 'docs/a.md', line: 304, round: 50 }] }),
+    expect: (r) => r.errors.length === 0 && r.warnings.some((m) => m.includes('R50') && m.includes('R47')),
   });
 
   let failed = 0;
