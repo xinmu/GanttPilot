@@ -26,7 +26,18 @@ import {
  * 若有人放开这里的规则，该测试立即失败。
  */
 
-export default [
+/**
+ * 本配置的**类型标注**（P3/C7-b）。
+ *
+ * 为什么需要它：`.mjs` 里 `'error'` 这类字面量会被推断成 `string`，于是
+ * `linterOptions.reportUnusedDisableDirectives`、以及整个配置数组的类型都对不上 ESLint 自己的
+ * `Linter.Config`——而"配置本身可用"正是护栏自检（`boundary.spec.ts` 的 `Linter.verify`）的前提。
+ * 有了这行标注：① `eslint.config.mjs` 被工具链程序（`tsconfig.tools.json`）真正检查
+ * （规则名 / 选项形状写错会报错）；② spec 可以直接把它当 `Linter.Config[]` 用。
+ *
+ * @type {import('eslint').Linter.Config[]}
+ */
+const config = [
   {
     ignores: LINT_IGNORES,
   },
@@ -185,3 +196,5 @@ export default [
     },
   },
 ];
+
+export default config;

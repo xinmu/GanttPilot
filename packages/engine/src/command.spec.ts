@@ -563,6 +563,12 @@ describe('G1.3 命令层：结果只依赖入参（无隐藏状态）', () => {
     if (!first.ok || !second.ok) {
       return;
     }
+    // **改名的补丁必须真的产生变更**：结果类型里 `changed: false` 那一支**没有** `journal`
+    // （无变更就没有可撤销的一步），所以"两次的 journal 相等"这条断言必须先站在
+    // "确实变了"这一支上——这既满足类型，也让断言本身有内容（P3/C7-b）。
+    if (!first.changed || !second.changed) {
+      throw new Error('期望 task.update 产生变更（否则 journal 无从比较）');
+    }
     expect(first.document).toStrictEqual(second.document);
     expect(first.journal).toStrictEqual(second.journal);
   });

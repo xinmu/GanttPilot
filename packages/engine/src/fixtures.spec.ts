@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { type CalendarSpec } from './date.js';
 import {
   canonicalizeDocument,
   CURRENT_DOCUMENT_VERSION,
-  type CalendarSpec,
   type DocumentTask,
   type ProjectDocument,
   serializeDocument,

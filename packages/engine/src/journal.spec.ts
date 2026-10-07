@@ -211,12 +211,16 @@ describe('G1.3 日志：守卫、序列化与作用域', () => {
 
   it('守卫有牙：taskOrder 的 id 集与实体集不符时抛错', () => {
     const { base } = updatedJournal();
+    // **只让 taskOrder 不符**：`linkOrder` 必须与实体一致，否则这条用例可能由另一条守卫先抛错，
+    // 断言虽绿但测的不是它（P3/C7-b 把 spec 纳入 tsc 时发现这里少写了一个必填字段）。
+    const linkIds = base.links.map((link) => link.id);
     const broken: DocumentJournal = {
       kind: 'delta',
       project: null,
       tasks: [],
       links: [],
       taskOrder: { before: base.tasks.map((task) => task.id), after: ['w1'] },
+      linkOrder: { before: linkIds, after: linkIds },
     };
     expect(() => applyDocumentJournal(base, broken)).toThrow(RangeError);
   });

@@ -175,7 +175,7 @@ describe('G1.2 树构建与派生量', () => {
   });
 
   it('**负向对照**：打乱兄弟顺序后两套实现仍然一致（说明它们真的在算顺序，不是常量表）', () => {
-    const reordered = [flat(['a', null, '1']), flat(['b', null, '2'])[0]!];
+    const reordered = [flat(['a', null, '1'])[0]!, flat(['b', null, '2'])[0]!];
     const two = [reordered[1]!, reordered[0]!];
     expect(computeOutlineNumbers(two).get('b')).toBe('1');
     expect(computeOutlineNumbersByScan(two).get('b')).toBe('1');

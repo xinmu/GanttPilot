@@ -10,7 +10,7 @@
 import type { Linter } from 'eslint';
 
 /** 禁止被计算层 import 的框架。 */
-export declare const FORBIDDEN_FRAMEWORKS: readonly string[];
+export declare const FORBIDDEN_FRAMEWORKS: string[];
 
 /** 禁止被计算层直接使用的 DOM / 浏览器全局。 */
 export declare const FORBIDDEN_DOM_GLOBALS: readonly string[];
@@ -25,7 +25,7 @@ export declare const DOM_RULE_MESSAGE: string;
 export declare const LINT_FIXTURE_PATTERN: string;
 
 /** 被 ESLint 全局忽略的构建产物与生成物。 */
-export declare const LINT_IGNORES: readonly string[];
+export declare const LINT_IGNORES: string[];
 
 /** 计算层方向契约的一条（`allowed` 之外的工作区包一律不许 import）。 */
 export interface CalculationLayerPackage {
@@ -51,18 +51,15 @@ export declare function calculationLayerPackage(name: string): CalculationLayerP
 /** 某包不许 import 的工作区包。 */
 export declare function forbiddenWorkspacePackagesFor(name: string): readonly CalculationLayerPackage[];
 
-/** `no-restricted-imports` 的 `patterns` 项。 */
-export interface RestrictedImportPattern {
-  /** 受限的模块名 glob（含子路径，如 `@ganttpilot/render-core/*`）。 */
-  readonly group: readonly string[];
-  /** 命中时的报错文案。 */
-  readonly message: string;
-}
-
-/** 某包的 `no-restricted-imports` **完整取值**（框架 + 该包的方向契约）。 */
-export declare function restrictedImportsFor(
-  name: string,
-): readonly [string, { readonly patterns: readonly RestrictedImportPattern[] }];
+/**
+ * 某包的 `no-restricted-imports` **完整取值**（框架 + 该包的方向契约）。
+ *
+ * 返回类型刻意用 ESLint 自己的 `Linter.RuleEntry`，而不是手写的元组：手写版本一旦比
+ * `RulesConfig` 的期望更松（`string` 而非严重级字面量）或更严（`readonly` 数组），
+ * `Linter.verify(source, config, path)` 就会报 TS2769——而那正是**配置本身**的可用性
+ * （P3/C7-b 把 spec 纳入 tsc 后当场抓到，见 `boundary.spec.ts`）。
+ */
+export declare function restrictedImportsFor(name: string): Linter.RuleEntry;
 
 /** 计算层（三包）的完整限制规则集。 */
 export declare const CALCULATION_LAYER_RESTRICTIONS: Linter.RulesRecord;

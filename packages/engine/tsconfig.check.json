@@ -1,11 +1,21 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
     "noEmit": true,
-    "tsBuildInfoFile": null,
-    // 护栏自检需要 Node API（ESLint Node API / 路径解析），这是**测试环境**的需要，
-    // 不改变 src 的零 DOM 依赖约束（构建用的 tsconfig.json 仍然 types: []）。
-    "types": ["node"]
-  }
+    // spec 与测试侧参照实现需要 Node API（ESLint Node API / 路径解析 / 读夹具文本），这是**测试环境**的
+    // 需要，不改变 src 的零 DOM / 零 node 全局约束（构建用的 `tsconfig.json` 仍然 `types: []`）。
+    "types": ["node"],
+    // 护栏自检要 import 仓库根的 `eslint.config.mjs`（它没有、也不该有并行的 `.d.mts` 声明），
+    // 所以这里让 TS 直接读那份 `.mjs` 的源码取类型（`checkJs` 关闭：它由工具链程序检查）。
+    "allowJs": true
+  },
+  // **P3/C7-b（`N12`）**：`include` 覆盖 `src` 下的全部 TS（含 `*.spec.ts`）与 `test/`，
+  // 于是"spec 里的未定义标识符 tsc 不报"这个缺口闭合。刻意不 `extends ./tsconfig.json`：
+  // 那份是**构建**项目（`rootDir: src`、`exclude: spec`），而 spec 会 import 仓库根的文件，
+  // 落在 `rootDir` 之外（TS6059）。两条链共用 `tsconfig.base.json` 的 strict 开关，
+  // 各自只管自己那半边。
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  // 护栏夹具是**故意违规**的源码（`window` / `import 'vue'`），既不进构建也不进类型检查。
+  "exclude": ["lint-boundary"]
 }

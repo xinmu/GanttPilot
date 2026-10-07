@@ -25,10 +25,27 @@ import {
   dayNumberToIso,
   DEFAULT_WORK_DAYS,
   isoToDayNumber,
-  throwRangeError,
   weekdayOf,
   type WorkdayCount,
 } from '../src/date.js';
+
+/**
+ * 抛 `RangeError`（**本文件的私有助手，刻意不 import 产品侧那份**）。
+ *
+ * P3/C7-b 把 spec 与测试侧文件纳入 tsc 程序后当场抓到：这里原先 import 的
+ * `throwRangeError` 在 `src/date.ts` 里是**模块私有**的（没有 `export`），
+ * 而 vitest 的模块运行器把"找不到的具名导出"降级成 `undefined`——
+ * 于是 4 条错误路径（跨度非法 / 越界 / 早于地平线 / 超搜索上限）实际抛的是
+ * `TypeError: throwRangeError is not a function`，而三条静态门全绿（`N12` 的第二个实例）。
+ *
+ * 为什么不 export 产品侧那份：它是 `Calendar` 的实现细节（`never` 返回类型只为让
+ * `strictPropertyInitialization` 认账），把它加进发布面等于为测试放宽公共 API。
+ * 本文件与 `Calendar` 的关系是"**只共享规格校验，不共享实现**"（见文件头），
+ * 一个三行的抛错助手属于实现侧。
+ */
+function throwRangeError(message: string): never {
+  throw new RangeError(message);
+}
 
 /** 逐日扫描的搜索上限（防病态日历导致死循环）。 */
 const SCAN_LIMIT_DAYS = 4_000_000;

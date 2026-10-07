@@ -488,10 +488,9 @@ describe('G2 契约：不变量检查器本身有判别力（负向对照）', (
     }
     expect(checkScheduleInvariants(project.document, calendar, result, project.anchors)).toStrictEqual([]);
 
-    const tampered = {
-      ok: true as const,
-      schedule: tamperSchedule(result.schedule),
-    };
+    // 结果类型的成功支**必须**带 `renderCalendar`（互证要用同一个渲染日历）⇒ 这里从真实结果
+    // 展开、只替换 `schedule`：改的仍然只有那一个字段，类型却是诚实的（P3/C7-b）。
+    const tampered = { ...result, schedule: tamperSchedule(result.schedule) };
     const violations = checkScheduleInvariants(project.document, calendar, tampered, project.anchors);
     expect(violations.length).toBeGreaterThan(0);
     const rules = new Set(violations.map((violation) => violation.rule));

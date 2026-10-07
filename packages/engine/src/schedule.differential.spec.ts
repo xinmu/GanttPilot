@@ -165,12 +165,22 @@ function snapshotOfReference(result: ReferenceResult): Snapshot {
   };
 }
 
-function compareNumberArrays(
+/**
+ * 逐项比对一列**标量**（数字，或 `esIso` / `efIso` 这类 ISO 文本）。
+ *
+ * `tolerance === null` ⇒ **严格相等**（ISO 文本走这条）；给了容差则要求两侧都是数字——
+ * 任一侧不是数字时**如实记为不一致**，而不是让 `Math.abs(NaN) > t`（恒为 `false`）把
+ * "看起来在比、其实没比"变成静默判等。
+ *
+ * P3/C7-b：原签名只接受数字数组，而它同时被用来比 ISO 文本（类型不诚实；`null` 容差下
+ * 恰好仍然正确，因此这条不对称一直没人发现）。
+ */
+function compareScalarArrays(
   mismatches: DifferentialMismatch[],
   project: string,
   field: string,
-  ours: readonly number[] | readonly (number | null)[],
-  theirs: readonly number[] | readonly (number | null)[],
+  ours: readonly (number | string | null)[],
+  theirs: readonly (number | string | null)[],
   tolerance: number | null,
 ): void {
   if (ours.length !== theirs.length) {
@@ -191,7 +201,11 @@ function compareNumberArrays(
       }
       continue;
     }
-    if (tolerance === null ? a !== b : Math.abs(a - b) > tolerance) {
+    const equal =
+      tolerance === null
+        ? a === b
+        : typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) <= tolerance;
+    if (!equal) {
       mismatches.push({ project, field: `${field}[${String(i)}]`, detail: `内核 ${String(a)} vs 参照 ${String(b)}` });
       return;
     }
@@ -213,15 +227,15 @@ export function compareSnapshots(ours: Snapshot, theirs: Snapshot, project: stri
     return mismatches;
   }
 
-  compareNumberArrays(mismatches, project, 'es', ours.es, theirs.es, null);
-  compareNumberArrays(mismatches, project, 'ef', ours.ef, theirs.ef, null);
-  compareNumberArrays(mismatches, project, 'anchored', ours.anchored, theirs.anchored, null);
-  compareNumberArrays(mismatches, project, 'driven', ours.driven, theirs.driven, null);
-  compareNumberArrays(mismatches, project, 'summaryEs', ours.summaryEs, theirs.summaryEs, null);
-  compareNumberArrays(mismatches, project, 'summaryEf', ours.summaryEf, theirs.summaryEf, null);
-  compareNumberArrays(mismatches, project, 'summaryProgress', ours.summaryProgress, theirs.summaryProgress, 1e-9);
-  compareNumberArrays(mismatches, project, 'esIso', ours.esIso, theirs.esIso, null);
-  compareNumberArrays(mismatches, project, 'efIso', ours.efIso, theirs.efIso, null);
+  compareScalarArrays(mismatches, project, 'es', ours.es, theirs.es, null);
+  compareScalarArrays(mismatches, project, 'ef', ours.ef, theirs.ef, null);
+  compareScalarArrays(mismatches, project, 'anchored', ours.anchored, theirs.anchored, null);
+  compareScalarArrays(mismatches, project, 'driven', ours.driven, theirs.driven, null);
+  compareScalarArrays(mismatches, project, 'summaryEs', ours.summaryEs, theirs.summaryEs, null);
+  compareScalarArrays(mismatches, project, 'summaryEf', ours.summaryEf, theirs.summaryEf, null);
+  compareScalarArrays(mismatches, project, 'summaryProgress', ours.summaryProgress, theirs.summaryProgress, 1e-9);
+  compareScalarArrays(mismatches, project, 'esIso', ours.esIso, theirs.esIso, null);
+  compareScalarArrays(mismatches, project, 'efIso', ours.efIso, theirs.efIso, null);
 
   for (const field of ['taskCount', 'milestoneCount', 'projectStart', 'projectFinish', 'clampedStarts'] as const) {
     if (ours[field] !== theirs[field]) {

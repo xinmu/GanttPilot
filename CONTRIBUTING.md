@@ -43,7 +43,7 @@
 
 1. **计算层各包零框架、零 DOM 依赖**：`packages/{engine,xlsx-protocol,pptx-renderer}` 是原文口径，**G4 起 `packages/render-core` 并入同一约束集**（[P-16 依据](docs/00-baseline/裁决记录.md)）；文档里的"三包"措辞不改写，按「**计算层各包（含 `render-core`）**」解读。三层守：`tsconfig` 不引 `DOM` lib、无 `@types/node` 全局；`eslint-rules.mjs` 拦下 `import 'vue'`（**含 `vue/dist/...` 这类子路径**：规则用 `patterns` 的 glob 组，不是只按字面名称匹配的 `paths`）、`window`、`document`；`boundary.spec.ts` 断言规则生效。**每个计算层包都要放一组故意违规的夹具**（`<pkg>/lint-boundary/*.fixture.ts`，被 ESLint 全局忽略、只由自检加载），否则"受铁律约束"只是口头约定——**注意：夹具自己不会报错**，必须有自检真的加载它（`packages/engine/src/boundary.spec.ts` 现在逐包加载两组夹具；C7-a 之前有两个包的夹具是无人加载的）。想加 Vue 生态的库（虚拟滚动、拖拽）请加在 `apps/web`。
 2. **计算层的依赖方向是契约，不是声明**：`engine ← render-core ← xlsx-protocol`（ADR 0008 §1），外加 `pptx-renderer → render-core`。许可清单在 `eslint-rules.mjs` 的 `CALCULATION_LAYER_PACKAGES`——**在 `package.json` 里加一条工作区依赖并不会让它合法**：`boundary.spec.ts` 会拦住"声明了但没登记"，`no-restricted-imports` 会拦住"登记之外的一切 import"（含子路径）。要改方向须改清单并登记裁决；`allowed` 的 `note` 字段就是报错文案里的依据，请顺手写清。
-3. **类型正确性由 tsc 负责，ESLint 只做结构检查**（没有类型感知规则，理由见 [ADR 0001 依据](docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md)）。
+3. **类型正确性由 tsc 负责，ESLint 只做结构检查**（没有类型感知规则，理由见 [ADR 0001 依据](docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md)）。**spec 也在 tsc 程序内**：`packages/<pkg>/tsconfig.check.json` 的 `include` 覆盖 `src/**/*.ts`（含 `*.spec.ts`）与 `test/**/*.ts`——不要写"只有 vitest 会读"的代码（未定义标识符/字段少写这类错误，P3/C7-b 之前三道静态门都不报）。引擎侧已完成（21 处错误清零，含三处真缺陷），其余三包随 P3/C7 分批跟上。
 4. **测试先行**：引擎与协议包的每个新能力都要有纯函数测试；排程内核另要求不变量/性质测试 + 手工推导用例 + 独立参照实现差分测试（裁决 R-4）。差分资产落 `tools/cpm-reference/`（G2）与 `tools/xlsx-reference/`（G3）——**包内不放非 TS 资产**；差分步骤**在 `pnpm gate` 里真实运行**，随机种子固定并随失败信息打印；参照实现与 JS 侧**只共享字段契约**。
 
 ## 契约读哪里（本页只写"最容易踩的坑"，契约语义以权威住所为准）
