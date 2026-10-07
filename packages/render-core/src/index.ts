@@ -191,7 +191,6 @@ export {
 export {
   affectedRenderSetWithAnchors,
   emptyHighlight,
-  highlightForConflict,
   highlightForCyclePath,
   highlightForLinkEndpoints,
   highlightForTask,

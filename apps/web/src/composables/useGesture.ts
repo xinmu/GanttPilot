@@ -306,12 +306,16 @@ export function useGesture(args: UseGestureArgs): UseGesture {
 /**
  * `Schedule` 的 `anchorConflict` 诊断 → **冲突任务 id 集合**（判据来自引擎，见 ADR 0008 §6）。
  *
- * 这是"冲突标红"的**唯一来源**：`App.vue` 用它算出两栏共用的 `conflictTaskIds`，
- * 而"高亮集合"那种投影（行/边索引）由 `render-core` 的 `highlightForConflict` 另算。
+ * 这是"冲突标红"的**唯一来源**：`App.vue` 用它算出两栏共用的 `conflictTaskIds`
+ * （`TaskTable` / `GanttChart` 都按**任务 id**画描边）。
  *
  * 为什么把这段过滤器收成函数：它此前是 `App.vue` 里的一段内联 `filter().map()`，
  * 而同一段判定在别处也出现过——**判据（哪个码、哪个字段是任务 id）散成两份就会漂**：
  * 引擎改了码或字段名，只有一处会跟着改，另一处会**静默地不再标红**（不报错、只是不亮）。
+ *
+ * **为什么不是"高亮集合"**：`render-core` 原先另有一个 `highlightForConflict`（产出行索引的
+ * `HighlightSet`），但它全仓零消费者——两个组件要的是 id，用它反而要按 `docIndex` 反查一圈。
+ * 该投影已由 P3/C6-g 删除（同类裁决见 C5-b 的 `zoneContains`/`isRenderedRow`）。
  */
 export function conflictTaskIdsOf(
   diagnostics: readonly { readonly code: string; readonly taskId?: string }[],

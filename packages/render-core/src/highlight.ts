@@ -21,8 +21,15 @@ import {
 export interface HighlightSet {
   readonly rows: readonly number[];
   readonly edges: readonly number[];
-  /** 样式键（渲染层只做映射，不自己判断该标什么）。 */
-  readonly styleKey: 'cycle' | 'drag-conflict' | 'link-preview' | 'selection';
+  /**
+   * 样式键（渲染层只做映射，不自己判断该标什么）。
+   *
+   * **只有实际会产出的三个键**（P3/C6-g 收窄）：`cycle`（`highlightForCyclePath`）、
+   * `link-preview`（`highlightForLinkEndpoints`）、`selection`（`highlightForTask` 与空集）。
+   * 曾经还有第四个 `drag-conflict`——它由 `highlightForConflict` 产出，而那个投影在全仓
+   * **零消费者**（冲突标红走的是应用层的 `conflictTaskIds`，不是高亮集合），已删除。
+   */
+  readonly styleKey: 'cycle' | 'link-preview' | 'selection';
   /** 高亮对象（任务 id / 边 id），便于调试与提示文案。 */
   readonly taskIds: readonly string[];
   readonly linkIds: readonly string[];
@@ -125,18 +132,6 @@ export function highlightForLinkEndpoints(
     }
   }
   return { rows, edges, styleKey: 'link-preview', taskIds: ids, linkIds };
-}
-
-/** 冲突标红（`anchorConflict` 的行；判据来自 `Schedule.diagnostics`，**不自己判**）。 */
-export function highlightForConflict(document: ProjectDocument, taskIds: readonly string[]): HighlightSet {
-  const wanted = new Set(taskIds);
-  if (wanted.size === 0) return EMPTY;
-  const rows: number[] = [];
-  for (let index = 0; index < document.tasks.length; index += 1) {
-    const task = document.tasks[index];
-    if (task !== undefined && wanted.has(task.id)) rows.push(index);
-  }
-  return { rows, edges: [], styleKey: 'drag-conflict', taskIds: [...wanted], linkIds: [] };
 }
 
 /**
