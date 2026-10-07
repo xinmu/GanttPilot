@@ -565,6 +565,15 @@
       "note": "本轮不做项（N1–N8）、CI 补两步、两项只读验证的落点、待裁决开放项、风险与回滚、本计划自身的收口"
     },
     {
+      "path": "docs/04-refactor/06-批次记录-P3.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P3 各批次的实测、判据、踩坑与计划订正（C1–C8）。从 03-代码重构.md 迁出（2026-10-08：03 触到 plan 的 60 KB 上限 63.7 KB，规范要求拆分/迁移而不是提高上限）；03 只留批次表与验收标准，两边的节标题一一对应"
+    },
+    {
       "path": "packages/engine/SCHEMA.md",
       "role": "spec",
       "cap": "spec",

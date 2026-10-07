@@ -918,6 +918,20 @@ onMounted(() => {
           return reindexDocument(generateDocument(spec).document);
         },
         loadDocument: async (nextDocument) => {
+          /**
+           * **N11 的修法（P3/C6-b）**：夹具必须是**最后一个写入者**。
+           *
+           * 初始会话恢复是**异步**的（IndexedDB），而它会 `project.restore(...)` 整份换会话。
+           * 若那次恢复在夹具之后落地，页面就回到**上一次持久化的那份文档**——测量方的模型与
+           * 页面上的 DOM 于是是两份文档（实测报文：`DOM 行/边 = 15/14`（演示计划）vs
+           * `模型 = 31/41`（夹具））。**为什么同一轮里必然存在这个风险**：IndexedDB 按
+           * **origin** 隔离，而同一轮测量里多次导航共用同一个 origin ⇒ **第一次导航**
+           * （演示计划）写下的"全新会话基线"会被**第二次导航**恢复回来。
+           *
+           * 因此这里等"恢复已结算"再装夹具——`await` 发生在 `runMeasurement` 的计时起点
+           * **之前**，所以**不动任何口径**（`primaryMs` 仍是"装好夹具 → 含依赖线首帧"）。
+           */
+          await persistence.restoreSettled;
           project.reset(nextDocument);
           await nextTick();
         },
