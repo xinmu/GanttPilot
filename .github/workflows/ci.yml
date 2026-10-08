@@ -1,15 +1,19 @@
 name: gate
 
 # 与本地 `pnpm gate` 同源，但**不是同一条链**。各步的**相对顺序**与 `scripts/gate.mjs` 的 `STEPS` 一致
-# （取子序列，不重排）；本文件跑九步里的 **7 步**，缺的两步与原因写在下面。
+# （取子序列，不重排）；本文件跑的是九步里**除下面两步之外的全部**。
 #
-# 在本文件内（7）：lint → build → typecheck → test → bundle:offline → license:check → docs:check
+# 本文件与 `STEPS` 的一致性由 `pnpm docs:check` 的 `scripts/check-gate-steps.mjs` **机械判定**
+# （步集合、相对顺序、缺的步与 `doc-index.json` 的 `gateStepsCheck.absent` 集合相等）——所以**别只在注释里改**：
+# 加一步、删一步、挪顺序，都要让那份登记跟上，否则门禁翻红。
+#
 # 不在本文件内（2）：
 #   - `smoke:build` / `smoke:build:file`：**需要本机无头 Chrome**。`ubuntu-latest` 自带 Chrome、
 #     且 `scripts/smoke-build.mjs` 已支持 `GANTTTPILOT_CHROME`，但"到底能不能补"**标记为未验证**
 #     （依据见 docs/04-refactor/05-登记与本轮不做.md §二），**不由本文件自行决定**。
 #   ⇒ 远端 CI 仍**弱于**本地九步：Chrome 侧的两条主链路（含 DOM 互证）只有本地能验。
-#     （`Install` 与 `Install Python reference deps` 是前置动作，不计数为门禁步。）
+#     （`Install` 与 `Install Python reference deps` 是前置动作，不计数为门禁步——前者登记在
+#     `doc-index.json` 的 `gateStepsCheck.prerequisites` 里。）
 #
 # 步骤顺序须与 `scripts/gate.mjs` 的 `STEPS` 一致，尤其**构建必须先于类型检查**：
 # 消费者的 typecheck 经各包 `exports.types` → `dist/*.d.ts` 解析工作区依赖，而 `dist/` 不入库，

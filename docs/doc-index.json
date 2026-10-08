@@ -1654,5 +1654,32 @@
     ],
     "allow": []
   },
+  "gateStepsCheck": {
+    "$comment": [
+      "P5-c 的第 23 项：门禁步骤契约（scripts/gate.mjs 的 STEPS）与 CI 实跑步（.github/workflows/ci.yml）的一致性（执行者 scripts/check-gate-steps.mjs，接在 pnpm docs:check 的最后一步）。",
+      "为什么要有：这两份文件是同一个事实的两处陈述，而它们的一致性此前只写在 ci.yml 的文件头注释里——注释腐烂过一次（曾把 bundle:offline / docs:check 写成「不在此文件内」），且没有任何检查会在两边分叉时翻红；而 STEPS 是门禁契约（gate.mjs 文件头：改动它等于改动门禁契约）。",
+      "判据四条：① ci.yml 的 pnpm 步 ⊆ STEPS；② 相对顺序是 STEPS 的子序列；③ 缺的步集合 == absent 登记的集合（集合相等——只判子序列的话「删掉一步」仍然是子序列 ⇒ 判据没牙）；④ prerequisites 与 absent 每条必须带 reason，未登记的前置动作也报。",
+      "零依赖、只认单行 `run: pnpm <step>`；出现多行 `run: |` 块即响亮失败（宁可停，也不要静默漏看）。",
+      "absent 的两条是「现在不跑、且原因已实测」的登记：两条 smoke 需要本机无头 Chrome，能不能在 ubuntu-latest 上补未经实测（见 docs/04-refactor/05-登记与本轮不做.md §二）。补上其中一条时，必须同批从本表删掉它——判据 ③ 会强制这件事。"
+    ],
+    "gateSource": "scripts/gate.mjs",
+    "pipelineSource": ".github/workflows/ci.yml",
+    "prerequisites": [
+      {
+        "command": "install",
+        "reason": "装依赖是前置动作、不是门禁步（STEPS 里没有它；gate.mjs 的文件头只把「安装」与九步并列叙述）"
+      }
+    ],
+    "absent": [
+      {
+        "step": "smoke:build",
+        "reason": "需要本机无头 Chrome；ubuntu-latest 自带 Chrome 且 scripts/smoke-build.mjs 支持 GANTTPILOT_CHROME，但「能不能补」未经实测（05 §二），故登记为不跑而不是悄悄漏掉"
+      },
+      {
+        "step": "smoke:build:file",
+        "reason": "同上（file:// 下的三条主链路，同样需要 Chrome）"
+      }
+    ]
+  },
   "pendingList": "docs/01-roadmap/首版-待定清单.md"
 }

@@ -219,10 +219,29 @@
 计数每次 `pnpm docs:check` 重算并打印（故"多少承诺、多少内部"永久可查）；`apiSurfaceCheck.allow`
 的**未被命中**项会打印警告（不复用为永久免检牌）。
 
+### 4.9 门禁步骤契约的两处陈述（纪律六，P5-c 的第 23 项）
+
+门禁的步骤与顺序有**两处陈述**：`scripts/gate.mjs` 的 `STEPS`（**权威定义**，改动它等于改门禁契约，
+须同步 ADR 0001 与附录增补）与 `.github/workflows/ci.yml` 实际跑的那些步。两处必须一致，
+**且必须由门禁判定**——此前这一致性只写在 `ci.yml` 的文件头注释里，而注释腐烂过一次
+（它曾把 `bundle:offline` / `docs:check` 写成"不在此文件内"），**没有任何检查会在两边分叉时翻红**。
+
+判据在 `scripts/check-gate-steps.mjs`（登记在 `gateStepsCheck`，接在 `pnpm docs:check` 的最后一步），
+**四条都是一句话能复述的**：
+
+1. `ci.yml` 里的 `pnpm` 步 **⊆ `STEPS`**（多一步、或把某步拼错都报）；
+2. 它们的**相对顺序是 `STEPS` 的子序列**（不重排——尤其 `build` 必须先于 `typecheck`）；
+3. **缺的步集合与 `gateStepsCheck.absent` 的集合相等**（不是包含）。这一条是判据的牙：只判子序列的话，
+   "删掉一步"仍然是子序列 ⇒ 少跑一步会静默通过；反过来，登记为不跑而其实在跑，也报"登记已腐烂"；
+4. `prerequisites`（`pnpm install` 这类**前置动作**，不是门禁步）与 `absent` 的每条**必须带 `reason`**；
+   出现**未登记的前置动作**也报——否则"新增一个前置动作"会绕过判据 1。
+
+**零依赖与防静默漏看**：不引 YAML 解析器（只认单行 `run: pnpm <step>`）；`ci.yml` 一旦出现多行
+`run: |` / `run: >` 块，本检查**响亮地失败**而不是漏看。
+
 ## 五、检查
 
 `pnpm docs:check`（`scripts/check-docs.mjs`，已接入 `scripts/gate.mjs`）：
-
 | # | 检查 | 破了会怎样 |
 |---|---|---|
 | 1 | `docs/doc-index.json` ↔ 实际文档集合**双射** | 新文档漏登记 / 登记了不存在的文件 |
@@ -240,13 +259,15 @@
 | 13 | **生成物与来源一致**：`generated: true` 的文档**就地从来源重算**并**逐字节比对**；标了 `generated` 却没有渲染器 ⇒ **错误** | 生成物静默变旧（先跑生成器、后改来源），而检查读的是索引（C7-i 的 `N10`） |
 | 14 | **证据层的「原始读数」所有权**：每条 `-raw.json` 必须在 `evidenceRawCheck.rawOf` 里登记（raw → 与它成对的那份 `.md`）⇒ 未登记**警告**；登记的 raw / of 不存在 ⇒ **错误**；两侧都有 `采集时刻` 时**逐位相等**（否则这份 raw 不是那份 `.md` 的读数）⇒ **错误**；有一侧没有（schema 不同）时**必须写 note** 说明配对依据 ⇒ 否则**警告** | 记录制证据的原始读数变成「文件在、没人指」的孤儿；或 raw 被下一次运行覆盖后，指向悄悄错位（C8-a） |
 | 15 | **包规范的 API 段 ⇔ 实际导出面**（`scripts/check-api-surface.mjs`）：登记的每个 API 段里**点名**的符号必须在包入口（`packages/<pkg>/src/index.ts`）的导出面里 ⇒ 否则**错误**；段标题找不到、候选数掉到登记的 `minCandidates` 以下、入口解析不出导出 ⇒ **错误**；`allow` 缺 `reason` ⇒ **错误**（登记为例外的点名每次运行都打印） | 规范文档化了**不存在**的符号（`templateSheetNames()` 那类）；或"写法变了 ⇒ 检查恒真"的静默失效（纪律见 §4.7，P4-a） |
+| 16 | **门禁步骤契约的两处陈述**（`scripts/check-gate-steps.mjs`）：`ci.yml` 的 `pnpm` 步 **⊆ `STEPS`**、相对顺序是子序列、**缺的步集合与 `absent` 相等**、`prerequisites`/`absent` 缺 `reason`、未登记的前置动作、多行 `run:` 块、`STEPS` 解析为空 ⇒ **错误** | CI 悄悄少跑一步、或把 `build` 排到 `typecheck` 之后，而"远端绿"照旧——门禁契约与 CI 分叉（纪律见 §4.9，P5-c） |
 
 > **配置键**（唯一真相源都在 `docs/doc-index.json`）：`caps`、`layer`、`contextBudget`、`pendingList`、
 > `linkCheckAllowlist`（每条带 `reason`）、`crossLayerCheck`（`markers` + `allow`）、`constantCheck`
 > （唯一声明处 + 例外）、`externalPathCheck`（`errorScope` + `markers` + `temporaryPathPatterns` + `allow`）、
 > `sourceLineCheck`（`contentStartMarker` + `markers` + `archived` + `extractors`）、
 > `evidenceRawCheck`（`rawOf`：`{ raw, of, note? }`）、
-> `apiSurfaceCheck`（`targets`：`{ package, spec, section, mode, minCandidates, note }` + `allow`：`{ package, symbol, reason }`）。
+> `apiSurfaceCheck`（`targets`：`{ package, spec, section, mode, minCandidates, note }` + `allow`：`{ package, symbol, reason }`）、
+> `gateStepsCheck`（`gateSource` + `pipelineSource` + `prerequisites`：`{ command, reason }` + `absent`：`{ step, reason }`）。
 >
 > **P1 建的三条检查、D1 的两项守卫、D2 的溯源守卫与 P3 补的两条**（都在同一步 `pnpm docs:check` 里）：
 > ① 契约常量单点声明（`check-constants.mjs`；纪律见 §4.2）；
@@ -257,8 +278,9 @@
 > ⑥ 生成物与来源一致（`check-docs.mjs` §8f；`GENERATED_ARTIFACTS` 在 `scripts/doc-artifacts.mjs`）；
 > ⑦ 证据层的原始读数所有权（`check-docs.mjs` §8g；C8-a）；
 > ⑧ 包规范的 API 段 ⇔ 实际导出面（`check-api-surface.mjs`；纪律见 §4.7；**公开面的「发布承诺 / 内部」分类见 §4.8**，
-> 其中"零引用导出"判 **error**；P4-a / P4-b）。
+> 其中"零引用导出"判 **error**；P4-a / P4-b）；
+> ⑨ **门禁步骤契约的两处陈述**（`check-gate-steps.mjs`；纪律见 §4.9；P5-c 的第 23 项）。
 >
 > 脚本的 `--selftest`（`node scripts/check-docs.mjs --selftest`，当前 **30 例**；`node scripts/check-constants.mjs --selftest`；
-> `node scripts/check-api-surface.mjs --selftest`，当前 **13 例**）
+> `node scripts/check-api-surface.mjs --selftest`，当前 **13 例**；`node scripts/check-gate-steps.mjs --selftest`，当前 **11 例**）
 > 是这几条的**反向保护**：每类判定都配一个「该绿就绿、该红就红」的合成用例。
