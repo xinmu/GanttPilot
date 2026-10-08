@@ -10,6 +10,8 @@
  * 5. **可读性纪律**：行标签只在行高撑得下时画（1,000 行不生成上千个文本框）。
  */
 
+import { createHash } from 'node:crypto';
+
 import { describe, expect, it } from 'vitest';
 import { compute } from '@ganttpilot/engine';
 import {
@@ -156,6 +158,35 @@ describe('模板 A · golden（出口条件⑤）', () => {
     expect(diffDigests(digests, await entryDigests(second))).toStrictEqual([]);
     // 归一化后条目日期是固定值（zip 的 DOS 时间口径）
     expect(digests.every((entry) => entry.dateIso.startsWith('2000-01-01'))).toBe(true);
+  });
+
+  /**
+   * **golden 锚值**（P4-c）：把"演示计划"的周/日档产物**钉在字节数与 sha256** 上。
+   *
+   * 为什么需要它：上面那条只判"**两次导出相等**"——同一个错误值连续出现两次它照样绿，
+   * 于是 P3/C7-h 把形状名前缀由 `prog-` 改成 `progress-`（产物 +6 / +8 字节）时，**没有任何用例变红**，
+   * 全靠人读文档才发现。这条把 `PPTX.md` §七 ③ 的登记值变成**可执行的锚**。
+   *
+   * **锚值可安全钉住**（P4-c 实测，2026-10-08）：`scripts/export-pptx.mjs` 在**独立进程**里跑两次、
+   * 中间隔 3 秒，两档的字节数与 sha256 都逐位复现（`FIXED_TIMESTAMP_ISO` + 条目日期归一化到 2000-01-01
+   * 使产物与墙上时钟无关）⇒ 跨进程、跨时间都确定，故这不是一条会抖动的判据。
+   *
+   * **改产物字节时怎么改这里**：按 golden 重锚的纪律——先确认差额来源（C7-h 的做法：把新产物改回旧名
+   * 重打包、**逐位复现旧锚值**），再更新本锚值与 `PPTX.md` §七 ③ 的登记值，并在记录层写明"这次为什么变了"。
+   */
+  it('golden 锚值：周档 16,175 字节 / 日档 17,635 字节，sha256 逐位一致', async () => {
+    const fixture = demoFixture();
+    const anchors = [
+      { zoom: 'week' as const, bytes: 16_175, sha256: 'f843f2d0987d88fcaada6168c3162dfa83ada55129e40740443a7090f6fb25b2' },
+      { zoom: 'day' as const, bytes: 17_635, sha256: '269bdc1e175b3291da7414d47dbe1018815ce81d92a340b42fcde55e57ccbb5d' },
+    ];
+    for (const anchor of anchors) {
+      const rendered = await renderTemplateA({ ...fixture, zoom: anchor.zoom });
+      const actual = createHash('sha256').update(rendered).digest('hex');
+      // 先判字节数再判哈希：字节数不同时，"哈希不符"这句话的信息量太低
+      expect({ zoom: anchor.zoom, bytes: rendered.length }).toStrictEqual({ zoom: anchor.zoom, bytes: anchor.bytes });
+      expect({ zoom: anchor.zoom, sha256: actual }).toStrictEqual({ zoom: anchor.zoom, sha256: anchor.sha256 });
+    }
   });
 });
 
