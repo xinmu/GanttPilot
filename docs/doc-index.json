@@ -703,7 +703,21 @@
       "role": "record",
       "cap": "evidence",
       "layer": "archive",
-      "note": "成环样本导入实测（Chrome 152）"
+      "note": "成环样本导入实测（Chrome 152 口径的旧快照；当前口径见 -chrome154，P4-d 重取后登记）"
+    },
+    {
+      "path": "apps/web/evidence/import-cyclic-sample-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "成环样本导入实测（Chrome 154；P4-d 集中重取，输入路径改为仓库根相对 + 声明词）"
+    },
+    {
+      "path": "apps/web/evidence/chart-axis-hover-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "两级刻度与悬停行带的记录制快照（Chrome 154；P4-d 首次入库，`--axis-hover` 驱动器见 C6-d）"
     },
     {
       "path": "apps/web/evidence/offline-single-file-chrome154.md",
@@ -1432,18 +1446,6 @@
         "reason": "P3/C8-c：同一份证据里「临时副本（未纳入证据，留在 %TEMP%）」那句记的是**没入库**这个事实，%TEMP% 下的绝对路径就是「当时的机器事实」。命中面收窄到该行（两处路径在同一行，一条规则覆盖）。"
       },
       {
-        "path": "apps/web/evidence/import-cyclic-sample-chrome152.md",
-        "lineRegex": "tmp.samples",
-        "kind": "环境观测",
-        "reason": "P3/C8-c：成环样本是维护者本机 `tmp/samples/` 下的输入（`node scripts/make-sample.mjs` 生成、不入库二进制），这份证据记的是「导入那个样本后的判定」；绝对路径是采集时的机器事实。生成器侧改成**仓库根相对 + 声明词**并入 P4 的集中重取（同批落盘，否则生成器输出与已提交证据分叉——见 04-验收与门禁 §四 的证据纪律）。命中面收窄到该行（`tmp.samples` 里的 `.` 用来兜住 Windows 路径的反斜杠）。"
-      },
-      {
-        "path": "apps/web/evidence/offline-single-file-chrome154.md",
-        "lineRegex": "file:///",
-        "kind": "产物说明",
-        "reason": "P3/C8-c：这一行是「**怎么打开**离线产物」的操作说明，`file:///` 只有写成绝对路径才点得开 ⇒ 它属「产物说明」而不是「可复现引用」（产物由 `pnpm bundle:offline` 再生）。生成器侧的相对化并入 P4。命中面收窄到含 `file:///` 的行。"
-      },
-      {
         "path": "spikes/g0-s2-xlsx-roundtrip/结论.md",
         "lineRegex": "Microsoft Office",
         "kind": "环境观测",
@@ -1514,8 +1516,13 @@
         "of": "apps/web/evidence/drag-timing-chrome154.md"
       },
       {
+        "raw": "apps/web/evidence/chart-axis-hover-raw.json",
+        "of": "apps/web/evidence/chart-axis-hover-chrome154.md"
+      },
+      {
         "raw": "apps/web/evidence/import-cyclic-sample-raw.json",
-        "of": "apps/web/evidence/import-cyclic-sample-chrome152.md"
+        "of": "apps/web/evidence/import-cyclic-sample-chrome154.md",
+        "note": "生成器用不带版本号的文件名 ⇒ 现存这份是 P4-d（Chrome 154）那一次的读数；`-chrome152.md` 是旧口径快照，两侧成对关系以本登记为准"
       },
       {
         "raw": "apps/web/evidence/offline-single-file-raw.json",

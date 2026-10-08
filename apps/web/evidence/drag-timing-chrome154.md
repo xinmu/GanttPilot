@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |---|---|
-| 采集时刻 | 2026-10-06T12:00:20.125Z |
+| 采集时刻 | 2026-10-08T13:44:49.987Z |
 | 机器 | FAIRY |
 | 系统 | win32 x64 |
 | Node | v26.7.0 |
@@ -21,6 +21,7 @@
 | 数据集 | dense |
 | 拖动天数 | 3 |
 | 测试帧数 | 12 |
+| 钩子版本 | 2026-10-08 |
 
 ## 口径
 
@@ -76,11 +77,11 @@
 
 | 量 | 值 | 判据 | 判定 |
 |---|---|---|---|
-| 主线程同步工作量 p50 | 5.70 ms | 记录 | — |
-| 主线程同步工作量 p95 | 8.50 ms | ≤ 16.7 ms（帧预算候选） | ✅ |
-| 帧间隔 p50 | 16.7 ms | 记录 | — |
-| 帧间隔 p95 | 33.4 ms | ≥30 fps ⇒ ≤ 33.3 ms | ⚠️ |
-| 松手 → 重算 + 冲突标记 | 14.3 ms | ≤ 200 ms（IX-04） | ✅ |
+| 主线程同步工作量 p50 | 4.90 ms | 记录 | — |
+| 主线程同步工作量 p95 | 7.30 ms | ≤ 16.7 ms（帧预算候选） | ✅ |
+| 帧间隔 p50 | 16.6 ms | 记录 | — |
+| 帧间隔 p95 | 32.3 ms | ≥30 fps ⇒ ≤ 33.3 ms | ✅ |
+| 松手 → 重算 + 冲突标记 | 12.5 ms | ≤ 200 ms（IX-04） | ✅ |
 | 拖动期 DOM 变化帧数 | 3 / 12 | > 0（下游跟随） | ✅ |
 | longtask 条目 | 0 | 记录 | — |
 | 松手后锚点数 | 0 | = 0（锚点不进文档、松手即清） | ✅ |
@@ -123,15 +124,17 @@
 
 | 量 | 值 | 判据 | 判定 |
 |---|---|---|---|
-| 主线程同步工作量 p50 | 4.70 ms | 记录 | — |
-| 主线程同步工作量 p95 | 7.00 ms | ≤ 16.7 ms（帧预算候选） | ✅ |
+| 主线程同步工作量 p50 | 4.60 ms | 记录 | — |
+| 主线程同步工作量 p95 | 5.90 ms | ≤ 16.7 ms（帧预算候选） | ✅ |
 | 帧间隔 p50 | 16.7 ms | 记录 | — |
 | 帧间隔 p95 | 16.8 ms | ≥30 fps ⇒ ≤ 33.3 ms | ✅ |
-| 松手 → 重算 + 冲突标记 | 9.1 ms | ≤ 200 ms（IX-04） | ✅ |
+| 松手 → 重算 + 冲突标记 | 11.0 ms | ≤ 200 ms（IX-04） | ✅ |
 | 拖动期 DOM 变化帧数 | 3 / 12 | > 0 | ✅ |
 | 内核判定的语义 | `resize-duration` | = `resize-duration`（自证抓对了地方） | ✅ |
 | 工期位移 | 7 → 10 | = 拖动前 + 3 | ✅ |
 | 下游跟随 | 1 → 4 → 4 | 拖动期 == 松手后 **且** ≠ 拖动前 | ✅ |
 
 
-> 生成参数：{"zooms":["day","week","month"],"rounds":5,"scrollSteps":10,"includeReference":true,"drag":true,"dayDelta":3,"dragFrames":12,"dragDataset":"dense","importPath":null,"align":false,"alignLabel":"","alignZooms":["day","week","month"],"alignResize":{"width":1024,"height":640},"persistDrag":false,"storageMetrics":false}
+> 生成参数：{"zooms":["day","week","month"],"rounds":5,"scrollSteps":10,"includeReference":true,"drag":true,"dayDelta":3,"dragFrames":12,"dragDataset":"dense","importPath":null,"align":false,"alignLabel":"","axisHover":false,"alignZooms":["day","week","month"],"alignResize":{"width":1024,"height":640},"persistDrag":false,"storageMetrics":false}
+
+> **原始读数**：[`drag-timing-raw.json`](drag-timing-raw.json)（机器可读，便于日后重比）。

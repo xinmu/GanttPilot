@@ -1,0 +1,197 @@
+{
+  "env": {
+    "采集时刻": "2026-10-08T13:45:19.306Z",
+    "机器": "FAIRY",
+    "系统": "win32 x64",
+    "Node": "v26.7.0",
+    "Chrome": "Chrome/154.0.8037.95",
+    "Chrome 模式": "--headless=new",
+    "DPR": 1,
+    "基视口": "1280×800（Emulation.setDeviceMetricsOverride）",
+    "数据集": "dense",
+    "左表": "在场（不带 ?table=0）——悬停读数要读左表那一行的底色",
+    "档位": "day / week / month",
+    "钩子版本": "2026-10-08"
+  },
+  "runs": [
+    {
+      "dataset": "dense",
+      "zoom": "day",
+      "result": {
+        "errors": [],
+        "zoom": "day",
+        "revision": 0,
+        "axis": {
+          "texts": 17,
+          "minorY": 137,
+          "minorSamples": [
+            "27",
+            "28",
+            "29",
+            "30",
+            "01",
+            "02"
+          ],
+          "majorY": 120,
+          "majorSamples": [
+            "2026-09",
+            "2026-10"
+          ],
+          "majorBands": 2,
+          "headerTable": 40,
+          "headerChart": 40,
+          "tableHeaderSecondRowText": ""
+        },
+        "hover": {
+          "idle": {
+            "svgHoverRows": 0,
+            "svgRect": null,
+            "tableBackground": "rgba(0, 0, 0, 0)",
+            "tableTaskId": "t1"
+          },
+          "onRow": {
+            "svgHoverRows": 1,
+            "svgRect": {
+              "top": 171,
+              "bottom": 195,
+              "left": 910,
+              "right": 2282
+            },
+            "tableBackground": "rgb(207, 227, 250)",
+            "tableTaskId": "t1"
+          },
+          "onThirdRow": {
+            "svgHoverRows": 1,
+            "svgRect": {
+              "top": 219,
+              "bottom": 243,
+              "left": 910,
+              "right": 2282
+            },
+            "tableBackground": "rgb(207, 227, 250)",
+            "tableTaskId": "t3"
+          }
+        }
+      }
+    },
+    {
+      "dataset": "dense",
+      "zoom": "week",
+      "result": {
+        "errors": [],
+        "zoom": "week",
+        "revision": 0,
+        "axis": {
+          "texts": 10,
+          "minorY": 137,
+          "minorSamples": [
+            "09-28",
+            "10-05",
+            "10-12",
+            "10-19",
+            "10-26",
+            "11-02"
+          ],
+          "majorY": 120,
+          "majorSamples": [
+            "2026-09",
+            "2026-10",
+            "2026-11"
+          ],
+          "majorBands": 3,
+          "headerTable": 40,
+          "headerChart": 40,
+          "tableHeaderSecondRowText": ""
+        },
+        "hover": {
+          "idle": {
+            "svgHoverRows": 0,
+            "svgRect": null,
+            "tableBackground": "rgba(0, 0, 0, 0)",
+            "tableTaskId": "t1"
+          },
+          "onRow": {
+            "svgHoverRows": 1,
+            "svgRect": {
+              "top": 171,
+              "bottom": 195,
+              "left": 910,
+              "right": 1402
+            },
+            "tableBackground": "rgb(207, 227, 250)",
+            "tableTaskId": "t1"
+          },
+          "onThirdRow": {
+            "svgHoverRows": 1,
+            "svgRect": {
+              "top": 219,
+              "bottom": 243,
+              "left": 910,
+              "right": 1402
+            },
+            "tableBackground": "rgb(207, 227, 250)",
+            "tableTaskId": "t3"
+          }
+        }
+      }
+    },
+    {
+      "dataset": "dense",
+      "zoom": "month",
+      "result": {
+        "errors": [],
+        "zoom": "month",
+        "revision": 0,
+        "axis": {
+          "texts": 6,
+          "minorY": 137,
+          "minorSamples": [
+            "2026-10",
+            "2026-11",
+            "2026-12",
+            "2027-01"
+          ],
+          "majorY": 120,
+          "majorSamples": [
+            "2026",
+            "2027"
+          ],
+          "majorBands": 2,
+          "headerTable": 40,
+          "headerChart": 40,
+          "tableHeaderSecondRowText": ""
+        },
+        "hover": {
+          "idle": {
+            "svgHoverRows": 0,
+            "svgRect": null,
+            "tableBackground": "rgba(0, 0, 0, 0)",
+            "tableTaskId": "t1"
+          },
+          "onRow": {
+            "svgHoverRows": 1,
+            "svgRect": {
+              "top": 171,
+              "bottom": 195,
+              "left": 910,
+              "right": 1265
+            },
+            "tableBackground": "rgb(207, 227, 250)",
+            "tableTaskId": "t1"
+          },
+          "onThirdRow": {
+            "svgHoverRows": 1,
+            "svgRect": {
+              "top": 219,
+              "bottom": 243,
+              "left": 910,
+              "right": 1265
+            },
+            "tableBackground": "rgb(207, 227, 250)",
+            "tableTaskId": "t3"
+          }
+        }
+      }
+    }
+  ]
+}

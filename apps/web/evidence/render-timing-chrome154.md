@@ -7,18 +7,19 @@
 
 | 项 | 值 |
 |---|---|
-| 采集时刻 | 2026-10-06T13:17:08.512Z |
+| 采集时刻 | 2026-10-08T13:43:48.746Z |
 | 机器 | FAIRY |
 | 系统 | win32 x64 |
 | Node | v26.7.0 |
 | Chrome | Chrome/154.0.8037.95 |
 | Chrome 模式 | --headless=new |
 | DPR | 1 |
-| 视口 | 1280×640 |
+| 视口 | 1280×800 |
 | 档位 | day / week / month |
 | 数据集 | dense / dense / dense / dense2200 |
 | 轮数 | 5 |
 | 滚动步数 | 10 |
+| 钩子版本 | 2026-10-08 |
 
 ## 口径
 
@@ -38,35 +39,38 @@
 
 | 数据集 | 档位 | 窗格 h×w | 可见行 | 渲染行 | 渲染边 | 元素 | c₃ | DOM 行/边 | 在预算内 | 首屏（就绪→首帧） | 各轮 p50 / p95 | 几何 p50 | 渲染 p50 | 对 1,000 ms |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| dense | day | 610×1265 | 26 | 31 | 41 | 444 | 120 | 31 / 41 | ✅ | 6.6 ms | 33.3 ms / 66.5 ms | 0.3 ms | 0.0 ms | 151.515× 余量 |
-| dense | week | 610×1265 | 26 | 31 | 41 | 412 | 88 | 31 / 41 | ✅ | 9.1 ms | 33.2 ms / 33.4 ms | 0.5 ms | 0.0 ms | 109.890× 余量 |
-| dense | month | 610×1265 | 26 | 31 | 41 | 417 | 93 | 31 / 41 | ✅ | 2.3 ms | 33.2 ms / 33.3 ms | 0.8 ms | 0.0 ms | 434.783× 余量 |
-| dense2200 | day | 610×1265 | 26 | 31 | 55 | 485 | 120 | 31 / 55 | ✅ | 1.8 ms | 33.3 ms / 33.4 ms | 0.4 ms | 0.0 ms | 555.556× 余量 |
+| dense | day | 610×1265 | 26 | 31 | 41 | 444 | 120 | 31 / 41 | ✅ | 2.4 ms | 33.2 ms / 61.2 ms | 0.3 ms | 0.1 ms | 416.667× 余量 |
+| dense | week | 610×1265 | 26 | 31 | 41 | 412 | 88 | 31 / 41 | ✅ | 4.1 ms | 33.2 ms / 33.4 ms | 0.5 ms | 0.0 ms | 243.902× 余量 |
+| dense | month | 610×1265 | 26 | 31 | 41 | 417 | 93 | 31 / 41 | ✅ | 2.1 ms | 33.2 ms / 33.4 ms | 0.8 ms | 0.0 ms | 476.190× 余量 |
+| dense2200 | day | 610×1265 | 26 | 31 | 55 | 485 | 120 | 31 / 55 | ✅ | 1.3 ms | 33.1 ms / 33.4 ms | 0.4 ms | 0.0 ms | 769.231× 余量 |
 
 > 首屏的**起点是"文档与 `Schedule` 就绪"**（`compute` 的耗时单列在原始 JSON 的 `prepareMs`）；
 > `primaryMs` 是第 1 轮、`p50/p95` 是全部轮次——**双 rAF 的下界就是约 33 ms**，所以轮次间的抖动是调度噪声，不要当回归；
 > "渲染行/边"来自元素模型，"DOM 行/边"是页面上真实存在的 `<g>` 数：
 > 两者必须相等，否则"元素预算"就是恒真式（脚本把不一致直接记进 `errors`）。
 > **`c₃` 与 G4-S 的回填值可比，但不是同一个数**：本轮页面用 `?table=0` 把图表放成全宽
-> （1265 px，比 G4-S 探针页的 1280 px 少一条滚动条宽），因此日/周/月的 `c₃` 是
-> **120 / 88 / 93**（P-46 两级刻度后重锚；单级口径原为 114 / 69 / 88），与 ADR 0007 §11 的单级回填值 **116 / 70 / 89** 差 1–2（就是那点宽度差）；
-> 分屏下（隐藏左表之前）同一页面的 `c₃` 只有 35 / 21 / 26——`c₃` 只取决于"窗格宽 ÷ `pxPerDay`"，
+> （本页窗格宽见上面的实测列，比 G4-S 探针页的视口少一条滚动条宽），因此日/周/月的 `c₃`
+> 比 ADR 0007 §11 的单级回填值小 1–2（就是那点宽度差）；**逐档位锚值只在声明处**
+> （`render-core/src/clipping.spec.ts` 的 `expectedC3`），本文件的表格里给的是**本次实测值**；
+> 分屏下（隐藏左表之前）同一页面的 `c₃` 只有全宽口径的约三分之一——`c₃` 只取决于"窗格宽 ÷ `pxPerDay`"，
 > 与文档总规模无关，这是 §11.1 ③ 那条口径的直接后果。
 
 ## 10× 滚动
 
 | 数据集 | 档位 | 总墙钟 | 主线程合计 | 主线程 p50 / p95 | 帧间隔 p50 / p95 | longtask | 空白行 | 对 §5.4（约 2.0 s） |
 |---|---|---|---|---|---|---|---|---|
-| dense | day | 499.8 ms | 4.7 ms | 0.5 ms / 0.7 ms | 16.7 ms / 19.2 ms | 0 | 0 | 4.002× 余量 |
-| dense | week | 499.9 ms | 5.0 ms | 0.5 ms / 0.7 ms | 16.7 ms / 18.9 ms | 0 | 0 | 4.001× 余量 |
-| dense | month | 499.1 ms | 10.4 ms | 1.0 ms / 1.5 ms | 16.7 ms / 18.9 ms | 0 | 0 | 4.007× 余量 |
-| dense2200 | day | 499.6 ms | 4.8 ms | 0.5 ms / 0.8 ms | 16.7 ms / 19.4 ms | 0 | 0 | 4.003× 余量 |
+| dense | day | 499.9 ms | 4.1 ms | 0.3 ms / 0.7 ms | 16.7 ms / 19.1 ms | 0 | 0 | 4.001× 余量 |
+| dense | week | 499.5 ms | 4.7 ms | 0.4 ms / 0.8 ms | 16.7 ms / 18.9 ms | 0 | 0 | 4.004× 余量 |
+| dense | month | 499.6 ms | 7.8 ms | 0.7 ms / 1.1 ms | 16.7 ms / 19.6 ms | 0 | 0 | 4.003× 余量 |
+| dense2200 | day | 499.8 ms | 4.9 ms | 0.5 ms / 0.7 ms | 16.7 ms / 19.1 ms | 0 | 0 | 4.002× 余量 |
 
 ## 判定
 
-- **1,000 任务首屏 ≤ 1 s**：最差 9.1 ms ⇒ **通过**；
-- **元素预算**：**全部在 `c₁·rows + c₂·edges + c₃ + c₄` 之内**（`c₄ = 6·rows + 13`，ADR 0008 §16.4 + P-46 的悬停行带）；
+- **1,000 任务首屏 ≤ 1 s**：最差 4.1 ms ⇒ **通过**；
+- **元素预算**：**全部在 `c₁·rows + c₂·edges + c₃ + c₄` 之内**（`c₄` 的系数与 `c₃` 的锚值只在声明处：`render-core` 的 `manifest.ts` 的 `ELEMENT_MODEL_G5` 与 `clipping.spec.ts` 的 `expectedC3`；ADR 0008 §16.4 + P-46 的悬停行带）；
 - **零空白行**：**成立**；
 - **主线程 p95 ≤ 16.7 ms**（记录制候选）：**成立**。
 
-> 生成参数：{"zooms":["day","week","month"],"rounds":5,"scrollSteps":10,"includeReference":true,"drag":false,"dayDelta":3,"dragFrames":12,"dragDataset":"dense","importPath":null,"align":false,"alignLabel":"","alignZooms":["day","week","month"],"alignResize":{"width":1024,"height":640},"persistDrag":false,"storageMetrics":false}
+> 生成参数：{"zooms":["day","week","month"],"rounds":5,"scrollSteps":10,"includeReference":true,"drag":false,"dayDelta":3,"dragFrames":12,"dragDataset":"dense","importPath":null,"align":false,"alignLabel":"","axisHover":false,"alignZooms":["day","week","month"],"alignResize":{"width":1024,"height":640},"persistDrag":false,"storageMetrics":false}
+
+> **原始读数**：[`render-timing-raw.json`](render-timing-raw.json)（机器可读，便于日后重比）。

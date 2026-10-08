@@ -36,7 +36,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { closeChromeSession, connectCdp, findChrome, spawnChrome, startStaticServer, waitForDevToolsPort } from './cdp.mjs';
-import { repoRoot } from './paths.mjs';
+import { rel, repoRoot } from './paths.mjs';
 
 const distRoot = join(repoRoot, 'apps', 'web', 'dist');
 const evidenceDir = join(repoRoot, 'apps', 'web', 'evidence');
@@ -654,6 +654,16 @@ async function importSample(cdp, origin, filePath) {
   return { ...result, status: errors.length === 0 ? 'ok' : 'error', errors };
 }
 
+/**
+ * 证据末尾附一行**具名**的"原始读数"链接（P4-d）。
+ *
+ * 为什么需要它：raw 与 `.md` 是成对写出的，但正文此前只写"逐行值见 raw JSON"这类**不带文件名**的
+ * 说法 ⇒ 链接图里 raw 成了孤儿（C8-a 的"引用方向不可解析"）。生成器侧与已提交证据必须**同批**落盘，
+ * 否则盘上的证据就不再是生成器的输出（见 `docs/04-refactor/04-验收与门禁.md` §四）。
+ */
+function withRawLink(markdown, rawName) {
+  return `${markdown.replace(/\s*$/, '')}\n\n> **原始读数**：[\`${rawName}\`](${rawName})（机器可读，便于日后重比）。\n`;
+}
 /** 导入记录制的证据（Markdown）。 */
 function renderImportEvidence({ env, result }) {
   const lines = [];
@@ -674,7 +684,8 @@ function renderImportEvidence({ env, result }) {
   lines.push('');
   lines.push('| 项 | 值 |');
   lines.push('|---|---|');
-  lines.push(`| 路径 | \`${String(result.file)}\` |`);
+  // P4-d：输入路径写**仓库根相对 + 声明词**（本机绝对路径是采集时的机器事实，不进证据正文）。
+  lines.push(`| 路径 | \`${rel(result.file)}\`（临时输入：不入库，由 \`node scripts/make-sample.mjs\` 再生） |`);
   lines.push(`| 体积 | ${String(result.sizeBytes)} 字节 |`);
   lines.push(`| sha256 | \`${String(result.sha256)}\` |`);
   lines.push('| 形状 | 表 `任务`，表头 `WBS / 任务名称 / 前置任务`（**仅三列**），6 行 |');
@@ -1438,7 +1449,7 @@ async function main() {
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       const evidencePath = join(evidenceDir, `import-cyclic-sample-chrome${major}.md`);
-      writeFileSync(evidencePath, renderImportEvidence({ env, result }), 'utf8');
+      writeFileSync(evidencePath, withRawLink(renderImportEvidence({ env, result }), 'import-cyclic-sample-raw.json'), 'utf8');
       writeFileSync(
         join(evidenceDir, 'import-cyclic-sample-raw.json'),
         `${JSON.stringify({ env, result }, null, 2)}\n`,
@@ -1564,7 +1575,7 @@ async function main() {
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       const suffix = options.alignLabel === '' ? '' : `-${options.alignLabel}`;
       const alignPath = join(evidenceDir, `chart-align${suffix}-chrome${major}.md`);
-      writeFileSync(alignPath, renderAlignEvidence({ env, runs, migration, options }), 'utf8');
+      writeFileSync(alignPath, withRawLink(renderAlignEvidence({ env, runs, migration, options }), `chart-align${suffix}-raw.json`), 'utf8');
       writeFileSync(
         join(evidenceDir, `chart-align${suffix}-raw.json`),
         `${JSON.stringify({ env, runs, migration }, null, 2)}\n`,
@@ -1611,7 +1622,7 @@ async function main() {
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       const evidencePath = join(evidenceDir, `chart-axis-hover-chrome${major}.md`);
-      writeFileSync(evidencePath, renderAxisHoverEvidence({ env, runs }), 'utf8');
+      writeFileSync(evidencePath, withRawLink(renderAxisHoverEvidence({ env, runs }), 'chart-axis-hover-raw.json'), 'utf8');
       writeFileSync(
         join(evidenceDir, 'chart-axis-hover-raw.json'),
         `${JSON.stringify({ env, runs }, null, 2)}\n`,
@@ -1671,7 +1682,7 @@ async function main() {
         // （实测：0.15 KB 的单条记录却配着 490 KB 的「用量」）。
         await persistClear(cdp);
         const evidencePath = join(evidenceDir, `persist-storage-2000-chrome${major}.md`);
-        writeFileSync(evidencePath, renderStorageMetricsEvidence({ env: envBase, run }), 'utf8');
+        writeFileSync(evidencePath, withRawLink(renderStorageMetricsEvidence({ env: envBase, run }), 'persist-storage-2000-raw.json'), 'utf8');
         writeFileSync(
           join(evidenceDir, 'persist-storage-2000-raw.json'),
           `${JSON.stringify({ env: envBase, run }, null, 2)}\n`,
@@ -1703,7 +1714,7 @@ async function main() {
         );
       }
       const evidencePath = join(evidenceDir, `persist-drag-timing-chrome${major}.md`);
-      writeFileSync(evidencePath, renderPersistDragEvidence({ env: envBase, runs }), 'utf8');
+      writeFileSync(evidencePath, withRawLink(renderPersistDragEvidence({ env: envBase, runs }), 'persist-drag-timing-raw.json'), 'utf8');
       writeFileSync(
         join(evidenceDir, 'persist-drag-timing-raw.json'),
         `${JSON.stringify({ env: envBase, runs }, null, 2)}\n`,
@@ -1826,7 +1837,7 @@ async function main() {
       const dragEvidencePath = join(evidenceDir, `drag-timing${dragSuffix}-chrome${major}.md`);
       writeFileSync(
         dragEvidencePath,
-        renderDragEvidence({ env, result: dragResult, resize: resizeResult, options }),
+        withRawLink(renderDragEvidence({ env, result: dragResult, resize: resizeResult, options }), `drag-timing${dragSuffix}-raw.json`),
         'utf8',
       );
       writeFileSync(
@@ -1900,7 +1911,7 @@ async function main() {
 
     const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
     const evidencePath = join(evidenceDir, `render-timing-chrome${major}.md`);
-    writeFileSync(evidencePath, renderEvidence({ env, runs, options }), 'utf8');
+    writeFileSync(evidencePath, withRawLink(renderEvidence({ env, runs, options }), 'render-timing-raw.json'), 'utf8');
     writeFileSync(join(evidenceDir, 'render-timing-raw.json'), `${JSON.stringify({ env, runs }, null, 2)}\n`, 'utf8');
     console.log(`[measure] 证据已写入 ${evidencePath}`);
 

@@ -486,7 +486,8 @@ try {
     '',
     `- 产物：\`apps/web/dist-offline/index.html\`，**${String(raw.artifact.kb)} KB**（${String(sizeBytes)} 字节）`,
     `- 首屏（导航 → \`__GANTTPILOT_READY__\`）：**${String(firstScreenMs)} ms**（FCP ${String(paint.fcpMs ?? 'n/a')} ms、DOMContentLoaded ${String(paint.domContentLoadedMs)} ms）`,
-    `- 打开方式：\`${url}\``,
+    // P4-d：打开方式写**仓库根相对 + 声明词**（本机绝对 `file:///` 是采集时的机器事实，不进证据正文）。
+    '- 打开方式：`file:///<仓库根>/apps/web/dist-offline/index.html?measure=1`（`<仓库根>` = 本机克隆目录；产物由 `pnpm bundle:offline` 再生）',
     '',
     '## ① `file://` 下的 IndexedDB',
     '',
