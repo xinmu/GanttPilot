@@ -1,6 +1,6 @@
 {
   "name": "ganttpilot",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "private": true,
   "description": "GanttPilot：Excel 计划 → 排程引擎 → 原生可编辑 PPTX（monorepo 根）",
   "license": "MIT",

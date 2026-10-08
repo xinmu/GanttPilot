@@ -1,6 +1,6 @@
 {
   "name": "@ganttpilot/pptx-renderer",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "description": "PPTX 渲染：原生形状 + 自研 OOXML 补丁（connector/group），永不为位图（零 DOM / 零框架依赖）",
   "license": "MIT",
   "type": "module",
