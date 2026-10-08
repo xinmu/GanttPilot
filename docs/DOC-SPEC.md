@@ -199,7 +199,25 @@
 
 **例外**（`apiSurfaceCheck.allow`，每条带 `reason`）只用于"事实已确认、但方向留给后续裁决"的项；
 登记为例外的点名**每次运行都会打印**——不允许静默吞掉。**反向**（哪些导出算「发布承诺」、哪些是内部）
-不在本检查内，由公开面分类负责。
+由 §4.8 的公开面分类负责。
+
+### 4.8 公开 API 面的「发布承诺 / 内部」（纪律五，P4-b）
+
+包的入口（`src/index.ts`）是**发布承诺面**，但入口里的符号**并不都是**承诺。判据**机械可重算**
+（`scripts/check-api-surface.mjs` 的公开面分类；**规则只有下面五条，不留手工分类表**——反重复规则 1）：
+
+| 类 | 判据（`check-api-surface.mjs` 重算） |
+|---|---|
+| **发布承诺** | 在 L1 文档的 **API 段**里被点名（= §4.7 的提取面）⇒ 文档给了保证，改动按契约流程走 |
+| **内部·跨界** | 未点名，但被**别的包 / `apps/web` / `scripts`** import ⇒ 仍从入口导出，但**不是**对外承诺 |
+| **内部·仓内** | 未点名，只在**自己包内**（含 spec）被 import ⇒ 实现细节（`align` 一族是特例：走内部子路径） |
+| **结构性** | 无 import，但在仓内被引用（类型位置、常量表、文档）⇒ 形状的一部分（如判别联合的变体） |
+| **零引用** | 全仓**既无 import 也无提及** ⇒ **error**：给消费者 / 在 L1 里点名 / 删掉（C5-b、C6-g 的先例） |
+
+三条纪律：① **不新增零引用导出**（门禁拦）；② **「承诺」只能由 L1 点名产生**——代码里多导出不构成承诺；
+③ **改「发布承诺」= 契约变更**（走 ADR 流程），改内部面只需保持仓内自洽。
+计数每次 `pnpm docs:check` 重算并打印（故"多少承诺、多少内部"永久可查）；`apiSurfaceCheck.allow`
+的**未被命中**项会打印警告（不复用为永久免检牌）。
 
 ## 五、检查
 
@@ -238,8 +256,9 @@
 > ⑤ 入仓原文的来源行与保真（`check-docs.mjs` §8e；纪律见 §4.6）；
 > ⑥ 生成物与来源一致（`check-docs.mjs` §8f；`GENERATED_ARTIFACTS` 在 `scripts/doc-artifacts.mjs`）；
 > ⑦ 证据层的原始读数所有权（`check-docs.mjs` §8g；C8-a）；
-> ⑧ 包规范的 API 段 ⇔ 实际导出面（`check-api-surface.mjs`；纪律见 §4.7；P4-a）。
+> ⑧ 包规范的 API 段 ⇔ 实际导出面（`check-api-surface.mjs`；纪律见 §4.7；**公开面的「发布承诺 / 内部」分类见 §4.8**，
+> 其中"零引用导出"判 **error**；P4-a / P4-b）。
 >
 > 脚本的 `--selftest`（`node scripts/check-docs.mjs --selftest`，当前 **30 例**；`node scripts/check-constants.mjs --selftest`；
-> `node scripts/check-api-surface.mjs --selftest`，当前 **10 例**）
+> `node scripts/check-api-surface.mjs --selftest`，当前 **13 例**）
 > 是这几条的**反向保护**：每类判定都配一个「该绿就绿、该红就红」的合成用例。

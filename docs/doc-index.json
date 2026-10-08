@@ -1544,7 +1544,8 @@
       "提取面刻意窄：只取 target 登记段落的**直属声明块**（从段标题到下一个任意级标题为止，子节不算）。P4-a 实测的教训：子节是「用法示例」，会引用别的包的函数（PROTOCOL.md §2.1 的 `applyCommand` 属 engine）⇒ 计入就是假阳。",
       "段内只认两类形态：mode=fences（围栏代码块里的 `function NAME` / `type|interface|class|enum NAME` / 裸调用 `name(` / 整行裸名字）与 mode=apiTable（表格**首格由反引号符号起头**，取格内全部反引号符号并剥掉参数表）。行注释先剥掉再匹配（`SCHEDULE.md` 的 `// max(ef)` 曾把 `max` 变成假阳）。",
       "minCandidates：**每个 target 必须登记候选数下限**。掉到下限以下 ⇒ 报错（「提取面塌了」）——「写法变了 ⇒ 正则一条也不匹配 ⇒ 检查恒真」是这类机械检查最危险的失效方式（同 check-docs 的「台账轮次列解析为空即报错」）。下限取实测值往下留余量（见每条的 note）。",
-      "allow：例外必须带 reason；改规范或补导出才是正解，登记例外是最后手段。登记为例外的点名**每次运行都会打印**（不静默吞掉）。"
+      "allow：例外必须带 reason；改规范或补导出才是正解，登记例外是最后手段。登记为例外的点名**每次运行都会打印**（不静默吞掉），**未被命中的例外也会打印**（该删就删）。",
+      "P4-b 另在本脚本里落了**公开面分类**（发布承诺 / 内部·跨界 / 内部·仓内 / 结构性 / 零引用；规则见 DOC-SPEC §4.8）：分类不手工维护、每次重算并打印计数，只有「零引用导出」判 error。"
     ],
     "targets": [
       {
@@ -1628,13 +1629,7 @@
         "note": "只有主入口签名块（renderTemplateA）；模块表列的是文件名，不是符号"
       }
     ],
-    "allow": [
-      {
-        "package": "xlsx-protocol",
-        "symbol": "XlsxInput",
-        "reason": "P4-a 实测：PROTOCOL.md §二 把 `type XlsxInput = Uint8Array | ArrayBuffer` 写在公共 API 块里（五个入口的签名都用它），而 src/index.ts 没有 re-export 它——`sheet.ts` 里导出着，消费者「能传值、叫不出类型名」。这一处**正是计划留给 P4-b 的公开面分类项**（见 06-批次记录-P3 §C2 的登记）⇒ 本批不改对外面：要么 P4-b 补 `export type { XlsxInput }`（加一个类型名、零运行时影响），要么 P4-b 在规范里写明它只是内部别名。清单每次运行都会打印，不静默吞掉。"
-      }
-    ]
+    "allow": []
   },
   "pendingList": "docs/01-roadmap/首版-待定清单.md"
 }

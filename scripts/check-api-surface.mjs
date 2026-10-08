@@ -33,8 +33,8 @@
  * - `node scripts/check-api-surface.mjs --selftest` 只跑引擎自检（不读仓库）
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { repoRoot } from './paths.mjs';
 
@@ -190,6 +190,7 @@ export function runApiSurfaceCheck({ config, read }) {
     }
   }
   const allowed = (pkg, symbol) => allow.find((entry) => entry.package === pkg && entry.symbol === symbol);
+  const usedAllow = new Set();
 
   const exportsCache = new Map();
   const exportsOf = (pkg) => {
@@ -254,6 +255,7 @@ export function runApiSurfaceCheck({ config, read }) {
       const exemption = allowed(target.package, name);
       if (exemption !== undefined) {
         // **不静默吞掉**：登记为例外的点名叫法仍要每次打印出来（"清单可见"是本批的产出之一）。
+        usedAllow.add(exemption);
         suppressed.push({ package: target.package, symbol: name, where, detail, reason: exemption.reason });
         continue;
       }
@@ -262,7 +264,154 @@ export function runApiSurfaceCheck({ config, read }) {
   }
 
   for (const finding of findings) errors.push(`[API] ${finding.detail}（${finding.where}）`);
-  return { errors, targets, findings, suppressed };
+  const unusedAllow = allow.filter((entry) => !usedAllow.has(entry));
+  return { errors, targets, findings, suppressed, unusedAllow };
+}
+
+// ── 公开面分类（P4-b） ─────────────────────────────────────────────────────
+//
+// 判据（**机械可重算**，不留手工清单；规则写进 `docs/DOC-SPEC.md` §4.8）：
+//   ① **发布承诺** = 在 L1 文档的 API 段里被点名（即 `apiSurfaceCheck` 的提取面）；
+//   ② **内部·跨界** = 未点名，但被**别的包 / `apps/web` / `scripts`** import；
+//   ③ **内部·仓内** = 未点名，只在**自己包内**（含 spec）被 import；
+//   ④ **结构性** = 无 import，但在仓内被**引用**（类型位置、文档提及、常量表……）；
+//   ⑤ **零引用** = 全仓既无 import 也无提及 ⇒ **error**（"新增零引用导出"正是 P4-b 要拦的）。
+// 每一类的判据都能由本函数重算，故分类表不必手工维护（反重复规则 1：同一事实只留一处权威陈述）。
+
+/** 公开面分类要扫的文件（包内 src/test、`apps/web`、`scripts`、`docs` 与根文件）；不扫 dist/tmp/node_modules。 */
+function collectScanFiles() {
+  const found = [];
+  const skip = new Set(['node_modules', 'dist', 'dist-offline', 'build', 'out', 'tmp', '.git', 'coverage']);
+  const walk = (dir) => {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (skip.has(entry.name)) continue;
+        walk(path);
+      } else if (/\.(ts|mts|cts|vue|mjs|cjs|js|md|json|ps1|html|yml|yaml)$/.test(entry.name)) {
+        found.push(path.slice(repoRoot.length + 1).replace(/\\/g, '/'));
+      }
+    }
+  };
+  walk(join(repoRoot, 'packages'));
+  walk(join(repoRoot, 'apps'));
+  walk(join(repoRoot, 'scripts'));
+  walk(join(repoRoot, 'docs'));
+  for (const entry of readdirSync(repoRoot, { withFileTypes: true })) {
+    if (entry.isFile() && /\.(md|json|mjs|ts|ps1)$/.test(entry.name)) found.push(entry.name);
+  }
+  return found.sort();
+}
+
+/** `import { … } from '<spec>'` 里的具名导入（含 `type`），按 specifier 归属到包。 */
+function importsByPackage(files, read, exportedOf) {
+  const uses = new Map();
+  const slot = (key) => {
+    if (!uses.has(key)) uses.set(key, { outside: new Set(), inside: new Set() });
+    return uses.get(key);
+  };
+  const packages = [...new Set(files.filter((f) => /^packages\/[^/]+\/src\/index\.ts$/.test(f)).map((f) => f.split('/')[1]))];
+  for (const file of files) {
+    if (!/\.(ts|mts|cts|vue|mjs|cjs|js)$/.test(file)) continue;
+    const text = read(file);
+    if (text === null) continue;
+    const insidePkg = packages.find((pkg) => file.startsWith(`packages/${pkg}/`));
+    for (const match of text.matchAll(/(?:^|\n)\s*import\s+(?:type\s+)?\{([^}]*)\}\s+from\s+['"]([^'"]+)['"]/g)) {
+      const spec = match[2];
+      let pkg = null;
+      if (spec.startsWith('@ganttpilot/')) pkg = spec.split('/')[1];
+      else if (spec.startsWith('.')) {
+        const resolved = resolve(dirname(join(repoRoot, file)), spec.replace(/\.js$/, '.ts')).replace(/\\/g, '/');
+        pkg = packages.find((candidate) => resolved.includes(`/packages/${candidate}/`)) ?? null;
+      }
+      if (pkg === null || !packages.includes(pkg)) continue;
+      const exported = exportedOf(pkg);
+      for (const raw of match[1].split(',')) {
+        const token = raw.trim().replace(/^type\s+/, '').split(/\s+as\s+/)[0].trim();
+        if (!/^[A-Za-z_$][\w$]*$/.test(token) || !exported.has(token)) continue;
+        slot(`${pkg}#${token}`)[insidePkg === pkg ? 'inside' : 'outside'].add(file);
+      }
+    }
+  }
+  return uses;
+}
+
+/** 仓内是否还有除"声明与导出"以外的出现（`index.ts` 里的声明行与导出块行不算）。 */
+function referencedOutsideDeclaration(name, files, read, indexPaths) {
+  const word = new RegExp(`\\b${name}\\b`);
+  const declaration = new RegExp(
+    `^\\s*(?:export\\s+)?(?:declare\\s+)?(?:abstract\\s+)?(?:const|let|var|function|class|interface|type|enum)\\s+${name}\\b`,
+  );
+  const exportListLine = new RegExp(`^\\s*(?:type\\s+)?${name}\\s*,?\\s*$`);
+  const singleLineExport = new RegExp(`^\\s*export\\s*(?:type\\s*)?\\{[^}]*\\b${name}\\b[^}]*\\}`);
+  for (const file of files) {
+    const text = read(file);
+    if (text === null) continue;
+    const isIndex = indexPaths.has(file);
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (!word.test(line)) continue;
+      if (isIndex && (declaration.test(line) || exportListLine.test(line) || singleLineExport.test(line))) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * 公开面分类（P4-b）。返回每一类的计数、逐符号的行、以及**零引用**清单（调用方判红）。
+ *
+ * @param {{ config: object, listFiles: () => string[], read: (path: string) => string | null }} input
+ * @returns {{ packages: string[], counts: Map<string, object>, rows: object[], dead: object[] }}
+ */
+export function classifyPublicSurface({ config, listFiles, read }) {
+  const files = listFiles();
+  const indexPaths = new Set(files.filter((file) => /^packages\/[^/]+\/src\/index\.ts$/.test(file)));
+  const packages = [...indexPaths].map((file) => file.split('/')[1]).sort();
+  const exportsCache = new Map();
+  const exportedOf = (pkg) => {
+    if (!exportsCache.has(pkg)) exportsCache.set(pkg, exportedNamesOf(read(`packages/${pkg}/src/index.ts`) ?? ''));
+    return exportsCache.get(pkg);
+  };
+  const { targets } = runApiSurfaceCheck({ config, read });
+  const documented = new Map();
+  for (const stats of targets) {
+    if (!documented.has(stats.package)) documented.set(stats.package, new Set());
+    for (const name of stats.documented) documented.get(stats.package).add(name);
+  }
+  const uses = importsByPackage(files, read, exportedOf);
+
+  const rows = [];
+  for (const pkg of packages) {
+    const promise = documented.get(pkg) ?? new Set();
+    for (const name of [...exportedOf(pkg)].sort()) {
+      const use = uses.get(`${pkg}#${name}`) ?? { outside: new Set(), inside: new Set() };
+      const bucket = promise.has(name)
+        ? '发布承诺'
+        : use.outside.size > 0
+          ? '内部·跨界'
+          : use.inside.size > 0
+            ? '内部·仓内'
+            : referencedOutsideDeclaration(name, files, read, indexPaths)
+              ? '结构性'
+              : '零引用';
+      rows.push({ package: pkg, name, bucket, outside: use.outside.size, inside: use.inside.size });
+    }
+  }
+  const counts = new Map();
+  for (const pkg of packages) {
+    const own = rows.filter((row) => row.package === pkg);
+    counts.set(pkg, {
+      total: own.length,
+      发布承诺: own.filter((row) => row.bucket === '发布承诺').length,
+      '内部·跨界': own.filter((row) => row.bucket === '内部·跨界').length,
+      '内部·仓内': own.filter((row) => row.bucket === '内部·仓内').length,
+      结构性: own.filter((row) => row.bucket === '结构性').length,
+      零引用: own.filter((row) => row.bucket === '零引用').length,
+    });
+  }
+  return { packages, counts, rows, dead: rows.filter((row) => row.bucket === '零引用') };
 }
 
 // ── 主流程 ────────────────────────────────────────────────────────────────
@@ -285,7 +434,7 @@ function main() {
     process.exit(1);
   }
 
-  const { errors, targets, suppressed } = runApiSurfaceCheck({ config, read: readIfExists });
+  const { errors, targets, suppressed, unusedAllow } = runApiSurfaceCheck({ config, read: readIfExists });
 
   console.log(`[API] 核对 ${String(targets.length)} 个 API 段：`);
   const byPackage = new Map();
@@ -299,7 +448,46 @@ function main() {
   for (const [pkg, documented] of byPackage) {
     const text = readIfExists(`packages/${pkg}/src/index.ts`);
     const total = text === null ? 0 : exportedNamesOf(text).size;
-    console.log(`  ${pkg.padEnd(15)} 被规范点名 ${String(documented)} 个 / 入口导出 ${String(total)} 个（含类型；反向差额由 P4-b 的公开面分类负责）`);
+    console.log(`  ${pkg.padEnd(15)} 被规范点名 ${String(documented)} 个 / 入口导出 ${String(total)} 个（含类型；公开面分类见下）`);
+  }
+
+  // 公开面分类（P4-b）：每一类都可重算，故不手工维护分类表；只有"零引用"判红。
+  const classification = classifyPublicSurface({ config, listFiles: collectScanFiles, read: readIfExists });
+  console.log('\n[API] 公开面分类（发布承诺 / 内部；判据见 DOC-SPEC §4.8）：');
+  for (const pkg of classification.packages) {
+    const c = classification.counts.get(pkg);
+    console.log(
+      `  ${pkg.padEnd(15)} 导出 ${String(c.total).padStart(3)}：发布承诺 ${String(c['发布承诺']).padStart(3)} |` +
+        ` 内部·跨界 ${String(c['内部·跨界']).padStart(3)} | 内部·仓内 ${String(c['内部·仓内']).padStart(3)} |` +
+        ` 结构性 ${String(c['结构性']).padStart(3)} | 零引用 ${String(c['零引用']).padStart(3)}`,
+    );
+  }
+  const totals = [...classification.counts.values()].reduce(
+    (acc, c) => ({
+      total: acc.total + c.total,
+      发布承诺: acc['发布承诺'] + c['发布承诺'],
+      '内部·跨界': acc['内部·跨界'] + c['内部·跨界'],
+      '内部·仓内': acc['内部·仓内'] + c['内部·仓内'],
+      结构性: acc['结构性'] + c['结构性'],
+      零引用: acc['零引用'] + c['零引用'],
+    }),
+    { total: 0, 发布承诺: 0, '内部·跨界': 0, '内部·仓内': 0, 结构性: 0, 零引用: 0 },
+  );
+  console.log(
+    `  合计          导出 ${String(totals.total).padStart(3)}：发布承诺 ${totals['发布承诺']} | 内部·跨界 ${totals['内部·跨界']} |` +
+      ` 内部·仓内 ${totals['内部·仓内']} | 结构性 ${totals['结构性']} | 零引用 ${totals['零引用']}`,
+  );
+  for (const row of classification.dead) {
+    errors.push(
+      `[API] 零引用导出：${row.package} 的 \`${row.name}\` 全仓既无 import 也无提及 ——` +
+        '要么给它一个消费者，要么在 L1 规范里点名（= 发布承诺），要么删掉（C5-b/C6-g 的先例）',
+    );
+  }
+
+  if (unusedAllow.length > 0) {
+    // 例外"没被命中"= 那个不一致已经不在了（或提取面写法变了）⇒ 该删条目，不能留着当永久免检牌。
+    console.log(`\n[API] 有 ${String(unusedAllow.length)} 条例外**未被命中**（不一致已消失，或提取面写法变了）——该删就删：`);
+    for (const entry of unusedAllow) console.log(`  warn [API] apiSurfaceCheck.allow 未命中：${entry.package}#${entry.symbol}`);
   }
 
   if (suppressed.length > 0) {
@@ -414,6 +602,55 @@ function selftest() {
     name: 'export { a as b } 取别名（本地名不算导出）、export const 也算导出',
     result: runApiSurfaceCheck(base([target()], [], { 'packages/pkg/src/index.ts': 'export { alpha as Alpha2, Gamma, delta, epsilon };\nexport const Zeta = 1;\n' })),
     expect: (r) => r.findings.length === 1 && r.findings[0].symbol === 'alpha',
+  });
+
+  // ── 公开面分类（P4-b）────────────────────────────────────────────────────
+  // 夹具：`demo` 包五个导出，分别命中五类；`other` 包跨界消费 `Cross`。
+  const classFiles = {
+    'packages/demo/src/index.ts': 'export const Cross = 2;\nexport const Dead = 5;\nexport const LocalOnly = 3;\nexport const Promise1 = 1;\nexport const Structural = 4;\n',
+    'packages/demo/src/local.ts': "import { LocalOnly } from './index.js';\nexport const x = LocalOnly;\n",
+    'packages/demo/src/structural.ts': 'export type Holder = { value: Structural };\n',
+    'packages/other/src/consumer.ts': "import { Cross } from '@ganttpilot/demo';\nexport const y = Cross;\n",
+    'fixtures/api.md': ['## 二、公共 API', '', '```ts', 'function Promise1(): void;', '```'].join('\n'),
+  };
+  const classConfig = {
+    targets: [{ package: 'demo', spec: 'fixtures/api.md', section: '## 二、公共 API', minCandidates: 1 }],
+    allow: [],
+  };
+  const classify = () =>
+    classifyPublicSurface({
+      config: classConfig,
+      listFiles: () => Object.keys(classFiles),
+      read: (path) => classFiles[path] ?? null,
+    });
+
+  cases.push({
+    name: '分类：被点名=发布承诺；跨界 import=内部·跨界；只在本包 import=内部·仓内；仅被提及=结构性',
+    result: classify(),
+    expect: (r) => {
+      const c = r.counts.get('demo');
+      return (
+        r.dead.length === 1 &&
+        r.dead[0].name === 'Dead' &&
+        c['发布承诺'] === 1 &&
+        c['内部·跨界'] === 1 &&
+        c['内部·仓内'] === 1 &&
+        c['结构性'] === 1 &&
+        c['零引用'] === 1
+      );
+    },
+  });
+
+  cases.push({
+    name: '分类：index.ts 里的声明行与导出块行不算"被提及"（否则零引用永远抓不到）',
+    result: classify(),
+    expect: (r) => r.dead.length === 1 && r.dead[0].name === 'Dead',
+  });
+
+  cases.push({
+    name: '分类：被点名却没有消费者 ⇒ 仍是发布承诺（不判红）',
+    result: classify(),
+    expect: (r) => r.dead.every((row) => row.name !== 'Promise1'),
   });
 
   let failed = 0;

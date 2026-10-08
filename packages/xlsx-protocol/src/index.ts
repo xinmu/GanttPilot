@@ -74,6 +74,9 @@ export {
 // ---------------------------------------------------------------- 列探测 / 导入选项
 export type { ColumnDetection, ColumnDetectionResult, ColumnBinding } from './header.js';
 export type { ColumnMapping, ColumnTarget, ImportOptions, RowParseResult } from './buildDocument.js';
+// `XlsxInput` 出现在五个入口的公共签名里（`PROTOCOL.md` §二把它写在公共 API 块中），故必须能从包入口命名。
+// P4-b 的公开面分类按"被 L1 点名 ⇒ 发布承诺"定稿（此前只能传值、叫不出类型名）。
+export type { XlsxInput } from './sheet.js';
 
 // ---------------------------------------------------------------- 日期与容差（供 G4/G7 复用，避免第二套算术）
 export {
