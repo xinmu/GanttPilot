@@ -17,17 +17,20 @@
  *    且该 PID 的命令行里带 `--headless` 与 `--user-data-dir=<同一个 profile>`——
  *    维护者日常那个实例**连 `--user-data-dir` 都没有**，结构上过不了这道闸。
  *
- * 判定逻辑全是纯函数（`scripts/` 不在 vitest 的收集范围内），所以单独配一份自检：
+ * 判定逻辑全是纯函数（`scripts/` 不在 vitest 的**包内**收集面里），所以单独配一份自检。
+ * P3/C7-f 起它**转成 vitest spec**（`scripts/chrome-harness.spec.mjs`）⇒ 随 `pnpm test` 步进 `pnpm gate`：
  *
- *   node scripts/chrome-harness.selftest.mjs    # 纯函数自检（不需要 Chrome）
+ *   npx vitest run scripts/chrome-harness.spec.mjs    # 纯函数自检（不需要 Chrome）
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve } from 'node:path';
+import { repoRoot } from './paths.mjs';
 
-export const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// 单点声明在 `paths.mjs`（P3/C1：原先这里与 11 个脚本各写一遍）；这里原样再导出，
+// 保持本文件既有的公开面（`chrome-harness.spec.mjs` 从这里取 repoRoot）。
+export { repoRoot };
 
 /** `tmp/` 下允许被用于无头 Chrome 的 profile 根（**白名单**：不是任意目录）。 */
 export const PROFILE_ROOT_NAMES = [
@@ -40,6 +43,58 @@ export const PROFILE_ROOT_NAMES = [
 ];
 
 export const profileDirFor = (name) => join(repoRoot, 'tmp', name, String(Date.now()));
+
+/**
+ * 超期 profile 的保留窗口（P3/C7-g）。
+ *
+ * 为什么是 24 小时而不是"清光所有兄弟"：并行的两条链（两个终端、或测量与冒烟同时跑）
+ * 各自的 profile 都是"新"的，年龄窗口保证只回收**没人再用**的那些。
+ */
+export const PROFILE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * 回收 `tmp/<白名单根>/<时间戳>` 下**超期**的 profile 目录，返回被回收的条目（`<根名>/<时间戳>`）。
+ *
+ * ## 为什么需要它
+ *
+ * `chrome-harness` 每次运行都新建带时间戳的 profile 且从不回收：P3/C7-g 实测累计
+ * **1,181 MB / 26,230 文件**（其中 802 MB 是 C7 立项时的读数，之后又长出 379 MB）。
+ * 这些是可再生的中间物，不清理只会让 `tmp/` 变成"没人敢删的黑洞"。
+ *
+ * ## 清理点为什么在 `ensureProfileDir` 里
+ *
+ * 那是**所有**拉起路径的唯一入口（`scripts/cdp.mjs` 的 `spawnChrome` 是唯一调用方），
+ * 把清理与 profile 闸放在同一处，就不会有"某条链忘了清"的破口。
+ *
+ * ## 判据怎么可测
+ *
+ * `now` / `olderThanMs` / `root` 都可注入 ⇒ 自检能在**造出来的目录树**上确定性地
+ * 证明"超期的走、未超期的留"（不去碰真实的那 1,181 MB）。
+ */
+export function pruneStaleProfiles({ root = repoRoot, now = Date.now(), olderThanMs = PROFILE_MAX_AGE_MS } = {}) {
+  const removed = [];
+  for (const name of PROFILE_ROOT_NAMES) {
+    const family = join(root, 'tmp', name);
+    let entries;
+    try {
+      entries = readdirSync(family, { withFileTypes: true });
+    } catch {
+      continue; // 该白名单根还不存在：正常
+    }
+    for (const entry of entries) {
+      // 只认"时间戳目录"这一种形状：别的东西（手放的草稿、半成品）一律不碰。
+      if (!entry.isDirectory() || !/^\d+$/.test(entry.name)) continue;
+      if (now - Number(entry.name) <= olderThanMs) continue;
+      try {
+        rmSync(join(family, entry.name), { recursive: true, force: true });
+        removed.push(`${name}/${entry.name}`);
+      } catch {
+        // 并发删除 / 文件被占用：留给下一次（清理不是判据，失败不该让任何一步红）
+      }
+    }
+  }
+  return removed;
+}
 
 /** 是否是被允许的临时 profile 目录（形状：`<repo>/tmp/<白名单名>/<时间戳>`）。 */
 export function isAllowedProfileDir(dir, root = repoRoot) {
@@ -220,6 +275,13 @@ export function psCommandLine(pid) {
 /** 幂等建目录（Chrome 自己也会建，这里只是让"开跑前断言"有东西可指向）。 */
 export function ensureProfileDir(dir) {
   assertOwnProfile(dir);
+  // 建**本轮**的 profile 之前，顺手回收超期的同族 profile（P3/C7-g：实测累计 1,181 MB）。
+  const pruned = pruneStaleProfiles();
+  if (pruned.length > 0) {
+    console.log(
+      `[chrome-harness] 回收超期 profile ${String(pruned.length)} 个（>${String(PROFILE_MAX_AGE_MS / 3_600_000)}h）：${pruned.slice(0, 5).join('、')}${pruned.length > 5 ? ' …' : ''}`,
+    );
+  }
   mkdirSync(dir, { recursive: true });
   return dir;
 }

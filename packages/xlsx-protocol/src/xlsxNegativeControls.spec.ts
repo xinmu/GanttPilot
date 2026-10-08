@@ -8,14 +8,12 @@
  * 这一层证明的是**判据有判别力**：如果实现的"读取"其实是恒真式，这些用例会全绿。
  */
 import { describe, expect, it } from 'vitest';
-import JSZip from 'jszip';
 
 import { hasDocumentErrors, validateDocument } from '@ganttpilot/engine';
 
 import { exportXlsx } from './export.js';
 import { importXlsx } from './import.js';
-import { fixtureDocumentNoProjectFields } from './fixtures.spec.js';
-import { partFingerprint } from './fixtures.spec.js';
+import { fixtureDocumentNoProjectFields, partFingerprint, writeZipFromText, zipFileEntries } from './fixtures.spec.js';
 
 const SHEET_PATH = 'xl/worksheets/sheet1.xml';
 const SHARED_STRINGS_PATH = 'xl/sharedStrings.xml';
@@ -30,24 +28,15 @@ async function repack(
   source: Uint8Array,
   mutate: (parts: Map<string, string>) => void,
 ): Promise<Repacked> {
-  const zip = await JSZip.loadAsync(source);
   const parts = new Map<string, string>();
-  for (const name of Object.keys(zip.files)) {
-    const entry = zip.files[name];
-    if (entry === undefined || entry.dir) {
-      continue;
-    }
+  for (const { name, entry } of await zipFileEntries(source)) {
     parts.set(name, await entry.async('string'));
   }
   const before = parts.get(SHEET_PATH) ?? '';
   const beforeStrings = parts.get(SHARED_STRINGS_PATH) ?? '';
   mutate(parts);
 
-  const out = new JSZip();
-  for (const [name, content] of parts) {
-    out.file(name, content);
-  }
-  const bytes = new Uint8Array(await out.generateAsync({ type: 'uint8array' }));
+  const bytes = await writeZipFromText(parts);
   return {
     bytes,
     changed: (parts.get(SHEET_PATH) ?? '') !== before || (parts.get(SHARED_STRINGS_PATH) ?? '') !== beforeStrings,

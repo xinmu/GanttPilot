@@ -1,10 +1,17 @@
 # spike：G0-S-S1 · PPTX connector 吸附 + group 坐标
 
-> **这是 spike 代码，不属于产品主干。** 见 [结论.md](结论.md)。
+> **这是 spike 留档，不属于产品主干、也不进任何注入包。** 见 [结论.md](结论.md)。
 >
 > 铁律（[证伪实验计划](../../docs/00-baseline/证伪实验计划.md)）：**spike 代码不进主干**。
 > 本目录只交付「可行性与正确形态」；补丁算法在能力块 **G7** 由
-> `@ganttpilot/pptx-renderer` 重新实现，届时**本目录应整体删除**。
+> `@ganttpilot/pptx-renderer` 重新实现。
+>
+> **处置（P2/D9）**：G7 已落地，原声明"**本目录应整体删除**"按 DOC-SPEC §4.5 执行了**一半**——
+> **探针代码已删除**（`src/` 与 `package.json` / `tsconfig.json` / `pnpm-lock.yaml`）；
+> **本文、`结论.md` 与 `evidence/` 留档**（后者是**不可再生的外部工具观测**：WPS 真机落盘的 XML 与渲染 PNG，
+> 登记为归档层）。因此下文所有"如何运行本 spike"的步骤**已不可执行**，保留原文只为留痕；
+> 受维护的替代是 WPS 取证链 [`scripts/wps-pptx-verify.ps1`](../../scripts/wps-pptx-verify.ps1)
+> + 其 COM 工具底座 `scripts/wps-com.ps1`（后者的函数体逐字迁自本目录原 `src/wps-common.ps1`）。
 
 ## 这个 spike 回答什么
 

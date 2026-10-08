@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /**
- * 左表（ADR 0007 §4/§8）。列集合**锚 G3 的 9 列契约**（`COLUMN_SPECS`，不新造第四套列语义）， * `wbs` 列显示派生值 `outlineNumber`（真相源是层级 + 文档序）。
+ * 左表（ADR 0007 §4/§8）。列集合**锚 G3 的 9 列契约**（`COLUMN_SPECS`，不新造第四套列语义）；
+ * `wbs` 列显示派生值 `outlineNumber`（真相源是层级 + 文档序）。
  *
  * ## 行内编辑（G4 的出口条件之一）
  *
@@ -18,7 +19,8 @@
  * `scrollTop` 由图表窗格驱动（唯一真相源），两栏因此天然同步。
  *
  * **两条硬约束**（P-23 的诊断实测各抓出过一条，都表现为"逐行漂移"）：
- * ① 表头与图表表头带**同高**（`HEADER_HEIGHT_PX`，`box-sizing: border-box` 使 28 px 是外高），
+ * ① 表头与图表表头带**同高**（`HEADER_HEIGHT_PX`；`box-sizing: border-box` 使这个值就是**外高**。
+ *    该常量在刻度改为两级时上调过，取值与来历见 `manifest.ts` 的声明处），
  *    表体高 = `columnHeight − HEADER_HEIGHT_PX`；
  * ② **行外高必须等于模型行高**（`box-sizing: border-box`）——`content-box` 下 24 + 1 px 边框 = 25 px，
  *    32 行就漂 32 px（R9）。
@@ -27,18 +29,31 @@
 
 import { computed, ref, watch } from 'vue';
 import {
+  AXIS_GRIDLINE_STROKE,
   cellText,
-  COLUMN_SPECS,
   HEADER_HEIGHT_PX,
+  HOVER_ROW_FILL,
+  INDENT_PX_PER_LEVEL,
   isEditStale,
   rawCellText,
   TABLE_COLUMNS,
+  tableColumnTemplate,
   type ColumnKey,
   type ProjectDocument,
   type Schedule,
   type ViewModel,
 } from '@ganttpilot/render-core';
-import type { Calendar } from '@ganttpilot/engine';
+import { computeDepths, type Calendar } from '@ganttpilot/engine';
+
+/**
+ * 与图表**同值**的两枚样式令牌（P3/C5）：值只在 `render-core` 的 `manifest.ts` 声明，
+ * 这里只把它注入成 CSS 变量——左表是 CSS 渲染的，没法直接引用 TS 常量，
+ * 而"值的第二份"正是常量检查（`constantCheck` 的 `axis-colors`）要挡的东西。
+ */
+const styleTokens = {
+  '--axis-gridline-stroke': AXIS_GRIDLINE_STROKE,
+  '--hover-row-fill': HOVER_ROW_FILL,
+} as const;
 
 const props = defineProps<{
   readonly view: ViewModel;
@@ -93,71 +108,37 @@ const draft = ref('');
 const columns = TABLE_COLUMNS;
 
 /**
- * **左表的列宽与网格模板（左表与表体的唯一真相源）**。
+ * **网格模板：左表列宽的唯一真相源（现在在 `render-core`）**。
  *
- * ## 为什么不再手写 `grid-template-columns`
+ * P3/C6-e 把这张表的**换算规则与语义下限整段收回了 `render-core/src/columns.ts`**
+ * （`tableColumnTemplate()`）：`COLUMN_SPECS.width` 是**导出用的字符宽度**（`wbs: 10`、
+ * `name: 32`），不是像素；它归一成像素的规则与"每列至少多宽"的下限表，和**列身份**是
+ * 同一件事的两面——分居两处就一定会漂（P-48 的 ①②：表头排成两行、`WBS` 被省略号吃掉，
+ * 两次都是"手写的 `grid-template-columns` 与 `COLUMN_SPECS` 已经不一致"）。
  *
- * 此前表头与表体各写了一遍 `28px 200px …`，而 `COLUMN_SPECS.width` 是**导出用的字符宽度**
- * （`wbs: 10`、`name: 32`）——两者语义不同，手写值一旦被抄错（或只改一处）就会让
- * **表头与表体的列宽不一致**。现在只有一处：`COLUMN_SPECS.width` 归一成像素 + 语义下限。
- *
- * ## 像素换算与下限
- *
- * `px = max(minPx, round(width × 6.5))`：6.5 px/字符 ≈ 12 px 系统的汉字宽（略宽于英文），
- * 下限保的是"这一列至少能放下它自己的表头与典型内容"：
- *
- * | 列 | 导出宽度 | 归一 | 下限的来历 |
- * |---|---|---|---|
- * | `WBS` | 10 | 65 | `1.2.3` + **折叠按钮 18 px** |
- * | `任务名称` | 32 | 208 | 名称 + 12 px/级的缩进 |
- * | `开始`/`完成` | 12 | 78 | 十字符日期 |
- * | `工期` | 8 | 56 | 三字符数字 + 右对齐内边距 |
- * | `前置任务` | 20 | 130 | `1.3FS` / `1.3SS-2` 可直接照抄 |
- * | `进度`/`里程碑` | 8 | 56 | 百分比 / 是·否 |
- * | `备注` | 28 | 182 | 略窄于名称列 |
- *
- * 合计 **992 px**（下限之和 906 px）；`.table-pane` 是 `flex: 0 0 auto`（不拉伸），
- * 剩余宽度全给图表——与既有布局口径一致。
+ * 本组件的职责就此只剩**注入**：把同一串喂给两行表头与表体（表头与表体同源是两栏内部对齐的前提）。
  */
-const COLUMN_MIN_PX: Readonly<Record<ColumnKey, number>> = {
-  wbs: 65,
-  name: 208,
-  start: 78,
-  end: 78,
-  duration: 56,
-  predecessors: 130,
-  progress: 56,
-  milestone: 56,
-  notes: 182,
-};
+const columnTemplate = computed(() => tableColumnTemplate());
 
-const columnWidths = computed<number[]>(() =>
-  COLUMN_SPECS.map((spec) => Math.max(COLUMN_MIN_PX[spec.key], Math.round(spec.width * 6.5))),
-);
+/**
+ * 任务 id → **层级深度**（缩进用；口径来自引擎，P3/C6-e）。
+ *
+ * `engine.computeDepths` 与 `buildTaskTree` 是**同一个根判定**（`parentId` 为空 / 悬空 / 自指
+ * ⇒ 根），因此"左表缩进"与"WBS 编号 / 行序"永远同源。此前这里自己数 `parentId` 跳数并用
+ * `depth < 64` 截断防环，于是：**成环的文档整列缩进 768 px**、**悬空 `parentId` 的任务缩进
+ * 12 px**（而它的 WBS 编号显示为根）——两处口径不一致，且深链在第 64 级被静默压平。
+ * 判据：`packages/engine/src/wbs.spec.ts` 的「`computeDepths` 与 `buildTaskTree` 的 depth
+ * 逐节点一致」（含悬空 / 自环 / 成环 / 100 级深链四类脏数据）。
+ *
+ * 这里也顺手删掉了原先那个 `docIndex` 字段：它建了却没人读（消费者一律用
+ * `row.docIndex`——那是 `ViewModel` 给的渲染行口径）。
+ */
+const taskDepths = computed(() => computeDepths(props.document.tasks));
 
-/** 网格模板（表头与表体**共用**它——这是两栏内部对齐的前提）。 */
-const columnTemplate = computed(() => columnWidths.value.map((width) => `${String(width)}px`).join(' '));
-
-/** 任务 id → 文档序索引与层级深度（一次性构建，避免 O(n²) 查找）。 */
-const taskMeta = computed(() => {
-  const parentOf = new Map<string, string | null>();
-  const indexOf = new Map<string, number>();
-  props.document.tasks.forEach((task, index) => {
-    parentOf.set(task.id, task.parentId);
-    indexOf.set(task.id, index);
-  });
-  const meta = new Map<string, { readonly docIndex: number; readonly depth: number }>();
-  for (const [id, docIndex] of indexOf) {
-    let depth = 0;
-    let current = parentOf.get(id) ?? null;
-    while (current !== null && depth < 64) {
-      depth += 1;
-      current = parentOf.get(current) ?? null;
-    }
-    meta.set(id, { docIndex, depth });
-  }
-  return meta;
-});
+/** 名称列的缩进（CSS 长度）：层级深度 × 每级缩进。 */
+function rowIndentPx(taskId: string): string {
+  return `${String((taskDepths.value.get(taskId) ?? 0) * INDENT_PX_PER_LEVEL)}px`;
+}
 
 const rowBlockTop = computed(() => Math.max(0, props.view.renderFirst * props.view.rowHeight));
 
@@ -235,7 +216,7 @@ void emit;
 <template>
   <div
     class="table-pane"
-    :style="{ height: `${String(columnHeight)}px`, '--header-h': `${String(HEADER_HEIGHT_PX)}px` }"
+    :style="{ height: `${String(columnHeight)}px`, '--header-h': `${String(HEADER_HEIGHT_PX)}px`, ...styleTokens }"
   >
     <div class="table-header">
       <!--
@@ -334,7 +315,7 @@ void emit;
               >
               <span
                 v-else
-                :style="column.key === 'name' ? { paddingLeft: `${String((taskMeta.get(row.id)?.depth ?? 0) * 12)}px` } : undefined"
+                :style="column.key === 'name' ? { paddingLeft: rowIndentPx(row.id) } : undefined"
                 @dblclick="beginEdit(row.docIndex, column.key, column.editable)"
               >
                 {{ displayOf(row.docIndex, column.key).text }}
@@ -353,7 +334,7 @@ void emit;
   flex-direction: column;
   /* 左表宽度 = 列宽之和（`COLUMN_SPECS` 的 9 列），**不参与拉伸**；剩余宽度全给图表。 */
   flex: 0 0 auto;
-  border-right: 1px solid #e4e7ec;
+  border-right: 1px solid var(--axis-gridline-stroke);
   background: #ffffff;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 12px;
@@ -378,7 +359,7 @@ void emit;
   box-sizing: border-box;
   height: var(--header-h);
   background: #f9fafb;
-  border-bottom: 1px solid #e4e7ec;
+  border-bottom: 1px solid var(--axis-gridline-stroke);
   font-weight: 600;
   color: #475467;
 }
@@ -393,7 +374,7 @@ void emit;
 
 /* 第二行留白（P-46 §3）：只画一条行间分隔线，**不放任何文字**。 */
 .header-row-blank {
-  border-top: 1px solid #e4e7ec;
+  border-top: 1px solid var(--axis-gridline-stroke);
 }
 
 .cell-blank {
@@ -442,8 +423,9 @@ void emit;
  * | `.row.hovered` | **图表**的指针在这一行上（`GanttChart.hoverTaskId`） | 由父级传 `hoverTaskId` 派生 |
  *
  * 颜色与图表侧那 1 个 `hover-band` 覆盖层**同值**（`render-core` 的 `HOVER_ROW_FILL`），
- * 因此"条体 ↔ 左表"的对照成立（P-46 的复验反馈第 ⑥ 条：原来的 `#e8f1fb` 太浅、
- * 与周末灰度带 `#f4f6f8` 混在一起 ⇒ 加深到 `#cfe3fa`；第 ⑦ 条要求跨两栏一致）。
+ * 因此"条体 ↔ 左表"的对照成立（P-46 的复验反馈第 ⑥ 条：原来的浅蓝太接近周末灰度带的
+ * `AXIS_BAND_FILL` ⇒ 加深到 `HOVER_ROW_FILL`；第 ⑦ 条要求跨两栏一致）。**色值不在本文件复述**——
+ * 上面两枚 CSS 变量就是它的注入通道。
  *
  * 三条 CSS 规则的**优先级是刻意写清的**（都是单类 + 单伪类，同级）：
  * ① `.row.summary` 的底色比 `.row` 更具体 ⇒ 汇总行的悬停要**同等具体**才生效；
@@ -451,12 +433,12 @@ void emit;
  */
 .row:hover,
 .row.hovered {
-  background: #cfe3fa;
+  background: var(--hover-row-fill);
 }
 
 .row.summary:hover,
 .row.summary.hovered {
-  background: #cfe3fa;
+  background: var(--hover-row-fill);
 }
 
 .row.conflict:hover,

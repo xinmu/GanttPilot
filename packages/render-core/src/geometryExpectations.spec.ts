@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildFixture, DATASETS } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import { buildView, DEFAULT_VIEWPORT } from './viewModel.js';
 import {
   checkEdgeEndpointsAndSummaryCoverage,
@@ -26,7 +27,7 @@ import {
 } from './checkers.spec.js';
 import { ROUTE_SIDES } from './route.js';
 
-const primary = buildFixture(DATASETS[2]);
+const primary = buildFixture(datasetOf('dense'));
 
 describe('G4 几何期望值表（ADR 0007 §9 ①；13/13，来自 G4-S）', () => {
   it('13 条声明式期望值全过（G4-S 实测 13/13）', () => {

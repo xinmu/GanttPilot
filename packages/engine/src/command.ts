@@ -28,7 +28,7 @@
  * 本文件零 DOM、零框架依赖。
  */
 
-import { isoToDayNumber } from './date.js';
+import { isIsoDateText } from './date.js';
 import {
   applyDocumentJournal,
   createBulkJournal,
@@ -268,7 +268,7 @@ export type CommandParseResult =
   | { readonly ok: true; readonly command: DocumentCommand }
   | { readonly ok: false; readonly code: CommandFailureCode; readonly message: string };
 
-function fail(code: CommandFailureCode, message: string): CommandFailure {
+function failureOf(code: CommandFailureCode, message: string): CommandFailure {
   return { ok: false, code, message };
 }
 
@@ -312,15 +312,6 @@ function checkBoolean(problems: string[], value: unknown, label: string): value 
   }
   problems.push(`${label} 必须是布尔值`);
   return false;
-}
-
-function isIsoDateText(value: string): boolean {
-  try {
-    isoToDayNumber(value);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function checkIsoDateOrNull(problems: string[], value: unknown, label: string): value is string | null {
@@ -686,7 +677,7 @@ function settleShape<T>(problems: readonly string[], build: () => T):
   | { readonly ok: true; readonly command: T }
   | CommandFailure {
   if (problems.length > 0) {
-    return fail('CMD_INVALID_PAYLOAD', report(problems));
+    return failureOf('CMD_INVALID_PAYLOAD', report(problems));
   }
   return { ok: true, command: build() };
 }
@@ -834,11 +825,11 @@ function hasLink(document: ProjectDocument, id: string): boolean {
 }
 
 function taskNotFound(id: string): CommandFailure {
-  return fail('CMD_TASK_NOT_FOUND', `任务不存在：${id}`);
+  return failureOf('CMD_TASK_NOT_FOUND', `任务不存在：${id}`);
 }
 
 function linkNotFound(id: string): CommandFailure {
-  return fail('CMD_LINK_NOT_FOUND', `依赖边不存在：${id}`);
+  return failureOf('CMD_LINK_NOT_FOUND', `依赖边不存在：${id}`);
 }
 
 /** `WbsFailureCode` → 命令失败码（三个值被归一，其余逐值透传）。 */
@@ -861,7 +852,7 @@ function fromWbs(
     if (result.code === 'WBS_SAME_POSITION') {
       return { ok: true, candidate: document };
     }
-    return fail(mapWbsCode(result.code), result.message);
+    return failureOf(mapWbsCode(result.code), result.message);
   }
   return { ok: true, candidate: { ...document, tasks: result.value } };
 }
@@ -906,7 +897,7 @@ function buildCandidate(document: ProjectDocument, command: DocumentCommand): Bu
         patch.baseCalendarId !== '' &&
         !document.calendars.some((spec) => (spec.id ?? 'project') === patch.baseCalendarId)
       ) {
-        return fail(
+        return failureOf(
           'CMD_CALENDAR_NOT_FOUND',
           `\`baseCalendarId\` = ${JSON.stringify(patch.baseCalendarId)} 在 \`calendars[]\` 中不存在`,
         );
@@ -917,13 +908,13 @@ function buildCandidate(document: ProjectDocument, command: DocumentCommand): Bu
     case 'task.insert': {
       const task = command.task;
       if (hasTask(document, task.id)) {
-        return fail('CMD_TASK_ID_DUPLICATE', `任务 id 已存在：${task.id}`);
+        return failureOf('CMD_TASK_ID_DUPLICATE', `任务 id 已存在：${task.id}`);
       }
       if (command.parentId !== null && !hasTask(document, command.parentId)) {
-        return fail('CMD_PARENT_NOT_FOUND', `目标父任务不存在：${command.parentId}`);
+        return failureOf('CMD_PARENT_NOT_FOUND', `目标父任务不存在：${command.parentId}`);
       }
       if (command.afterTaskId !== undefined && !hasTask(document, command.afterTaskId)) {
-        return fail('CMD_ANCHOR_TASK_NOT_FOUND', `落点任务不存在：${command.afterTaskId}`);
+        return failureOf('CMD_ANCHOR_TASK_NOT_FOUND', `落点任务不存在：${command.afterTaskId}`);
       }
       const appended = [...document.tasks, task];
       const target: WbsMoveTarget = {
@@ -939,7 +930,7 @@ function buildCandidate(document: ProjectDocument, command: DocumentCommand): Bu
         // 追加位置恰好就是目标位置：`moveTask` 把"已经在位"判为无操作，但对 insert 而言这正是成功。
         return { ok: true, candidate: { ...document, tasks: reindexTasks(appended) } };
       }
-      return fail(mapWbsCode(moved.code), moved.message);
+      return failureOf(mapWbsCode(moved.code), moved.message);
     }
 
     case 'task.update': {
@@ -989,10 +980,10 @@ function buildCandidate(document: ProjectDocument, command: DocumentCommand): Bu
         return taskNotFound(command.id);
       }
       if (command.target.parentId !== null && !hasTask(document, command.target.parentId)) {
-        return fail('CMD_PARENT_NOT_FOUND', `目标父任务不存在：${command.target.parentId}`);
+        return failureOf('CMD_PARENT_NOT_FOUND', `目标父任务不存在：${command.target.parentId}`);
       }
       if (command.target.afterTaskId !== undefined && !hasTask(document, command.target.afterTaskId)) {
-        return fail('CMD_ANCHOR_TASK_NOT_FOUND', `落点任务不存在：${command.target.afterTaskId}`);
+        return failureOf('CMD_ANCHOR_TASK_NOT_FOUND', `落点任务不存在：${command.target.afterTaskId}`);
       }
       return fromWbs(document, moveTask(document.tasks, command.id, command.target));
     }
@@ -1000,16 +991,16 @@ function buildCandidate(document: ProjectDocument, command: DocumentCommand): Bu
     case 'link.insert': {
       const link = command.link;
       if (hasLink(document, link.id)) {
-        return fail('CMD_LINK_ID_DUPLICATE', `依赖边 id 已存在：${link.id}`);
+        return failureOf('CMD_LINK_ID_DUPLICATE', `依赖边 id 已存在：${link.id}`);
       }
       if (!hasTask(document, link.from) || !hasTask(document, link.to)) {
-        return fail(
+        return failureOf(
           'CMD_LINK_ENDPOINT_NOT_FOUND',
           `依赖边端点不存在：${JSON.stringify(link.from)} → ${JSON.stringify(link.to)}`,
         );
       }
       if (link.from === link.to) {
-        return fail('CMD_LINK_SELF_REFERENCE', '依赖边不能自环');
+        return failureOf('CMD_LINK_SELF_REFERENCE', '依赖边不能自环');
       }
       return { ok: true, candidate: { ...document, links: [...document.links, link] } };
     }
@@ -1025,13 +1016,13 @@ function buildCandidate(document: ProjectDocument, command: DocumentCommand): Bu
         return { ok: true, candidate: document };
       }
       if (!hasTask(document, next.from) || !hasTask(document, next.to)) {
-        return fail(
+        return failureOf(
           'CMD_LINK_ENDPOINT_NOT_FOUND',
           `依赖边端点不存在：${JSON.stringify(next.from)} → ${JSON.stringify(next.to)}`,
         );
       }
       if (next.from === next.to) {
-        return fail('CMD_LINK_SELF_REFERENCE', '依赖边不能自环');
+        return failureOf('CMD_LINK_SELF_REFERENCE', '依赖边不能自环');
       }
       const links = [...document.links];
       links[index] = next;
@@ -1063,7 +1054,7 @@ function buildCandidate(document: ProjectDocument, command: DocumentCommand): Bu
  */
 export function applyCommand(document: ProjectDocument, command: DocumentCommand): CommandResult {
   if (document.version !== CURRENT_DOCUMENT_VERSION) {
-    return fail(
+    return failureOf(
       'CMD_VERSION_MISMATCH',
       `文档版本 ${String(document.version)} 不是当前版本 ${String(CURRENT_DOCUMENT_VERSION)}（迁移请在 parseDocument 完成）`,
     );
@@ -1071,7 +1062,7 @@ export function applyCommand(document: ProjectDocument, command: DocumentCommand
 
   const shape = checkCommandShape(command);
   if (!shape.ok) {
-    return fail(shape.code, shape.message);
+    return failureOf(shape.code, shape.message);
   }
   const checked = shape.command;
 

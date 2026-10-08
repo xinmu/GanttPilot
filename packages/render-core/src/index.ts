@@ -18,8 +18,13 @@
 /** 本包按 semver 独立发版（见 README「文档约定」）。 */
 export const RENDER_CORE_VERSION = '0.0.0';
 
-/** 本包最新完成的能力块编号（完整清单见 `COMPLETED_GATES`）。 */
-export const PLANNED_GATE = 'G8' as const;
+/**
+ * 本包**最新完成**的能力块编号（完整清单见 `COMPLETED_GATES`）。
+ *
+ * 旧名 `PLANNED_GATE` 有两处说谎（P3/C7-h 只改名、不改语义）：`PLANNED` 与"已完成"相反；
+ * `GATE` 在本仓专指**质量门禁**（`pnpm gate`，ADR 0001），不该被这个常量占用。
+ */
+export const LATEST_COMPLETED_BLOCK = 'G8' as const;
 
 /** 已落地能力块清单（G4 的几何与裁剪 + G7 的导出投影与 SVG 序列化）。 */
 export const COMPLETED_GATES = ['G4', 'G7', 'G8'] as const;
@@ -34,6 +39,8 @@ export {
   AXIS_MAJOR_BODY_FILL,
   AXIS_MAJOR_EDGE,
   AXIS_MAJOR_HEADER_FILL,
+  BAR_FILL,
+  BAR_SUMMARY_FILL,
   CONNECT_HIT_PAD_PX,
   CONNECT_INSET_PX,
   CONNECT_REVEAL_FACTOR,
@@ -50,6 +57,7 @@ export {
   HEADER_HEIGHT_PX,
   HIT_TOLERANCE_PX,
   HOVER_ROW_FILL,
+  INDENT_PX_PER_LEVEL,
   MIN_MOVE_ZONE_PX,
   LABEL_CHAR_PX,
   LABEL_PADDING_PX,
@@ -82,6 +90,7 @@ export {
   arrowVertices,
   jaccardDistance,
   pointInTriangle,
+  previewStubX,
   rasterizeArrow,
   routeEdge,
   routeSides,
@@ -99,6 +108,7 @@ export {
   rowIndexOfOrder,
   taskBounds,
   visibleRowOrder,
+  workdayCellCenterX,
   type AxisParams,
   type RowKind,
   type TaskBounds,
@@ -109,7 +119,6 @@ export {
 export {
   axisOriginDayFor,
   buildAxis,
-  isRenderedRow,
   rowWindow,
   selectEdges,
   type AxisCalendarLike,
@@ -181,13 +190,12 @@ export {
   type PointerInput,
   type ReduceGestureArgs,
   type ResolvePointerArgs,
-} from './gesture.js';
+} from './gesture/index.js';
 
 // ---------------------------------------------------------------- 交互态高亮（ADR 0008 §8/§9）
 export {
   affectedRenderSetWithAnchors,
   emptyHighlight,
-  highlightForConflict,
   highlightForCyclePath,
   highlightForLinkEndpoints,
   highlightForTask,
@@ -208,7 +216,6 @@ export {
   translateZone,
   translateZones,
   zoneAt,
-  zoneContains,
   zonesFor,
   type CursorHint,
   type DragZone,
@@ -237,20 +244,6 @@ export {
 } from './interaction.js';
 
 // ---------------------------------------------------------------- 两栏行对齐（ADR 0007 §14 / 裁决 P-23；覆盖度与迁移见 P-40）
-export {
-  diagnoseResizeMigration,
-  diagnoseRowAlignment,
-  diagnoseScrollCoverage,
-  summarizeAlignment,
-  type AlignMechanism,
-  type ResizeMigrationVerdict,
-  type RowAlignDelta,
-  type RowAlignProbe,
-  type RowAlignSample,
-  type RowAlignVerdict,
-  type ScrollCoverage,
-  type ScrollPositionFact,
-} from './align.js';
 
 // ---------------------------------------------------------------- 列身份（ADR 0008 §1–§3；唯一真相源）
 export {
@@ -263,6 +256,10 @@ export {
   HEADER_ROW,
   SHEET_NAME,
   TABLE_COLUMNS,
+  TABLE_COLUMN_CHAR_PX,
+  TABLE_COLUMN_MIN_PX,
+  tableColumnTemplate,
+  tableColumnWidths,
   type ColumnKey,
   type ColumnRequirement,
   type ColumnSpec,
@@ -355,14 +352,18 @@ export {
   EXPORT_LABEL_INDENT_PX,
   EXPORT_LABEL_MAX_DEPTH,
   EXPORT_LABEL_PADDING_PX,
+  exportLabelOf,
   exportLabelStyleOf,
   exportLabelTextOf,
+  type ExportLabel,
+  type ExportLabelOfArgs,
   type ExportLabelStyle,
   type ExportLabelTextArgs,
 } from './exportLabels.js';
 export {
   EXPORT_SIDEBAR_GAP_PX,
   EXPORT_SIDEBAR_WIDTH_PX,
+  escapeXml,
   svgInnerSizeOf,
   svgString,
   EXPORT_TICK_LENGTH_PX,

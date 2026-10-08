@@ -12,7 +12,7 @@ import * as renderCore from './index.js';
 describe('@ganttpilot/render-core 公共入口', () => {
   it('导出包标识与能力块', () => {
     expect(renderCore.RENDER_CORE_VERSION).toBe('0.0.0');
-    expect(renderCore.PLANNED_GATE).toBe('G8');
+    expect(renderCore.LATEST_COMPLETED_BLOCK).toBe('G8');
     expect(renderCore.COMPLETED_GATES).toStrictEqual(['G4', 'G7', 'G8']);
   });
 
@@ -29,7 +29,7 @@ describe('@ganttpilot/render-core 公共入口', () => {
     expect(typeof renderCore.routeEdge).toBe('function');
     expect(typeof renderCore.selectEdges).toBe('function');
     expect(typeof renderCore.rowWindow).toBe('function');
-    expect(typeof renderCore.isRenderedRow).toBe('function');
+    expect(typeof renderCore.isRowRendered).toBe('function');
     expect(typeof renderCore.buildAxis).toBe('function');
     expect(typeof renderCore.axisOriginDayFor).toBe('function');
     expect(typeof renderCore.visibleRowOrder).toBe('function');

@@ -22,6 +22,7 @@ import {
 } from './clip.js';
 import { rowIndexOfOrder, taskBounds, visibleRowOrder } from './domain.js';
 import { buildFixture, DATASETS, FIXTURE_PROJECT_START_ISO, REFERENCE_DATASET } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import {
   AXIS_LEFT_GUTTER_DAYS,
   CONTENT_RIGHT_PAD_PX,
@@ -112,7 +113,7 @@ describe('行模型（ADR 0007 §4）', () => {
 });
 
 describe('视图模型（ADR 0007 §2/§3/§7）', () => {
-  const fixture = buildFixture(DATASETS[2]);
+  const fixture = buildFixture(datasetOf('dense'));
 
   it('`es[i] === -1` 是唯一的汇总判别式：汇总行取 summaryEs/summaryEf 与 summaryProgress', () => {
     const view = buildView({
@@ -227,7 +228,7 @@ describe('视图模型（ADR 0007 §2/§3/§7）', () => {
   });
 
   it('折叠改变可见行集合后，被折叠子树的行与边都不渲染（无悬空线）', () => {
-    const collapsed = buildFixture({ ...DATASETS[2], key: 'dense-collapsed-1-3', collapsedSummaries: [1, 3] });
+    const collapsed = buildFixture({ ...datasetOf('dense'), key: 'dense-collapsed-1-3', collapsedSummaries: [1, 3] });
     const view = buildView({
       document: collapsed.document,
       schedule: collapsed.schedule,
@@ -280,7 +281,7 @@ describe('视图模型（ADR 0007 §2/§3/§7）', () => {
 });
 
 describe('轴与刻度（ADR 0007 §3 + §11.1 ③ 水平窗口裁剪）', () => {
-  const fixture = buildFixture(DATASETS[2]);
+  const fixture = buildFixture(datasetOf('dense'));
 
   it('轴线起点：按档位向前取整到该档位起点，再向左留 gutter', () => {
     const ord = fixture.schedule.projectStart;
@@ -381,9 +382,9 @@ describe('轴与刻度（ADR 0007 §3 + §11.1 ③ 水平窗口裁剪）', () =>
     });
     // 折叠**全部**汇总：可见行只剩汇总本身（叶子全部隐藏）。
     const collapsedFixture = buildFixture({
-      ...DATASETS[2],
+      ...datasetOf('dense'),
       key: 'dense-collapsed-all',
-      collapsedSummaries: Array.from({ length: DATASETS[2].summaries }, (_, index) => index + 1),
+      collapsedSummaries: Array.from({ length: datasetOf('dense').summaries }, (_, index) => index + 1),
     });
     const collapsed = buildView({
       document: collapsedFixture.document,
@@ -394,7 +395,7 @@ describe('轴与刻度（ADR 0007 §3 + §11.1 ③ 水平窗口裁剪）', () =>
     });
     expect(expanded.rowHeight).toBe(ROW_HEIGHT);
     expect(collapsed.rowHeight).toBe(ROW_HEIGHT);
-    expect(collapsed.rowCount).toBe(DATASETS[2].summaries);
+    expect(collapsed.rowCount).toBe(datasetOf('dense').summaries);
     expect(collapsed.rowCount).toBeLessThan(expanded.rowCount);
     // 行高是虚拟化的前提：折叠只改变行数；渲染窗口仍是"可见行 + 缓冲"。
     expect(collapsed.rows.length).toBe(Math.min(collapsed.rowCount, collapsed.visibleLast + 1 + ROW_BUFFER));
@@ -453,7 +454,7 @@ describe('内容横向范围（ADR 0007 §15，裁决 P-24）', () => {
   });
 
   it('负向对照：旧式"按窗格宽推导"在 1,000 任务夹具上**不满足**该性质（判据有判别力）', () => {
-    const fixture = buildFixture(DATASETS[0]);
+    const fixture = buildFixture(datasetOf('wide'));
     const view = buildView({
       document: fixture.document,
       schedule: fixture.schedule,

@@ -9,8 +9,7 @@
  * 这与 xlsx 路径的豁免**不同源**：CSV 没有"共享字符串"这层保护。
  */
 import { DiagnosticBag, type XlsxDiagnostic } from './diagnostics.js';
-import { isEmptyCell, type SheetCell, type SheetView, type XlsxInput } from './sheet.js';
-import { toUint8Array } from './sheet.js';
+import { sheetViewOf, toUint8Array, type SheetCell, type SheetView, type XlsxInput } from './sheet.js';
 
 /**
  * UTF-8 解码（含 BOM），**不用 `TextDecoder`**：三包的 `tsconfig` 收窄了 `lib`（无 DOM，也没有
@@ -162,7 +161,9 @@ function cellOfText(text: string): SheetCell {
 }
 
 /** CSV 读表结论。 */
-export type ReadCsvResult = { readonly ok: true; readonly view: SheetView; readonly diagnostics: readonly XlsxDiagnostic[] } | { readonly ok: false; readonly diagnostics: readonly XlsxDiagnostic[] };
+export type ReadCsvResult =
+  | { readonly ok: true; readonly view: SheetView; readonly diagnostics: readonly XlsxDiagnostic[] }
+  | { readonly ok: false; readonly diagnostics: readonly XlsxDiagnostic[] };
 
 /** CSV 字节流 → 内部工作表模型（单表 `任务`；行号 1 基、与文件一致）。 */
 export function readCsv(input: XlsxInput, sheetName = '任务'): ReadCsvResult {
@@ -182,20 +183,7 @@ export function readCsv(input: XlsxInput, sheetName = '任务'): ReadCsvResult {
     cells.set(rowIndex + 1, bucket);
   });
 
-  const view: SheetView = {
-    sheetName,
-    sheetNames: [sheetName],
-    maxRow: records.length,
-    maxColumn,
-    cell: (row, column) => cells.get(row)?.get(column),
-    row: (row) => {
-      const bucket = cells.get(row);
-      if (bucket === undefined) {
-        return undefined;
-      }
-      return [...bucket.entries()].sort((a, b) => a[0] - b[0]).map(([, cell]) => cell);
-    },
-  };
+  const view = sheetViewOf({ sheetName, sheetNames: [sheetName], maxRow: records.length, maxColumn, cells });
 
   if (view.maxRow === 0 || view.maxColumn === 0) {
     bag.add('XLSX_HEADER_ROW_INVALID', 'CSV 里没有任何内容', { locator: { sheet: view.sheetName } });
@@ -218,10 +206,4 @@ export function readCsv(input: XlsxInput, sheetName = '任务'): ReadCsvResult {
   }
 
   return { ok: true, view, diagnostics: bag.items };
-}
-
-/** 供测试：某行是否整行皆空。 */
-export function isBlankRow(view: SheetView, row: number): boolean {
-  const cells = view.row(row);
-  return cells === undefined || cells.every((cell) => isEmptyCell(cell));
 }

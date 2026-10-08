@@ -10,7 +10,7 @@ import * as pptx from './index.js';
 describe('@ganttpilot/pptx-renderer 公共入口', () => {
   it('导出包标识与能力块', () => {
     expect(pptx.PPTX_RENDERER_VERSION).toBe('0.0.0');
-    expect(pptx.PLANNED_GATE).toBe('G8');
+    expect(pptx.LATEST_COMPLETED_BLOCK).toBe('G8');
     expect(pptx.COMPLETED_GATES).toStrictEqual(['G7', 'G8']);
   });
 
@@ -52,6 +52,10 @@ describe('@ganttpilot/pptx-renderer 公共入口', () => {
     expect(pptx.NAMES.milestone('m1')).toBe('ms-m1');
     expect(pptx.NAMES.edge('l1')).toBe('dep-l1');
     expect(pptx.NAMES.group('s1')).toBe('grp-s1');
+    // 进度条（P3/C7-h 把前缀由 `prog-` 改成可读全词）：**这条断言是那时补的**——
+    // 此前 `NAMES` 的其余前缀都被钉住、唯独 `progress` 没有，于是"把前缀改回 `prog-`"
+    // 不会让任何用例翻红（golden 字节本来也只有记录值、没有钉子）⇒ 改名等于没守卫。
+    expect(pptx.NAMES.progress('t1')).toBe('progress-t1');
     // 返工新增的四类图元名（人工复验 §1–§4）
     expect(pptx.NAMES.axis(3)).toBe('axis-3');
     expect(pptx.NAMES.band(1)).toBe('band-1');

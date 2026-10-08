@@ -17,8 +17,13 @@
 /** 本包按 semver 独立发版（见 README「文档约定」）。 */
 export const XLSX_PROTOCOL_VERSION = '0.0.0';
 
-/** 本包最新完成的能力块编号（与 engine 同语义：它是"最新一个"，完整清单见 `COMPLETED_GATES`）。 */
-export const PLANNED_GATE = 'G8' as const;
+/**
+ * 本包**最新完成**的能力块编号（与 engine 同语义：它是"最新一个"，完整清单见 `COMPLETED_GATES`）。
+ *
+ * 旧名 `PLANNED_GATE` 有两处说谎（P3/C7-h 只改名、不改语义）：`PLANNED` 与"已完成"相反；
+ * `GATE` 在本仓专指**质量门禁**（`pnpm gate`，ADR 0001），不该被这个常量占用。
+ */
+export const LATEST_COMPLETED_BLOCK = 'G8' as const;
 
 /** 已落地能力块清单。 */
 export const COMPLETED_GATES = ['G3', 'G8'] as const;
@@ -58,6 +63,7 @@ export {
   DiagnosticBag,
   XLSX_DIAGNOSTIC_CODES,
   XLSX_DIAGNOSTIC_SEVERITY,
+  type ReadonlyDiagnosticBag,
   type ReportDiagnostic,
   type XlsxDiagnostic,
   type XlsxDiagnosticCode,
@@ -68,6 +74,9 @@ export {
 // ---------------------------------------------------------------- 列探测 / 导入选项
 export type { ColumnDetection, ColumnDetectionResult, ColumnBinding } from './header.js';
 export type { ColumnMapping, ColumnTarget, ImportOptions, RowParseResult } from './buildDocument.js';
+// `XlsxInput` 出现在五个入口的公共签名里（`PROTOCOL.md` §二把它写在公共 API 块中），故必须能从包入口命名。
+// P4-b 的公开面分类按"被 L1 点名 ⇒ 发布承诺"定稿（此前只能传值、叫不出类型名）。
+export type { XlsxInput } from './sheet.js';
 
 // ---------------------------------------------------------------- 日期与容差（供 G4/G7 复用，避免第二套算术）
 export {

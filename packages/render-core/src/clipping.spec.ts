@@ -19,6 +19,7 @@ import { describe, expect, it } from 'vitest';
 import { countElements, countElementsByEnumeration, countOverlays, hoverRowOf } from './count.js';
 import { buildAxis } from './clip.js';
 import { DATASETS, REFERENCE_DATASET, SCROLL_ROW_OFFSETS, buildFixture, scaleGradient } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import { ELEMENT_MODEL, ROW_HEIGHT, THRESHOLDS, VIEWPORT_DEFAULT, ZOOM_ORDER } from './manifest.js';
 import { buildView } from './viewModel.js';
 import { checkClipSoundness } from './checkers.spec.js';
@@ -73,7 +74,7 @@ describe('元素预算（ADR 0007 §6.7，S4-a）', () => {
 
   it('元素模型与预算常数是同一处声明（`c₁ = 3`、`c₂ = 3`）', () => {
     expect(ELEMENT_MODEL).toStrictEqual({ perRenderedRow: 3, perRenderedEdge: 3 });
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const view = buildView({
       document: fixture.document,
       schedule: fixture.schedule,
@@ -123,7 +124,7 @@ describe('元素预算（ADR 0007 §6.7，S4-a）', () => {
  */
 describe('两级刻度与悬停行带（P-46）', () => {
   it('上级标签随档位：日/周档 `YYYY-MM`、月档 `YYYY`；下级保持既有语义', () => {
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const expectMinor: Record<string, RegExp> = { day: /^\d{2}$/, week: /^\d{2}-\d{2}$/, month: /^\d{4}-\d{2}$/ };
     const expectMajor: Record<string, RegExp> = { day: /^\d{4}-\d{2}$/, week: /^\d{4}-\d{2}$/, month: /^\d{4}$/ };
     for (const zoom of ZOOM_ORDER) {
@@ -148,8 +149,8 @@ describe('两级刻度与悬停行带（P-46）', () => {
     }
   });
 
-  it('上级分段带与下级刻度同 x 时不重复发 `gridline`（否则 `c₃` 与 DOM 两路计数对不上）', () => {
-    const fixture = buildFixture(DATASETS[2]);
+  it('上级分段带与下级刻度同 x 时不重复发 `gridline`（且没有下级刻度时由上级补发；否则 `c₃` 与 DOM 两路计数对不上）', () => {
+    const fixture = buildFixture(datasetOf('dense'));
     for (const zoom of ZOOM_ORDER) {
       const view = buildView({
         document: fixture.document,
@@ -160,8 +161,10 @@ describe('两级刻度与悬停行带（P-46）', () => {
       });
       const gridlines = view.axis.filter((element) => element.kind === 'gridline');
       const xs = gridlines.map((element) => element.x);
+      // 第一半：同一个 `x` 只有一条（下级刻度发过，上级就不重复发）。
       expect(new Set(xs).size).toBe(xs.length);
-      // 每一条上级分段带的左边界，要么有一条 gridline 与它重合，要么它落在水平裁剪之外（不发射）。
+      // 第二半：下级没发线的那些 `x` 由上级**补发** —— 每一条上级分段带的左边界，要么有一条
+      // `gridline` 与它重合，要么它落在水平裁剪之外（不发射）。
       for (const band of view.axis.filter((element) => element.kind === 'major-band')) {
         const hasLine = gridlines.some((element) => Math.abs(element.x - band.x) < 1e-9);
         const clipped = band.x < -1 || band.x > viewport.width + 1;
@@ -171,7 +174,7 @@ describe('两级刻度与悬停行带（P-46）', () => {
   });
 
   it('悬停行带：给定 `hoverRow` 时恰好 1 个元素、**按内容宽贯穿整行**，且计入 `overlay` 而不是 `c₃`', () => {
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const base = {
       document: fixture.document,
       schedule: fixture.schedule,
@@ -241,7 +244,7 @@ describe('两级刻度与悬停行带（P-46）', () => {
   });
 
   it('悬停行在渲染窗口之外时不发射（高亮与"能否交互"同一个行集合）', () => {
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const base = {
       document: fixture.document,
       schedule: fixture.schedule,
@@ -255,6 +258,51 @@ describe('两级刻度与悬停行带（P-46）', () => {
     }
     // 边界内则必须发射（否则上面的"不发射"没有判别力）。
     expect(buildView({ ...base, hoverRow: view.renderLast }).hoverBand).toStrictEqual({ row: view.renderLast });
+  });
+
+  it('悬停行带在**非 0 横向滚动位置**（`scrollLeft = 600`）下逐值不变（P-25 的口径，决策 7 的落点）', () => {
+    /**
+     * ADR 0007 §16.3 要求"**凡坐标换算类判据至少取一个非 0 滚动位置**"（R13/R14 只在滚动后现形）。
+     * 悬停行带是最容易漏掉的一处：它的 `x` 起点在**窗口坐标**、宽度取**内容宽**（画在内容滚动组里
+     * ⇒ 横向不翻译），因此横向滚动**不该改变它的任何取值**——本用例就是那个"不该"。
+     */
+    const fixture = buildFixture(datasetOf('dense'));
+    const hoverRow = 3;
+    const base = {
+      document: fixture.document,
+      schedule: fixture.schedule,
+      calendar: fixture.calendar,
+      zoom: 'day' as const,
+      hoverRow,
+    };
+    const still = buildView({ ...base, viewport });
+    const scrolled = buildView({ ...base, viewport: { ...viewport, scrollLeft: 600 } });
+
+    // **前提自证**：这一次真的取到了横向行程——非行带的轴元素必须整体跟着 `scrollLeft` 平移。
+    // （否则"逐值不变"可能只是因为两份视图恰好一样，判据没有判别力。）
+    const axisXsOf = (view: typeof still): number[] =>
+      view.axis.filter((element) => element.kind !== 'hover-band').map((element) => element.x);
+    expect(axisXsOf(scrolled)).not.toStrictEqual(axisXsOf(still));
+    expect(scrolled.contentWidth).toBe(still.contentWidth); // 内容宽与横向滚动无关
+
+    // 行带：恰好 1 个，且**逐值**等于不滚动的那一个（`x` 仍是窗口坐标的 0、宽度仍是内容宽）。
+    const stillBand = still.axis.find((element) => element.kind === 'hover-band');
+    const scrolledBand = scrolled.axis.find((element) => element.kind === 'hover-band');
+    expect(stillBand).toBeDefined();
+    expect(scrolledBand).toStrictEqual(stillBand);
+    expect(scrolledBand).toMatchObject({ x: 0, width: scrolled.contentWidth, y: hoverRow * ROW_HEIGHT });
+    expect(scrolledBand?.width).toBeGreaterThan(viewport.width);
+
+    // 计数口径与滚动无关：行带仍计 `overlay`（+1）、**不计** `c₃`，且两路计数继续互证。
+    const overlays = { hoverRow: hoverRowOf(scrolled) };
+    expect(hoverRowOf(scrolled)).toBe(true);
+    const byCategory = countElements(scrolled, overlays);
+    const byEnumeration = countElementsByEnumeration(scrolled, overlays);
+    expect(byCategory.axis).toBe(countElements(scrolled).axis); // 行带不进 `c₃`
+    expect(byCategory.overlays).toBe(countElements(scrolled).overlays + 1);
+    expect(byEnumeration.total).toBe(byCategory.total);
+    expect(byEnumeration.kinds['overlay-hover-row']).toBe(1);
+    expect(byEnumeration.kinds['axis-hover-band']).toBeUndefined();
   });
 });
 
@@ -291,7 +339,7 @@ describe('裁剪健全性（S4-b 的正面表述）', () => {
 
 describe('NC1 负向对照：端点可见性裁剪必须丢边（ADR 0007 §6.8，S4-b）', () => {
   it('4 个滚动位置分别误裁 33 / 97 / 96 / 88 条，合计 314（其中跨屏长边 268）', () => {
-    const fixture = buildFixture(DATASETS[2]);
+    const fixture = buildFixture(datasetOf('dense'));
     const expectedLost = [33, 97, 96, 88];
     const expectedSpanning = [32, 84, 81, 71];
     const positions: { lost: number; lostSpanning: number }[] = [];
@@ -336,7 +384,7 @@ describe('NC2 负向对照：关掉窗口裁剪必须随规模增长（ADR 0007 
   it('元素数随规模单调增长，10× 规模跨度的比值 ≈10.8× > 5×', () => {
     const totals: number[] = [];
     const renderedRows: number[] = [];
-    for (const { fixture } of scaleGradient(DATASETS[2])) {
+    for (const { fixture } of scaleGradient(datasetOf('dense'))) {
       const view = buildView({
         document: fixture.document,
         schedule: fixture.schedule,

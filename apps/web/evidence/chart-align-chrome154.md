@@ -11,7 +11,7 @@
 
 | 项 | 值 |
 |---|---|
-| 采集时刻 | 2026-10-06T13:17:38.645Z |
+| 采集时刻 | 2026-10-08T13:44:18.845Z |
 | 机器 | FAIRY |
 | 系统 | win32 x64 |
 | Node | v26.7.0 |
@@ -25,6 +25,7 @@
 | 探测位置 | 比例 (0,0) / (0.5,0) / (1,0) / (0,0.5) / (0,1) / (1,1)（钩子内按真实行程解析） |
 | 稳定读预算 | 12 帧（连续两帧指纹一致即止；超预算判红） |
 | 迁移 | 1280×800 → 1024×640（不重设滚动） |
+| 钩子版本 | 2026-10-08 |
 
 ## 口径
 
@@ -795,4 +796,6 @@
 | 500 | `t494` | 706.38 | 706.38 | 0.000 | — / — |
 | … | （共 29 行；证据表只列首 10 + 末 4 行，逐行值见 raw JSON） | | | |
 
-> 生成参数：{"zooms":["day","week","month"],"rounds":5,"scrollSteps":10,"includeReference":true,"drag":false,"dayDelta":3,"dragFrames":12,"dragDataset":"dense","importPath":null,"align":true,"alignLabel":"","alignZooms":["day","week","month"],"alignResize":{"width":1024,"height":640},"persistDrag":false,"storageMetrics":false}
+> 生成参数：{"zooms":["day","week","month"],"rounds":5,"scrollSteps":10,"includeReference":true,"drag":false,"dayDelta":3,"dragFrames":12,"dragDataset":"dense","importPath":null,"align":true,"alignLabel":"","axisHover":false,"alignZooms":["day","week","month"],"alignResize":{"width":1024,"height":640},"persistDrag":false,"storageMetrics":false}
+
+> **原始读数**：[`chart-align-raw.json`](chart-align-raw.json)（机器可读，便于日后重比）。

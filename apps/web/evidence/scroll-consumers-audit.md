@@ -7,6 +7,11 @@
 >
 > **一句话口径**（ADR 0008 §15 的收紧版）：**只有 `pointerFromClient` 叠加 `scroll*`；
 > 它的下游消费者至多做"平移/窗口换算/负号"，不得再叠加 `scrollTop`/`scrollLeft`。**
+>
+> **P4-b（2026-10-08）路径同步**：本表的「位置」列按**代码现状**更新了引用（`gesture.ts` 已由 P3/C5-b
+> 拆成 `gesture/` 目录、`useChart.ts`/`pointerFromClientPoint` 已由 P3/C6-f 迁进 `composables/`、
+> `buildAxis` 住 `clip.ts`），并标出两个**已删除**的旧名；**「换算 / 基准 / 判定」三列一字未改**
+> （同步的授权与逐条清单见 v0.2 重构计划的 P4-b 批次记录；本文件**不做**其它改写）。
 
 ## 一、为什么必须盘点
 
@@ -22,20 +27,20 @@
 
 | # | 位置 | 它做的换算 | 基准 | 判定 |
 |---|---|---|---|---|
-| ① | `render-core/src/gesture.ts` 的 `pointerFromClient` | `x = clientX − paneLeft + scrollLeft`；`y = clientY − paneTop + scrollTop` | **屏幕 → 内容**的**唯一加法点**（ADR 0008 §13.1） | ✅ 合法（唯一） |
-| ② | `gesture.ts` 的 `resolvePointerTarget` | `floor(y / rowHeight)` | `y` 已是**内容坐标** | ✅ 合法（R13 已修；**不得**加 `view.scrollTop`） |
+| ① | `render-core/src/gesture/pointer.ts` 的 `pointerFromClient` | `x = clientX − paneLeft + scrollLeft`；`y = clientY − paneTop + scrollTop` | **屏幕 → 内容**的**唯一加法点**（ADR 0008 §13.1） | ✅ 合法（唯一） |
+| ② | `gesture/pointer.ts` 的 `resolvePointerTarget` | `floor(y / rowHeight)` | `y` 已是**内容坐标** | ✅ 合法（R13 已修；**不得**加 `view.scrollTop`） |
 | ③ | `viewModel.ts` 的 `dayAtX` | `axisOriginDay + x / pxPerDay` | `x` 已是**内容坐标** | ✅ 合法（R14 已修；**不得**加 `view.scrollLeft`） |
-| ④ | `gesture.ts` 的 `ordinalAtXSafe` | **无自己的公式**，委托 `dayAtX` | — | ✅ 合法（重复公式已删） |
+| ④ | `gesture/pointer.ts` 的**序号反算**（旧名 `ordinalAtXSafe` 已删除，序号反算只有 `dayAtX` 一处） | **无自己的公式**，委托 `dayAtX` | — | ✅ 合法（重复公式已删） |
 | ⑤ | `clip.ts` 的 `rowWindow` | `firstVisible = floor(scrollTop / rowHeight)` | `scrollTop` 是**窗口输入**（`Viewport` 的真值） | ✅ 合法（消费者**应当**用它算窗口） |
 | ⑥ | `clip.ts` 的轴窗口 | `dayFrom/dayTo` 由 `scrollLeft` 求交；`toX(day) = (day − axisOriginDay)·pxPerDay − scrollLeft` | 轴的 `x` 是**窗口坐标**（ADR 0007 §11.1 ③） | ✅ 合法（**唯一的减号点**） |
-| ⑦ | `viewModel.ts` 的 `buildAxis` | 只发射视口内元素 | 与 ⑥ 同源（已扣 `scrollLeft`） | ✅ 合法 |
-| ⑧ | `align.ts` 的 `keepsScroll`（`viewScrollTop/Left` 与 `scrollTop/Left`） | 直接比两个数 | 两处都必须**等于 DOM 真值** | ✅ 合法（R11/`scroll-out-of-sync` 的判据） |
-| ⑨ | `apps/web/useChart.ts` 的 `measure()`/`handleScroll()` | 从 DOM 读 `pane.scrollTop/scrollLeft` | **唯一真相源**（`ViewModel.scroll*` 就是它） | ✅ 合法（来源侧） |
-| ⑩ | `App.vue` 的 `pointerFromClientPoint` | 把 `rect.left/top` 与 `view.scroll*` 喂给 ① | ①的**唯一调用点** | ✅ 合法（入口层算出来的输入进纯函数，P-19/P-21 的教训） |
+| ⑦ | `clip.ts` 的 `buildAxis` | 只发射视口内元素 | 与 ⑥ 同源（已扣 `scrollLeft`） | ✅ 合法 |
+| ⑧ | `align.ts` 的**滚动同步判定**（旧名 `keepsScroll` 已并入对齐诊断：`viewScrollTop/Left` 与 `scrollTop/Left` 直接比对） | 直接比两个数 | 两处都必须**等于 DOM 真值** | ✅ 合法（R11/`scroll-out-of-sync` 的判据） |
+| ⑨ | `apps/web/src/composables/useChart.ts` 的 `measure()`/`handleScroll()` | 从 DOM 读 `pane.scrollTop/scrollLeft` | **唯一真相源**（`ViewModel.scroll*` 就是它） | ✅ 合法（来源侧） |
+| ⑩ | `apps/web/src/composables/useChartPointer.ts` 的 `pointerFromClientPoint`（旧位置 `App.vue`） | 把 `rect.left/top` 与 `view.scroll*` 喂给 ① | ①的**唯一调用点** | ✅ 合法（入口层算出来的输入进纯函数，P-19/P-21 的教训） |
 | ⑪ | `GanttChart.vue` 的 `scrollTransform` / `axisBandsTransform` | `translate(−scrollLeft, HEADER_HEIGHT_PX − scrollTop)`；轴带 `translate(0, HEADER_HEIGHT_PX)` | **负号 = 抵消**（与 ①同源、方向相反） | ✅ 合法（ADR 0007 §15.3） |
 | ⑫ | `TaskTable.vue` 的行块 | `translateY(−scrollTop)` | 同 ⑪（左表窗口） | ✅ 合法 |
 | ⑬ | `render-core/src/interaction.ts` 的 `handleOffsetsFor` / `connectRevealFor` / `linkEntryFor`（批次 B，P-32） | 手柄/连接点的 `x` 由 `zones.ts` 的判定区边界**一次算好** | **内容坐标**（ADR 0008 §16） | ✅ 合法（**不得**再叠加 `scroll*`） |
-| ⑭ | `gesture.ts` 的 `translateZone`/`translateZones` | 拖动期只对**已算好的**判定区做平移 `+dx` | 内容坐标上的**纯平移** | ✅ 合法（P-32 点名的"一次算好、拖动期只平移"） |
+| ⑭ | `zones.ts` 的 `translateZone`/`translateZones` | 拖动期只对**已算好的**判定区做平移 `+dx` | 内容坐标上的**纯平移** | ✅ 合法（P-32 点名的"一次算好、拖动期只平移"） |
 
 **盘点的收获**：13 处消费里**加法点恰好 1 个**（①），**减法点恰好 1 个**（⑥，轴窗口），
 其余全是"读取真值 / 纯平移 / 与真值比对"。批次 B 新增的 ⑬⑭ 落在**内容坐标**一侧，

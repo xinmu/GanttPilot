@@ -39,7 +39,8 @@ function exportXlsx(document: ProjectDocument, options?: ExportOptions): Promise
 function assembleReport(protocol, document?, schedule?): readonly ReportDiagnostic[];
 ```
 
-**三个入口都是 `async`**（ADR 0006 §11 要求浏览器侧**动态 `import('exceljs')`**，把
+**四个入口都是 `async`**（`detectColumns` / `importXlsx` / `importCsv` / `exportXlsx`；上面第五个
+`assembleReport` 是**同步**的纯拼接）：ADR 0006 §11 要求浏览器侧**动态 `import('exceljs')`**，把
 925.5 KB min / 251.6 KB gzip 挡在首屏主 chunk 之外；`import()` 必然返回 Promise）。
 Node 侧 ESM/CJS 互操作已实测可用：`import ExcelJS from 'exceljs'`（命名空间键只有 `default`，
 **不能** `import { Workbook } from 'exceljs'`）。
@@ -76,8 +77,10 @@ const applied = applyCommand(current, { kind: 'document.replace', document: impo
 
 ## 三、列契约（规范工作表形态）
 
-- **单工作表**，表名 `任务`（可见；**无影子表、无隐藏表**——T-2 已删除 `__gantt_meta__`）；
-- 首行表头，**9 列规范列序**（导出固定此序；导入**按列名匹配**，不要求列序相同）：
+> **契约冻结在 [ADR 0006 §2](../../docs/02-adr/0006-xlsx-协议契约.md)**——规范工作表形态（单工作表 `任务`、无影子表、
+> 首行表头、9 列的键与必需性）以那里为**唯一权威**；本节只登记**本包的实现面**：导出形态与匹配口径
+> （单工作表、导出**固定 9 列列序**、导入**按列名匹配**、不要求列序相同）。下表是"键 → 导出形态"的对照，
+> 与 ADR §2 的列集合**一字不改**。
 
 | # | 表头 | 必需性 | 导出形态 | 语义 |
 |---|---|---|---|---|
@@ -92,10 +95,9 @@ const applied = applyCommand(current, { kind: 'document.replace', document: impo
 | 9 | `备注` | 可选 | 文本，原样 | `notes`；空 = `null` |
 
 - **不导出**：`id`、`parentId`、`collapsed`、`manual`、`constraints`、`baselines`、项目级字段
-  （这些要么是派生值、要么语义未启用（DM-08/09 归 v0.5）、要么属于应用状态）；
+  （派生值 / 未启用语义 / 应用状态——**冻结口径见 ADR §2/§3**）；
 - **空值 = 单元格缺失**（不写空串）；遇到空串视为"缺失"但给 `XLSX_INFERRED_EMPTY_CELL`(info)
-  ——**容忍而不静默**；
-- **汇总行可以没有日期与工期**（DM-05）；协议层不下发"汇总行必须填什么"的规则。
+  ——**容忍而不静默**；**汇总行可以没有日期与工期**（DM-05），协议层不下发"汇总行必须填什么"的规则。
 
 ### 3.1 表头定位与未识别列
 
@@ -142,11 +144,8 @@ ExcelJS 读回的单元格值有四类，归一化后都进同一套容差：
 
 ## 五、公式：只读缓存值，扁平化，绝不解释
 
-- 只读公式单元格的**缓存结果**；**永不**读公式文本、永不自研求值器、永不写公式回导出物；
-- 公式存在但**无缓存值**（ExcelJS 给 `{ formula, result: undefined }`，等价于 `null`）：
-  按"**值缺失**"处理 + `XLSX_FORMULA_WITHOUT_CACHED_VALUE`(**info**)；
-- 该诊断必须与排程侧 `undated` **并列展示、不合并**——"文件里本来就空着"与"公式没算出值"是两件事；
-- 导出物**只写值**，因此导出的文件不依赖 Excel 的重算设置（不设 `fullCalcOnLoad`）。
+> **口径与四条边界冻结在 [ADR 0006 §5](../../docs/02-adr/0006-xlsx-协议契约.md)**（只读缓存值、永不解释公式文本、
+> 无缓存值按"值缺失"处理并给 `XLSX_FORMULA_WITHOUT_CACHED_VALUE`(info)、导出物只写值）——本节不重复登记。
 
 **独立互证**（`tools/xlsx-reference/` 的差分即建立在这一致性上）：
 openpyxl 3.1.5 在 `data_only=False` 下读出公式文本、`data_only=True` 下读出缓存值、
@@ -154,9 +153,11 @@ openpyxl 3.1.5 在 `data_only=False` 下读出公式文本、`data_only=True` �
 
 ## 六、层级解析：双解析的优先级与冲突
 
+> **优先级与冲突口径冻结在 [ADR 0006 §6](../../docs/02-adr/0006-xlsx-协议契约.md)**；下面是本包的**实现要点与码位**：
+
 - **两条解析路径**：`WBS` 编号列（主）与**缩进式**（`alignment.indent` **仅作显示**）；
-- 导入时：有 `WBS` 列 → 用编号解析；无 `WBS` 列 → 尝试缩进式；
-  **两者都没有** → `XLSX_REQUIRED_COLUMN_MISSING`(error)（ADR 0006 §2 的"二选一"）；
+- 导入时：有 `WBS` 列 → 用编号解析；无 `WBS` 列 → 尝试缩进式；**两者都没有** →
+  `XLSX_REQUIRED_COLUMN_MISSING`(error)（"二选一"的口径见 ADR §2）；
 - **两者同时存在且结论不一致** → `XLSX_LEVEL_CONFLICT`(warning)，**以编号为准**并**记录冲突行**
   （不静默择一）；
 - **冲突只比较"缩进确实承载了信息"的行**：`alignment.indent` 缺省为 0，若把 0 也当成
@@ -229,8 +230,11 @@ openpyxl 3.1.5 在 `data_only=False` 下读出公式文本、`data_only=True` �
 
 ## 八、CSV：尽力导入（XL-07）
 
+> **"尽力导入"的边界（接受什么、不支持什么）冻结在 [ADR 0006 §9](../../docs/02-adr/0006-xlsx-协议契约.md)**；
+> 下面是本包的实现要点。
+
 - 接受：逗号分隔、可选双引号包裹（`""` 表示字面量引号）、**UTF-8（含 BOM）**、首行表头；
-- **不支持**（明确诊断而非错误解析）：多行单元格、分隔符嗅探、`.xls`(BIFF)；
+  **不支持**（明确诊断而非错误解析）：多行单元格、分隔符嗅探、`.xls`(BIFF)——**这条边界冻结在 [ADR 0006 §9](../../docs/02-adr/0006-xlsx-协议契约.md)**；
 - `importCsv` **复用同一套列契约、容差表与诊断码表**（不另立第二套规则）；
 - `importXlsx` 也接受 CSV：按**字节形态**识别（xlsx 是 zip，前两字节必为 `PK`；否则按文本处理）；
 - **导出 CSV 不在 v0.1 承诺内**（D-2）。若日后实现，**必须**做公式注入转义
@@ -239,24 +243,23 @@ openpyxl 3.1.5 在 `data_only=False` 下读出公式文本、`data_only=True` �
 
 ## 九、导出物的形式与确定性
 
-- **单工作表 `任务`**，9 列规范列序；
-- **规范日期** `yyyy-mm-dd`；**规范依赖语法** `编号[类型][±lag]`，多条以 `;` 分隔
-  （`FS` + lag 0 时省略，保持可读）；
+> **导出物的形式与白名单冻结在 [ADR 0006 §10](../../docs/02-adr/0006-xlsx-协议契约.md)**（单工作表、9 列列序、
+> 规范日期与依赖语法、呈现属性白名单与禁止项）；本节只登记本包的**实现与确定性判据**。
+
 - **固定文档时间戳**：`created` / `modified` / `creator` / `lastModifiedBy` **取常量**
   （`FIXED_DOCUMENT_TIMESTAMP` = `2000-01-01T00:00:00Z`），**不得**来自当前时间——
   否则每次导出的部件内容都不同；
-- **确定性判据取「部件指纹」**（条目名 + 各条目内容哈希的摘要），**不得**用整文件哈希：
-  `exceljs` 会把写入时刻写进 zip 条目的 DOS 时间戳，跨秒/跨进程重跑整文件哈希必然不同
-  （S2 §六.2 实测）。测试里有一条**反向证据**：同进程连跑两次的整文件哈希**可能相同也可能不同**
-  ——正因为它取决于"写入时刻落在哪一秒"，它就不是判据；
-- **允许（且有结构断言）的呈现属性白名单**：表头加粗、列宽、数字格式、**冻结首行**；
-  **禁止**：批注、数据验证、条件格式、宏、图表、数据透视、图片、隐藏表；
-  **每加一类呈现属性必须补一条结构断言**——历史上"需要修复"的提示多来自这一类别；
+- **确定性判据**（口径冻结在 [ADR 0006 §10](../../docs/02-adr/0006-xlsx-协议契约.md)：取**部件指纹**、不得用整文件哈希）：
+  本包持有的是**反向证据**——同进程连跑两次的整文件哈希**可能相同也可能不同**，
+  正因为它取决于"写入时刻落在哪一秒"，它就不是判据；
+- **呈现属性的结构断言纪律**（白名单与禁止项见 ADR §10）：**每加一类呈现属性必须补一条结构断言**
+  ——历史上"需要修复"的提示多来自这一类别；
 - **导出失败的条件**：文档里有任务名为空（schema 要求非空但校验只给 warning），或
   `validateDocument` 有 error 级诊断——这两种情况下**不产出字节**，
   避免"写出一份自己都读不回来的文件"；
-- **导出不含依赖环的边**：文档里有环时，前置列**省略**该边并报 `XLSX_CYCLE_EDGE_DROPPED`
-  （保证导出物可重新导入）。
+- **导出侧不做成环检测**：`XLSX_CYCLE_EDGE_DROPPED` 只在**导入**路径发射（§7.1）。
+  导出时**只跳过悬空边**（`links[].from` 指向文档里不存在的任务），该情况由
+  `validateDocument` 报出——导出不重算、也不改写文档里的环。
 
 **不导出的字段**：`id`/`parentId`/`collapsed`/`manual`/`constraints`/`baselines`/项目级字段/
 日历例外 —— 因此"项目名与日历例外不往返"是**刻意的口径**，不是缺陷：`exceptions` 的工作表表达归 v0.5
@@ -274,7 +277,7 @@ openpyxl 3.1.5 在 `data_only=False` 下读出公式文本、`data_only=True` �
 - **ExcelJS 是运行时依赖**（`dependencies`，精确钉 `4.4.0`）：升级必须重跑
   确定性（部件指纹）、日期序列号整数性、格式码解析三项证据；
 - **浏览器侧必须动态导入**（`import('exceljs')`）：`dist/exceljs.min.js` 实测
-  **925.5 KB min**（`.bare.min.js` 842 KB）、包内**无 ESM 入口**、**不可 tree-shaking**。
+  **925.5 KB min**（`.bare.min.js` 842.4 KB）、包内**无 ESM 入口**、**不可 tree-shaking**。
   本块**不设 chunk 体积门禁**（首屏预算是 G4 的指标），只**记录实测体积**；
 - **"零 DOM 依赖"不因本依赖而放宽**：铁律约束的是**我们的源码**；依赖内部存在
   `document.*`/`window.*` 探测代码，我们不调用它的 DOM 分支——这条差异在此显式记录；
@@ -286,15 +289,18 @@ openpyxl 3.1.5 在 `data_only=False` 下读出公式文本、`data_only=True` �
   代价：`exceljs` 的读路径走的是 `unzip.Parse({forceStream: true})`，**已实测**在该版本下
   读写全链路可用（依据与代价见裁决 P-15）。
 
-## 十一、模板文件（多页签形态；G8／[P-46](../../docs/00-baseline/裁决R45.md)）
+## 十一、模板文件（多页签形态；G8／[P-46（依据）](../../docs/00-baseline/裁决R45.md)）
 
-> 本节是 [ADR 0006 附录 §1](../../docs/02-adr/附录/0006-增补.md) 的**落地形态**：
+> 本节是 [ADR 0006 附录 §1（细则）](../../docs/02-adr/附录/0006-增补.md) 的**落地形态**：
 > 它是**一个新的导出物形态**，登记义务已在附录兑现（§2 的"单工作表"约束的是**规范表的读入口径**，
 > 不是"一个文件里不许有别的页签"）。
 
 ```ts
 function buildTemplateXlsx(document?: ProjectDocument): Promise<TemplateResult>;   // 缺省 = 演示计划
-function templateSheetNames(): readonly string[];                                  // ['任务','填写说明与约束','最小示例']
+const TEMPLATE_SHEET_TASK: string;                  // '任务'（= 规范表名）
+const TEMPLATE_SHEET_GUIDE: string;                 // '填写说明与约束'
+const TEMPLATE_SHEET_SAMPLE: string;                // '最小示例'
+const TEMPLATE_SHEET_ORDER: readonly string[];      // ['任务','填写说明与约束','最小示例']（顺序即契约）
 ```
 
 ### 11.1 结构（**冻结**）
@@ -315,10 +321,10 @@ function templateSheetNames(): readonly string[];                               
 
 | 层 | 判据 |
 |---|---|
-| 门禁（`template.spec.ts`，**6 例**） | ① 页签**集合与顺序**（恰好三个）；② `任务` 页 9 列列序与表头与 `COLUMN_SPECS` 逐值一致；③ **两次生成逐字节一致**（固定时间戳）；④ **可读回**（任务数一致、**error 0**、文档校验无 error）；⑤ 说明页覆盖四类依赖与关键诊断码；⑥ **负向对照**（调换页签顺序 / 改一个表头字面必须被检出） |
+| 门禁（`template.spec.ts`，**7 例**） | ① 页签**集合与顺序**（恰好三个）；② `任务` 页 9 列列序与表头与 `COLUMN_SPECS` 逐值一致；③ **两次生成一致**（固定时间戳 + **zip 条目时间归一化**：只看每个条目的 4 个时间字节之外的一切，理由见 spec 文件头，`N21`）；④ **可读回**（任务数一致、**error 0**、文档校验无 error）；⑤ 说明页覆盖四类依赖与关键诊断码；⑥ **负向对照**（调换页签顺序 / 改一个表头字面必须被检出）；⑦ **负向对照**（改一个字节 ⇒ 归一化后的比对仍翻红） |
 | 打包产物（`smoke:build`） | 点「模板下载」→ **文件真的落盘** → 解出三个页签 → **用应用自己的导入入口回导** ⇒ 计数合理、无"导入失败"、无应用级错误（在线与 `file://` 两种产物都跑） |
 
-**实测**：模板 **11,668 字节**；两次生成逐字节一致；回导后 **15 任务 / 14 依赖 / 0 条 error**。
+**实测**：模板 **11,673 字节**（P3/C2 订正说明页里那条严重度文案后 +5 字节；P5-c3 只改判据、**未动产物**）；两次生成在**归一化后逐字节相同**（跨 2.5 s 的两次生成裸字节必然不同——差异只在 zip 条目时间字段）；回导后 **15 任务 / 14 依赖 / 0 条 error**。
 
 > **一条影响"按 id 挑任务"的事实**：xlsx **不承载任务 id**（§三 的 9 列里没有 `id`），
 > 导入时 id 由**行序**生成 ⇒ "导出 → 再导入"之后 **id 与原来不同**（身份是 `WBS` 编号）。
@@ -343,7 +349,7 @@ function templateSheetNames(): readonly string[];                               
 | 其中 `importXlsx` | 中位 **8.8 ms** |
 | 其中 `compute` | 中位 **0.56 ms** |
 | 200 行导出物 | 14,707 字节 / **10 个部件** |
-| `exceljs` 浏览器入口 | `dist/exceljs.min.js` = **925 KB**、`exceljs.bare.min.js` = 842 KB |
+| `exceljs` 浏览器入口 | `dist/exceljs.min.js` = **925.5 KB**（947,702 字节）、`exceljs.bare.min.js` = **842.4 KB**（862,631 字节） |
 | 部件指纹确定性 | 同一文档两次导出**部件内容逐字节相同** |
 | LibreOffice 结构哨兵 | 本机 **未找到 `soffice`** ⇒ 记录"未运行"并跳过（不是通过） |
 
@@ -361,5 +367,5 @@ function templateSheetNames(): readonly string[];                               
 | 渲染、排程、`Schedule` 的展示 | G4 / G2 |
 | 多日历、日历例外的工作表表达 | **v0.5**（R-1） |
 | 2,000 任务规模压测 | v0.5（D-2） |
-| 模板的**静态文件分发**（仓库内放一份 `.xlsx`） | **不做**（[P-46 §5](../../docs/00-baseline/裁决R45.md)：运行时生成，避免"二进制与协议分叉"） |
+| 模板的**静态文件分发**（仓库内放一份 `.xlsx`） | **不做**（[P-46 §5（依据）](../../docs/00-baseline/裁决R45.md)：运行时生成，避免"二进制与协议分叉"） |
 | 模板的页签**超过三个**、模板内嵌日历例外说明 | v0.5 视反馈再定 |

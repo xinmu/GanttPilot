@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { compute, reindexDocument } from '@ganttpilot/engine';
+import { compute, reindexDocument, type DocumentTask, type Schedule } from '@ganttpilot/engine';
 
 import { createDemoPlanDocument } from './demoPlan.js';
 import {
@@ -31,15 +31,23 @@ import {
   exportLabelStyleOf,
   exportLabelTextOf,
 } from './exportLabels.js';
-import { DATASETS, PRIMARY_DATASET_KEY, generateDocument } from './fixtures.js';
+import { PRIMARY_DATASET_KEY, generateDocument } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import { createScheduleCalendar, buildView } from './index.js';
-import { HEADER_HEIGHT_PX, LABEL_CHAR_PX, ROW_HEIGHT } from './manifest.js';
+import { AXIS_BAND_FILL, AXIS_GRIDLINE_STROKE, HEADER_HEIGHT_PX, LABEL_CHAR_PX, ROW_HEIGHT } from './manifest.js';
 import { svgInnerSizeOf, svgString } from './svgExport.js';
 
 function fixtureOfDemo(): {
   readonly document: ReturnType<typeof createDemoPlanDocument>;
   readonly calendar: ReturnType<typeof createScheduleCalendar>;
-  readonly schedule: NonNullable<ReturnType<typeof compute> extends { ok: true; schedule: infer S } ? S : never>;
+  // **P3/C7-c 的类型诚实化**：原写法是
+  // `NonNullable<ReturnType<typeof compute> extends { ok: true; schedule: infer S } ? S : never>`。
+  // 实测（`tmp/probe-cond.ts`，同一 `--strict` 开关）那个条件类型**不归约**：`compute` 的返回
+  // 类型是联合 `ScheduleResult`，在其中做 `infer S` 时 `S` 被推成 `never`，于是 `NonNullable`
+  // 也救不回来 ⇒ 本函数的 `schedule` 字段类型已经是 `never`，`return { …, schedule: result.schedule }`
+  // 报 TS2322、`schedule.milestoneCount` 报 TS2339。旧 program 不含 spec，所以这两处从未被看见。
+  // 引擎自己导出了 `Schedule`，直接用它是"honest 的那一个名字"（类型注解，不改运行时）。
+  readonly schedule: Schedule;
 } {
   const document = createDemoPlanDocument();
   const calendar = createScheduleCalendar(document);
@@ -50,12 +58,29 @@ function fixtureOfDemo(): {
 
 function denseFixture() {
   const document = reindexDocument(
-    generateDocument(DATASETS.find((item) => item.key === PRIMARY_DATASET_KEY)).document,
+    generateDocument(datasetOf(PRIMARY_DATASET_KEY)).document,
   );
   const calendar = createScheduleCalendar(document);
   const result = compute(document, calendar);
   if (!result.ok) throw new Error('dense 夹具不可排程');
   return { document, calendar, schedule: result.schedule };
+}
+
+/**
+ * 按 id 取演示计划里的任务（找不到即抛）。
+ *
+ * **P3/C7-c**：本文件此前把 `document.tasks.find(...)`（`DocumentTask | undefined`）直接喂给
+ * `exportLabelStyleOf` / `exportLabelTextOf`（收 `DocumentTask`），或展开进一个要写回
+ * `ProjectDocument` 的对象字面量里。两种写法在 `noUncheckedIndexedAccess` +
+ * `exactOptionalPropertyTypes` 下都不成立：前者是 `TS2345`，后者更隐蔽——**联合展开会把
+ * 必填属性降级成可选**（实测 `{...A} | {...B}` 展出的 `name` 是 `name?: string`），
+ * 于是 `tasks: [...]` 不再是 `readonly DocumentTask[]`（`TS2322`）。
+ * 这里把"演示计划里确实有这些 id"变成一条会失败的断言，而不是靠 `!` 或 `as` 压住。
+ */
+function demoTaskOf(id: string): DocumentTask {
+  const found = fixtureOfDemo().document.tasks.find((task) => task.id === id);
+  if (found === undefined) throw new Error(`演示计划里没有任务 ${String(id)}`);
+  return found;
 }
 
 describe('导出投影（ADR 0010 §2）', () => {
@@ -243,8 +268,7 @@ describe('SVG 序列化（ADR 0010 §4）', () => {
 
 describe('导出标签样式（人工复验第 3 条：父节点加粗、子节点缩进）', () => {
   it('汇总加粗、子节点按 WBS 深度缩进、上限 3 级', () => {
-    const { document } = fixtureOfDemo();
-    const byId = (id: string) => document.tasks.find((task) => task.id === id);
+    const byId = (id: string) => demoTaskOf(id);
     expect(exportLabelStyleOf(undefined)).toStrictEqual({ indentPx: 0, bold: false });
     // 阶段汇总：加粗、不缩进
     expect(exportLabelStyleOf(byId('s1'))).toStrictEqual({ indentPx: 0, bold: true });
@@ -259,16 +283,15 @@ describe('导出标签样式（人工复验第 3 条：父节点加粗、子节�
   });
 
   it('标签文本 = `编号 名称`，超宽截断加省略号；缩进不计入文本（SVG 与 PPTX 因此逐字相同）', () => {
-    const { document } = fixtureOfDemo();
     const short = exportLabelTextOf({
-      task: document.tasks.find((task) => task.id === 't1'),
+      task: demoTaskOf('t1'),
       fallback: 't1',
       availablePx: EXPORT_LABEL_WIDTH_PX,
       charPx: LABEL_CHAR_PX,
     });
     expect(short).toBe('1.1 需求调研');
     const long = exportLabelTextOf({
-      task: { ...document.tasks.find((task) => task.id === 't1'), name: '一个非常非常非常长的任务名称用于验证截断行为' },
+      task: { ...demoTaskOf('t1'), name: '一个非常非常非常长的任务名称用于验证截断行为' },
       fallback: 't1',
       availablePx: 120,
       charPx: LABEL_CHAR_PX,
@@ -300,8 +323,8 @@ describe('导出标签样式（人工复验第 3 条：父节点加粗、子节�
     const grids = projection.view.axis.filter((element) => element.kind === 'gridline').length;
     const labels = projection.view.axis.filter((element) => element.kind === 'label').length;
     expect(bands).toBeGreaterThan(0);
-    expect(svg.match(/fill="#f4f6f8"/g)).toHaveLength(bands);
-    expect(svg.match(/stroke="#e4e7ec"/g)).toHaveLength(grids);
+    expect(svg.match(new RegExp(`fill="${AXIS_BAND_FILL}"`, 'g'))).toHaveLength(bands);
+    expect(svg.match(new RegExp(`stroke="${AXIS_GRIDLINE_STROKE}"`, 'g'))).toHaveLength(grids);
     expect(svg.match(/<g class="axis-labels">/g)).toHaveLength(1);
     expect(labels).toBeGreaterThan(0);
     for (const element of projection.view.axis) {
@@ -353,7 +376,7 @@ describe('自动摘要（ADR 0010 §7）', () => {
       ...document,
       tasks: [
         {
-          ...document.tasks[0],
+          ...demoTaskOf('s1'),
           id: 'root',
           parentId: null,
           name: '全部',

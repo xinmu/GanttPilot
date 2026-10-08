@@ -49,6 +49,28 @@ export function routeSides(type: LinkType | string): { readonly exit: RouteSide;
   return ROUTE_SIDES[type] ?? { exit: 'right', enter: 'left' };
 }
 
+/**
+ * **建线预览**的竖直段 x：出端沿自己的方向走一段 stub，再夹在两端之间。
+ *
+ * 预览（指针还按着）不走路由的完整规则：预览只需"从哪里连到哪里"的示意，
+ * 因此竖直段取的是**出端 stub 的 x**，并夹进 `[min(两端), max(两端)]`——
+ * 于是目标在出端左侧时不会画出越过去的折返，而 `routeEdge` 的竖直段是两端 stub 的**中点**
+ * （需要回绕时才另取走廊）。两者**故意不同**：把预览也换成 `routeEdge` 会让预览提前"跳"
+ * 到终态的折点位置（P3/C6-e 记录）。
+ *
+ * 方向由相对位置决定（`enterX >= exitX` ⇒ 向右走 stub）。
+ */
+export function previewStubX(args: {
+  readonly exitX: number;
+  readonly enterX: number;
+  readonly stubPx?: number;
+}): number {
+  const stubPx = args.stubPx ?? EDGE_STUB_PX;
+  return args.enterX >= args.exitX
+    ? Math.min(args.exitX + stubPx, Math.max(args.exitX, args.enterX))
+    : Math.max(args.exitX - stubPx, Math.min(args.exitX, args.enterX));
+}
+
 /** 正交路由的产出。 */
 export interface RouteGeometry {
   /** 去重后的折线点列（首点 = 出端、末点 = 入端）。 */

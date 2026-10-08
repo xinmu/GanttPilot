@@ -4,6 +4,11 @@
 > （[裁决 P-21](../../../docs/00-baseline/裁决记录.md) §5 遗留 3、[P-22](../../../docs/00-baseline/裁决记录.md)）。
 > 成环边**丢弃**的语义本身由 `packages/xlsx-protocol/src/xlsxDependencies.spec.ts` 在门禁里覆盖；
 > 这一份证据守的是**应用层那一遍**：导入 → 诊断清单 → 任务/依赖计数。
+>
+> **P4-d（2026-10-08）**：本文件是 **Chrome 152 口径的旧快照**，当前口径见
+> [`import-cyclic-sample-chrome154.md`](import-cyclic-sample-chrome154.md)。本次只做一处**按当时计划授权**的改动：
+> 下面「样本 · 路径」一行改成**仓库根相对 + 声明词**（原来记的是采集时的本机绝对路径）——
+> 其余内容逐字未改。
 
 ## 环境（与数字一起登记）
 
@@ -23,7 +28,7 @@
 
 | 项 | 值 |
 |---|---|
-| 路径 | `D:\workspace\GanttPilot\tmp\samples\cyclic-dependency.xlsx` |
+| 路径 | `tmp/samples/cyclic-dependency.xlsx`（临时输入：不入库，由 `node scripts/make-sample.mjs` 再生） |
 | 体积 | 6669 字节 |
 | sha256 | `9802d2f38fc27dfb160c581234e53d4a005b6546b981b2e1182a32c6fe801320` |
 | 形状 | 表 `任务`，表头 `WBS / 任务名称 / 前置任务`（**仅三列**），6 行 |

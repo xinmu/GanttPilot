@@ -42,9 +42,8 @@
 import { createRequire } from 'node:module';
 import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { repoRoot } from './paths.mjs';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const defaultOutput = resolve(repoRoot, 'tmp', 'samples', 'cyclic-dependency.xlsx');
 
 /** 样本的行（**唯一的行数据定义处**；表的形状与上面文档里的表逐行一致）。 */

@@ -1,6 +1,6 @@
 {
   "env": {
-    "采集时刻": "2026-10-04T19:54:55.313Z",
+    "采集时刻": "2026-10-08T13:46:22.273Z",
     "机器": "FAIRY",
     "系统": "win32 x64",
     "Node": "v26.7.0",
@@ -10,7 +10,8 @@
     "口径": "打包产物（apps/web/dist）",
     "数据集": "dense-2000",
     "拖动天数": 3,
-    "测试帧数": 12
+    "测试帧数": 12,
+    "钩子版本": "2026-10-08"
   },
   "run": {
     "dataset": "dense-2000",
@@ -34,7 +35,7 @@
         "tasks": 2000,
         "links": 3000,
         "documentBytes": 638334,
-        "serializeMs": 2,
+        "serializeMs": 1.6,
         "recordBytes": 154,
         "recordBreakdown": {
           "baseBytes": 4,
@@ -42,17 +43,17 @@
           "redoBytes": 2,
           "postSteps": 0
         },
-        "probeLastPostSteps": 0,
+        "probeLastWriteIncrementSteps": 0,
         "putMs": [
-          1.6,
-          0.3,
+          0.6,
+          0.4,
           0.3
         ],
-        "putP50Ms": 0.3,
-        "putP95Ms": 1.6,
+        "putP50Ms": 0.4,
+        "putP95Ms": 0.6,
         "estimate": {
-          "usage": 502355,
-          "quota": 10737920595
+          "usage": 45012,
+          "quota": 10737463252
         }
       }
     }

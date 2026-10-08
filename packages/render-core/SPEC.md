@@ -28,26 +28,26 @@
 
 | 模块 | 职责 |
 |---|---|
-| `manifest.ts` | **常量与判据的唯一声明处**（ADR §11 七项回填值 + `evaluateScaleCriteria()` 复推） |
-| `route.ts` | 出/入边策略的可执行副本、正交折点 `routeEdge`、4 类箭头几何与可区分性度量 |
-| `domain.ts` | 行序（树序经折叠过滤）、`barXRange`、`milestoneCenterX`、`taskBounds` |
-| `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点。**轴元素是两级结构**（[ADR 0007 附录 §3](../../docs/02-adr/附录/0007-增补.md)／P-46）：`band` / `gridline` / `label`（下级，`level` 缺省或 2）+ **`major-band` / `label(level: 1)`（上级分段带：段内只在左端写一次、段的左边界即竖线、与下级刻度同 x 时不重复发 `gridline`）** + **`hover-band`（悬停行带，窗口坐标、每帧 1 个覆盖层元素）** |
-| `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges` |
-| `count.ts` | 元素计数（两路互证）与预算判定；G5 的 **`c₄ = perRenderedRow·rows + overlay`**（ADR 0008 §16.4：每渲染行 6 + 每帧固定 **13**；`countOverlays` 只承担"每帧固定"那一半，不随文档总规模增长；**`overlay` 由 12 增到 13 是 P-46 的悬停行带**，`hoverRowOf(view)` 是它的唯一输入来源） |
-| `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出） |
+| `manifest.ts` | **常量与判据的唯一声明处**（ADR §11 七项回填值 + `evaluateScaleCriteria()` 复推）；**跨投影同值的两个收口（P3/C6-e）**：`INDENT_PX_PER_LEVEL`（每级层级缩进——左表名称列与 `EXPORT_LABEL_INDENT_PX` 共用一个值，上限各自不同） |
+| `route.ts` | 出/入边策略的可执行副本、正交折点 `routeEdge`、**建线预览的竖直段 `previewStubX`（P3/C6-e；与终态路由**故意不同**：预览夹出端 stub，终态取两端 stub 的中点）**、4 类箭头几何与可区分性度量 |
+| `domain.ts` | 行序（树序经折叠过滤）、`barXRange`、`milestoneCenterX`、**`workdayCellCenterX`（工作日格的中点 = "抓取点"的几何，ADR 0008 §13；P3/C6-a 把测量脚手架与两个 spec 里的三份实现收成这一处）**、`taskBounds` |
+| `clip.ts` | 行窗口、边窗口（求交 / 端点可见性 / 关裁剪）、轴元素与**水平窗口**、轴线起点。**轴元素是两级结构**（[ADR 0007 附录 §3（细则）](../../docs/02-adr/附录/0007-增补.md)／P-46）：`band` / `gridline` / `label`（下级，`level` 缺省或 2）+ **`major-band` / `label(level: 1)`（上级分段带：段内只在左端写一次、段的左边界即竖线；该 `x` 处**至多一条** `gridline`——下级刻度发过就不重复发、没发过则由上级**补发**）** + **`hover-band`（悬停行带，窗口坐标、每帧 1 个覆盖层元素）** |
+| `viewModel.ts` | `buildView`（主入口）、`dayAtX` / `ordinalAtX`（反算）、`visibleRows` / `visibleEdges`、`isRowRendered`（该行是否在**渲染**窗口内；P3/C5-b 起是这一判据的唯一名字） |
+| `count.ts` | 元素计数（两路互证）与预算判定；G5 的 **`c₄ = perRenderedRow·rows + overlay`**（ADR 0008 §16.4；**两个系数只在 `manifest.ts` 的 `ELEMENT_MODEL_G5` 声明一次，本文件不复述数字**；`countOverlays` 只承担"每帧固定"那一半，不随文档总规模增长；`overlay` 含 P-46 的悬停行带，`hoverRowOf(view)` 是它的唯一输入来源） |
+| `columns.ts` | **列身份的唯一真相源**（`COLUMN_SPECS` / `ColumnKey` / `SHEET_NAME` / `HEADER_ROW` / `TABLE_COLUMNS` 等；ADR 0008 §1–§3，`xlsx-protocol` 转型再导出）；**左表列宽也从这里派生（P3/C6-e）**：`tableColumnWidths()` = `max(TABLE_COLUMN_MIN_PX, round(导出字符宽 × TABLE_COLUMN_CHAR_PX))`、`tableColumnTemplate()`（表头与表体共用的那一串；九列合计 **909 px**，`columns.spec.ts` 钉住逐列值与合计） |
 | `viewText.ts` | 单元格文本 `cellText`、日期文本工具、派生完成日 `derivedEndIso`、值→命令映射 `editToCommand` / `collapseToCommand`（**凡"只有日历能算"的量都显式收 `Calendar`**，P-19）；**行内编辑的基线文本与陈旧判定** `rawCellText` / `isEditStale`（P-21 批次 C 的 R5）；**提示条的迁移** `noticeAfterDispatch` / `rejectionNotice` / `StatusNotice`（P-30，唯一实现处） |
-| `gesture.ts` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13** + §16.3/§16.8 + **附录 §3**：连接点入口、建线四格表、**重复边预检拒绝**、**拖动期的未提交副本**）：屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、入边约束 `entryConstraintFor`、吸附 `snapCandidate`、位移与候选 `deltaFor` / `candidateOrdinalFor`、判定区 `dragModeFor`、状态机 `beginGesture` / `reduceGesture`、结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor`、**未提交副本 `previewDocumentFor`** |
-| `zones.ts` | **判定区的唯一公式**（ADR 0008 §16.1／[P-32](../../docs/00-baseline/裁决记录.md)；**行类型的例外见 [P-43](../../docs/00-baseline/裁决R42.md)**：**汇总条整条无判定区**、**里程碑整条 `move`**）：`zonesFor`（随条宽收缩）、`zoneAt` / `zoneContains` / `dragModeOfZones`、`cursorForZone`、`translateZone` / `translateZones`，以及建线四格表 `linkTypeFor` / `linkEnterSideFor` / `exitXFor` / `enterXFor`。**单独一层**：公式的消费者在环上（`gesture` 要语义、`interaction` 要手柄与光标） |
+| `gesture/` | 拖拽手势的**纯内核**（ADR 0008 §4–§8 + **§13** + §16.3/§16.8 + **附录 §3**：连接点入口、建线四格表、**重复边预检拒绝**、**拖动期的未提交副本**）。**P3/C5-b 起是目录**（原 `gesture.ts` 1,358 行 / 11 项职责；公共面逐符号不变，模块表见 `gesture/index.ts`）：`gesture/pointer.ts`（屏幕坐标归一化 `pointerFromClient`、条体命中 `barHitFor`、命中反算 `resolvePointerTarget`、位移与候选 `deltaFor` / `candidateOrdinalFor` / `ordinalAtClamped`）、`gesture/candidates.ts`（入边约束 `entryConstraintFor`、吸附 `snapCandidate`）、`gesture/outcome.ts`（结果解析 `resolveDragOutcome`、预览几何 `dragPreviewFor`、**未提交副本 `previewDocumentFor`**）、`gesture/linking.ts`（建线与预检）、`gesture/state.ts`（状态机 `beginGesture` / `reduceGesture`、判定区 `dragModeFor`） |
+| `zones.ts` | **判定区的唯一公式**（ADR 0008 §16.1／[P-32](../../docs/00-baseline/裁决记录.md)；**行类型的例外见 [P-43（依据）](../../docs/00-baseline/裁决R42.md)**：**汇总条整条无判定区**、**里程碑整条 `move`**）：`zonesFor`（随条宽收缩）、`zoneAt` / `dragModeOfZones`、`cursorForZone`、`translateZone` / `translateZones`、**`DragMode`（语义联合的声明处，P3/C5-b 起）**，以及建线四格表 `linkTypeFor` / `linkEnterSideFor` / `exitXFor` / `enterXFor`。**单独一层**：公式的消费者在环上（`gesture/` 要语义、`interaction.ts` 要手柄与光标）。`zoneContains` 是模块内私有（P3/C5-b 撤出公共面：全仓零消费者） |
 | `interaction.ts` | **交互几何**（ADR 0008 §16.2/§16.3，**落点与可见性按 §16.7/§16.8 的人工复验返工**：建线期"指针所在行"一律显形连接点；**可见图形按 P-42 批次③ 改为圆**；**汇总条按 P-43 撤下全部交互面**）：`rowHandlesFor`（端点手柄 2×4 px + 两侧连接点，内缘贴条端、竖向居中、**圆点直径略小于条高且 ≤ 命中盒边长**）、`handleXFor`、`barHeightOf`、**`connectDiameterFor`**、`connectSideAt`（**显示区 ⊇ 命中区**）、`connectRevealFor` / `rowConnectVisibleAt`（按需显形）、`cursorForPointer`（光标枚举）、`linkEntryFor`（建线起手位置；**汇总行返回 `null`**）、`handleOffsetsFor`（记录制核对） |
-| `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、冲突、建线端点；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建） |
+| `highlight.ts` | 交互态高亮（**不进 `ViewModel`**）：成环路径、选中、建线端点（三个 `styleKey` 与实际产出一一对应）；`affectedRenderSetWithAnchors`（拖动期的渲染侧最小重建）。**冲突标红不在这条通道上**：它走应用层的 `conflictTaskIds`（任务 id → 描边），因此"行索引版"的 `highlightForConflict` 是零消费者的第二个投影，已由 P3/C6-g 删除 |
 | `affected.ts` | `affectedRenderSet`：受影响行 + 受影响边（编辑重绘的判据） |
-| `align.ts` | **两栏行对齐的判读内核**（ADR 0007 §14/§15 / [P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)、**[P-41](../../docs/00-baseline/裁决记录.md)**）：`diagnoseRowAlignment`（一次探测）+ `summarizeAlignment`（多位置汇总）+ **`diagnoseScrollCoverage`**（判"这次测量有没有横向/纵向行程"）+ **`diagnoseResizeMigration`**（判"resize 对照是否真的发生"）；判据含**轴的四边覆盖**、**滚动范围**（`content-range-mismatch`）与**覆盖度 / 迁移前提**。输入全是**视口坐标的数字**（DOM 采数在 `apps/web/src/measure.ts` 的记录制钩子里）。机制标签见 ADR §14.4 与[附录 §1](../../docs/02-adr/附录/0007-增补.md) |
+| `align.ts` | **两栏行对齐的判读内核**（ADR 0007 §14/§15 / [P-23](../../docs/00-baseline/裁决记录.md)、[P-24](../../docs/00-baseline/裁决记录.md)、**[P-41](../../docs/00-baseline/裁决记录.md)**）：`diagnoseRowAlignment`（一次探测）+ `summarizeAlignment`（多位置汇总）+ **`diagnoseScrollCoverage`**（判"这次测量有没有横向/纵向行程"）+ **`diagnoseResizeMigration`**（判"resize 对照是否真的发生"）；判据含**轴的四边覆盖**、**滚动范围**（`content-range-mismatch`）与**覆盖度 / 迁移前提**。输入全是**视口坐标的数字**（DOM 采数在 `apps/web/src/measure/` 的记录制钩子里，P3/C6-a 起是目录）。机制标签见 ADR §14.4 与[附录 §1（细则）](../../docs/02-adr/附录/0007-增补.md)。**P3/C5 起走内部入口**：`@ganttpilot/render-core/align`（唯一的消费方是测量脚手架，**不进包入口**——包入口是"发布承诺"面） |
 | `fixtures.ts` | 确定性夹具生成（**规模口径**：测量 / 测试同源） |
-| `demoPlan.ts` | **演示口径的唯一定义处**（[P-34](../../docs/00-baseline/裁决R33.md)）：手写的 15 行演示计划（3 汇总 + 10 任务 + 2 里程碑、14 条依赖，四类关系齐备）；页面默认文档、重置与 G7 的导出演示/golden 都用它。与 `fixtures.ts` 的分工见该文件头部 |
+| `demoPlan.ts` | **演示口径的唯一定义处**（[P-34（依据）](../../docs/00-baseline/裁决R33.md)）：手写的 15 行演示计划（3 汇总 + 10 任务 + 2 里程碑、14 条依赖，四类关系齐备）；页面默认文档、重置与 G7 的导出演示/golden 都用它。与 `fixtures.ts` 的分工见该文件头部 |
 | `exportView.ts` | **导出投影与单页适配**（G7／[ADR 0010](../../docs/02-adr/0010-导出契约.md) §2/§3）：`buildExportView`（全量渲染、`contentWidth` **不被视口宽抬升**）、`fitScaleFor`（等比 + 居中）、`exportReadabilityOf` / `exportAdvisoryFor`（可读性提示的判据） |
 | `svgExport.ts` | **语义化 SVG 序列化**（ADR 0010 §4）：`svgString` / `svgInnerSizeOf` / **`EXPORT_TICK_LENGTH_PX`（下级短刻度的长度，§三）**；整数坐标、**无交互图元**、含可选图例与摘要侧栏 |
 | `exportSummary.ts` | **模板 A 的自动摘要与图例数据**（ADR 0010 §7）：`exportSummaryOf`（完成率与引擎**同公式**）、`exportLegendItems`、**`exportSummaryLines`（摘要文案的唯一生成处）**、`formatCompletionRatio` |
-| `exportLabels.ts` | **导出左列标签的样式与文本**（P-37／[附录 §1](../../docs/02-adr/附录/0010-增补.md)）：`exportLabelStyleOf`（汇总加粗、按 WBS 深度缩进）、`exportLabelTextOf`（截断；**缩进不进文本** ⇒ SVG 与 PPTX 逐字同源） |
+| `exportLabels.ts` | **导出左列标签的样式与文本**（P-37／[附录 §1（细则）](../../docs/02-adr/附录/0010-增补.md)）：`exportLabelStyleOf`（汇总加粗、按 WBS 深度缩进）、`exportLabelTextOf`（截断；**缩进不进文本** ⇒ SVG 与 PPTX 逐字同源） |
 
 **主入口**
 
@@ -63,7 +63,7 @@ buildView({
 }): ViewModel
 ```
 
-**两条日历口径（P-48／[ADR 0005 附录 §1](../../docs/02-adr/附录/0005-增补.md)；这是本轮最容易搞错的一处）**
+**两条日历口径（P-48／[ADR 0005 附录 §1（细则）](../../docs/02-adr/附录/0005-增补.md)；这是本轮最容易搞错的一处）**
 
 | 角色 | 是谁 | 用途 |
 |---|---|---|
@@ -104,40 +104,43 @@ xRight(i)     = (dayOfOrdinal(ef[i] − 1) + 1     − axisOriginDay) · pxPerDa
 - **档位只改 `pxPerDay` 与表头分组**，不改变任何序号 ↔ 日期的对应；切换是**离散**的；
 - **序号 → 日期必须用"可翻译的那份日历"**（§2 的两条口径）：用入参日历翻译远期序号会抛错（P-48）。
 
-**表头带与两级刻度**（[ADR 0007 附录 §3](../../docs/02-adr/附录/0007-增补.md)／P-46）：
+**表头带与两级刻度**（[ADR 0007 附录 §3（细则）](../../docs/02-adr/附录/0007-增补.md)／P-46）：
 
 - 表头带内是**两行**文本：**上级**刻度在**上**（基线 `MAJOR_LABEL_BASELINE_PX = 16`）、
   **下级**刻度在**下**（基线 `MINOR_LABEL_BASELINE_PX = 33`）——两个基线在 `manifest.ts` 单点声明，
   **屏幕 SVG / 导出 SVG / PPTX 三处共用**（各写一个数字就是"所见 ≠ 所导出"）。
-  **行序是 G8 人工复验第 ③ 条订正的**（报文原文"刻度上下反了"）：首版把**粗**的那一层
-  （上级 `level: 1`，日/周档 `YYYY-MM`、月档 `YYYY`）放在下半（33）、**细**的那一层放在上半（17），
-  与"粗的在上"相反；两级对调后两基线间距 17 px > 字号 10 ⇒ 不重叠；
+  **行序由 G8 人工复验第 ③ 条订正**（**粗**的那一层 = 上级 `level: 1`，日/周档 `YYYY-MM`、月档 `YYYY`，
+  在**上**；**细**的那一层在**下**）；两级对调后两基线间距 17 px > 字号 10 ⇒ 不重叠；
 - **上级按分段带表达**：段内**只在左端**发一次文本（`major-band` 的左边界即竖线）；
-  段与下级刻度同 `x` 时**不重复发 `gridline`**（否则两路计数对不上）；
+  该 `x` 处**至多一条** `gridline`——下级刻度已经发过就**不重复发**，没发过（周档的月初往往不是周一）
+  则由**上级这一层补发**（否则两路计数对不上）。判据是**双向**的：`gridline` 的 `x` 互不相同
+  **且**每条 `major-band` 的左边界都有一条 `gridline` 与它重合（除非它落在水平裁剪之外）——见 `clipping.spec.ts`；
 - 上级标签字面：日/周档 `YYYY-MM`、月档 `YYYY`（下级仍是 §11 第 6 项的 `DD` / `MM-DD` / `YYYY-MM`）；
 - 两级元素**共用同一处水平窗口裁剪** ⇒ `c₃` 仍与文档总规模无关（§6.1 ③）。
 
 **轴的视觉分层与绘制顺序**（G8 人工复验第 ④⑤ 条的订正；**屏幕 SVG / 导出 SVG / PPTX 同一份口径**，
 PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
 
-| 绘制顺序 | 层 | 屏幕 class | 填充（`manifest.ts` 单点常量） | 画在哪 |
+| 绘制顺序 | 层 | 屏幕 class | 填充（**只在 `manifest.ts` 声明**） | 画在哪 |
 |---|---|---|---|---|
-| ①（最先） | 上级分段的**正文** | `.axis-major-body` | `#fafbfc`（`AXIS_MAJOR_BODY_FILL`，**近乎白**） | 绘制区（整高） |
-| ② | 周末/假日色带（口径未变） | `.axis-band` | `#f4f6f8`（`AXIS_BAND_FILL`） | 绘制区（整高） |
-| ③ | 上级分段的**全高边界线** | `.axis-major-edge` | `#b9c0cb`（`AXIS_MAJOR_EDGE`） | 表头带 + 绘制区（**全高**） |
-| ④ | 上级分段的**表头底** | `.axis-major-header` | `#e4e9f0`（`AXIS_MAJOR_HEADER_FILL`） | **表头带**（上级那一行） |
-| ⑤ | **下级刻度线**（短刻度） | `.axis-tick` | `#e4e7ec`（`AXIS_GRIDLINE_STROKE`） | **表头带内**（长度 6 px，见下） |
+| ①（最先） | 上级分段的**正文** | `.axis-major-body` | `AXIS_MAJOR_BODY_FILL`（**近乎白**） | 绘制区（整高） |
+| ② | 周末/假日色带（口径未变） | `.axis-band` | `AXIS_BAND_FILL` | 绘制区（整高） |
+| ③ | 上级分段的**全高边界线** | `.axis-major-edge` | `AXIS_MAJOR_EDGE` | 表头带 + 绘制区（**全高**） |
+| ④ | 上级分段的**表头底** | `.axis-major-header` | `AXIS_MAJOR_HEADER_FILL` | **表头带**（上级那一行） |
+| ⑤ | **下级刻度线**（短刻度） | `.axis-tick` | `AXIS_GRIDLINE_STROKE` | **表头带内**（短刻度长度见下） |
+
+> 本表只登记"**哪一层用哪个常量**"；**色值一律不在本文件复述**（声明处：`manifest.ts`）。
 
 - **顺序是关键，且第 ④ 条报的"一整块浅色"是两个错叠在一起**：月份**正文最先画**，周末色带**压在它上面**。
-  正文整高、月段又必然首尾相接 ⇒ 它**连续覆盖整个绘制区宽度**；首版还把它的填充取了 `#eef1f5`
-  （与周末灰 `#f4f6f8` 同量级）**并且画在周末带之后** ⇒ "白周中 + 灰周末"的对比被整体盖掉。
-  两半都已修：填充改为近乎白（分组仍由相邻月之间的**边界线**表达），顺序钉死为 **正文 → 周末带**
+  正文整高、月段又必然首尾相接 ⇒ 它**连续覆盖整个绘制区宽度**；首版还把它的填充取了一个与周末灰**同量级**的浅色
+  （**具体色值只在 `manifest.ts` 声明**）**并且画在周末带之后** ⇒ "白周中 + 灰周末"的对比被整体盖掉。
+  填充是**近乎白**（分组仍由相邻月之间的**边界线**表达）、顺序钉死为 **正文 → 周末带**
   （周末带永远看得见）；
-- **刻度线归刻度区**（第 ⑤ 条）：`gridline` 首版是**整高竖线**，等于把刻度画进了条体区；
-  现在它是表头带内的**短刻度**（`class="axis-tick"`、`x1 = x2 = 刻度 x`、
-  `y1 = HEADER_HEIGHT_PX − 6`、`y2 = HEADER_HEIGHT_PX`）。长度在**两处单点声明且同值**：
-  屏幕 `TICK_LENGTH_PX = 6`（`GanttChart.vue`）与导出 `EXPORT_TICK_LENGTH_PX = 6`
-  （`svgExport.ts`，经包 `index.ts` 导出，PPTX 也消费它）。⇒ **绘制区里只剩**周末色带 + 月份正文底 +
+- **刻度线归刻度区**（依据：G8 人工复验第 ⑤ 条）：`gridline` 只画在表头带内、不进条体区——
+  它是表头带内的**短刻度**（`class="axis-tick"`、`x1 = x2 = 刻度 x`、
+  `y1 = HEADER_HEIGHT_PX − EXPORT_TICK_LENGTH_PX`、`y2 = HEADER_HEIGHT_PX`）。长度**只在 `svgExport.ts` 的
+  `EXPORT_TICK_LENGTH_PX` 声明一次**（经包 `index.ts` 导出，屏幕与 PPTX 都消费同一个值；
+  **屏幕侧不得另存第二份**）。⇒ **绘制区里只剩**周末色带 + 月份正文底 +
   月边界线（月边界线仍是**全高**——那是**分组边界**，不是刻度）；
 - **常量改名/新增**（`manifest.ts` 单点声明，屏幕 SVG / 导出 SVG / PPTX 与左表 CSS 共用同值）：
   `AXIS_BAND_FILL`、`AXIS_MAJOR_BODY_FILL`、`AXIS_MAJOR_HEADER_FILL`、`AXIS_MAJOR_EDGE`、
@@ -145,7 +148,7 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
   **旧名 `AXIS_MAJOR_FILL` 随分层删除**——它当初把"正文"与"表头底"混成了一色；
 - **元素模型未动**：分层只改"**每个轴元素投影出几个图形**"（一个 `major-band` → 正文 + 全高边界 +
   表头底；一个 `gridline` → 一条短刻度，取代原先那条整高竖线），
-  `c₁` / `c₂` / `c₃` / `c₄` 逐个不变（§九）。
+  `c₁` / `c₂` / `c₃` / `c₄` 逐个不变（**本文件 §九** 的「元素预算的常数与实测」与 `count.ts` 的两路计数）。
 
 ## 四、行模型
 
@@ -155,7 +158,7 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
 行屏幕 y = 列顶 + HEADER_HEIGHT_PX + row × ROW_HEIGHT − scrollTop
 ```
 
-- `HEADER_HEIGHT_PX = 40`（`manifest.ts` 单点声明；**P-46 起由 28 上调**，为两行刻度留出带高）
+- `HEADER_HEIGHT_PX`（**只在 `manifest.ts` 声明**；P-46 为两行刻度上调过，**取值见声明处**）
   = 左表表头与图表表头带的**外高**（两栏 `box-sizing: border-box`）；
 - **绘制区 = 滚动容器客户区**：`Viewport.height = clientHeight`（§2 的 `scrollTop // 不含表头` 由此字面成立）；
 - **行外高必须 = `ROW_HEIGHT`**：`.row` 若在 `content-box` 下加 1 px 下边框，外高成 25 px ⇒ 每行漂 1 px（R9）；
@@ -175,14 +178,13 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
 - **悬停行带**（P-46 §2.2）：`ViewModel.hoverBand` = 指针所在的**渲染窗口内的可见行序号**（否则 `null`），
   内容坐标系下 `y = row × rowHeight`、高 = 行高；它同时是 `view.axis` 里的一个 `hover-band`
   元素（**`x` 起点在窗口坐标、宽度取 `contentWidth`**）⇒ **计入 `c₄` 的 `overlay`（+1）、不计入 `c₃`**，且**恰好 1 个**
-  （不得在 `drawnRows` 的逐行模板里再加一个）。取色 `HOVER_ROW_FILL = #cfe3fa`：
-  **G8 人工复验第 ⑥ 条**把首版的 `#e8f1fb` 加深，理由是它与周末灰度带 `#f4f6f8` 太近、区分度不够。
+  （不得在 `drawnRows` 的逐行模板里再加一个）。取色 `HOVER_ROW_FILL`（**色值只在 `manifest.ts` 声明**）：
+  取色由 **G8 人工复验第 ⑥ 条**加深（原取值与周末灰度带 `AXIS_BAND_FILL` 太近、区分度不够）。
   渲染时它必须画在**逐行序列之前**（在条体之下）并由滚动组抵消滚动；
   **不得**在应用层自己再减一次 `scrollTop`（§14.3 的同源陷阱）。
-  **宽度是 `contentWidth` 而不是视口宽**（G8 **第二次**复验第 ① 条）：行带的语义是"**整行**"，
+  **宽度是 `contentWidth` 而不是视口宽**（依据：G8 **第二次**复验第 ① 条）：行带的语义是"**整行**"，
   而"那一行"在横向是有长度的；它画在内容滚动组里（横向不翻译）⇒ 铺到内容宽即跟着行滚到任何位置。
-  用视口宽则表现为"**首屏那一段亮、向右滚动后新露出的那段不亮**"。消费方**不得**自己再算一份几何
-  ——屏幕曾这样漏改过一次（模型改了、模板里的 `width = view.width` 没改，症状一模一样）；
+  消费方**不得**自己再算一份几何；
   左表那半与它**同值，但是两条不同的路径**：`.row:hover`（指针**物理落在左表**上）是纯 CSS；
   `.row.hovered`（**图表**指针所在的行，G8 人工复验第 ⑦ 条补齐的缺失）由 `hoverTaskId` 派生——
   两者都**零 SVG 元素**，不进任何元素预算判据。
@@ -202,10 +204,10 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
   （FS 右出→左入、SS 左出→左入、FF 右出→右入、SF 左出→右入；左右连接点 = 该边中点）。
   本包只放它的**可执行副本**（`ROUTE_SIDES`），**不重述成第二处真相源**；
 - 参数化折点：每条边一律「**出端水平 stub → 竖直段 → 入端水平 stub**」，折点全部正交；
-  - `EDGE_STUB_PX` = **8 px**：**固定像素，不随 `pxPerDay` 缩放**（以免缩放时折点跳变，
+  - `EDGE_STUB_PX`（**只在 `manifest.ts` 声明**）：**固定像素，不随 `pxPerDay` 缩放**（以免缩放时折点跳变，
     并让 G7 在给定 `pxPerDay` 下拿到同一几何）；
   - 竖直段 x：常规情形 = 两端 stub 末点的**中点**；**需要回绕**（左出且目标 stub 在出端 stub 左侧
-    —— 即 SS/SF 且目标在前置左侧）取 `min(两端 x) − EDGE_WRAP_PX`（12 px），落在左侧 gutter 内；
+    —— 即 SS/SF 且目标在前置左侧）取 `min(两端 x) − EDGE_WRAP_PX`，落在左侧 gutter 内；
   - **规则固有的不连续性**：回绕判据会随 `pxPerDay` 变化而翻转（G4-S 实测 120 条样本里 2 条）。
     要消掉它只能改规则（**另立 ADR**），不是实现缺陷；
 - **4 类关系的箭头必须可区分**：判据是"给定同一对条，4 类关系的箭头形态两两不同"。
@@ -304,12 +306,13 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
   再喂给 `compute` 的**第一个入参**——**锚点形状仍不扩**（`{taskId, startOrdinal}`），副本
   **不进命令通道、不进撤销栈、不落盘**；**日历与文档诊断仍只由已提交文档派生**（`baseDay` 决定序号 ↔ 日期的映射）。
   判据：`compute(副本, 锚点)` 与落库后重算**逐位一致**（负向对照：只喂锚点必然给出另一个值）。
-  口径与代价见 [ADR 0008 附录 §3](../../docs/02-adr/附录/0008-增补.md)；
+  口径与代价见 [ADR 0008 附录 §3（细则）](../../docs/02-adr/附录/0008-增补.md)；
 - **建线**：类型由相对位置反推（`to.xLeft ≥ from.xLeft ⇒ FS`，否则 `SS`）、`lagDays = 0`、
   id 由本包给确定性建议值；**成环预检即拒绝**并把 `path` 交给高亮层；
 - **高亮是独立覆盖层**（`highlight.ts`）：**不进 `ViewModel`**——几何真相源只由
   「文档 + `Schedule` + `Calendar` + 视口」决定，交互态进去会让期望值表与裁剪判据跟着手势漂移；
-- **元素预算**：覆盖层另立 **`c₄`**（`ELEMENT_MODEL_G5.overlay = 13`，**每帧固定开销**；**13 = 12 + P-46 的悬停行带**），
+- **元素预算**：覆盖层另立 **`c₄`**（`ELEMENT_MODEL_G5.overlay` 那一项，**每帧固定开销**；
+  **取值只在 `manifest.ts` 声明**，P-46 的悬停行带使它 +1），
   `c₁`/`c₂`/`c₃` 一字未改；`countElements` 与 `countElementsByEnumeration` 对覆盖层同样逐项互证。
   批次 A 只改覆盖层的**坐标**（预览几何），**不新增元素** ⇒ `c₄` 不变。
 
@@ -317,8 +320,8 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
 
 > **本表是判据的登记处**（分层规范见 [`docs/DOC-SPEC.md`](../../docs/DOC-SPEC.md) §一）：
 > 一行一条判据，去掉按轮次重复的行。**逐轮的过程细节**（每批改了什么、四条/五条负向对照的实测、
-> 三轮人工复核的报文与判定）不在这里复述，指向 [首版-记录-G5](../../docs/01-roadmap/首版-记录-G5.md) 与
-> [ADR 0007 增补](../../docs/02-adr/附录/0007-增补.md)、[ADR 0008 增补](../../docs/02-adr/附录/0008-增补.md)。
+> 三轮人工复核的报文与判定）不在这里复述，指向 [首版-记录-G5（细则）](../../docs/01-roadmap/首版-记录-G5.md) 与
+> [ADR 0007 增补（细则）](../../docs/02-adr/附录/0007-增补.md)、[ADR 0008 增补（细则）](../../docs/02-adr/附录/0008-增补.md)。
 > 列「增补记录」标出该行来自哪一轮裁决。
 
 | 层 | 手段（住哪个 spec） | 判据（只搬不改） | 进 `pnpm gate`？ | 增补记录 |
@@ -334,50 +337,47 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
 | G7 ③ 摘要与引擎同公式（ADR 0010 §7） | `export.spec.ts` | 完成率与"整篇叶子当作一棵树"的 `summaryProgress` **互证**（10 位小数）；`milestoneCount` 取自引擎；里程碑清单按日期升序且带 ISO；无工期权重 ⇒ `null`（显示「—」，不是 NaN/0） | **进** | [P-36](../../docs/00-baseline/裁决记录.md) |
 | G7 ④ 可读性阈值（ADR 0010 §11） | `export.spec.ts` | 演示计划：日档不可读（< 6 pt）、周/月可读 ⇒ `advice: 'switch-zoom'`；1,000 任务：三档都不可读 ⇒ `advice: 'collapse'` | **进** | [P-36](../../docs/00-baseline/裁决记录.md) |
 | G7 ⑤ 负向对照（导出投影） | `export.spec.ts` | 窗口裁剪下的渲染行数**必须少于**全量；非等比缩放公式**不满足**"等比 + 贴边" | **进** | [P-36](../../docs/00-baseline/裁决记录.md) |
-| G7 ⑥ 标签样式与文案单一来源（P-37 返工） | `export.spec.ts` | 汇总加粗 / 子行按 WBS 深度缩进（12 px 每级、封顶 3 级）/ 超宽截断；**缩进不进文本** ⇒ SVG 与 PPTX 标签文本**逐字相同**；SVG 图例的依赖线画**真箭头**（FS/FF 实心、SS/SF 空心）；摘要行由 `exportSummaryLines` **唯一生成**（超上限截断并注明总数） | **进** | [P-37](../../docs/00-baseline/裁决R36.md) |
-| G5 ① 日期口径（P-19） | `dateText.spec.ts` + `dateTextNegative.spec.ts` + `editCommand.spec.ts` + `textFixtures.spec.ts` | 开始 ≤ 完成、与 `Schedule` 同源、派生完成与显示的"开始"同源、编辑写回一致；**NC1/NC2 必须被检出** | **进** | [P-20](../../docs/01-roadmap/首版-记录-G5.md) |
-| G5 ② 手势与三语义（P-20） | `gesture.spec.ts` | 三语义判定区、拖动三情形与松手命令、`Esc` 取消、汇总不可拖、`snap`/`allow` 四象限与 `anchorConflict` 对齐、建线与检环、命中反算 × 三档位；**屏幕坐标 → 内容坐标与事件目标无关**（含 NC）、条体命中 ± `HIT_TOLERANCE_PX`（含里程碑包围盒）、三语义**零位移不产出命令**、`move` 中部抓取**不跳位**、`resize-start` 完成日不动、`resize-duration` 按下**不翻倍**、里程碑完成日 = 开始日、**预览与提交同源**、带**会话锚点**重算**不累积**（13 → 24 例；五组负向对照逐条验证过判别力） | **进** | [P-22](../../docs/01-roadmap/首版-记录-G5.md) / [ADR 0008 §13](../../docs/02-adr/附录/0008-增补.md) |
-| G5 ③ 依赖方向护栏 | `boundary.spec.ts` | 本包发布源与**构建产物**都没有指向 `exceljs` 的模块边；本包铁律夹具被拦下 | **进** | — |
-| G5 ④ 拖动计时 | `scripts/measure-render.mjs --drag` | 帧间隔 p95 ≤ 33.3 ms（≥30 fps）、松手 → 重算 + 冲突标记 ≤ 200 ms、下游跟随、**位移**（松手后 `startDate` = 按下时的开始序号 + 天数） | **不进**（记录制，ADR 0008 §11） | [P-22](../../docs/01-roadmap/首版-记录-G5.md) |
-| G5 ⑤ 导入与成环清单（第 13 条） | `scripts/measure-render.mjs --import=<xlsx>` + `scripts/make-sample.mjs` | 成环样本 ⇒ 6 任务 / 5 依赖 / 恰 1 条 `XLSX_CYCLE_EDGE_DROPPED`（带成环路径）/ 无"不可排程" | **不进**（记录制） | [P-22](../../docs/01-roadmap/首版-记录-G5.md) |
-| G5 ⑥ 两栏行对齐判读（P-23 / P-24 / **P-41**） | `align.ts` + `align.spec.ts`（**27 例**） | 正例"未变造时零检出" + **每条机制一条负向对照**（③双重偏移 / ②缺表头带 / ①测量过期 / R8 盒≠viewBox / R9 行外高 / 表体高 / 表头高 / 轴纵向或**横向**不覆盖 / **刻度侵入第一行** / **R11 滚动范围** / 单行漂移 / 滚动不同步 / 所见≠所点 / 空白带 / 空样本）+ **P-41 的六条**（覆盖度正例与"无横向/纵向行程"两条负向对照、覆盖度并进汇总 ⇒ 位置全绿仍整体失败、迁移前提自证 ⇒ `resize-not-observed`、以及"过期重算 / 滚动没跟上"由**现有机制表**抓住的两条） | **进** | [记录层](../../docs/01-roadmap/首版-记录-G5.md) / [ADR 0007 §14–§15](../../docs/02-adr/附录/0007-增补.md) |
-| G5 ⑥ 两栏行对齐（真实 DOM） | `scripts/measure-render.mjs --align[=<label>]`（**左表在场**） | **三档（`--align-zooms`）× 6 个按可滚动行程比例解析的位置**逐行 \|Δ\| ≤ 0.5 px；`pinned`/`svgBoxAligned`/`headerAligned`/`heightAligned`/`rowHeightAligned`/`scrollInSync`/`contentRangeAligned`/`labelsInHeader`/`hitTestOk` 全真；空白带 0；轴四边覆盖 + 刻度在表头带内；**覆盖度**（横向与纵向都必须真的取到行程）；**resize 迁移轮**（`--align-resize=WxH`，两条前提自证 + 滚动位置必须活下来） | **不进**（记录制，需本机 Chrome） | [P-23](../../docs/01-roadmap/首版-记录-G5.md) / [P-24](../../docs/01-roadmap/首版-记录-G5.md) / [P-41](../../docs/00-baseline/裁决R40.md) |
-| G5 ⑦ 拖动期画的是结果（P-24） | `gesture.spec.ts`（24 → 26 例） | 三语义下 `drawnBarForRow` == 落库重算后的 `taskBounds`；与**锚点视图**的对照（`resize-start` 的右端固定）；未被拖行不受影响 | **进** | [ADR 0008 §14](../../docs/02-adr/附录/0008-增补.md) |
-| G5 ⑫ 拖动期的**下游**也所见即所提交（P-45） | `gesture.spec.ts`（**+3 例**） | `previewDocumentFor`：只改那一个任务、其余**按引用共享**、原文档一字不动、两种 `null`；**下游同源**——`resize-duration` 拖动期 `compute(副本, 锚点)` 与落库后重算的后继行开始序号**逐位一致**（**负向对照写在同一条断言里**：只喂锚点必然给出另一个值；并以"至少一个样本"自证前提）；`GestureUpdate.dragOutcome.patch` 与松手命令的 `patch` **逐字段相等** | **进** | [ADR 0008 附录 §3](../../docs/02-adr/附录/0008-增补.md) |
-| G5 ⑫ 拖动期的下游（记录制） | `scripts/measure-render.mjs --drag`（**两种语义 × 两个滚动状态**；`--drag-dataset=` 可换规模） | **抓取点自证**（`gestureMode === 'resize-duration'`）、位移判据（**工期** = 拖动前 + N）、**下游跟随**（拖动期 == 松手后 **且** ≠ 拖动前）、**预览不落库**（拖动期 `revision` 不变、松手后 +1）；两族共用同一个聚合函数 ⇒ 数字可比 | **不进**（记录制，需本机 Chrome） | [P-45](../../docs/00-baseline/裁决R44.md) |
-| **G8 ① 两级刻度**（P-46） | `clipping.spec.ts` + `scaleInvariance.spec.ts` + `pptx-renderer/template.spec.ts` | 上级标签随档位（日/周 `YYYY-MM`、月 `YYYY`；下级仍 `DD`/`MM-DD`/`YYYY-MM`）；**上级标签数 == 上级分段带数**且（日档）严格少于下级标签数（"段内只写一次"的判别力）；**同 `x` 处只有一条 `gridline`**；`c₃` 逐档位重锚 **122 / 89 / 94** 且"同档位恒定"仍成立；PPTX 侧 `major-band-N` 数 == `view.axis` 的 `major-band` 数（**绘制区正文 / 全高边界 `-edge` / 表头底 `-head` 三个投影都在**）、**上级标签的 `y` 严格小于下级**（大刻度在上，**G8 人工复验第 ③ 条订正**）、短刻度的高度 < 灰度带的 1/4 且绘制顺序 `major-band-N` < `band-N` < `grid-N` < 条形（刻度只在表头带内，**第 ⑤ 条**） | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
-| **G8 ② 悬停行带**（P-46；**宽度口径见 G8 第二次复验第 ① 条**） | `clipping.spec.ts` + `viewModel.spec.ts` | 给定 `hoverRow` 时**恰好 1 个** `hover-band`（`x=0`、**宽 = `contentWidth`**、`y = row × 行高`、高=行高）；外加**判别力**前提（`contentWidth` 必须严格大于视口宽）与**负向对照**（把视口宽当内容宽喂进 `buildAxis` ⇒ 得到一屏宽，两者必须不等）；**计入 `overlay`（+1）、不计入 `c₃`**；两路计数仍逐项相等且**没有双重计数**（`axis-hover-band` 必须不存在、`overlay-hover-row` 恰 1）；**负向对照**：不传 `hoverRow` 时 `overlays`/`total` 各少 1；渲染窗口外的行号 ⇒ 不发射 | **进** | [P-46](../../docs/00-baseline/裁决R45.md) |
-| **G8 ③ 渲染地平线收口**（P-48） | `dragHorizon.spec.ts`（**4 例**） | 夹取方向（左侧一律 0、右侧夹到末日）；向左拖五个距离逐帧都能建出视图；**向右拖 90 个工作日必须能建出视图**（看门人已由"必须抛错"改写而来）；**`renderCalendar` 覆盖 `projectFinish − 1`**（入参日历缩到 30 天时它严格更大、且能翻译）；守卫型负向对照（把越界序号交回入参日历必须现形） | **进** | [P-47](../../docs/00-baseline/裁决R46.md) / [P-48](../../docs/00-baseline/裁决R47.md) |
-| G5 ⑧ 滚动状态下的反算与命中（P-25） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** | [ADR 0007 §16](../../docs/02-adr/附录/0007-增补.md) / [ADR 0008 §15](../../docs/02-adr/附录/0008-增补.md) |
-| G5 ⑧ 滚动状态下的拖动（记录制） | `scripts/measure-render.mjs --drag` | **两个滚动状态各一次**（`(0,0)` 与 `(480,600)`）：各自的"松手后 `startDate` = 按下时的开始序号 + 天数"都必须成立；目标行必须**无有效入边约束**（否则 `snap` 夹住候选 = 假红） | **不进**（记录制，需本机 Chrome） | [P-25](../../docs/01-roadmap/首版-记录-G5.md) |
-| G4/G5 ② 内容横向范围（P-24） | `viewModel.spec.ts`（16 → 19 例） | `contentWidth` 覆盖**全部任务最右缘** + 引出段 + 回绕走廊；随项目末端单调；空文档回落窗格宽；**负向对照**：旧式"按窗格宽推导"必须不满足 | **进** | [ADR 0007 §15](../../docs/02-adr/附录/0007-增补.md) |
-| G5 ⑨ 编辑态"值真的变了才取消"（P-21 批次 C） | `editCommand.spec.ts`（**+10 例**） | `rawCellText` 逐列**原始字段**（`null` ⇒ 空串、任务不存在 ⇒ `undefined`、派生列 ⇒ 空串）；"别的任务变了 / 同任务别的列变了 ⇒ **不**陈旧"、"该任务该列真的变了（文本列 + 日期列）⇒ 陈旧"、"任务消失 ⇒ 陈旧"、"改回原值 ⇒ 不陈旧"；恒等 patch 必须 `changed === false`（前提自证）；**NC1**（忽略 `column`，只比整个任务）与 **NC2**（旧规则"任何版本不同即陈旧"）必须被检出 | **进** | [P-28 批次 C](../../docs/01-roadmap/首版-记录-G5.md) |
-| G5 ⑨ 提示清空（P-21 批次 C） | 人工复核 + 临时 CDP 预验（**打包产物**口径，M1–M7） | 空栈 `Ctrl+Z` 出现的 `SESSION_NOTHING_TO_UNDO` 在**下一次成功且真的改了文档的命令**后消失——**含拖动/建线的松手提交**（P-31）；`apps/web` 至今没有判据入口 ⇒ DOM 层只能人工验（P-9 口径） | **不进**（人工） | [P-28 批次 C](../../docs/01-roadmap/首版-记录-G5.md) / [P-31](../../docs/00-baseline/裁决R30.md) |
-| G5 ⑩ 提示条的迁移（P-30，收口 P-29） | `editCommand.spec.ts`（**+5 例**）；**落点在 `useProject.commit()`**（`apps/web`，不进 gate） | 三档逐条：**失败**才产生提示（文案含 `code`/`message`，缺失用「未知」）；**成功且 `changed`** ⇒ 清掉失败提示、`info` 不动；**成功但 `changed === false`** ⇒ 原样保留。含一条**用真实会话栈**跑维护者报文序列：空栈回退 ⇒ 有提示；修改 ⇒ 提示消失；回退到栈底 ⇒ 不出现；栈底再回退 ⇒ 才重新给提示。**落点在命令通道**（P-31）：`dispatch`/`undo`/`redo`/`ingestDocument` 都经 `commit()`，任何调用点都绕不过 | **进**（规则本体） | [P-30](../../docs/00-baseline/裁决R29.md) / [P-31](../../docs/00-baseline/裁决R30.md) |
-| G5 ⑪ 判定区随条宽收缩、端点手柄与连接点（P-32＝P-21 批次 B；**圆点口径见 P-42**） | `zones.ts` + `interaction.ts` + `interaction.spec.ts`（**P-32 新增 22 例 → P-42 24 例**）+ `gesture.spec.ts`（**+6 例**） | `zonesFor` 的边界公式：宽条（≥18 px）与旧式 `DRAG_EDGE_PX = 6` **逐值一致**（前提自证）、9 px 条给出 6 px 的 `move` 区、3 px 条（月档 1 个工作日）的 `move` 区**非空**（**NC1**：固定 6 px ⇒ 空集）；手柄 x **= 判定区边界**（与判定区同源）、连接点**跨在条端上**（`[xRight − CONNECT_INSET_PX, … + CONNECT_SIZE_PX]`，命中盒 12 px；竖向中心 = 条形中心；**命中区 ⊇ 可见图形 + 外侧 4 px**：可见图形的每一处都点得中，并含 `dx = −1..+2` 的回归断言）、**P-42：可见图形 = 圆，直径 = `min(12, 条高 − 2)`（略小于条高、≤ 命中盒边长），圆心 = 命中盒中点 + 条心；逐行（含汇总/里程碑）复核，NC = "与条体等高"⇒ 两条不变量同时红**、`connectRevealFor` 只在指针靠近该行条端时显形、手柄高 4 < 条高 14.4（不越过条体上沿）；光标四分类（端点 `col-resize` / 中部 `move` / 连接点 `crosshair` / 其余 `default`，且**取非 0 滚动位置**）；`linkEntryFor` 的 `exitSide` = 所抓那一侧、`linkTypeFor` 四格与端点 x（**NC2**：连接点 x 换成手柄 x ⇒ 从"建线"退化成"改工期"）；`handleOffsetsFor` 与 `rowHandlesFor` 同源；**P-43：汇总条整条无判定区（`zonesFor` 全 null）、光标 `default`、`linkEntryFor` 返回 null；里程碑整条 `move`（删掉"右半 = 改工期"）+ 左表 `duration` 列在 `milestone` 为真时拒绝**（含旧口径公式的负向对照） | **进** | [ADR 0008 §16](../../docs/02-adr/附录/0008-增补.md) / [P-32](../../docs/00-baseline/裁决R31.md) / [P-42](../../docs/00-baseline/裁决R41.md) / [P-43](../../docs/00-baseline/裁决R42.md) |
-| G5 ⑪ 手柄/光标/连接点（记录制） | `scripts/measure-render.mjs --drag` | 打包产物上：DOM 手柄条数 **= 模型**（`handleOffsetsFor`）、**指针所在那一行的连接点 = 2**（按需显形）、条体中部/端点/连接点三处的光标分类正确、**从连接点按下认得出该侧入口**（R4 的可判定形式）、**P-42：连接点的 DOM 标签 = `circle`、可见盒是正方形且 ≤ 命中盒边长**（选择器不限定标签，换标签不会静默失效） | **不进**（记录制，需本机 Chrome） | [P-32](../../docs/01-roadmap/首版-记录-G5.md) / [P-42](../../docs/00-baseline/裁决R41.md) |
-| G7 前置 演示口径（P-34） | `demoPlan.spec.ts`（**新增 8 例**） | 15 行 / 14 条依赖 / 3 汇总 / 2 里程碑；schema **error 0** 且良性 warning **恰 11 条同码**（码集合与条数都钉住）；四类关系齐备 + 至少一条负 lag；id 唯一、端点存在、边一律沿文档序向前；`compute` ok、**零排程诊断**、三个汇总进度 **49/60 · 5.5/23 · 0**；**跨度 ≤ 40 个工作日**（"单页 16:9 可容纳"的可判定形式）；两次调用逐字节一致（golden 前置） | **进** | [P-34](../../docs/00-baseline/裁决R33.md) |
-| **坐标基准不变量**（P-25/P-32 的常驻条目） | 盘点见 [`apps/web/evidence/scroll-consumers-audit.md`](../../apps/web/evidence/scroll-consumers-audit.md)（**只读**，13 处消费者逐条给出基准） | **只有 `pointerFromClient` 叠加 `scroll*`**（`x = clientX − paneLeft + scrollLeft`、`y = clientY − paneTop + scrollTop`，ADR 0008 §13.1）；它的下游至多做**平移 / 窗口换算 / 抵消负号**——`dayAtX` 与 `resolvePointerTarget` 收到的是**内容坐标**、轴窗口是**唯一**的减号点、手柄与连接点（批次 B）**一次算好、拖动期只 `translateZone`**。**新增任何"自己再换算一次坐标"的消费者，必须对照本行自证基准** | **进**（不变量由 `geometryExpectations.spec.ts` / `gesture.spec.ts` / `interaction.spec.ts` / `align.spec.ts` 承载，且一律**取非 0 滚动位置**） | [P-25](../../docs/00-baseline/裁决R24-26.md) / [P-32](../../docs/00-baseline/裁决R31.md) |
-**元素预算的常数与实测**（[`apps/web/evidence/render-timing-chrome152.md`](../../apps/web/evidence/render-timing-chrome152.md)）：
+| G7 ⑥ 标签样式与文案单一来源（P-37 返工） | `export.spec.ts` | 汇总加粗 / 子行按 WBS 深度缩进（12 px 每级、封顶 3 级）/ 超宽截断；**缩进不进文本** ⇒ SVG 与 PPTX 标签文本**逐字相同**；SVG 图例的依赖线画**真箭头**（FS/FF 实心、SS/SF 空心）；摘要行由 `exportSummaryLines` **唯一生成**（超上限截断并注明总数） | **进** | [P-37（依据）](../../docs/00-baseline/裁决R36.md) |
+| G5 ① 日期口径（P-19） | `dateText.spec.ts` + `dateTextNegative.spec.ts` + `editCommand.spec.ts` + `textFixtures.spec.ts` | 开始 ≤ 完成、与 `Schedule` 同源、派生完成与显示的"开始"同源、编辑写回一致；**NC1/NC2 必须被检出** | **进** | [P-20（细则）](../../docs/01-roadmap/首版-记录-G5.md) |
+| G5 ② 手势与三语义（P-20） | `gesture.spec.ts` | 三语义判定区、拖动三情形与松手命令、`Esc` 取消、汇总不可拖、`snap`/`allow` 四象限与 `anchorConflict` 对齐、建线与检环、命中反算 × 三档位；**屏幕坐标 → 内容坐标与事件目标无关**（含 NC）、条体命中 ± `HIT_TOLERANCE_PX`（含里程碑包围盒）、三语义**零位移不产出命令**、`move` 中部抓取**不跳位**、`resize-start` 完成日不动、`resize-duration` 按下**不翻倍**、里程碑完成日 = 开始日、**预览与提交同源**、带**会话锚点**重算**不累积**（该 spec 文件当前 **39 例**；五组负向对照逐条验证过判别力） | **进** | [P-22（细则）](../../docs/01-roadmap/首版-记录-G5.md) / [ADR 0008 §13（细则）](../../docs/02-adr/附录/0008-增补.md) |
+| G5 ③ 依赖方向护栏 | `boundary.spec.ts` + `eslint.config.mjs` 的逐包方向块 | ① 本包发布源与**构建产物**都没有指向 `exceljs` 的模块边；② 本包铁律夹具被拦下；③ **lint 规则**也拦下 `import '@ganttpilot/xlsx-protocol'`（含子路径），而 `import '@ganttpilot/engine'` 不误伤——许可清单是 `eslint-rules.mjs` 的 `CALCULATION_LAYER_PACKAGES`（P3/C7-a：①②是文本扫描，只看得见本包与字面量） | **进** | — |
+| G5 ④ 拖动计时 | `scripts/measure-render.mjs --drag` | 帧间隔 p95 ≤ 33.3 ms（≥30 fps）、松手 → 重算 + 冲突标记 ≤ 200 ms、下游跟随、**位移**（松手后 `startDate` = 按下时的开始序号 + 天数） | **不进**（记录制，ADR 0008 §11） | [P-22（细则）](../../docs/01-roadmap/首版-记录-G5.md) |
+| G5 ⑤ 导入与成环清单（第 13 条） | `scripts/measure-render.mjs --import=<xlsx>` + `scripts/make-sample.mjs` | 成环样本 ⇒ 6 任务 / 5 依赖 / 恰 1 条 `XLSX_CYCLE_EDGE_DROPPED`（带成环路径）/ 无"不可排程" | **不进**（记录制） | [P-22（细则）](../../docs/01-roadmap/首版-记录-G5.md) |
+| G5 ⑥ 两栏行对齐判读（P-23 / P-24 / **P-41**） | `align.ts` + `align.spec.ts`（**27 例**） | 正例"未变造时零检出" + **每条机制一条负向对照**（③双重偏移 / ②缺表头带 / ①测量过期 / R8 盒≠viewBox / R9 行外高 / 表体高 / 表头高 / 轴纵向或**横向**不覆盖 / **刻度侵入第一行** / **R11 滚动范围** / 单行漂移 / 滚动不同步 / 所见≠所点 / 空白带 / 空样本）+ **P-41 的六条**（覆盖度正例与"无横向/纵向行程"两条负向对照、覆盖度并进汇总 ⇒ 位置全绿仍整体失败、迁移前提自证 ⇒ `resize-not-observed`、以及"过期重算 / 滚动没跟上"由**现有机制表**抓住的两条） | **进** | [记录层（细则）](../../docs/01-roadmap/首版-记录-G5.md) / [ADR 0007 §14–§15（细则）](../../docs/02-adr/附录/0007-增补.md) |
+| G5 ⑥ 两栏行对齐（真实 DOM） | `scripts/measure-render.mjs --align[=<label>]`（**左表在场**） | **三档（`--align-zooms`）× 6 个按可滚动行程比例解析的位置**逐行 \|Δ\| ≤ 0.5 px；`pinned`/`svgBoxAligned`/`headerAligned`/`heightAligned`/`rowHeightAligned`/`scrollInSync`/`contentRangeAligned`/`labelsInHeader`/`hitTestOk` 全真；空白带 0；轴四边覆盖 + 刻度在表头带内；**覆盖度**（横向与纵向都必须真的取到行程）；**resize 迁移轮**（`--align-resize=WxH`，两条前提自证 + 滚动位置必须活下来） | **不进**（记录制，需本机 Chrome） | [P-23（细则）](../../docs/01-roadmap/首版-记录-G5.md) / [P-24（细则）](../../docs/01-roadmap/首版-记录-G5.md) / [P-41（依据）](../../docs/00-baseline/裁决R40.md) |
+| G5 ⑦ 拖动期画的是结果（P-24） | `gesture.spec.ts`（该 spec 文件当前 **39 例**） | 三语义下 `drawnBarForRow` == 落库重算后的 `taskBounds`；与**锚点视图**的对照（`resize-start` 的右端固定）；未被拖行不受影响 | **进** | [ADR 0008 §14（细则）](../../docs/02-adr/附录/0008-增补.md) |
+| G5 ⑫ 拖动期的**下游**也所见即所提交（P-45） | `gesture.spec.ts`（**+3 例**） | `previewDocumentFor`：只改那一个任务、其余**按引用共享**、原文档一字不动、两种 `null`；**下游同源**——`resize-duration` 拖动期 `compute(副本, 锚点)` 与落库后重算的后继行开始序号**逐位一致**（**负向对照写在同一条断言里**：只喂锚点必然给出另一个值；并以"至少一个样本"自证前提）；`GestureUpdate.dragOutcome.patch` 与松手命令的 `patch` **逐字段相等** | **进** | [ADR 0008 附录 §3（细则）](../../docs/02-adr/附录/0008-增补.md) |
+| G5 ⑫ 拖动期的下游（记录制） | `scripts/measure-render.mjs --drag`（**两种语义 × 两个滚动状态**；`--drag-dataset=` 可换规模） | **抓取点自证**（`gestureMode === 'resize-duration'`）、位移判据（**工期** = 拖动前 + N）、**下游跟随**（拖动期 == 松手后 **且** ≠ 拖动前）、**预览不落库**（拖动期 `revision` 不变、松手后 +1）；两族共用同一个聚合函数 ⇒ 数字可比 | **不进**（记录制，需本机 Chrome） | [P-45（依据）](../../docs/00-baseline/裁决R44.md) |
+| **G8 ① 两级刻度**（P-46） | `clipping.spec.ts` + `scaleInvariance.spec.ts` + `pptx-renderer/template.spec.ts` | 上级标签随档位（日/周 `YYYY-MM`、月 `YYYY`；下级仍 `DD`/`MM-DD`/`YYYY-MM`）；**上级标签数 == 上级分段带数**且（日档）严格少于下级标签数（"段内只写一次"的判别力）；**同 `x` 处只有一条 `gridline`**（且每条上级分段带的左边界都有一条）；`c₃` 逐档位**重锚**（新锚值见 `clipping.spec.ts` 的 `expectedC3`）且"同档位恒定"仍成立；PPTX 侧 `major-band-N` 数 == `view.axis` 的 `major-band` 数（**绘制区正文 / 全高边界 `-edge` / 表头底 `-head` 三个投影都在**）、**上级标签的 `y` 严格小于下级**（大刻度在上，**G8 人工复验第 ③ 条订正**）、短刻度的高度 < 灰度带的 1/4 且绘制顺序 `major-band-N` < `band-N` < `grid-N` < 条形（刻度只在表头带内，**第 ⑤ 条**） | **进** | [P-46（依据）](../../docs/00-baseline/裁决R45.md) |
+| **G8 ② 悬停行带**（P-46；**宽度口径见 G8 第二次复验第 ① 条**） | `clipping.spec.ts` + `viewModel.spec.ts` | 给定 `hoverRow` 时**恰好 1 个** `hover-band`（`x=0`、**宽 = `contentWidth`**、`y = row × 行高`、高=行高）；外加**判别力**前提（`contentWidth` 必须严格大于视口宽）与**负向对照**（把视口宽当内容宽喂进 `buildAxis` ⇒ 得到一屏宽，两者必须不等）；**计入 `overlay`（+1）、不计入 `c₃`**；两路计数仍逐项相等且**没有双重计数**（`axis-hover-band` 必须不存在、`overlay-hover-row` 恰 1）；**负向对照**：不传 `hoverRow` 时 `overlays`/`total` 各少 1；渲染窗口外的行号 ⇒ 不发射 | **进** | [P-46（依据）](../../docs/00-baseline/裁决R45.md) |
+| **G8 ③ 渲染地平线收口**（P-48） | `dragHorizon.spec.ts`（**4 例**） | 夹取方向（左侧一律 0、右侧夹到末日）；向左拖五个距离逐帧都能建出视图；**向右拖 90 个工作日必须能建出视图**（看门人已由"必须抛错"改写而来）；**`renderCalendar` 覆盖 `projectFinish − 1`**（入参日历缩到 30 天时它严格更大、且能翻译）；守卫型负向对照（把越界序号交回入参日历必须现形） | **进** | [P-47（依据）](../../docs/00-baseline/裁决R46.md) / [P-48（依据）](../../docs/00-baseline/裁决R47.md) |
+| G5 ⑧ 滚动状态下的反算与命中（P-25） | `geometryExpectations.spec.ts`（+3 例）+ `gesture.spec.ts`（+1 例） | **滚动视图**（`scrollTop=480/scrollLeft=600`）下：反算往返与端点贴合与不滚动时**逐值一致**；条左缘仍映射到 `es`；命得中同一行、起得了手势；候选与抓取点的**工作日差** == 指针移动的工作日差 | **进** | [ADR 0007 §16（细则）](../../docs/02-adr/附录/0007-增补.md) / [ADR 0008 §15（细则）](../../docs/02-adr/附录/0008-增补.md) |
+| G5 ⑧ 滚动状态下的拖动（记录制） | `scripts/measure-render.mjs --drag` | **两个滚动状态各一次**（`(0,0)` 与 `(480,600)`）：各自的"松手后 `startDate` = 按下时的开始序号 + 天数"都必须成立；目标行必须**无有效入边约束**（否则 `snap` 夹住候选 = 假红） | **不进**（记录制，需本机 Chrome） | [P-25（细则）](../../docs/01-roadmap/首版-记录-G5.md) |
+| G4/G5 ② 内容横向范围（P-24） | `viewModel.spec.ts`（16 → 19 例） | `contentWidth` 覆盖**全部任务最右缘** + 引出段 + 回绕走廊；随项目末端单调；空文档回落窗格宽；**负向对照**：旧式"按窗格宽推导"必须不满足 | **进** | [ADR 0007 §15（细则）](../../docs/02-adr/附录/0007-增补.md) |
+| G5 ⑨ 编辑态"值真的变了才取消"（P-21 批次 C） | `editCommand.spec.ts`（**+10 例**） | `rawCellText` 逐列**原始字段**（`null` ⇒ 空串、任务不存在 ⇒ `undefined`、派生列 ⇒ 空串）；"别的任务变了 / 同任务别的列变了 ⇒ **不**陈旧"、"该任务该列真的变了（文本列 + 日期列）⇒ 陈旧"、"任务消失 ⇒ 陈旧"、"改回原值 ⇒ 不陈旧"；恒等 patch 必须 `changed === false`（前提自证）；**NC1**（忽略 `column`，只比整个任务）与 **NC2**（旧规则"任何版本不同即陈旧"）必须被检出 | **进** | [P-28 批次 C（细则）](../../docs/01-roadmap/首版-记录-G5.md) |
+| G5 ⑨ 提示清空（P-21 批次 C） | 人工复核 + 临时 CDP 预验（**打包产物**口径，M1–M7） | 空栈 `Ctrl+Z` 出现的 `SESSION_NOTHING_TO_UNDO` 在**下一次成功且真的改了文档的命令**后消失——**含拖动/建线的松手提交**（P-31）；`apps/web` 至今没有判据入口 ⇒ DOM 层只能人工验（P-9 口径） | **不进**（人工） | [P-28 批次 C（细则）](../../docs/01-roadmap/首版-记录-G5.md) / [P-31（依据）](../../docs/00-baseline/裁决R30.md) |
+| G5 ⑩ 提示条的迁移（P-30，收口 P-29） | `editCommand.spec.ts`（**+5 例**）；**落点在 `useProject.commit()`**（`apps/web`，不进 gate） | 三档逐条：**失败**才产生提示（文案含 `code`/`message`，缺失用「未知」）；**成功且 `changed`** ⇒ 清掉失败提示、`info` 不动；**成功但 `changed === false`** ⇒ 原样保留。含一条**用真实会话栈**跑维护者报文序列：空栈回退 ⇒ 有提示；修改 ⇒ 提示消失；回退到栈底 ⇒ 不出现；栈底再回退 ⇒ 才重新给提示。**落点在命令通道**（P-31）：`dispatch`/`undo`/`redo`/`ingestDocument` 都经 `commit()`，任何调用点都绕不过 | **进**（规则本体） | [P-30（依据）](../../docs/00-baseline/裁决R29.md) / [P-31（依据）](../../docs/00-baseline/裁决R30.md) |
+| G5 ⑪ 判定区随条宽收缩、端点手柄与连接点（P-32＝P-21 批次 B；**圆点口径见 P-42**） | `zones.ts` + `interaction.ts` + `interaction.spec.ts`（**P-32 新增 22 例 → P-42 24 例 → P-43 再 +3 ⇒ 当前 27 例**）+ `gesture.spec.ts`（**+6 例**） | `zonesFor` 的边界公式：宽条（≥18 px）与旧式 `DRAG_EDGE_PX = 6` **逐值一致**（前提自证）、9 px 条给出 6 px 的 `move` 区、3 px 条（月档 1 个工作日）的 `move` 区**非空**（**NC1**：固定 6 px ⇒ 空集）；手柄 x **= 判定区边界**（与判定区同源）、连接点**跨在条端上**（`[xRight − CONNECT_INSET_PX, … + CONNECT_SIZE_PX]`，命中盒 12 px；竖向中心 = 条形中心；**命中区 ⊇ 可见图形 + 外侧 4 px**：可见图形的每一处都点得中，并含 `dx = −1..+2` 的回归断言）、**P-42：可见图形 = 圆，直径 = `min(12, 条高 − 2)`（略小于条高、≤ 命中盒边长），圆心 = 命中盒中点 + 条心；逐行（含汇总/里程碑）复核，NC = "与条体等高"⇒ 两条不变量同时红**、`connectRevealFor` 只在指针靠近该行条端时显形、手柄高 4 < 条高 14.4（不越过条体上沿）；光标四分类（端点 `col-resize` / 中部 `move` / 连接点 `crosshair` / 其余 `default`，且**取非 0 滚动位置**）；`linkEntryFor` 的 `exitSide` = 所抓那一侧、`linkTypeFor` 四格与端点 x（**NC2**：连接点 x 换成手柄 x ⇒ 从"建线"退化成"改工期"）；`handleOffsetsFor` 与 `rowHandlesFor` 同源；**P-43：汇总条整条无判定区（`zonesFor` 全 null）、光标 `default`、`linkEntryFor` 返回 null；里程碑整条 `move`（删掉"右半 = 改工期"）+ 左表 `duration` 列在 `milestone` 为真时拒绝**（含旧口径公式的负向对照） | **进** | [ADR 0008 §16（细则）](../../docs/02-adr/附录/0008-增补.md) / [P-32（依据）](../../docs/00-baseline/裁决R31.md) / [P-42（依据）](../../docs/00-baseline/裁决R41.md) / [P-43（依据）](../../docs/00-baseline/裁决R42.md) |
+| G5 ⑪ 手柄/光标/连接点（记录制） | `scripts/measure-render.mjs --drag` | 打包产物上：DOM 手柄条数 **= 模型**（`handleOffsetsFor`）、**指针所在那一行的连接点 = 2**（按需显形）、条体中部/端点/连接点三处的光标分类正确、**从连接点按下认得出该侧入口**（R4 的可判定形式）、**P-42：连接点的 DOM 标签 = `circle`、可见盒是正方形且 ≤ 命中盒边长**（选择器不限定标签，换标签不会静默失效） | **不进**（记录制，需本机 Chrome） | [P-32（细则）](../../docs/01-roadmap/首版-记录-G5.md) / [P-42（依据）](../../docs/00-baseline/裁决R41.md) |
+| G7 前置 演示口径（P-34） | `demoPlan.spec.ts`（**新增 8 例**） | 15 行 / 14 条依赖 / 3 汇总 / 2 里程碑；schema **error 0** 且良性 warning **恰 11 条同码**（码集合与条数都钉住）；四类关系齐备 + 至少一条负 lag；id 唯一、端点存在、边一律沿文档序向前；`compute` ok、**零排程诊断**、三个汇总进度 **49/60 · 5.5/23 · 0**；**跨度 ≤ 40 个工作日**（"单页 16:9 可容纳"的可判定形式）；两次调用逐字节一致（golden 前置） | **进** | [P-34（依据）](../../docs/00-baseline/裁决R33.md) |
+| **坐标基准不变量**（P-25/P-32 的常驻条目） | 盘点见 [`apps/web/evidence/scroll-consumers-audit.md`](../../apps/web/evidence/scroll-consumers-audit.md)（**依据**，**只读**，13 处消费者逐条给出基准） | **只有 `pointerFromClient` 叠加 `scroll*`**（`x = clientX − paneLeft + scrollLeft`、`y = clientY − paneTop + scrollTop`，ADR 0008 §13.1）；它的下游至多做**平移 / 窗口换算 / 抵消负号**——`dayAtX` 与 `resolvePointerTarget` 收到的是**内容坐标**、轴窗口是**唯一**的减号点、手柄与连接点（批次 B）**一次算好、拖动期只 `translateZone`**。**新增任何"自己再换算一次坐标"的消费者，必须对照本行自证基准** | **进**（不变量由 `geometryExpectations.spec.ts` / `gesture.spec.ts` / `interaction.spec.ts` / `align.spec.ts` 承载，且一律**取非 0 滚动位置**） | [P-25](../../docs/00-baseline/裁决R24-26.md) / [P-32](../../docs/00-baseline/裁决R31.md) |
+**元素预算的常数与实测**（**依据**：[`apps/web/evidence/render-timing-chrome152.md`](../../apps/web/evidence/render-timing-chrome152.md)）
+——**结构在本文件，取值在声明处**：
 
-- `c₁ = 3`（每渲染行：`<g>` + 条 + 进度；里程碑行 2；**汇总条不加端帽**）、
-  `c₂ = 3`（每条渲染边：折线 + 箭头 + **透明热区**）；
-- **`c₄ = perRenderedRow·rows + overlay = 6·rows + 13`**（ADR 0008 §16.4／[P-32](../../docs/00-baseline/裁决R31.md)；
-  **`overlay` 12 → 13 是 P-46 的悬停行带**）：
-  每渲染行 6（条/菱形 1 + 进度 1 + 端点手柄 2 + 连接点 2 的**上界**，最"胖"的是有进度的叶子）+
-  每帧固定 13（拖动轮廓 3 / 建线预览 2 / 冲突描边 1 / 成环与选中高亮 ≤ 6 / **悬停行带 1**）。
-  **"与文档总规模无关"不变**：`rows ≤ 视口行数 + ROW_BUFFER`，10× 规模下 `rows` 恒为 32
-  （实测锚值随之平移：`scaleInvariance.spec.ts` 由 `350 / 317 / 329 / 335` → **`474 / 441 / 453 / 459`**，
-  逐项差值恒为 **124**——`+6` 来自 P-46 的两级刻度与悬停行带；`clipping.spec.ts` 的 NC2 比值由 10.71× → **≈10.8×**）；
-- `c₃` 逐档位 = **122 / 89 / 94**（日/周/月，合成视口 1280 px、合成夹具；
-  **P-46 两级刻度后重锚**，单级口径原为 116 / 70 / 89）；
-- **本轮（G8 人工复验整改）四个常数一个都不动**：分层只改"**每个轴元素投影出几个图形**"
-  （一个 `major-band` → 正文 + 全高边界 + 表头底；一个 `gridline` → 一条 6 px 短刻度，
-  取代原先那条整高竖线），**轴元素模型本身未变** ⇒ `c₁ = 3`、`c₂ = 3`、`c₄ = 6·rows + 13`、
-  `c₃ = 122 / 89 / 94` 全部沿用（两路计数的锚值因此无需重取）；
-- 打包产物上（图表全宽 1265 px）同一口径为 114 / 69 / 88（单级时）——差 1–2 就是那点宽度差；
-- 分屏时图表窗格被左表占去一部分宽度，同一页面下 `c₃` 只有 35 / 21 / 26：
-  **`c₃` 只取决于"窗格宽 ÷ `pxPerDay`"，与文档总规模无关**（§11.1 ③ 的直接后果）。
+- **声明处（唯一）**：`c₁` / `c₂` / `perRenderedRow` / `overlay` 只在 `manifest.ts` 的 `ELEMENT_MODEL` /
+  `ELEMENT_MODEL_G5` 声明一次；逐档位 `c₃` 的**锚值**在 `clipping.spec.ts` 的 `expectedC3`（**断言即声明处**）；
+  规模不变量的锚值在 `scaleInvariance.spec.ts`。**本文件不复述任何数字**（同值两处各写一遍就会分叉，
+  这正是 P-46 重锚暴露出来的那一族，见 [ADR 0007 附录 §11（细则）](../../docs/02-adr/附录/0007-增补.md)）。
+- **结构（不随取值变）**：`c₁` = 每渲染行的固定图形数（`<g>` + 条 + 进度；里程碑行少一个；**汇总条不加端帽**）、
+  `c₂` = 每条渲染边的图形数（折线 + 箭头 + **透明热区**）、`c₄ = perRenderedRow·rows + overlay`——
+  其中 `perRenderedRow` 是"最胖的一行"的**上界**（条/菱形 1 + 进度 1 + 端点手柄 2 + 连接点 2），
+  `overlay` 是**每帧固定**开销（拖动轮廓 3 / 建线预览 2 / 冲突描边 1 / 成环与选中高亮 ≤ 6 / **悬停行带 1**）。
+- **"与文档总规模无关"这条不变量**：`rows ≤ 视口行数 + ROW_BUFFER` ⇒ 10× 规模下 `rows` 恒定；
+  而 `c₃` 只与"窗格宽 ÷ `pxPerDay`"有关（§11.1 ③ 的直接后果）⇒ 它在**图表全宽**与**分屏**
+  （图表窗格被左表占去一部分宽度）下**不同**，两套断言都在 `clipping.spec.ts`。
+- **哪些改动会动常数**：只有"**每个轴元素/行/边投影出几个图形**"变了才会动
+  （P-46 的悬停行带使 `overlay` +1；两级刻度不改轴元素模型）——**G8 的视觉整改不动任何常数**。
+  改动时必须同时改声明处与两路计数，并让 `countElements` / `countElementsByEnumeration` 逐项相等。
 
 **维护纪律**：改 `apps/web` 的 SVG 模板时，必须同步 `ELEMENT_MODEL` 的 `c₁`/`c₂`
 （G5 若给行加交互热区，**必须另加常数**），并让 `countElements` 与 `countElementsByEnumeration`
@@ -387,7 +387,7 @@ PPTX 侧的图形名见 [`PPTX.md` §三](../pptx-renderer/PPTX.md)）：
 外加 2,200 边的"§5.4 同尺对照"数据集；全部由 `fixtures.ts` 的确定性生成器产出
 （零 `Math.random`、边一律沿文档序向前、精确命中声明的规模）。
 
-**演示口径另有一份**（[P-34](../../docs/00-baseline/裁决R33.md)）：`demoPlan.ts` 手写的 **15 行**演示计划
+**演示口径另有一份**（[P-34（依据）](../../docs/00-baseline/裁决R33.md)）：`demoPlan.ts` 手写的 **15 行**演示计划
 （3 汇总 + 10 任务 + 2 里程碑、14 条依赖，四类关系齐备，序号跨度 ≤ 40 个工作日）——
 页面默认文档、重置与 G7 的导出演示/golden 用它。两者**不可互相替代**：演示要单页可读
 （现状 `dense` 日档 `contentWidth` **10,612 px**，同一视口口径），规模要 1,000+ 任务（"1,000 任务首屏 ≤ 1 s"的载体）。

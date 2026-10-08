@@ -3,11 +3,11 @@
  *
  * ## 依赖方向（为什么判定区在 `zones.ts` 而不在这里）
  *
- * §16.1 把判定区公式定为**唯一一条**，而它的消费者分布在一个环上：`gesture.ts` 用它决定拖动语义，
+ * §16.1 把判定区公式定为**唯一一条**，而它的消费者分布在一个环上：`gesture/` 用它决定拖动语义，
  * 本模块用它决定手柄位置与光标提示。因此公式自己住一层（`zones.ts`），本模块只做**派生**：
  *
  * ```
- * zones.ts（唯一公式）──┬── gesture.ts（拖动语义、连接点前置）
+ * zones.ts（唯一公式）──┬── gesture/（拖动语义、连接点前置）
  *                      └── interaction.ts（手柄 / 连接点 / 光标 / 建线类型）── apps/web
  * ```
  *
@@ -37,7 +37,7 @@ import {
   barHitFor,
   resolvePointerTarget,
   type PointerInput,
-} from './gesture.js';
+} from './gesture/index.js';
 import {
   CONNECT_DIAMETER_GAP_PX,
   CONNECT_HIT_PAD_PX,
@@ -147,8 +147,8 @@ export function connectDiameterFor(bounds: TaskBounds, rowHeight: number): numbe
  * | 端点手柄 | 2 | **有条形端**的行（非汇总、非里程碑） |
  * | 连接点 | 2 | **有可画条形的行**（含汇总行、含里程碑） |
  *
- * **每渲染行 ≤ 3 个元素**——这正是 `ELEMENT_MODEL_G5.perRenderedRow = 3` 的来源
- * （`count.ts` 的两路计数必须与本函数逐项对应）。
+ * **每行的实际发射量 = 手柄 + 连接点**（两者都随行型变化）——它与 `c₁` 的口径合起来就是
+ * `manifest.ts` 的 `ELEMENT_MODEL_G5.perRenderedRow`（**声明处**；`count.ts` 的两路计数必须与本函数逐项对应）。
  */
 export function rowHandlesFor(args: {
   readonly taskId: string;
@@ -356,8 +356,8 @@ function targetOf(args: PointerGeometryArgs): { readonly taskId: string; readonl
 // ---------------------------------------------------------------- 建线类型（§16.3 的四格表）
 
 /**
- * 建线类型与端点 x 的**实现**在 `zones.ts`（同一层理由：`gesture.ts` 也要用它们，
- * 而 `gesture` 不得反向依赖本模块）。它们与判定区一起由本包的公共入口（`index.ts`）暴露；
+ * 建线类型与端点 x 的**实现**在 `zones.ts`（同一层理由：`gesture/` 也要用它们，
+ * 而 `gesture/` 不得反向依赖本模块）。它们与判定区一起由本包的公共入口（`index.ts`）暴露；
  * 本模块**不重复导出**，以免出现第二个"公共面"。
  */
 

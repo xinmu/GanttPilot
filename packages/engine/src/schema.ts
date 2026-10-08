@@ -25,16 +25,21 @@
  * 本文件零 DOM、零框架依赖，只依赖 `./date.js` 与 `./wbs.js`。
  */
 
-import { Calendar, type CalendarSpec, dayNumberToIso, isoToDayNumber, parseIsoDate } from './date.js';
+import { Calendar, type CalendarSpec, isIsoDateText, isoToDayNumber } from './date.js';
+import { DocumentVersionError, MIGRATIONS } from './migration.js';
 import {
   type DiagnosticLike,
   type JsonValue,
+  isPlainObject,
   isRecord,
-  OUTLINE_SEPARATOR,
+  pushDiagnostic,
   reindexTasks,
   validateHierarchy,
   validateTasksShape,
 } from './wbs.js';
+
+// 迁移失败的结构化载体仍从本模块可见（公共面不变；实现已迁到 `migration.ts`）。
+export { DocumentVersionError } from './migration.js';
 
 export type { JsonArray, JsonObject, JsonValue } from './wbs.js';
 
@@ -90,7 +95,6 @@ export type DocumentDiagnosticCode =
   // calendars
   | 'CALENDAR_MISSING'
   | 'CALENDAR_INVALID'
-  | 'CALENDAR_NOT_REFERENCED'
   // tasks
   | 'TASK_MISSING'
   | 'TASK_ID_INVALID'
@@ -314,12 +318,9 @@ function report(
   path?: string,
   identity?: { readonly taskId?: string; readonly linkId?: string },
 ): void {
-  context.diagnostics.push({
-    code,
-    severity,
-    message,
+  pushDiagnostic(context.diagnostics, code, severity, message, {
     ...(path === undefined ? {} : { path }),
-    ...(identity === undefined ? {} : identity),
+    ...(identity ?? {}),
   });
 }
 
@@ -387,25 +388,6 @@ function readBoolean(
   return fallback;
 }
 
-const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-/**
- * 校验 ISO 日期文本。
- *
- * 用 G1.1 的 `parseIsoDate`（而非本地重写正则判定）是为了让
- * "文档里的合法日期"与"日历能接受的日期"**是同一个集合**——两侧不会分叉。
- */
-function isIsoDateText(value: string): boolean {
-  if (!ISO_DATE_PATTERN.test(value)) {
-    return false;
-  }
-  try {
-    parseIsoDate(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** 读可空 ISO 日期；缺失 → `null`，非法 → 报码并归一为 `null`。 */
 function readIsoDate(
@@ -475,8 +457,8 @@ function coerceJsonValue(
     });
     return items;
   }
-  if (!isRecord(value)) {
-    report(context, code, 'error', `${label}含非 JSON 对象`, path);
+  if (!isPlainObject(value)) {
+    report(context, code, 'error', `${label}含非普通对象（JSON 不可表达）`, path);
     return undefined;
   }
   const entries: Record<string, JsonValue> = {};
@@ -1220,148 +1202,7 @@ export function hasDocumentErrors(diagnostics: readonly DocumentDiagnostic[]): b
   return diagnostics.some((diagnostic) => diagnostic.severity === 'error');
 }
 
-// ---------------------------------------------------------------- 迁移
-
-/** 读取数组字段（迁移用；非数组一律当空数组，由后续校验报错）。 */
-function migrationArray(source: Record<string, unknown>, key: string): readonly unknown[] {
-  const value = source[key];
-  return Array.isArray(value) ? value : [];
-}
-
-function firstCalendarId(calendars: readonly unknown[]): string {
-  const first = calendars[0];
-  if (isRecord(first) && typeof first['id'] === 'string' && first['id'] !== '') {
-    return first['id'];
-  }
-  return 'project';
-}
-
-/**
- * v1 → v2。
- *
- * v1 是"原文优先期"的历史形状（**从未发布**，见 ADR 0002）：
- * - `links[].lag`（而非 `lagDays`）；
- * - 任务没有 `manual` / `constraints`；
- * - 没有 `project.baseCalendarId`。
- */
-function migrateV1ToV2(input: Record<string, unknown>): Record<string, unknown> {
-  const calendars = migrationArray(input, 'calendars');
-  const rawProject = isRecord(input['project']) ? input['project'] : {};
-  const project = {
-    ...rawProject,
-    baseCalendarId: rawProject['baseCalendarId'] ?? firstCalendarId(calendars),
-  };
-
-  const links = migrationArray(input, 'links').map((entry) => {
-    if (!isRecord(entry)) {
-      return entry;
-    }
-    const { lag, ...rest } = entry;
-    return { ...rest, lagDays: rest['lagDays'] ?? lag ?? 0 };
-  });
-
-  const tasks = migrationArray(input, 'tasks').map((entry) => {
-    if (!isRecord(entry)) {
-      return entry;
-    }
-    return { manual: false, ...entry, constraints: entry['constraints'] ?? [] };
-  });
-
-  return { ...input, version: 2, project, tasks, links };
-}
-
-/**
- * v2 → v3。
- *
- * 差别只在 WBS 与折叠状态：
- * - 任务补 `collapsed`；
- * - 任务补 `outlineNumber`（**缺失时按层级 + 文档序计算填入**；已有值保留，
- *   由随后的校验报 `TREE_OUTLINE_STALE` 而不是在这里静默改写——"谁是真相源"必须唯一）；
- * - `baselines` 缺失补 `[]`。
- */
-function migrateV2ToV3(input: Record<string, unknown>): Record<string, unknown> {
-  const rawTasks = migrationArray(input, 'tasks');
-  const computed = computeOutlineNumbersForMigration(rawTasks);
-
-  const tasks = rawTasks.map((entry, index) => {
-    if (!isRecord(entry)) {
-      return entry;
-    }
-    const fallback = computed[index] ?? String(index + 1);
-    return { collapsed: false, ...entry, outlineNumber: entry['outlineNumber'] ?? fallback };
-  });
-
-  return {
-    ...input,
-    version: 3,
-    tasks,
-    baselines: migrationArray(input, 'baselines'),
-  };
-}
-
-/** v2→v3 用的最小编号计算（不排序、不做环检测：脏数据由随后的校验负责报错）。 */
-function computeOutlineNumbersForMigration(tasks: readonly unknown[]): readonly string[] {
-  const ids: string[] = [];
-  const parentOf = new Map<string, string | null>();
-  tasks.forEach((entry, index) => {
-    const id =
-      isRecord(entry) && typeof entry['id'] === 'string' && entry['id'] !== ''
-        ? entry['id']
-        : `task-${String(index)}`;
-    ids.push(id);
-    const parent =
-      isRecord(entry) && typeof entry['parentId'] === 'string' && entry['parentId'] !== ''
-        ? entry['parentId']
-        : null;
-    parentOf.set(id, parent);
-  });
-
-  const childrenOf = new Map<string | null, string[]>();
-  for (const id of ids) {
-    const parent = parentOf.get(id) ?? null;
-    const bucket = childrenOf.get(parent);
-    if (bucket === undefined) {
-      childrenOf.set(parent, [id]);
-    } else {
-      bucket.push(id);
-    }
-  }
-
-  const numbers = new Map<string, string>();
-  const walk = (parent: string | null, prefix: string): void => {
-    for (const [index, childId] of (childrenOf.get(parent) ?? []).entries()) {
-      const number = prefix === '' ? String(index + 1) : `${prefix}${OUTLINE_SEPARATOR}${String(index + 1)}`;
-      numbers.set(childId, number);
-      walk(childId, number);
-    }
-  };
-  walk(null, '');
-
-  return ids.map((id, index) => numbers.get(id) ?? String(index + 1));
-}
-
-/** 版本 → 迁移函数（**逐跳**，故新增版本只需追加一条）。 */
-const MIGRATIONS: ReadonlyMap<number, (input: Record<string, unknown>) => Record<string, unknown>> =
-  new Map([
-    [1, migrateV1ToV2],
-    [2, migrateV2ToV3],
-  ]);
-
-/**
- * 版本相关失败的载体（`migrateDocument` / `parseDocument` 抛出）。
- *
- * 之所以是类而不是裸 `Error`：调用方需要拿到**结构化诊断**（G3 的诊断报告要逐条展示），
- * 而不是去解析错误消息文本。
- */
-export class DocumentVersionError extends Error {
-  readonly diagnostics: readonly DocumentDiagnostic[];
-
-  constructor(diagnostics: readonly DocumentDiagnostic[]) {
-    super(diagnostics[0]?.message ?? '文档版本不受支持');
-    this.name = 'DocumentVersionError';
-    this.diagnostics = diagnostics;
-  }
-}
+// ---------------------------------------------------------------- 迁移（驱动）
 
 /**
  * 把任意版本的文档修到**当前版本**（只做结构改写，不做字段合法性校验）。
@@ -1369,6 +1210,9 @@ export class DocumentVersionError extends Error {
  * - 未知版本（`0`、`4`、非整数、非数字）→ 抛 `DocumentVersionError`；
  * - 跳数上界 = `CURRENT - MIN + 1`：注册表若被写成环，会以 `MIGRATION_CYCLE` 抛错而不是死循环；
  * - 每一步都要求版本**严格递增**，否则同样按 `MIGRATION_CYCLE` 拒绝。
+ *
+ * **逐跳迁移与它专用的编号遍历在 `migration.ts`**（P3/C4-b）：本函数只留"读版本 → 按注册表推进 → 环检测"
+ * 这段驱动，因为它要用本文件的版本读数机制（`readVersion` + 诊断入栈）。
  */
 export function migrateDocument(input: unknown): unknown {
   if (!isRecord(input)) {
@@ -1498,14 +1342,4 @@ export function createEmptyDocument(name = '未命名项目'): ProjectDocument {
  */
 export function reindexDocument(document: ProjectDocument): ProjectDocument {
   return { ...document, tasks: reindexTasks(document.tasks) };
-}
-
-/** ISO 日期文本 → 日序号（供调用方做轻量比较，不引入 `Calendar` 的容量概念）。 */
-export function isoDateToDayNumber(iso: string): number {
-  return isoToDayNumber(iso);
-}
-
-/** 日序号 → ISO 日期文本（与 `isoDateToDayNumber` 互逆）。 */
-export function dayNumberToIsoDate(day: number): string {
-  return dayNumberToIso(day);
 }

@@ -109,7 +109,20 @@ describe('NC1：派生列的起点与显示列不同源，判据必须报出违�
     let differences = 0;
     for (let docIndex = 0; docIndex < document.tasks.length; docIndex += 1) {
       const correct = cellText({ key: 'start', document, schedule, calendar, docIndex }).text;
-      const wrong = cellText({ key: 'start', document, schedule, unanchored, docIndex }).text;
+      /**
+       * **P3/C7-c 实测的缺陷**：这一行原先写成
+       * `cellText({ key: 'start', document, schedule, unanchored, docIndex })`——既多了一个
+       * `CellTextArgs` **从未声明过**的 `unanchored`（`tsc` 报 TS2353），又**缺了必填的 `calendar`**。
+       * 换句话说：这条负向对照想表达的「换一份未锚定的日历」，载体一直只是**第四个位置实参**
+       * （`unanchoredCalendar(...)` 返回的那份 `baseDay = 2025-01-01` 的日历本身），
+       * 而名字里的 `unanchored` 只是一个被静默忽略的字段。
+       *
+       * 实测（`tmp` 里的一次性探针）：改成 `calendar: unanchored` 之后 `differences` 是
+       * **981 / 1000**，两条断言都成立——**错的写法与对的写法给出同一个数**（运行时它照样占第 4 位），
+       * 所以这条用例此前既不假绿也不真绿，只是"**碰巧**对"。这正是 `N12` 要抓的那一类：
+       * spec 里的类型错完全靠运气活着，而三道静态门当时都不看 spec。
+       */
+      const wrong = cellText({ key: 'start', document, schedule, calendar: unanchored, docIndex }).text;
       if (correct !== wrong) differences += 1;
     }
     expect(differences).toBeGreaterThan(0);

@@ -6,7 +6,7 @@
  * P-21 的人工复核（R6）与 P-22 的线索都指向同一类缺陷：**"图表画在哪里"与"左表画在哪里"
  * 是两处各自算出来的**，而它们之间的差只能靠肉眼发现。把它做成可判定的检查需要两半：
  *
- * - **采数**（`apps/web/src/measure.ts` 的 `__GANTTPILOT_MEASURE_ALIGN__`）：只从真实 DOM 读
+ * - **采数**（`apps/web/src/measure/` 的 `__GANTTPILOT_MEASURE_ALIGN__`）：只从真实 DOM 读
  *   `getBoundingClientRect()` 与 `clientWidth/clientHeight` —— 这一半只能在浏览器里做；
  * - **判读**（本文件）：只做减法和阈值比较 —— 这一半是纯的，因此**进 `pnpm gate`**，
  *   并且可以用**合成的故障签名**（每条机制一条）证明它真的有判别力。
@@ -210,7 +210,14 @@ export interface RowAlignVerdict {
   readonly mechanisms: readonly AlignMechanism[];
 }
 
-function round(value: number): number {
+/**
+ * **亚像素舍入**（保留 3 位小数）。
+ *
+ * 名字里带 `SubPx` 是刻意的：本文件判读的是"差了多少 px"，差值的分辨率到 0.001 px 就够，
+ * 因此这里**不做整数化**。别与 `svgExport.ts` 的 `roundPx`（整数化，导出坐标的口径）混用——
+ * 两者曾经同名，正是 `noUncheckedIndexedAccess` 时代留下的同名异义。
+ */
+function roundSubPx(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
 
@@ -257,9 +264,9 @@ export function diagnoseRowAlignment(probe: RowAlignProbe): RowAlignVerdict {
   const rowDeltas: RowAlignDelta[] = probe.samples.map((sample) => ({
     id: sample.id,
     row: sample.row,
-    deltaPx: round(sample.chartCenterY - sample.tableCenterY),
+    deltaPx: roundSubPx(sample.chartCenterY - sample.tableCenterY),
   }));
-  const maxAbsRowDeltaPx = round(Math.max(...rowDeltas.map((item) => Math.abs(item.deltaPx))));
+  const maxAbsRowDeltaPx = roundSubPx(Math.max(...rowDeltas.map((item) => Math.abs(item.deltaPx))));
 
   const barDeltas: number[] = [];
   for (const sample of probe.samples) {
@@ -270,7 +277,7 @@ export function diagnoseRowAlignment(probe: RowAlignProbe): RowAlignVerdict {
       barDeltas.push(Math.abs(sample.barRight - sample.expectedBarRight));
     }
   }
-  const maxAbsBarXDeltaPx = round(barDeltas.length === 0 ? 0 : Math.max(...barDeltas));
+  const maxAbsBarXDeltaPx = roundSubPx(barDeltas.length === 0 ? 0 : Math.max(...barDeltas));
 
   /**
    * SVG 钉在 scrollport 上：横向与绘制区左缘对齐，纵向 = 绘制区顶 **减一个表头带**
@@ -298,13 +305,13 @@ export function diagnoseRowAlignment(probe: RowAlignProbe): RowAlignVerdict {
   const coverage =
     probe.rowCount * probe.rowHeight >= probe.paneHeight
       ? {
-          topBandPx: round(
+          topBandPx: roundSubPx(
             Math.max(
               0,
               Math.min(...probe.samples.map((item) => item.chartCenterY)) - probe.rowHeight / 2 - probe.paneTop,
             ),
           ),
-          bottomBandPx: round(
+          bottomBandPx: roundSubPx(
             Math.max(
               0,
               probe.paneTop +
@@ -503,8 +510,8 @@ export function diagnoseResizeMigration(input: {
   readonly afterWidth: number;
   readonly afterHeight: number;
 }): ResizeMigrationVerdict {
-  const deltaWidth = round(input.afterWidth - input.beforeWidth);
-  const deltaHeight = round(input.afterHeight - input.beforeHeight);
+  const deltaWidth = roundSubPx(input.afterWidth - input.beforeWidth);
+  const deltaHeight = roundSubPx(input.afterHeight - input.beforeHeight);
   const observed = Math.abs(deltaWidth) > 0 || Math.abs(deltaHeight) > 0;
   return {
     observed,

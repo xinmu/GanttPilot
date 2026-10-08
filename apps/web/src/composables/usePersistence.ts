@@ -129,6 +129,20 @@ export interface UsePersistence {
   readonly rebaseNow: () => Promise<boolean>;
   /** 手势活动态（`useGesture` 的 state 驱动它；策略据此暂停/补写）。 */
   readonly setGesture: (active: GestureActivity) => void;
+  /**
+   * **初始恢复的结算点**（`enabled === false` 时立即结算）。
+   *
+   * 存在的理由（P3/C6-b 的 N11）：初始恢复是**异步**的（IndexedDB），而它会
+   * `args.restore(...)` **整份替换会话**。测量方要把夹具装进应用时，若那次恢复在夹具
+   * **之后**落地，就会把文档换回**上一次持久化的那份**——于是"测量方的模型"与"页面上的 DOM"
+   * 是两份文档（实测报文：`DOM 行/边 = 15/14`（演示计划）vs `模型 = 31/41`（夹具）），
+   * 而 IndexedDB 按 **origin** 隔离、同一轮测量里多次导航共享 origin ⇒ 第一次导航写下的
+   * "全新会话基线"会被第二次导航恢复回来。因此"夹具必须是**最后一个写入者**"这件事
+   * 需要一个可等待的信号，而不是靠"恢复通常很快"。
+   *
+   * 失败的恢复也**必须结算**（`finally`）：否则等待方会永远挂着，把一个可判定的问题变成挂死。
+   */
+  readonly restoreSettled: Promise<void>;
 }
 
 /** 空闲时执行（`requestIdleCallback` 不可用时退化为下一个宏任务）。 */
@@ -389,6 +403,17 @@ export function usePersistence(args: {
   );
 
 
+  /**
+   * 初始恢复的结算点（见 {@link UsePersistence.restoreSettled}）。
+   *
+   * `enabled === false`（`?persist=0`）与恢复抛错都要结算；恢复成功时在 `args.restore(...)`
+   * 与其后的检查点写入**之后**结算——等待方由此拿到"应用不会再偷偷换文档"的那一刻。
+   */
+  let settleRestore: () => void = () => {};
+  const restoreSettled = new Promise<void>((resolve) => {
+    settleRestore = resolve;
+  });
+
   function onVisibility(): void {
     if (document.visibilityState === 'hidden') void flushNow();
   }
@@ -403,6 +428,7 @@ export function usePersistence(args: {
     if (args.enabled === false) {
       ready.value = true;
       publish();
+      settleRestore();
       return;
     }
     void (async () => {
@@ -449,7 +475,8 @@ export function usePersistence(args: {
           void pump(Date.now(), true);
         }, 250);
       }
-    })();
+      // 成功与失败都要结算：等待方（测量方的"夹具必须是最后一个写入者"）不能被挂死。
+    })().finally(settleRestore);
   });
 
   onUnmounted(() => {
@@ -483,6 +510,7 @@ export function usePersistence(args: {
       // 手势结束：**立刻**补写（"拖动期不落盘"与"松手后必须落盘"是一对）。
       if (wasActive && next === 'idle') void flushNow();
     },
+    restoreSettled,
   };
 }
 

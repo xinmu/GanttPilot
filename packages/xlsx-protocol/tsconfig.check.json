@@ -1,8 +1,17 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
     "noEmit": true,
-    "tsBuildInfoFile": null
-  }
+    // spec 与测试侧参照实现需要 Node API（读夹具文本 / 路径解析 / 临时文件），这是**测试环境**的需要，
+    // 不改变 src 的零 DOM / 零 node 全局约束（构建用的 tsconfig.json 仍然 `types: []`）。
+    "types": ["node"]
+  },
+  // **P3/C7-d（`N12`）**：`include` 覆盖 `src` 下的全部 TS（含 `*.spec.ts`），于是"spec 里的未定义
+  // 标识符 tsc 不报"这个缺口闭合。刻意**不** `extends ./tsconfig.json`：那份是**构建**项目
+  // （`rootDir: src` + `exclude: src/**/*.spec.ts`，见 tsconfig.json），会让 spec 整体退回门外。
+  // 两条链共用 `tsconfig.base.json` 的 strict 开关，各自只管自己那半边。
+  "include": ["src/**/*.ts"],
+  // 护栏夹具是**故意违规**的源码（`window` / `import 'vue'`），既不进构建也不进类型检查。
+  "exclude": ["lint-boundary"]
 }

@@ -23,31 +23,31 @@
 |---|---|---|
 | 1 | 打开无修复弹窗（COM 打开未抛错） | 通过（无异常） |
 | 2 | 幻灯片可读 | 通过（slides=1） |
-| 3 | `Slide.Export` 出 PNG（拖动前） | 通过（140075 bytes） |
-| 4 | `SaveAs` 另存 pptx（拖动前） | 通过（21152 bytes） |
+| 3 | `Slide.Export` 出 PNG（拖动前） | 通过（141617 bytes） |
+| 4 | `SaveAs` 另存 pptx（拖动前） | 通过（21524 bytes） |
 | 5 | 另存后 `a:stCxn`/`a:endCxn` 条数存活 | 通过（补丁 14 条：st=14 end=14 ⇒ WPS 后 st=14 end=14） |
 | 6 | 逐条 connector 端点（归一到形状名后）存活 | 通过（14 条全部一致） |
 | 7 | `cxnSp` 条数（另存前/后） | 补丁 14 条 ⇒ WPS 14 条（一致） |
-| 8 | 拖动任务条（COM 移动 `Left`/`Top`） | 通过（`bar-t1`：L=199.7 T=117.7 → L=319.7 T=177.7） |
-| 9 | `Slide.Export` 出 PNG（拖动后） | 通过（140388 bytes） |
-| 10 | `SaveAs` 另存 pptx（拖动后） | 通过（21379 bytes） |
+| 8 | 拖动任务条（COM 移动 `Left`/`Top`） | 通过（`bar-t1`：L=199.7 T=122 → L=319.7 T=182） |
+| 9 | `Slide.Export` 出 PNG（拖动后） | 通过（142304 bytes） |
+| 10 | `SaveAs` 另存 pptx（拖动后） | 通过（21737 bytes） |
 | 11 | **端点跟随**（相关 connector 的 `xfrm` 重算） | 通过（xfrm 随移动重算） |
 | 12 | `cxnSpLocks` | 补丁 0 处 ⇒ WPS 0 处 |
 
 ### 拖动增量与跟随幅度
 
 - COM 位移 ΔLeft=120 ⇒ XML Δoff.x=144288（比值 1202.4；12700 ⇒ COM 用 pt，1 ⇒ COM 用 EMU）
-- `dep-l1`：Δoff.x=144288 Δoff.y=216887
-- `dep-l2`：Δoff.x=650247 Δoff.y=434057
+- `dep-l1`：Δoff.x=144288 Δoff.y=217320
+- `dep-l2`：Δoff.x=650247 Δoff.y=433855
 
 ## 拖动前后 connector ``xfrm`` 对比
 
 | connector | 时点 | stCxn(id/idx) | endCxn(id/idx) | off.x | off.y | ext.cx | ext.cy | 变化 |
 |---|---|---|---|---|---|---|---|---|
-| `dep-l1` | 拖动前 | 42/3 | 44/1 | 2897362 | 1559843 | 144472 | 216707 | — |
-| `dep-l1` | 拖动后 | 42/3 | 44/1 | 3041650 | 1776730 | 1379855 | 545465 | **已重算** |
-| `dep-l2` | 拖动前 | 42/1 | 46/1 | 2536183 | 1559843 | 650122 | 433415 | — |
-| `dep-l2` | 拖动后 | 42/1 | 46/1 | 3186430 | 1993900 | 873760 | 328295 | **已重算** |
+| `dep-l1` | 拖动前 | 45/3 | 47/1 | 2897362 | 1614020 | 144472 | 216707 | — |
+| `dep-l1` | 拖动后 | 45/3 | 47/1 | 3041650 | 1831340 | 1379855 | 544830 | **已重算** |
+| `dep-l2` | 拖动前 | 45/1 | 49/1 | 2536183 | 1614020 | 650122 | 433415 | — |
+| `dep-l2` | 拖动后 | 45/1 | 49/1 | 3186430 | 2047875 | 873760 | 328295 | **已重算** |
 
 ### 一条必须记下的结构事实：任务条在**组内**
 
@@ -60,77 +60,77 @@
 
 | connector | stCxn(id/idx) | endCxn(id/idx) | off.x | off.y | ext.cx | ext.cy |
 |---|---|---|---|---|---|---|
-| `dep-l1` | 42/3 | 44/1 | 2897362 | 1559843 | 144472 | 216707 |
-| `dep-l2` | 42/1 | 46/1 | 2536183 | 1559843 | 650122 | 433415 |
-| `dep-l3` | 44/3 | 46/1 | 3186305 | 1776550 | 72236 | 216708 |
-| `dep-l4` | 46/3 | 48/1 | 3601661 | 1993258 | 18059 | 216707 |
-| `dep-l5` | 46/3 | 51/1 | 3619720 | 1993258 | 72236 | 650122 |
-| `dep-l6` | 51/1 | 53/1 | 3691956 | 2643380 | 144472 | 216708 |
-| `dep-l7` | 51/1 | 55/1 | 3691956 | 2643380 | 144472 | 433415 |
-| `dep-l8` | 53/3 | 57/3 | 4703258 | 2860088 | 433415 | 433415 |
-| `dep-l9` | 55/3 | 57/1 | 4703258 | 3076795 | 12700 | 216708 |
-| `dep-l10` | 57/3 | 59/1 | 5118614 | 3293503 | 18059 | 216707 |
-| `dep-l11` | 57/3 | 62/1 | 5136673 | 3293503 | 144472 | 650122 |
-| `dep-l12` | 62/3 | 64/1 | 5714560 | 3943625 | 12700 | 216708 |
-| `dep-l13` | 64/3 | 66/1 | 5859031 | 4160333 | 12700 | 216707 |
-| `dep-l14` | 62/1 | 66/3 | 5281145 | 3943625 | 650122 | 433415 |
+| `dep-l1` | 45/3 | 47/1 | 2897362 | 1614020 | 144472 | 216707 |
+| `dep-l2` | 45/1 | 49/1 | 2536183 | 1614020 | 650122 | 433415 |
+| `dep-l3` | 47/3 | 49/1 | 3186305 | 1830727 | 72236 | 216708 |
+| `dep-l4` | 49/3 | 51/1 | 3601661 | 2047435 | 18059 | 216707 |
+| `dep-l5` | 49/3 | 54/1 | 3619720 | 2047435 | 72236 | 650122 |
+| `dep-l6` | 54/1 | 56/1 | 3691956 | 2697557 | 144472 | 216708 |
+| `dep-l7` | 54/1 | 58/1 | 3691956 | 2697557 | 144472 | 433415 |
+| `dep-l8` | 56/3 | 60/3 | 4703258 | 2914265 | 433415 | 433415 |
+| `dep-l9` | 58/3 | 60/1 | 4703258 | 3130972 | 12700 | 216708 |
+| `dep-l10` | 60/3 | 62/1 | 5118614 | 3347680 | 18059 | 216707 |
+| `dep-l11` | 60/3 | 65/1 | 5136673 | 3347680 | 144472 | 650122 |
+| `dep-l12` | 65/3 | 67/1 | 5714560 | 3997802 | 12700 | 216708 |
+| `dep-l13` | 67/3 | 69/1 | 5859031 | 4214510 | 12700 | 216707 |
+| `dep-l14` | 65/1 | 69/3 | 5281145 | 3997802 | 650122 | 433415 |
 
 ### 全部 connector（WPS 另存后 · 拖动前）
 
 | connector | stCxn(id/idx) | endCxn(id/idx) | off.x | off.y | ext.cx | ext.cy |
 |---|---|---|---|---|---|---|
-| `dep-l1` | 42/3 | 44/1 | 2897362 | 1559843 | 144472 | 216707 |
-| `dep-l2` | 42/1 | 46/1 | 2536183 | 1559843 | 650122 | 433415 |
-| `dep-l3` | 44/3 | 46/1 | 3186305 | 1776550 | 72236 | 216708 |
-| `dep-l4` | 46/3 | 48/1 | 3601661 | 1993258 | 18059 | 216707 |
-| `dep-l5` | 46/3 | 51/1 | 3619720 | 1993258 | 72236 | 650122 |
-| `dep-l6` | 51/1 | 53/1 | 3691956 | 2643380 | 144472 | 216708 |
-| `dep-l7` | 51/1 | 55/1 | 3691956 | 2643380 | 144472 | 433415 |
-| `dep-l8` | 53/3 | 57/3 | 4703258 | 2860088 | 433415 | 433415 |
-| `dep-l9` | 55/3 | 57/1 | 4703258 | 3076795 | 12700 | 216708 |
-| `dep-l10` | 57/3 | 59/1 | 5118614 | 3293503 | 18059 | 216707 |
-| `dep-l11` | 57/3 | 62/1 | 5136673 | 3293503 | 144472 | 650122 |
-| `dep-l12` | 62/3 | 64/1 | 5714560 | 3943625 | 12700 | 216708 |
-| `dep-l13` | 64/3 | 66/1 | 5859031 | 4160333 | 12700 | 216707 |
-| `dep-l14` | 62/1 | 66/3 | 5281145 | 3943625 | 650122 | 433415 |
+| `dep-l1` | 45/3 | 47/1 | 2897362 | 1614020 | 144472 | 216707 |
+| `dep-l2` | 45/1 | 49/1 | 2536183 | 1614020 | 650122 | 433415 |
+| `dep-l3` | 47/3 | 49/1 | 3186305 | 1830727 | 72236 | 216708 |
+| `dep-l4` | 49/3 | 51/1 | 3601661 | 2047435 | 18059 | 216707 |
+| `dep-l5` | 49/3 | 54/1 | 3619720 | 2047435 | 72236 | 650122 |
+| `dep-l6` | 54/1 | 56/1 | 3691956 | 2697557 | 144472 | 216708 |
+| `dep-l7` | 54/1 | 58/1 | 3691956 | 2697557 | 144472 | 433415 |
+| `dep-l8` | 56/3 | 60/3 | 4703258 | 2914265 | 433415 | 433415 |
+| `dep-l9` | 58/3 | 60/1 | 4703258 | 3130972 | 12700 | 216708 |
+| `dep-l10` | 60/3 | 62/1 | 5118614 | 3347680 | 18059 | 216707 |
+| `dep-l11` | 60/3 | 65/1 | 5136673 | 3347680 | 144472 | 650122 |
+| `dep-l12` | 65/3 | 67/1 | 5714560 | 3997802 | 12700 | 216708 |
+| `dep-l13` | 67/3 | 69/1 | 5859031 | 4214510 | 12700 | 216707 |
+| `dep-l14` | 65/1 | 69/3 | 5281145 | 3997802 | 650122 | 433415 |
 
 ### 全部 connector（WPS 另存后 · 拖动后）
 
 | connector | stCxn(id/idx) | endCxn(id/idx) | off.x | off.y | ext.cx | ext.cy |
 |---|---|---|---|---|---|---|
-| `dep-l1` | 42/3 | 44/1 | 3041650 | 1776730 | 1379855 | 545465 |
-| `dep-l2` | 42/1 | 46/1 | 3186430 | 1993900 | 873760 | 328295 |
-| `dep-l3` | 44/3 | 46/1 | 3186430 | 1776730 | 71755 | 217170 |
-| `dep-l4` | 46/3 | 48/1 | 3601720 | 1993900 | 18415 | 216535 |
-| `dep-l5` | 46/3 | 51/1 | 3620135 | 1993900 | 71755 | 649605 |
-| `dep-l6` | 51/1 | 53/1 | 3691956 | 2643380 | 144472 | 216708 |
-| `dep-l7` | 51/1 | 55/1 | 3691956 | 2643380 | 144472 | 433415 |
-| `dep-l8` | 53/3 | 57/3 | 4703258 | 2860088 | 433415 | 433415 |
-| `dep-l9` | 55/3 | 57/1 | 4703258 | 3076795 | 12700 | 216708 |
-| `dep-l10` | 57/3 | 59/1 | 5118614 | 3293503 | 18059 | 216707 |
-| `dep-l11` | 57/3 | 62/1 | 5136673 | 3293503 | 144472 | 650122 |
-| `dep-l12` | 62/3 | 64/1 | 5714560 | 3943625 | 12700 | 216708 |
-| `dep-l13` | 64/3 | 66/1 | 5859031 | 4160333 | 12700 | 216707 |
-| `dep-l14` | 62/1 | 66/3 | 5281145 | 3943625 | 650122 | 433415 |
+| `dep-l1` | 45/3 | 47/1 | 3041650 | 1831340 | 1379855 | 544830 |
+| `dep-l2` | 45/1 | 49/1 | 3186430 | 2047875 | 873760 | 328295 |
+| `dep-l3` | 47/3 | 49/1 | 3186430 | 1831340 | 71755 | 216535 |
+| `dep-l4` | 49/3 | 51/1 | 3601720 | 2047875 | 18415 | 216535 |
+| `dep-l5` | 49/3 | 54/1 | 3620135 | 2047875 | 71755 | 650240 |
+| `dep-l6` | 54/1 | 56/1 | 3691956 | 2697557 | 144472 | 216708 |
+| `dep-l7` | 54/1 | 58/1 | 3691956 | 2697557 | 144472 | 433415 |
+| `dep-l8` | 56/3 | 60/3 | 4703258 | 2914265 | 433415 | 433415 |
+| `dep-l9` | 58/3 | 60/1 | 4703258 | 3130972 | 12700 | 216708 |
+| `dep-l10` | 60/3 | 62/1 | 5118614 | 3347680 | 18059 | 216707 |
+| `dep-l11` | 60/3 | 65/1 | 5136673 | 3347680 | 144472 | 650122 |
+| `dep-l12` | 65/3 | 67/1 | 5714560 | 3997802 | 12700 | 216708 |
+| `dep-l13` | 67/3 | 69/1 | 5859031 | 4214510 | 12700 | 216707 |
+| `dep-l14` | 65/1 | 69/3 | 5281145 | 3997802 | 650122 | 433415 |
 
 ## 形状集合
 
 补丁刚写出：
 
 ```
-#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, lbl-s1#12, lbl-t1#13, lbl-t2#14, lbl-t3#15, lbl-m1#16, lbl-s2#17, lbl-t4#18, lbl-t5#19, lbl-t6#20, lbl-t7#21, lbl-m2#22, lbl-s3#23, lbl-t8#24, lbl-t9#25, lbl-t10#26, legend-0#27, legend-1#28, legend-2#29, legend-3#30, legend-4#31, legend-5#32, legend-6#33, legend-7#34, summary-0#35, summary-1#36, summary-2#37, summary-3#38, summary-4#39, band-0#85, band-1#86, band-2#87, band-3#88, band-4#89, band-5#90, band-6#91, band-7#92, band-8#93, grid-0#94, grid-1#95, grid-2#96, grid-3#97, grid-4#98, grid-5#99, grid-6#100, grid-7#101, grid-8#102, legend-swatch-bar#103, legend-swatch-bar-summary#104, legend-swatch-milestone#105, legend-swatch-edge-FS#106, legend-swatch-edge-FS-head#107, legend-swatch-edge-SS#108, legend-swatch-edge-SS-head-arm1#109, legend-swatch-edge-SS-head-arm2#110, legend-swatch-edge-FF#111, legend-swatch-edge-FF-head#112, legend-swatch-edge-SF#113, legend-swatch-edge-SF-head-arm1#114, legend-swatch-edge-SF-head-arm2#115, grp-s1#68, bar-s1#40, prog-s1#41, bar-t1#42, prog-t1#43, bar-t2#44, prog-t2#45, bar-t3#46, prog-t3#47, ms-m1#48, grp-s2#69, bar-s2#49, prog-s2#50, bar-t4#51, prog-t4#52, bar-t5#53, prog-t5#54, bar-t6#55, prog-t6#56, bar-t7#57, prog-t7#58, ms-m2#59, grp-s3#70, bar-s3#60, prog-s3#61, bar-t8#62, prog-t8#63, bar-t9#64, prog-t9#65, bar-t10#66, prog-t10#67, dep-l1#71, dep-l2#72, dep-l3#73, dep-l4#74, dep-l5#75, dep-l6#76, dep-l7#77, dep-l8#78, dep-l9#79, dep-l10#80, dep-l11#81, dep-l12#82, dep-l13#83, dep-l14#84
+#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, axis-29#12, axis-32#13, axis-35#14, lbl-s1#15, lbl-t1#16, lbl-t2#17, lbl-t3#18, lbl-m1#19, lbl-s2#20, lbl-t4#21, lbl-t5#22, lbl-t6#23, lbl-t7#24, lbl-m2#25, lbl-s3#26, lbl-t8#27, lbl-t9#28, lbl-t10#29, legend-0#30, legend-1#31, legend-2#32, legend-3#33, legend-4#34, legend-5#35, legend-6#36, legend-7#37, summary-0#38, summary-1#39, summary-2#40, summary-3#41, summary-4#42, major-band-0#88, major-band-1#89, major-band-2#90, band-0#91, band-1#92, band-2#93, band-3#94, band-4#95, band-5#96, band-6#97, band-7#98, band-8#99, major-band-0-edge#100, major-band-0-head#101, major-band-1-edge#102, major-band-1-head#103, major-band-2-edge#104, major-band-2-head#105, grid-0#106, grid-1#107, grid-2#108, grid-3#109, grid-4#110, grid-5#111, grid-6#112, grid-7#113, grid-8#114, grid-9#115, grid-10#116, grid-11#117, legend-swatch-bar#118, legend-swatch-bar-summary#119, legend-swatch-milestone#120, legend-swatch-edge-FS#121, legend-swatch-edge-FS-head#122, legend-swatch-edge-SS#123, legend-swatch-edge-SS-head-arm1#124, legend-swatch-edge-SS-head-arm2#125, legend-swatch-edge-FF#126, legend-swatch-edge-FF-head#127, legend-swatch-edge-SF#128, legend-swatch-edge-SF-head-arm1#129, legend-swatch-edge-SF-head-arm2#130, grp-s1#71, bar-s1#43, progress-s1#44, bar-t1#45, progress-t1#46, bar-t2#47, progress-t2#48, bar-t3#49, progress-t3#50, ms-m1#51, grp-s2#72, bar-s2#52, progress-s2#53, bar-t4#54, progress-t4#55, bar-t5#56, progress-t5#57, bar-t6#58, progress-t6#59, bar-t7#60, progress-t7#61, ms-m2#62, grp-s3#73, bar-s3#63, progress-s3#64, bar-t8#65, progress-t8#66, bar-t9#67, progress-t9#68, bar-t10#69, progress-t10#70, dep-l1#74, dep-l2#75, dep-l3#76, dep-l4#77, dep-l5#78, dep-l6#79, dep-l7#80, dep-l8#81, dep-l9#82, dep-l10#83, dep-l11#84, dep-l12#85, dep-l13#86, dep-l14#87
 ```
 
 WPS 另存后：
 
 ```
-#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, lbl-s1#12, lbl-t1#13, lbl-t2#14, lbl-t3#15, lbl-m1#16, lbl-s2#17, lbl-t4#18, lbl-t5#19, lbl-t6#20, lbl-t7#21, lbl-m2#22, lbl-s3#23, lbl-t8#24, lbl-t9#25, lbl-t10#26, legend-0#27, legend-1#28, legend-2#29, legend-3#30, legend-4#31, legend-5#32, legend-6#33, legend-7#34, summary-0#35, summary-1#36, summary-2#37, summary-3#38, summary-4#39, band-0#85, band-1#86, band-2#87, band-3#88, band-4#89, band-5#90, band-6#91, band-7#92, band-8#93, grid-0#94, grid-1#95, grid-2#96, grid-3#97, grid-4#98, grid-5#99, grid-6#100, grid-7#101, grid-8#102, legend-swatch-bar#103, legend-swatch-bar-summary#104, legend-swatch-milestone#105, legend-swatch-edge-FS#106, legend-swatch-edge-FS-head#107, legend-swatch-edge-SS#108, legend-swatch-edge-SS-head-arm1#109, legend-swatch-edge-SS-head-arm2#110, legend-swatch-edge-FF#111, legend-swatch-edge-FF-head#112, legend-swatch-edge-SF#113, legend-swatch-edge-SF-head-arm1#114, legend-swatch-edge-SF-head-arm2#115, grp-s1#68, bar-s1#40, prog-s1#41, bar-t1#42, prog-t1#43, bar-t2#44, prog-t2#45, bar-t3#46, prog-t3#47, ms-m1#48, grp-s2#69, bar-s2#49, prog-s2#50, bar-t4#51, prog-t4#52, bar-t5#53, prog-t5#54, bar-t6#55, prog-t6#56, bar-t7#57, prog-t7#58, ms-m2#59, grp-s3#70, bar-s3#60, prog-s3#61, bar-t8#62, prog-t8#63, bar-t9#64, prog-t9#65, bar-t10#66, prog-t10#67, dep-l1#71, dep-l2#72, dep-l3#73, dep-l4#74, dep-l5#75, dep-l6#76, dep-l7#77, dep-l8#78, dep-l9#79, dep-l10#80, dep-l11#81, dep-l12#82, dep-l13#83, dep-l14#84
+#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, axis-29#12, axis-32#13, axis-35#14, lbl-s1#15, lbl-t1#16, lbl-t2#17, lbl-t3#18, lbl-m1#19, lbl-s2#20, lbl-t4#21, lbl-t5#22, lbl-t6#23, lbl-t7#24, lbl-m2#25, lbl-s3#26, lbl-t8#27, lbl-t9#28, lbl-t10#29, legend-0#30, legend-1#31, legend-2#32, legend-3#33, legend-4#34, legend-5#35, legend-6#36, legend-7#37, summary-0#38, summary-1#39, summary-2#40, summary-3#41, summary-4#42, major-band-0#88, major-band-1#89, major-band-2#90, band-0#91, band-1#92, band-2#93, band-3#94, band-4#95, band-5#96, band-6#97, band-7#98, band-8#99, major-band-0-edge#100, major-band-0-head#101, major-band-1-edge#102, major-band-1-head#103, major-band-2-edge#104, major-band-2-head#105, grid-0#106, grid-1#107, grid-2#108, grid-3#109, grid-4#110, grid-5#111, grid-6#112, grid-7#113, grid-8#114, grid-9#115, grid-10#116, grid-11#117, legend-swatch-bar#118, legend-swatch-bar-summary#119, legend-swatch-milestone#120, legend-swatch-edge-FS#121, legend-swatch-edge-FS-head#122, legend-swatch-edge-SS#123, legend-swatch-edge-SS-head-arm1#124, legend-swatch-edge-SS-head-arm2#125, legend-swatch-edge-FF#126, legend-swatch-edge-FF-head#127, legend-swatch-edge-SF#128, legend-swatch-edge-SF-head-arm1#129, legend-swatch-edge-SF-head-arm2#130, grp-s1#71, bar-s1#43, progress-s1#44, bar-t1#45, progress-t1#46, bar-t2#47, progress-t2#48, bar-t3#49, progress-t3#50, ms-m1#51, grp-s2#72, bar-s2#52, progress-s2#53, bar-t4#54, progress-t4#55, bar-t5#56, progress-t5#57, bar-t6#58, progress-t6#59, bar-t7#60, progress-t7#61, ms-m2#62, grp-s3#73, bar-s3#63, progress-s3#64, bar-t8#65, progress-t8#66, bar-t9#67, progress-t9#68, bar-t10#69, progress-t10#70, dep-l1#74, dep-l2#75, dep-l3#76, dep-l4#77, dep-l5#78, dep-l6#79, dep-l7#80, dep-l8#81, dep-l9#82, dep-l10#83, dep-l11#84, dep-l12#85, dep-l13#86, dep-l14#87
 ```
 
 拖动后再另存：
 
 ```
-#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, lbl-s1#12, lbl-t1#13, lbl-t2#14, lbl-t3#15, lbl-m1#16, lbl-s2#17, lbl-t4#18, lbl-t5#19, lbl-t6#20, lbl-t7#21, lbl-m2#22, lbl-s3#23, lbl-t8#24, lbl-t9#25, lbl-t10#26, legend-0#27, legend-1#28, legend-2#29, legend-3#30, legend-4#31, legend-5#32, legend-6#33, legend-7#34, summary-0#35, summary-1#36, summary-2#37, summary-3#38, summary-4#39, band-0#85, band-1#86, band-2#87, band-3#88, band-4#89, band-5#90, band-6#91, band-7#92, band-8#93, grid-0#94, grid-1#95, grid-2#96, grid-3#97, grid-4#98, grid-5#99, grid-6#100, grid-7#101, grid-8#102, legend-swatch-bar#103, legend-swatch-bar-summary#104, legend-swatch-milestone#105, legend-swatch-edge-FS#106, legend-swatch-edge-FS-head#107, legend-swatch-edge-SS#108, legend-swatch-edge-SS-head-arm1#109, legend-swatch-edge-SS-head-arm2#110, legend-swatch-edge-FF#111, legend-swatch-edge-FF-head#112, legend-swatch-edge-SF#113, legend-swatch-edge-SF-head-arm1#114, legend-swatch-edge-SF-head-arm2#115, grp-s1#68, bar-s1#40, prog-s1#41, bar-t1#42, prog-t1#43, bar-t2#44, prog-t2#45, bar-t3#46, prog-t3#47, ms-m1#48, grp-s2#69, bar-s2#49, prog-s2#50, bar-t4#51, prog-t4#52, bar-t5#53, prog-t5#54, bar-t6#55, prog-t6#56, bar-t7#57, prog-t7#58, ms-m2#59, grp-s3#70, bar-s3#60, prog-s3#61, bar-t8#62, prog-t8#63, bar-t9#64, prog-t9#65, bar-t10#66, prog-t10#67, dep-l1#71, dep-l2#72, dep-l3#73, dep-l4#74, dep-l5#75, dep-l6#76, dep-l7#77, dep-l8#78, dep-l9#79, dep-l10#80, dep-l11#81, dep-l12#82, dep-l13#83, dep-l14#84
+#1, title#2, axis-10#3, axis-12#4, axis-14#5, axis-16#6, axis-18#7, axis-20#8, axis-22#9, axis-24#10, axis-26#11, axis-29#12, axis-32#13, axis-35#14, lbl-s1#15, lbl-t1#16, lbl-t2#17, lbl-t3#18, lbl-m1#19, lbl-s2#20, lbl-t4#21, lbl-t5#22, lbl-t6#23, lbl-t7#24, lbl-m2#25, lbl-s3#26, lbl-t8#27, lbl-t9#28, lbl-t10#29, legend-0#30, legend-1#31, legend-2#32, legend-3#33, legend-4#34, legend-5#35, legend-6#36, legend-7#37, summary-0#38, summary-1#39, summary-2#40, summary-3#41, summary-4#42, major-band-0#88, major-band-1#89, major-band-2#90, band-0#91, band-1#92, band-2#93, band-3#94, band-4#95, band-5#96, band-6#97, band-7#98, band-8#99, major-band-0-edge#100, major-band-0-head#101, major-band-1-edge#102, major-band-1-head#103, major-band-2-edge#104, major-band-2-head#105, grid-0#106, grid-1#107, grid-2#108, grid-3#109, grid-4#110, grid-5#111, grid-6#112, grid-7#113, grid-8#114, grid-9#115, grid-10#116, grid-11#117, legend-swatch-bar#118, legend-swatch-bar-summary#119, legend-swatch-milestone#120, legend-swatch-edge-FS#121, legend-swatch-edge-FS-head#122, legend-swatch-edge-SS#123, legend-swatch-edge-SS-head-arm1#124, legend-swatch-edge-SS-head-arm2#125, legend-swatch-edge-FF#126, legend-swatch-edge-FF-head#127, legend-swatch-edge-SF#128, legend-swatch-edge-SF-head-arm1#129, legend-swatch-edge-SF-head-arm2#130, grp-s1#71, bar-s1#43, progress-s1#44, bar-t1#45, progress-t1#46, bar-t2#47, progress-t2#48, bar-t3#49, progress-t3#50, ms-m1#51, grp-s2#72, bar-s2#52, progress-s2#53, bar-t4#54, progress-t4#55, bar-t5#56, progress-t5#57, bar-t6#58, progress-t6#59, bar-t7#60, progress-t7#61, ms-m2#62, grp-s3#73, bar-s3#63, progress-s3#64, bar-t8#65, progress-t8#66, bar-t9#67, progress-t9#68, bar-t10#69, progress-t10#70, dep-l1#74, dep-l2#75, dep-l3#76, dep-l4#77, dep-l5#78, dep-l6#79, dep-l7#80, dep-l8#81, dep-l9#82, dep-l10#83, dep-l11#84, dep-l12#85, dep-l13#86, dep-l14#87
 ```
 
 WPS COM 侧形状树（会话 2 打开后，拖动之前；缩进 = `GroupItems` 层级）：
@@ -146,6 +146,9 @@ axis-20
 axis-22
 axis-24
 axis-26
+axis-29
+axis-32
+axis-35
 lbl-s1
 lbl-t1
 lbl-t2
@@ -174,6 +177,9 @@ summary-1
 summary-2
 summary-3
 summary-4
+major-band-0
+major-band-1
+major-band-2
 band-0
 band-1
 band-2
@@ -183,6 +189,12 @@ band-5
 band-6
 band-7
 band-8
+major-band-0-edge
+major-band-0-head
+major-band-1-edge
+major-band-1-head
+major-band-2-edge
+major-band-2-head
 grid-0
 grid-1
 grid-2
@@ -192,6 +204,9 @@ grid-5
 grid-6
 grid-7
 grid-8
+grid-9
+grid-10
+grid-11
 legend-swatch-bar
 legend-swatch-bar-summary
 legend-swatch-milestone
@@ -207,35 +222,35 @@ legend-swatch-edge-SF-head-arm1
 legend-swatch-edge-SF-head-arm2
 grp-s1
   bar-s1
-  prog-s1
+  progress-s1
   bar-t1
-  prog-t1
+  progress-t1
   bar-t2
-  prog-t2
+  progress-t2
   bar-t3
-  prog-t3
+  progress-t3
   ms-m1
 grp-s2
   bar-s2
-  prog-s2
+  progress-s2
   bar-t4
-  prog-t4
+  progress-t4
   bar-t5
-  prog-t5
+  progress-t5
   bar-t6
-  prog-t6
+  progress-t6
   bar-t7
-  prog-t7
+  progress-t7
   ms-m2
 grp-s3
   bar-s3
-  prog-s3
+  progress-s3
   bar-t8
-  prog-t8
+  progress-t8
   bar-t9
-  prog-t9
+  progress-t9
   bar-t10
-  prog-t10
+  progress-t10
 dep-l1
 dep-l2
 dep-l3
@@ -252,7 +267,7 @@ dep-l13
 dep-l14
 ```
 
-（注意：顶层只有文本框、`grp-s*` 与 `dep-*`；`bar-*`/`prog-*`/`ms-*` 在组内。
+（注意：顶层只有文本框、`grp-s*` 与 `dep-*`；`bar-*`/`progress-*`/`ms-*` 在组内。
 XML 里同样如此：它们是 `<p:grpSp>` 的子元素，而 connector 在**顶层**引用这些子形状的 id
 ——这正是 S7-a 所说的"跨组吸附"，WPS 打开与另存后都认这个引用。）
 
@@ -266,14 +281,14 @@ XML 里同样如此：它们是 `<p:grpSp>` 的子元素，而 connector 在**�
 
 ## WPS 打开/另存到底改了什么（字节层事实）
 
-- `slide1.xml` 字符数：as-written 59370 ⇒ WPS 57493（**字节不同**），
-  但**结构计数逐项一致**：`<p:sp>` 97 ⇒ 97、`<p:cxnSp>` 14 ⇒ 14、`<p:grpSp>` 3 ⇒ 3、`<a:stCxn>` 14 ⇒ 14、`<a:endCxn>` 14 ⇒ 14。
+- `slide1.xml` 字符数：as-written 65128 ⇒ WPS 63104（**字节不同**），
+  但**结构计数逐项一致**：`<p:sp>` 112 ⇒ 112、`<p:cxnSp>` 14 ⇒ 14、`<p:grpSp>` 3 ⇒ 3、`<a:stCxn>` 14 ⇒ 14、`<a:endCxn>` 14 ⇒ 14。
   已定位的重写：``<p:cSld name="Slide 1">`` 的 name 属性被丢掉，XML 声明/空白的写法被规范化（所以字节数变小）。
 - 包内条目（非目录项）：补丁 20 项 ⇒ WPS 22 项；新增的是 `docProps/custom.xml`、`ppt/theme/theme2.xml`。
 - **走线本身也被重算**（不只是平移）：拖动后 WPS 会按新的端点相对位置改写 connector 的
   `prstGeom`（折线路数）、`a:xfrm` 的 `flipH/flipV` 与 `avLst` 的调整值：
 
-- `dep-l1`：preset `bentConnector3` ⇒ `bentConnector5`；xfrm 属性 `(无)` ⇒ `flipH="1" flipV="1"`；调整值 `(无)` ⇒ `-17257,50058,117257`
+- `dep-l1`：preset `bentConnector3` ⇒ `bentConnector5`；xfrm 属性 `(无)` ⇒ `flipH="1" flipV="1"`；调整值 `(无)` ⇒ `-17257,50000,117257`
 - `dep-l2`：preset `bentConnector3` ⇒ `bentConnector3`；xfrm 属性 `(无)` ⇒ `rot="10800000"`；调整值 `(无)` ⇒ `127253`
 - 结论：**WPS 没有改动我们写进去的几何与吸附**，改动都落在"它自己的容器元数据"层——
   这正是 ADR 0010 §9 说的"产物一旦进别的渲染器就会被重写"，也是本仓库把逐字节 golden 限定在**我们自己写出**的产物上的原因。

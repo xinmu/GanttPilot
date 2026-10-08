@@ -17,7 +17,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { rowIndexOfOrder, taskBounds, visibleRowOrder } from './domain.js';
-import { buildFixture, DATASETS } from './fixtures.js';
+import { buildFixture } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import {
   ARROW_FILL,
   EDGE_STUB_PX,
@@ -26,9 +27,9 @@ import {
   THRESHOLDS,
   evaluateScaleCriteria,
 } from './manifest.js';
-import { arrowDistinguishability, arrowFormsForRelations, rasterizeArrow, routeEdge, routeSides } from './route.js';
+import { arrowDistinguishability, arrowFormsForRelations, previewStubX, rasterizeArrow, routeEdge, routeSides } from './route.js';
 
-const fixture = buildFixture(DATASETS[2]);
+const fixture = buildFixture(datasetOf('dense'));
 
 describe('4 类关系箭头可区分性（S4-d，同尺量化）', () => {
   it('真实渲染尺寸为 12 × 7.2 px（行高 24 × 0.5 / 半宽 × 0.6）', () => {
@@ -176,5 +177,51 @@ describe('折点参数常数性（S4-d 后半）', () => {
     expect(criteria.rowHeight.selected).toBe(criteria.rowHeight.declared);
     expect(criteria.rowBuffer.selected).toBe(criteria.rowBuffer.declared);
     expect(criteria.gutter.derived).toBe(criteria.gutter.declared);
+  });
+});
+
+/**
+ * P3/C6-e：**建线预览**的竖直段收进本包（原先写在 `GanttChart.vue` 的模板表达式里）。
+ *
+ * 预览与终态路由**故意不是同一条规则**：预览取"出端 stub 的 x，夹在两端之间"，
+ * 终态取"两端 stub 的中点（回绕时另取走廊）"。因此这里同时钉住两件事：
+ * 预览自己的规则（含夹取的两个分支），以及"它与 `routeEdge` 确实不同"（否则这次搬家
+ * 就变成了偷偷把预览换成终态几何）。
+ */
+describe('P3/C6-e：建线预览的竖直段 x', () => {
+  it('向右走 stub，且被夹在两端之间（不越到目标右侧）', () => {
+    // 目标足够远：正常走满一个 stub
+    expect(previewStubX({ exitX: 100, enterX: 200 })).toBe(108);
+    // 目标在 stub 之内：夹到目标 x（不越过去）
+    expect(previewStubX({ exitX: 100, enterX: 103 })).toBe(103);
+    // 目标与出端同 x：夹成同一个 x（折线退化成两段）
+    expect(previewStubX({ exitX: 100, enterX: 100 })).toBe(100);
+  });
+
+  it('向左走 stub，同样夹在两端之间', () => {
+    expect(previewStubX({ exitX: 200, enterX: 100 })).toBe(192);
+    expect(previewStubX({ exitX: 200, enterX: 197 })).toBe(197);
+  });
+
+  it('stub 长度可用参数覆盖（导出侧复用同一条规则），默认取 `EDGE_STUB_PX`', () => {
+    expect(previewStubX({ exitX: 0, enterX: 100 })).toBe(EDGE_STUB_PX);
+    expect(previewStubX({ exitX: 0, enterX: 100, stubPx: 30 })).toBe(30);
+  });
+
+  it('判别力：预览规则与终态路由的中点规则**不同**（搬错实现会被这条抓住）', () => {
+    const exitX = 100;
+    const enterX = 200;
+    const routed = routeEdge({
+      exitSide: 'right',
+      enterSide: 'left',
+      exitX,
+      enterX,
+      yFrom: 0,
+      yTo: 40,
+    });
+    // 终态：两端 stub 的中点 = (108 + 192) / 2 = 150
+    expect(routed.verticalX).toBe(150);
+    // 预览：出端 stub 的末点 = 108
+    expect(previewStubX({ exitX, enterX })).toBe(108);
   });
 });

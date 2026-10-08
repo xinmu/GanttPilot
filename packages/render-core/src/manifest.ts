@@ -88,6 +88,19 @@ export const WHEEL_NOTCH_PX = 100;
 export const HEADER_HEIGHT_PX = 40;
 
 /**
+ * **每级层级缩进（px）**——左表名称列与两个导出投影的标签**共用同一个值**（P3/C6-e）。
+ *
+ * 为什么收在这里：屏幕侧原先在 `TaskTable.vue` 的模板里写 `depth * 12`，导出侧在
+ * `exportLabels.ts` 里写 `EXPORT_LABEL_INDENT_PX = 12`——同一个视觉语言（"子节点比父节点
+ * 右移一级"）的值写了两遍，正是 P1 要拦的那一类分叉（同 `TICK_LENGTH_PX`）。
+ *
+ * 两侧的**上限不同且必须不同**：导出侧还有 {@link EXPORT_LABEL_MAX_DEPTH}（3 级封顶，
+ * 窄列不能被缩进吃光），左表侧**不封顶**（名称列 208 px，多深都画得下）——
+ * 因此共用的是"一级多少像素"，不是"最多缩几级"。
+ */
+export const INDENT_PX_PER_LEVEL = 12;
+
+/**
  * 轴的**三层视觉**颜色常量（P-46 §2.2／§3；屏幕 SVG、导出 SVG、PPTX 与左表 CSS 共用同值）。
  *
  * ## 三层各自承担什么（G8 人工复验第 ④⑥ 条的订正）
@@ -116,6 +129,15 @@ export const AXIS_MAJOR_BODY_FILL = '#fafbfc';
 export const AXIS_MAJOR_EDGE = '#b9c0cb';
 export const AXIS_GRIDLINE_STROKE = '#e4e7ec';
 export const HOVER_ROW_FILL = '#cfe3fa';
+
+/**
+ * 条形与汇总条的填充（ADR 0010 §4 的"三投影同源"）。
+ *
+ * **声明处就在本文件**（P3/C5 从 `svgExport.ts` 的 `COLOR` 表迁来）：屏幕 SVG、导出 SVG 与 PPTX
+ * 消费同一个值；`constantCheck` 的 `bar-colors` 条目按这里判位置。
+ */
+export const BAR_FILL = '#2e75b6';
+export const BAR_SUMMARY_FILL = '#7a8699';
 
 /**
  * 两级刻度的**文本基线**（表头带内的 y，px；**屏幕 SVG / 导出 SVG / PPTX 共用同值**）。
@@ -391,7 +413,7 @@ export const VIEWPORT_DEFAULT = {
 /**
  * 判据阈值。**单点声明**：任何"让测试变绿"的调整都必须改这里，因而必然留下 diff。
  *
- * `c₃` 的逐档位锚值（116 / 70 / 89，两级刻度前的单级口径）不在这里——它是**视口与夹具的函数**，
+ * `c₃` 的逐档位锚值（**两级刻度前的单级口径**，其历史值见 [ADR 0007 附录](../../../docs/02-adr/附录/0007-增补.md)）不在这里——它是**视口与夹具的函数**，
  * 由 spec 断言（与 `clipping.spec.ts` 的实测锚对齐），不是手选常量。
  * **两级刻度（P-46）后 `c₃` 同轮重锚**：见 `clipping.spec.ts` 的 `expectedC3`（本节不重复登记数值）。
  */

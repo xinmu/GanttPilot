@@ -7,10 +7,8 @@
     "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
-  // 测试与**测试侧手段**不进入发布产物：
-  // - `*.spec.ts` 是测试；
-  // - `loopCalendar.ts` 是 G1.1 出口条件所需的「逐日循环」互证实现（故意不进公共 API，
-  //   见其文件头注释），它只被 spec 引用，故可以安全地排除在 build 之外。
-  // 两者仍受 `tsconfig.check.json`（typecheck）与 Vitest 覆盖。
-  "exclude": ["src/**/*.spec.ts", "src/loopCalendar.ts", "lint-boundary"]
+  // 测试不进入发布产物：`*.spec.ts` 是测试；测试侧的互证实现（逐日循环日历）已按 P3/C4 迁到
+  // `test/`，`include` 因此天然不覆盖它——不再需要"逐个文件点名排除"（那种做法正是 C4 要清掉的含糊）。
+  // 两者仍受 Vitest 与 `pnpm lint` 覆盖。
+  "exclude": ["src/**/*.spec.ts", "lint-boundary"]
 }

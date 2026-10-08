@@ -132,10 +132,3 @@ export function serialHasTime(serial: number): boolean {
 export function isoFromDate(date: Date): string {
   return isoFromParts(date.getFullYear(), date.getMonth() + 1, date.getDate());
 }
-
-/** `Date` 是否带非零时刻（→ `XLSX_DATE_HAS_TIME`）。 */
-export function dateHasTime(date: Date): boolean {
-  return (
-    date.getHours() !== 0 || date.getMinutes() !== 0 || date.getSeconds() !== 0 || date.getMilliseconds() !== 0
-  );
-}

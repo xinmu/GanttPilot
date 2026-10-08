@@ -24,117 +24,19 @@
  *   node scripts/offline-artifact-probe.mjs --no-offline   # 跳过断网那一问（调试用）
  */
 
-import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { assertOwnProfile, closeOwnChrome, profileDirFor, psCommandLine } from './chrome-harness.mjs';
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { closeChromeSession, connectCdp, findChrome, spawnChrome, waitForDevToolsPort } from './cdp.mjs';
+import { repoRoot } from './paths.mjs';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const offlineRoot = join(repoRoot, 'apps', 'web', 'dist-offline');
 const evidenceDir = join(repoRoot, 'apps', 'web', 'evidence');
 const singleFile = join(offlineRoot, 'index.html');
 const skipOfflineQuestion = process.argv.includes('--no-offline');
-let currentProfileDir = null;
 
 if (!existsSync(singleFile)) {
   console.error('[offline-probe] 找不到单文件产物 —— 先跑 `node scripts/bundle-offline.mjs`。');
   process.exit(1);
-}
-
-/** 找一个可用的 Chrome（与 `smoke-build.mjs` 同口径）。 */
-function findChrome() {
-  const candidates = [
-    process.env.GANTTPILOT_CHROME,
-    join(process.env.PROGRAMFILES ?? 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-    join(process.env['PROGRAMFILES(X86)'] ?? 'C:\\Program Files (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-    join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-    '/usr/bin/google-chrome',
-  ].filter((item) => typeof item === 'string' && item !== '');
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
-  }
-  throw new Error('找不到 Chrome；用 GANTTPILOT_CHROME=<path> 指定（缺 Chrome 即失败，不跳过）。');
-}
-
-function launchChrome(executable) {
-  const profileDir = assertOwnProfile(profileDirFor('offline-profile'));
-  currentProfileDir = profileDir;
-  const child = spawn(
-    executable,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--window-size=1600,900',
-      '--no-first-run',
-      '--no-default-browser-check',
-      // 让 `file://` 页面能读同目录的文件（`DOM.setFileInputFiles` 与"首屏计时"都不受影响）。
-      '--allow-file-access-from-files',
-      `--user-data-dir=${profileDir}`,
-      '--remote-debugging-port=0',
-      'about:blank',
-    ],
-    { stdio: 'ignore' },
-  );
-  return { child, profileDir };
-}
-
-async function readDevToolsPort(profileDir) {
-  const portFile = join(profileDir, 'DevToolsActivePort');
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    if (existsSync(portFile)) {
-      const [port] = readFileSync(portFile, 'utf8').split('\n');
-      const value = Number(port);
-      if (Number.isInteger(value) && value > 0) return value;
-    }
-    await new Promise((settle) => setTimeout(settle, 100));
-  }
-  throw new Error('Chrome 未在 10 秒内写出 DevToolsActivePort');
-}
-
-/** 极简 CDP 客户端（零新增依赖；与 `smoke-build.mjs` 同一份手法）。 */
-async function connect(port) {
-  let target = '';
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline && target === '') {
-    const response = await fetch(`http://127.0.0.1:${String(port)}/json/list`);
-    const targets = await response.json();
-    const page = targets.find((item) => item.type === 'page');
-    if (page !== undefined) target = page.webSocketDebuggerUrl;
-    else await new Promise((settle) => setTimeout(settle, 150));
-  }
-  if (target === '') throw new Error('未找到可用的 page 目标');
-  const socket = new WebSocket(target);
-  await new Promise((settle, reject) => {
-    socket.addEventListener('open', () => settle(), { once: true });
-    socket.addEventListener('error', () => reject(new Error('CDP WebSocket 连接失败')), { once: true });
-  });
-  let nextId = 1;
-  const pending = new Map();
-  const listeners = new Map();
-  socket.addEventListener('message', (event) => {
-    const message = JSON.parse(typeof event.data === 'string' ? event.data : String(event.data));
-    if (message.id !== undefined && pending.has(message.id)) {
-      const { resolve: ok, reject } = pending.get(message.id);
-      pending.delete(message.id);
-      if (message.error !== undefined) reject(new Error(String(message.error.message ?? 'CDP 错误')));
-      else ok(message.result);
-      return;
-    }
-    for (const handler of listeners.get(message.method) ?? []) handler(message.params);
-  });
-  const call = (method, params = {}) =>
-    new Promise((ok, reject) => {
-      const id = nextId++;
-      pending.set(id, { resolve: ok, reject });
-      socket.send(JSON.stringify({ id, method, params }));
-    });
-  const on = (method, handler) => {
-    const handlers = listeners.get(method) ?? [];
-    handlers.push(handler);
-    listeners.set(method, handlers);
-  };
-  return { call, on, close: () => socket.close() };
 }
 
 /** 页面读数（一行表达式，返回 JSON 字符串）。 */
@@ -146,7 +48,7 @@ async function read(cdp, expression) {
 /**
  * 等界面就绪。
  *
- * **等 `__GANTTPILOT_READY__`**（由 `App.vue` 的测量钩子置起，因此本探针用 `?measure=1` 打开）：
+ * **等 `__GANTTPILOT_READY__`**（由 `measureHost.ts` 的测量钩子置起，因此本探针用 `?measure=1` 打开）：
  * 它是"应用挂载完成"的唯一信号。"DOM 里有 SVG"这条更弱的判据可能在**视图重建的中间态**上为真
  * ——实测过：导入之后 `t1` 的条体矩形是新的（360 px）、而命中判定读到的还是旧的那一帧，于是
  * "看起来点在条上"却起不了手势（记录制脚本的老毛病，P-41 的"稳定读"就是为它立的）。
@@ -404,9 +306,12 @@ async function probeMainFlows(cdp, downloadDir) {
      * **失败时的诊断读数**（只写进原始 JSON，不改变判据）：拖完之后若文本没变，
      * 需要能区分三类原因——① 手势没起来；② 手势被中止且没有提交；③ 命令被拒（提示条里有失败码）。
      *
-     * 修订号走**测量钩子**（`__GANTTPILOT_MEASURE_G8__().revision`，即 `session.revision`）而**不是**
+     * 修订号走**测量钩子**（`__GANTTPILOT_MEASURE_AXIS_HOVER_META__().revision`，即 `session.revision`）而**不是**
      * 从状态栏文案里正则解析：文案是给人看的、会随措辞变，而"松手真的落了库"必须有一个结构性读数
      * （与 `--drag`/`--persist-drag` 的"预览不落库"判据同源，P-45）。
+     *
+     * 注意用的是**元读数**（`_META__`，只读：档位 + 修订号），不是同族的那个"读一次两级刻度与悬停"的
+     * 入口——后者会**切档位、挪指针**（有个会改状态的副作用），不适合"随手读一次"。
      */
     const diagnostics = JSON.parse(
       await read(
@@ -414,8 +319,8 @@ async function probeMainFlows(cdp, downloadDir) {
         `(() => {
           const status = (document.querySelector('.status') || {}).textContent || '';
           const notice = (document.querySelector('.status .notice') || {}).textContent || '';
-          const meta = typeof window.__GANTTPILOT_MEASURE_G8_META__ === 'function'
-            ? window.__GANTTPILOT_MEASURE_G8_META__()
+          const meta = typeof window.__GANTTPILOT_MEASURE_AXIS_HOVER_META__ === 'function'
+            ? window.__GANTTPILOT_MEASURE_AXIS_HOVER_META__()
             : null;
           return JSON.stringify({
             error: window.__GANTTPILOT_ERROR__ ?? null,
@@ -469,15 +374,18 @@ let chromeHandle = null;
 try {
   const downloadDir = join(repoRoot, 'tmp', 'offline-probe', String(Date.now()));
   mkdirSync(downloadDir, { recursive: true });
-  const executable = findChrome();
-  chromeHandle = launchChrome(executable);
-  const port = await readDevToolsPort(chromeHandle.profileDir);
-  const cdp = await connect(port);
+  chromeHandle = spawnChrome(findChrome(), {
+    profileRoot: 'offline-profile',
+    extraArgs: ['--disable-gpu', '--allow-file-access-from-files'],
+    windowSize: { width: 1600, height: 900 },
+  });
+  const port = await waitForDevToolsPort(chromeHandle.profileDir);
+  const cdp = await connectCdp(port);
   await cdp.call('Page.enable');
   await cdp.call('Runtime.enable');
   await cdp.call('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: downloadDir });
   /**
-   * **带 `?measure=1` 打开**：它加载测量钩子（`measure.ts`），于是
+   * **带 `?measure=1` 打开**：它加载测量钩子（`apps/web/src/measure/`），于是
    * ① `window.__GANTTPILOT_READY__` 会被置起——这是**唯一**能确认"应用挂载完成"的信号
    *    （否则只能靠"DOM 里有 SVG"猜，而那可能在视图重建的中间态上也为真）；
    * ② 探针可以顺手读回应用自己的 `ViewModel`（诊断用）。
@@ -553,11 +461,16 @@ try {
     });
   }
 
+  // P4-e：登记**环境三件套**里的"环境"（此前只在 raw 里有 chromeMajor，正文没有环境块）。
+  // 视口 / DPR 取**页面实测值**（启动窗口是 1600×900，页面实测才是口径里的那个数）。
   const version = await chromeMajorVersion(cdp);
+  const pageEnv = JSON.parse(await read(cdp, 'JSON.stringify({ w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio })'));
   cdp.close();
 
   const raw = {
     chromeMajor: version,
+    viewport: { width: pageEnv.w, height: pageEnv.h },
+    dpr: pageEnv.dpr,
     artifact: { path: singleFile, bytes: sizeBytes, kb: Math.round((sizeBytes / 1024) * 10) / 10 },
     firstScreen: { ready, readyMs: firstScreenMs, ...paint },
     indexedDb: idb,
@@ -578,7 +491,18 @@ try {
     '',
     `- 产物：\`apps/web/dist-offline/index.html\`，**${String(raw.artifact.kb)} KB**（${String(sizeBytes)} 字节）`,
     `- 首屏（导航 → \`__GANTTPILOT_READY__\`）：**${String(firstScreenMs)} ms**（FCP ${String(paint.fcpMs ?? 'n/a')} ms、DOMContentLoaded ${String(paint.domContentLoadedMs)} ms）`,
-    `- 打开方式：\`${url}\``,
+    // P4-d：打开方式写**仓库根相对 + 声明词**（本机绝对 `file:///` 是采集时的机器事实，不进证据正文）。
+    '- 打开方式：`file:///<仓库根>/apps/web/dist-offline/index.html?measure=1`（`<仓库根>` = 本机克隆目录；产物由 `pnpm bundle:offline` 再生）',
+    '',
+    '## 环境（与数字一起登记）',
+    '',
+    '| 项 | 值 |',
+    '|---|---|',
+    `| 浏览器 | Chrome ${String(version)}（\`--headless=new\`，见 \`scripts/cdp.mjs\`） |`,
+    `| 视口 | **${String(pageEnv.w)}×${String(pageEnv.h)} CSS px**（页面实测；启动窗口 1600×900） |`,
+    `| DPR | **${String(pageEnv.dpr)}** |`,
+    '| 打开方式 | 见上（`file://` 单文件，带 `?measure=1`） |',
+    '| 口径 | 首屏 = 导航 → `__GANTTPILOT_READY__`；体积 = 单文件字节数；三链路 = 导入 / 拖动 / 导出；**只登记、不设门禁**（P-49 §3 问题③） |',
     '',
     '## ① `file://` 下的 IndexedDB',
     '',
@@ -646,19 +570,11 @@ try {
   console.error(`[offline-probe] 失败：${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 1;
 } finally {
-  const outcome = await closeOwnChrome({
-    profileDir: currentProfileDir,
+  const outcome = await closeChromeSession({
+    profileDir: chromeHandle?.profileDir ?? null,
     pid: chromeHandle?.child.pid,
-    lookup: psCommandLine,
+    removeProfile: true,
   });
   if (outcome.closedBy === 'pid-tree') console.log('[offline-probe] 协议级关闭未生效，已按 PID 树兜底');
   if (outcome.note !== '') console.log(`[offline-probe] 收尾说明：${outcome.note}`);
-  if (currentProfileDir !== null) {
-    await new Promise((settle) => setTimeout(settle, 500));
-    try {
-      rmSync(currentProfileDir, { recursive: true, force: true });
-    } catch {
-      // 忽略：留给下次运行覆盖
-    }
-  }
 }

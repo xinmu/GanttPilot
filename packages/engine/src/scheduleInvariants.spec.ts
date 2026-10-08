@@ -379,7 +379,8 @@ describe('不变量检查器自检', () => {
     }
     expect(checkScheduleInvariants(project.document, calendar, result, project.anchors)).toStrictEqual([]);
 
-    const tampered = { ok: true as const, schedule: tamperSchedule(result.schedule) };
+    // 同 `schedule.contract.spec.ts`：成功支必须带 `renderCalendar` ⇒ 从真实结果展开、只换 `schedule`。
+    const tampered = { ...result, schedule: tamperSchedule(result.schedule) };
     const violations = checkScheduleInvariants(project.document, calendar, tampered, project.anchors);
     expect(violations.length).toBeGreaterThan(0);
     expect(violations.map((violation) => violation.rule)).toContain('clampedStarts');

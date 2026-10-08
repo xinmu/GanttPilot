@@ -8,7 +8,7 @@
 import type { DocumentDiagnostic } from '@ganttpilot/engine';
 import type { ScheduleDiagnostic } from '@ganttpilot/engine';
 
-/** 协议层诊断码（闭集，ADR 0006 §7 的 21 条）。 */
+/** 协议层诊断码（**闭集**；**条数以本表为准**，ADR 0006 §7 与文档侧不复述数字）。 */
 export type XlsxDiagnosticCode =
   // 结构 / 表头
   | 'XLSX_SHEET_NOT_FOUND'
@@ -113,8 +113,20 @@ export function assembleReport(
   return [...protocol, ...(document ?? []), ...(schedule ?? [])];
 }
 
+/**
+ * 诊断的**只读视图**：把收集结果交给外部时用它，而不是交 `DiagnosticBag` 本身。
+ *
+ * 理由（P3/C2）：`RowParseResult` 曾把可变的 `DiagnosticBag` 暴露在公共类型里——
+ * 调用方能对"已经定稿的解析结论"继续 `add`，那既不是本包的契约，也让"诊断数组"只有一个入口
+ * 这条纪律失效。收集器仍只在包内使用（`import.ts` / `export.ts` / `template.ts`）。
+ */
+export interface ReadonlyDiagnosticBag {
+  readonly items: readonly XlsxDiagnostic[];
+  readonly hasErrors: boolean;
+}
+
 /** 收集器：把「码 + 定位 + 文案」聚成协议诊断数组（severity 由码表决定，调用方不重复声明）。 */
-export class DiagnosticBag {
+export class DiagnosticBag implements ReadonlyDiagnosticBag {
   readonly #items: XlsxDiagnostic[] = [];
 
   add(

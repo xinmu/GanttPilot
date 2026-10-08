@@ -3,7 +3,12 @@ import vue from 'eslint-plugin-vue';
 import vueParser from 'vue-eslint-parser';
 import tseslint from 'typescript-eslint';
 
-import { CALCULATION_LAYER_RESTRICTIONS, LINT_IGNORES } from './eslint-rules.mjs';
+import {
+  CALCULATION_LAYER_PACKAGES,
+  CALCULATION_LAYER_RESTRICTIONS,
+  LINT_IGNORES,
+  restrictedImportsFor,
+} from './eslint-rules.mjs';
 
 /**
  * GanttPilot 的 ESLint flat config。
@@ -21,7 +26,18 @@ import { CALCULATION_LAYER_RESTRICTIONS, LINT_IGNORES } from './eslint-rules.mjs
  * 若有人放开这里的规则，该测试立即失败。
  */
 
-export default [
+/**
+ * 本配置的**类型标注**（P3/C7-b）。
+ *
+ * 为什么需要它：`.mjs` 里 `'error'` 这类字面量会被推断成 `string`，于是
+ * `linterOptions.reportUnusedDisableDirectives`、以及整个配置数组的类型都对不上 ESLint 自己的
+ * `Linter.Config`——而"配置本身可用"正是护栏自检（`boundary.spec.ts` 的 `Linter.verify`）的前提。
+ * 有了这行标注：① `eslint.config.mjs` 被工具链程序（`tsconfig.tools.json`）真正检查
+ * （规则名 / 选项形状写错会报错）；② spec 可以直接把它当 `Linter.Config[]` 用。
+ *
+ * @type {import('eslint').Linter.Config[]}
+ */
+const config = [
   {
     ignores: LINT_IGNORES,
   },
@@ -47,10 +63,20 @@ export default [
   },
 
   // ------------------------------------------- 铁律：三包零框架依赖 / 零 DOM
+  // 兜底（按目录而不是按名单）：**任何** `packages/*` 下的包都受框架/DOM 铁律约束，
+  // 新加的包不会因为"忘了登记"而整块漏掉。
   {
     files: ['packages/*/**/*.{ts,mts,js,mjs}'],
     rules: CALCULATION_LAYER_RESTRICTIONS,
   },
+  // 逐包的**依赖方向**块（C7-a）：在兜底之上给出该包完整的 `no-restricted-imports`
+  // （框架 glob + 本包不许 import 的工作区包），因此必须排在兜底之后（后一块覆盖前一块）。
+  // 名单来自 `eslint-rules.mjs` 的 `CALCULATION_LAYER_PACKAGES`；"每个目录都已登记"
+  // 由 `packages/engine/src/boundary.spec.ts` 断言，避免这里静默少一个包。
+  ...CALCULATION_LAYER_PACKAGES.map((entry) => ({
+    files: [`${entry.dir}/**/*.{ts,mts,js,mjs}`],
+    rules: { 'no-restricted-imports': restrictedImportsFor(entry.name) },
+  })),
 
   // --------------------------------------------------- 应用层：Vue 与 DOM 的家
   ...vue.configs['flat/recommended'].map((config) => ({
@@ -136,7 +162,8 @@ export default [
         __filename: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
-        // `scripts/measure-render.mjs` 用 Node 内置能力驱动本机 Chrome（零新增依赖，P-17）：
+        // `scripts/cdp.mjs` 用 Node 内置能力驱动本机 Chrome（零新增依赖，P-17；
+        // P3/C1 起这层公共实现收在这一个文件里，原先是三个脚本各写一遍）：
         // `fetch` 取 CDP 的 `/json/list`，内置 `WebSocket` 走 CDP 协议。
         fetch: 'readonly',
         WebSocket: 'readonly',
@@ -169,3 +196,5 @@ export default [
     },
   },
 ];
+
+export default config;

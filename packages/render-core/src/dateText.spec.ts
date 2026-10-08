@@ -22,7 +22,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isoDateToDayNumber } from '@ganttpilot/engine';
+import { isoToDayNumber } from '@ganttpilot/engine';
 
 import { cellText, isoOfOrdinalSafe } from './viewText.js';
 import { buildTextFixture } from './textFixtures.spec.js';
@@ -31,7 +31,7 @@ const fixture = buildTextFixture();
 
 /** 桩：把 ISO 转成日序号（测试侧只读，不参与被测逻辑）。 */
 function dayOfIso(iso: string): number {
-  return isoDateToDayNumber(iso);
+  return isoToDayNumber(iso);
 }
 
 describe('`predecessors` 的显示文本（第五次人工复验第 2 条：关系类型必须显示）', () => {

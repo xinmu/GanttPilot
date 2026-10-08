@@ -1,6 +1,6 @@
 /**
  * 元素计数（ADR 0007 §6.7 的 `#elements ≤ c₁·visibleRows + c₂·visibleEdges + c₃`；
- * **ADR 0008 §16.4 把 `c₄` 扩成 `3·rows + 12`**——裁决 P-32）。
+ * **ADR 0008 §16.4 把 `c₄` 扩成「每渲染行 + 每帧固定」两项**——系数见 `manifest.ts` 的 `ELEMENT_MODEL_G5`；裁决 P-32）。
  *
  * ## 为什么这个模块是"判据的承重墙"
  *
@@ -14,7 +14,7 @@
  * | 里程碑 | `<polygon class="milestone">` | 里程碑行（取代条） |
  * | 进度填充 | `<rect>` | 进度已知（汇总进度为 `NaN` 时不画） |
  * | **每渲染行的端点手柄** | 2 × `<line class="handle">` | **有条形端的行**（非汇总、非里程碑） |
- * | **每渲染行的连接点** | 2 × `<rect class="connect-point">` | **有可画条形的行**（含汇总行、含里程碑） |
+ * | **每渲染行的连接点** | 2 × `<circle class="connect-point">`（P-42 起是圆点） | **有可画条形的行**（含汇总行、含里程碑） |
  * | 每条渲染边 | `<path>` + 箭头 `<polygon>` + 透明热区 `<path>` | 总是（热区是 §5 的要求） |
  * | 轴 | 色带 `<rect>` / 网格线 `<line>` / 标签 `<text>` | 按档位与**视口水平范围**（与文档规模无关） |
  *
@@ -33,7 +33,7 @@ import type { ViewModel } from './viewModel.js';
  * 不随行数、边数或文档规模增长（ADR 0008 §11 的原文口径）。
  *
  * **注意（ADR 0008 §16.4／裁决 P-32；`overlay` 由 12 → 13 见 P-46）**：`c₄` 现在由**两部分**组成——
- * 本结构描述的是"**每帧固定**"那部分（`ELEMENT_MODEL_G5.overlay = 13`，含 P-46 的悬停行带 1）；
+ * 本结构描述的是"**每帧固定**"那部分（见 `manifest.ts` 的 `ELEMENT_MODEL_G5.overlay`，含 P-46 的悬停行带 1）；
  * 而"**每渲染行**"那部分（端点手柄 2 + 连接点 2 ≤ 3/行）是**结构性**的，
  * 由 {@link countElements} 直接按 `view.rows.length` 计入，**不在本结构的开关里**。
  * 后者仍与文档总规模无关——`rows ≤ 视口行数 + ROW_BUFFER`（ADR 0007 §6.1）。
@@ -111,7 +111,7 @@ export interface ElementCounts {
   readonly c2: number;
   readonly c3: number;
   /**
-   * G5 的 `c₄`（ADR 0008 §16.4／裁决 P-32）：**每渲染行 6 + 每帧固定 12**。
+   * G5 的 `c₄`（ADR 0008 §16.4／裁决 P-32）：**每渲染行 + 每帧固定**两项——系数见 `manifest.ts` 的 `ELEMENT_MODEL_G5`。
    *
    * `c₄ = perRenderedRow · rows + overlay`，本字段给出**本视图**的该值
    * （因此它是"与文档总规模无关"的那一项：`rows` 由视口决定）。

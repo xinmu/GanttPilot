@@ -57,7 +57,7 @@ export interface DispatchResult {
  * 手写的 15 行小型计划（单页可读、四类依赖齐备），**不再是** 1,000 任务的主口径夹具。
  *
  * 1,000 任务夹具（`fixtures.ts`）仍是**规模口径**：记录制测量与各包 spec 用它；
- * 页面只在 `?measure=` 下由 `measure.ts` 的 `specOfDataset` 显式装载它。
+ * 页面只在 `?measure=` 下由 `measure/` 的 `specOfDataset` 显式装载它。
  * 两条口径的分工见 `demoPlan.ts` 头部与 [P-34](../../../docs/00-baseline/裁决R33.md)。
  */
 export function createDemoDocument(): ProjectDocument {

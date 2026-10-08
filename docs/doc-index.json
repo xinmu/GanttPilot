@@ -19,410 +19,1674 @@
       "path": "docs/DOC-SPEC.md",
       "role": "baseline",
       "cap": "root",
+      "layer": "slim",
       "note": "文档分层与检查规范（本文件不是契约）"
     },
     {
       "path": "docs/README.md",
       "role": "baseline",
       "cap": "root",
+      "layer": "slim",
       "note": "文档导航入口"
     },
     {
       "path": "docs/00-baseline/裁决记录.md",
       "role": "register",
       "cap": "registerEntry",
+      "layer": "slim",
+      "mustRead": true,
       "note": "唯一权威登记处：条目表 + 轮次导读表"
     },
     {
       "path": "docs/00-baseline/裁决R01-02.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R03-06.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R07-12.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R13-15.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R16-18.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R19-21.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R22-23.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R24-26.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R27.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R28.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R29.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R30.md",
       "role": "register-archive",
-      "cap": "registerArchive"
+      "cap": "registerArchive",
+      "layer": "archive"
     },
     {
       "path": "docs/00-baseline/裁决R31.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-32：G5 批次 B 的契约先行与落地（ADR 0008 §16）"
     },
     {
       "path": "docs/00-baseline/裁决R32.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-33：G6 的落地口径与两项待定的收口"
     },
     {
       "path": "docs/00-baseline/裁决R33.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-34：演示口径＝小型手写演示计划（1,000 任务夹具退为规模口径）"
     },
     {
       "path": "docs/00-baseline/裁决R34.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-35：G7 的开工前置（ADR 0010 冻结 + S-G7 四门禁判定）"
     },
     {
       "path": "docs/00-baseline/裁决R35.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-36：G7 的落地口径、实测数字与出口条件判定"
     },
     {
       "path": "docs/00-baseline/裁决R36.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-37：G7 人工复验报文与四项功能缺口 + 一项样式的返工"
     },
     {
       "path": "docs/00-baseline/裁决R37.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-38：G7 二次复验的排版/形态返工与 P-26 的收口"
     },
     {
       "path": "docs/00-baseline/裁决R38.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-39：G7 第三次人工复验通过与 G7 收口"
     },
     {
       "path": "docs/00-baseline/裁决R39.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-40：首版待定清单批次①（承诺环境 / 应用层判据入口 / 复核口径 / G-7·G-8 UI 归属）"
     },
     {
       "path": "docs/00-baseline/裁决R40.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-41：批次②（--align 档位与覆盖度 / resize 迁移 / 稳定读数）"
     },
     {
       "path": "docs/00-baseline/裁决R41.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-42：批次③（表头带内容口径 / 连接点圆点形状 / 键盘入口归 v0.5）"
     },
     {
       "path": "docs/00-baseline/裁决R42.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-43：人工复核的三个缺陷（汇总/里程碑的交互面 · 里程碑工期不变量 · 状态栏自激环）"
     },
     {
       "path": "docs/00-baseline/裁决R43.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-44：抖动续查（滚动条 ⇄ 窗格客户区的自引用环 ⇒ 常驻滚动条）"
     },
     {
       "path": "docs/00-baseline/裁决R44.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-45：批次④（不扩锚点形状；拖动期下游跟随改由未提交文档副本承担 ⇒ 未决归零）"
     },
     {
       "path": "docs/00-baseline/裁决R45.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-46：G8 收尾前的三项范围裁定（两级刻度 / 悬停行高亮 / 模板下载全部纳入 v0.1，同批一次复验）"
     },
     {
       "path": "docs/00-baseline/裁决R46.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-47：拖动预览越过渲染地平线 ⇒ 整页空白（夹取方向已修；日历容量缺口待契约面裁决）"
     },
     {
       "path": "docs/00-baseline/裁决R47.md",
       "role": "register-archive",
       "cap": "registerArchive",
+      "layer": "archive",
       "note": "P-48/P-49：地平线收口（compute 交出日历，契约冻结）+ 离线单文件分发登记（Docker 归 v0.5）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R48.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-50：G8 首次人工复验 7 条回执与整改（D3 补登记）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R49.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-51：G8 第二次回执 2 条与整改（D3 补登记）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R50.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-52：G8 第三次复验通过 ⇒ G8 收口（D3 补登记）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R51.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-53：门禁步骤顺序修正（build 前移到 typecheck 之前）——收敛 0001-增补的「裁决登记待补」（D3 补登记）"
+    },
+    {
+      "path": "docs/00-baseline/上游原文-产品需求文档与路线图.md",
+      "role": "baseline",
+      "cap": "baseline",
+      "layer": "archive",
+      "note": "决策 8：上游原文 v1.1 的**逐字入库件**（提取件 需求基线.md 的校验基准）；只此一份、不做多版并存；来源行与正文哈希由 check-docs.mjs 的「来源行与保真」判定"
     },
     {
       "path": "docs/00-baseline/需求基线.md",
       "role": "baseline",
       "cap": "baseline",
+      "layer": "archive",
       "note": "原文提取 + 状态标注；不是当前生效值"
     },
     {
       "path": "docs/00-baseline/评估报告.md",
       "role": "baseline",
       "cap": "baseline",
+      "layer": "archive",
       "note": "带日期的历史评估记录"
     },
     {
       "path": "docs/00-baseline/证伪实验计划.md",
       "role": "baseline",
       "cap": "baseline",
+      "layer": "archive",
       "note": "spike 协议与门禁"
     },
     {
       "path": "docs/01-roadmap/首版能力顺序.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "mustRead": true,
       "note": "能力边界、出口条件与延后规则"
     },
     {
       "path": "docs/01-roadmap/首版-待定清单.md",
       "role": "plan",
       "cap": "plan",
+      "layer": "slim",
+      "mustRead": true,
       "note": "全仓唯一未决项清单"
+    },
+    {
+      "path": "docs/00-baseline/裁决R52.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-54：必读层口径与预算调整（mustReadKb 25 → 34；采 A：先迁移可推导/历史内容）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R53.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-55：精简层构成口径与预算重设（slimKb 100 → 500；generated 不计入）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R54.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-56：spike 目录的分级处置（探针代码删、结论与证据留档为归档层；DOC-SPEC §4.5 同步改为两条件/两级）"
+    },
+    {
+      "path": "docs/00-baseline/裁决R55.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-57–P-63：重构收口的七条口径登记（6 条迁移登记 + 包版本号一条新裁）——计划目录合流后整体删除，这 6 条决定此前只住在那儿，本文件是它们的永久住所"
+    },
+    {
+      "path": "docs/00-baseline/轮次导读.md",
+      "role": "plan",
+      "cap": "plan",
+      "layer": "slim",
+      "note": "生成物（`pnpm docs:index`）：轮次 → 主题 → 条目 → 细则；D7.5 从台账移出，不再是第二处真相源",
+      "generated": true
+    },
+    {
+      "path": "docs/01-roadmap/首版-记录-待定清单.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "archive",
+      "note": "待定清单的「已闭」结转行（D7.5 逐字迁出；未决行永远只登记在清单里）"
+    },
+    {
+      "path": "docs/01-roadmap/首版-记录-v0.2.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "archive",
+      "note": "v0.2 的记录层：review 结论（谁/何时/过了哪些点/遗留）+ 明确未做 + 接手要点（N1/N2/N16/N18/N19/N20 的落点）+ 本轮判据读数。合流前建立——v0.2 的施工计划目录随合流删除，这些内容此前只住在那儿"
     },
     {
       "path": "docs/01-roadmap/首版-文档索引.md",
       "role": "plan",
       "cap": "plan",
-      "generated": "node scripts/make-doc-index.mjs"
+      "layer": "slim",
+      "generated": true
     },
     {
       "path": "docs/01-roadmap/首版-记录-归档-G0-G3.md",
       "role": "record",
-      "cap": "record"
+      "cap": "record",
+      "layer": "archive"
     },
     {
       "path": "docs/01-roadmap/首版-记录-归档-G4-G5.md",
       "role": "record",
-      "cap": "record"
+      "cap": "record",
+      "layer": "archive"
     },
     {
       "path": "docs/01-roadmap/首版-记录-G5.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "G5 的落地动作与批次 A/D 四轮返工史"
+    },
+    {
+      "path": "docs/01-roadmap/首版-记录-归档-G6-G8.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "archive",
+      "note": "G6–G8 的块正文（D4 从路线图 §三 逐字迁入；唯一校订：c₄ 的旧值加标注）"
     },
     {
       "path": "docs/01-roadmap/首版-记录-G6-G8.md",
       "role": "record",
-      "cap": "record"
+      "cap": "record",
+      "layer": "archive"
     },
     {
       "path": "docs/03-guide/导入与Excel准备.md",
       "role": "guide",
       "cap": "guide",
+      "layer": "slim",
+      "userFacing": true,
       "note": "用户手册①：怎么准备 Excel、导入会给什么反馈（G8）"
     },
     {
       "path": "docs/03-guide/依赖列语法与排程规则.md",
       "role": "guide",
       "cap": "guide",
+      "layer": "slim",
+      "userFacing": true,
       "note": "用户手册②：前置任务列语法、四类关系、拖拽语义（G8）"
     },
     {
       "path": "docs/03-guide/导出与离线单文件.md",
       "role": "guide",
       "cap": "guide",
+      "layer": "slim",
+      "userFacing": true,
       "note": "用户手册③：三种导出物、兼容性承诺边界、离线单文件（G8）"
     },
     {
       "path": "docs/02-adr/0001-本地质量门禁与零框架依赖护栏.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/附录/0001-增补.md",
       "role": "record",
       "cap": "record",
-      "note": "§1：门禁步骤顺序修正（build 前移到 typecheck 之前），裁决登记待补"
+      "layer": "archive",
+      "note": "§1：门禁步骤顺序修正（build 前移到 typecheck 之前），裁决 = P-53（R51，2026-10-07 补登记）"
     },
     {
       "path": "docs/02-adr/0002-文档模型与序列化契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0003-命令层与事务契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0004-排程契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0005-排程内核落地补齐与结果形状.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0006-xlsx-协议契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0007-渲染几何与裁剪契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0008-列身份所有权与拖拽交互契约.md",
       "role": "contract",
-      "cap": "contract"
+      "cap": "contract",
+      "layer": "slim"
     },
     {
       "path": "docs/02-adr/0009-持久化契约.md",
       "role": "contract",
       "cap": "contract",
+      "layer": "slim",
       "note": "G6 持久化契约：记录形状、SnapshotStore、恢复语义、失败码闭集"
     },
     {
       "path": "docs/02-adr/0010-导出契约.md",
       "role": "contract",
       "cap": "contract",
+      "layer": "slim",
       "note": "G7 导出契约：三层落点、全量渲染、适配公式、SVG 形态、PPTX 形状映射、降级序列、golden 口径"
     },
     {
       "path": "docs/02-adr/附录/0007-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-23/P-24/P-25/P-41/P-46 的增补节与落地段"
     },
     {
       "path": "docs/02-adr/附录/0005-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-48 的增补节：ScheduleResult 交出真正用到的日历（只增字段）"
     },
     {
       "path": "docs/02-adr/附录/0006-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-46 的增补节：模板文件的三页签形态（结构冻结、字面名实现轮定稿）"
     },
     {
       "path": "docs/02-adr/附录/0004-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-38 的增补节：性能 DoD 的断言口径拆为「中位数 + 尾部」"
     },
     {
       "path": "docs/02-adr/附录/0008-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-22/P-24/P-25 的增补节与落地段"
     },
     {
       "path": "docs/02-adr/附录/0010-增补.md",
       "role": "record",
       "cap": "record",
+      "layer": "archive",
       "note": "P-37 的增补节：图面要素清单、箭头强制口径、标签样式与文案单一来源"
+    },
+    {
+      "path": "docs/04-refactor/README.md",
+      "role": "plan",
+      "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "v0.2 重构计划入口：阶段总览、按需注入指引、不变量与分支口径（P4 的批次切分在 04-验收与门禁 §六；临时物，合流后按 05 收口）"
+    },
+    {
+      "path": "docs/04-refactor/01-基线与决策.md",
+      "role": "plan",
+      "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "实测基线 + 七项决策 + 两条行为变更的降级目标措辞 + P0 证据索引"
+    },
+    {
+      "path": "docs/04-refactor/02-文档重构.md",
+      "role": "plan",
+      "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P2：目标分层、逐文件处置、D1–D10 批次、关键手术细则（契约归位 / 常量收口 / R48–R50 / spike 生命周期）"
+    },
+    {
+      "path": "docs/04-refactor/03-代码重构.md",
+      "role": "plan",
+      "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P3：C1–C8 批次（scripts / xlsx / pptx / engine / render-core / web / 工程配套 / 证据卫生）与每批验收"
+    },
+    {
+      "path": "docs/04-refactor/04-验收与门禁.md",
+      "role": "plan",
+      "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P1 三条新检查的设计与负向对照、各阶段验收（§二）、「稳定」的五条可判定定义、记录制证据纪律、P4 的批次切分（§六，a–e 五批）"
+    },
+    {
+      "path": "docs/04-refactor/05-登记与本轮不做.md",
+      "role": "plan",
+      "cap": "plan",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "本轮不做项（N1–N8）、CI 补两步、两项只读验证的落点、待裁决开放项、风险与回滚、本计划自身的收口"
+    },
+    {
+      "path": "docs/04-refactor/06-批次记录-P3.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P3 各批次的实测、判据、踩坑与计划订正（C1–C8）。从 03-代码重构.md 迁出（2026-10-08：03 触到 plan 的 60 KB 上限 63.7 KB，规范要求拆分/迁移而不是提高上限）；03 只留批次表与验收标准，两边的节标题一一对应"
+    },
+    {
+      "path": "docs/04-refactor/08-批次记录-P3-C8.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P3/C8（证据卫生）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 07：C8 与 C7 主题无关（07 已 46.7 KB 记了 C7 十批）；record 层 80 KB 上限的口径不变"
+    },
+    {
+      "path": "docs/04-refactor/07-批次记录-P3-C7.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P3/C7（工程配套）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 06：06 写 §C6-g 时已 78.6 KB，触到 record 层的 80 KB 上限，按 P2 的同一条规矩拆分/迁移而不是抬高上限"
+    },
+    {
+      "path": "docs/04-refactor/09-批次记录-P4.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P4（交叉印证与验证）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 06：06 写下 §C6-g 时已 76.8 KB，触到 record 层的 80 KB 上限（同 P2/C7/C8 的规矩：拆分或另开，不抬上限）"
+    },
+    {
+      "path": "docs/04-refactor/10-批次记录-P5.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P5（稳定与合并）各批次的实测、判据、踩坑与计划订正。一个阶段一份（同 P2/C7/C8/P4 的规矩，不抬 record 层的 80 KB 上限）；在 P5-b 落地时创建（P5-a 是纯文档批、不留读数）"
     },
     {
       "path": "packages/engine/SCHEMA.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/engine/COMMAND.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/engine/SCHEDULE.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/engine/PERSISTENCE.md",
       "role": "spec",
       "cap": "spec",
+      "layer": "slim",
       "note": "G6 持久化的数值、公共 API 与验证矩阵（形状在 ADR 0009）"
     },
     {
       "path": "packages/render-core/SPEC.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/xlsx-protocol/PROTOCOL.md",
       "role": "spec",
-      "cap": "spec"
+      "cap": "spec",
+      "layer": "slim"
     },
     {
       "path": "packages/pptx-renderer/PPTX.md",
       "role": "spec",
       "cap": "spec",
+      "layer": "slim",
       "note": "G7 模板 A：形状映射、吸附站点、补丁与归一化、验证矩阵"
     },
     {
       "path": "README.md",
       "role": "baseline",
-      "cap": "root"
+      "cap": "root",
+      "layer": "slim"
     },
     {
       "path": "CONTRIBUTING.md",
       "role": "baseline",
-      "cap": "root"
+      "cap": "root",
+      "layer": "slim"
+    },
+    {
+      "path": "apps/web/evidence/chart-align-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G5 对齐档位实测（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/chart-align-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G8 对齐档位复测（Chrome 154；表头带变高后）"
+    },
+    {
+      "path": "apps/web/evidence/chart-align-diagnostic-before-fix-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "对齐缺陷的修前诊断快照（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/drag-timing-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "拖动帧率实测（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/drag-timing-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "拖动帧率复测（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/drag-timing-dense-2000-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "2,000 任务密集口径的拖动帧率（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/import-cyclic-sample-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "成环样本导入实测（Chrome 152 口径的旧快照；当前口径见 -chrome154，P4-d 重取后登记）"
+    },
+    {
+      "path": "apps/web/evidence/import-cyclic-sample-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "成环样本导入实测（Chrome 154；P4-d 集中重取，输入路径改为仓库根相对 + 声明词）"
+    },
+    {
+      "path": "apps/web/evidence/chart-axis-hover-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "两级刻度与悬停行带的记录制快照（Chrome 154；P4-d 首次入库，`--axis-hover` 驱动器见 C6-d）"
+    },
+    {
+      "path": "apps/web/evidence/offline-single-file-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "离线单文件探针记录（Chrome 154；P-49 §3 的四问）"
+    },
+    {
+      "path": "apps/web/evidence/persist-drag-timing-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "持久化期间拖拽帧率（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/persist-drag-timing-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "持久化期间拖拽帧率复测（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/persist-storage-2000-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "2,000 任务存储占用（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/persist-storage-2000-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "2,000 任务存储占用复测（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/render-timing-chrome152.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "首屏与 10× 滚动渲染计时（Chrome 152）"
+    },
+    {
+      "path": "apps/web/evidence/render-timing-chrome154.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "首屏与 10× 滚动渲染计时复测（Chrome 154）"
+    },
+    {
+      "path": "apps/web/evidence/scroll-consumers-audit.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "scroll 敏感量消费者盘点（13 处逐条给出坐标基准；只读）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/g7-s7-a-b-wps.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "S-G7 准入实验 S7-a 跨组吸附 / S7-b custGeom（WPS 真机）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/g7-s7-c-determinism.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "S-G7 准入实验 S7-c 字节确定性（golden 前提）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/g7-s7-d-fit.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "S-G7 准入实验 S7-d 单页适配数值（回填常数与提示阈值）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/template-a-demo-roundtrip-addendum.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "模板 A 演示的往返与返工存活核实（补遗）"
+    },
+    {
+      "path": "packages/pptx-renderer/evidence/template-a-demo-wps.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "模板 A 演示的 WPS 真机判定报告"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/README.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针目录说明（P2/D9 留档：含\"探针代码已删\"的处置说明）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/powerpoint/README.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针目录说明（P2/D9 留档：含\"探针代码已删\"的处置说明）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/powerpoint/结果.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/structure-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/vision/pixel-quantification.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/vision/判读记录.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）。P3/C8-b 在文首加了「证据卫生说明」：① 清单里的 `A-wps-repro0-render.png` 盘上不存在、实际落盘的是 `A-wps-repro1-render.png`（此前零引用）；② 判读五的 `repro2` 无对应文件；③ 5 张 PNG 里 4 张逐字节相同**不是重复**，而是判读四命题 2 / 判读五命题 1 的结论本身 ⇒ 按 R54 全部保留（计划原文的「保留 2 张」订正）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/wps/A-absorption-roundtrip-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/wps/C-flat-roundtrip-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/wps/drag-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/evidence/wps/人工验证记录.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s1-pptx-connector/结论.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的结论（P2/D9 留档：探针代码已删，结论与证据保留）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/README.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针目录说明（P2/D9 留档：含\"探针代码已删\"的处置说明）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/structure-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/timing.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/wps-edit-save/entry-diff.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/wps-edit-save/roundtrip-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/wps-save/entry-diff.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/evidence/wps-save/roundtrip-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s2-xlsx-roundtrip/结论.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的结论（P2/D9 留档：探针代码已删，结论与证据保留）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/README.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针目录说明（P2/D9 留档：含\"探针代码已删\"的处置说明）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/breakdown-node24.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/breakdown-node26.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/correctness-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/differential-report.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/env.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/perf-node24.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/evidence/perf-node26.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的外部工具观测证据（不可再生；P2/D9 留档）"
+    },
+    {
+      "path": "spikes/g0-s3-cpm-perf/结论.md",
+      "role": "record",
+      "cap": "evidence",
+      "layer": "archive",
+      "note": "G0-S 探针的结论（P2/D9 留档：探针代码已删，结论与证据保留）"
     }
   ],
   "linkCheckAllowlist": [
     {
-      "pathRegex": "^(docs/00-baseline/证伪实验计划\\.md|docs/00-baseline/裁决R.*\\.md|packages/render-core/src/(clipping\\.spec|manifest)\\.ts)$",
+      "pathRegex": "^(docs/00-baseline/(证伪实验计划|裁决R.*)\\.md|docs/02-adr/0007-.*\\.md|docs/02-adr/附录/.*\\.md|docs/01-roadmap/首版-记录-.*\\.md|packages/render-core/src/(clipping\\.spec|manifest)\\.ts|spikes/.*\\.md)$",
       "targetRegex": "^(\\.\\./\\.\\./)?spikes/g0-s4-svg-clipping/",
-      "reason": "G4-S 探针目录已随 G4 落地删除（裁决 P-18）；这一族引用分布在证伪实验计划、按轮次存档与 render-core 的注释里，属存量失效，正文不改写"
+      "reason": "G4-S 探针目录已随 G4 落地删除（裁决 P-18）：引用分布在归档层（证伪实验计划、按轮次存档、ADR 0007 与其附录、记录层）与 render-core 的两处注释里，属存量失效，正文不改写。P1-d 把 pathRegex 补齐到全部 12 处（旧实现只把 targetRegex 拿去做两次 test，pathRegex 从未参与）；P2/D9 把**已登记为归档层的 spike 记录**（`spikes/.*\\.md`）并入同一路径族——S1 结论 §二.2 那处引用**原文已自带**「该目录已随 G4 落地删除」的括注，补的是**继承式**登记，不是给单条引用开口子"
+    },
+    {
+      "pathRegex": "^(docs/00-baseline/裁决R.*\\.md|docs/01-roadmap/首版-记录-.*\\.md|packages/pptx-renderer/evidence/.*\\.md)$",
+      "targetRegex": "^(\\.\\./\\.\\./)?spikes/g7-export-probe/",
+      "reason": "G7 准入探针目录已随 G7 落地删除（S-G7 的处置见裁决 R34）：3 份 pptx evidence 已在正文注明「该探针目录已随 G7 落地删除」，其余是归档层的历史引用。旧白名单里 g7-export-probe 完全没有条目（来源链断裂），P1-d 补上"
     },
     {
       "pathRegex": "^docs/00-baseline/裁决R.*\\.md$",
       "targetRegex": "apps/web/src/(shared|edit)\\.ts$",
       "reason": "这两个文件已由 P-20 的迁落点删除（逻辑迁入 packages/render-core）；存档里的历史引用保留原样"
+    },
+    {
+      "pathRegex": "^docs/00-baseline/裁决R.*\\.md$",
+      "targetRegex": "^(\\.\\./\\.\\./)?packages/render-core/src/gesture\\.ts$",
+      "reason": "render-core 的 gesture.ts 由 **P3/C5-b 拆成 gesture/ 目录**（1,358 行 / 11 项职责；公共面逐符号不变）：两处归档裁决（R19-21 的 R2/R4 表、R42 的依据行）里的历史链接按「归档层逐字不改写」保留原样，只登记这处**目标已改名**的存量；活的指向（`CONTRIBUTING.md`、`SPEC.md` §二、代码注释）都已改为 `src/gesture/index.ts`。与上一条不同：这条不是「目标已删除」，而是「目标已搬迁」，故不新增任何未被引用的破链，白名单条目只覆盖这两处"
     }
   ],
+  "contextBudget": {
+    "$comment": "决策 2 的预算，**两项上限都由 R52/P-54 与 R53/P-55 按实测重设**：精简层 ≤ 500 KB（**构成**：契约 221.8 + 包规范 156.1 + 基线/规范 64.9 + 判定 26.8 + 登记 19.2 ≈ 475 KB；**可推导的生成物**（generated: true）与用户手册、临时计划一样**不计入**）、必读 ≤ 34 KB（= 台账登记本体 + 当前规划 + 待定清单）；entryCapKb 是 L0 入口的自主上限（02 §一）。判定见 check-docs.mjs 的「分层预算与入口封闭性」。",
+    "entry": "docs/README.md",
+    "slimKb": 500,
+    "mustReadKb": 34,
+    "entryCapKb": 6
+  },
+  "crossLayerCheck": {
+    "$comment": "P1-c 的可判定那一半：L1 正文指向归档层的链接，其链接文本或同一行必须出现标记词（读者一眼知道这是历史口径，而不是当前契约）。入口页（L0）由 contextBudget 的入口封闭性负责，不在这里重复报。判定见 check-docs.mjs 的「跨层引用必须带标记词」。",
+    "markers": [
+      "历史",
+      "原文口径",
+      "细则",
+      "依据",
+      "存档"
+    ],
+    "allow": [
+      {
+        "path": "docs/01-roadmap/首版-文档索引.md",
+        "reason": "生成物：逐份列出全部文档（含归档层），链接文本就是文件名，不构成「把归档物当当前值引用」"
+      }
+    ]
+  },
+  "constantCheck": {
+    "$comment": [
+      "契约常量的「唯一声明处」表（P1-a）。执行者是 scripts/check-constants.mjs，本表是唯一真相源。",
+      "compare=declaration：声明处正则的第一个（也是唯一一个）匹配的捕获组即权威值；非声明处的命中逐组比对——值不同⇒错值，值相同⇒重复陈述（位置本身就是错）。",
+      "compare=count：权威值由声明处的表条目数推导（诊断码表这种「闭集」常量）。",
+      "compare=site：只判位置、不比对值——用于单位不同（ns vs ms）或需人工判断语义的常量。",
+      "equals 把 detector 的捕获组映射到 declaration 的第几个捕获组（省略即逐位对应）；两者长度必须相等，否则报配置错误而不是静默漏检。",
+      "scanPaths 收窄该常量的扫描面（省略即 docScan + codeScan）；收窄必须写明理由，否则检查会退化成噪声源。",
+      "allow 是例外登记处：每条必须带 reason。例外不等于「修好了」，而是「这一处按裁决保留」。"
+    ],
+    "docScan": {
+      "roles": [
+        "contract",
+        "spec",
+        "guide",
+        "plan",
+        "register"
+      ],
+      "extraPaths": [
+        "README.md",
+        "CONTRIBUTING.md",
+        "docs/README.md",
+        "docs/DOC-SPEC.md"
+      ],
+      "$comment": "role=register-archive/record 属归档层（按轮次存档逐字不改写、记录制证据带环境口径），不进扫描。P1-b 落地 layer 之后，此处改为按 layer==slim 选取同一集合。"
+    },
+    "codeScan": {
+      "roots": [
+        "packages",
+        "apps",
+        "scripts"
+      ],
+      "extensions": [
+        ".ts",
+        ".mts",
+        ".vue",
+        ".mjs"
+      ]
+    },
+    "allow": [
+      {
+        "pathRegex": "^docs/04-refactor/",
+        "reason": "v0.2 施工计划必须引用常量原文（含负向对照表）；本目录按计划 §七 在合流后删除"
+      }
+    ],
+    "constants": [
+      {
+        "id": "c3-anchors",
+        "title": "c₃ 逐档位锚值（日/周/月；合成视口 1280 px、行高 24、缓冲 5）",
+        "compare": "declaration",
+        "declaration": {
+          "path": "packages/render-core/src/clipping.spec.ts",
+          "pattern": "const expectedC3: Record<string, number> = \\{ day: (\\d+), week: (\\d+), month: (\\d+) \\};"
+        },
+        "detectors": [
+          {
+            "pattern": "c₃[^\\n]{0,40}?(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})",
+            "label": "c₃ 之后的三元组"
+          },
+          {
+            "pattern": "\\*\\*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\*\\*",
+            "label": "加粗三元组（重锚 / 回填值）"
+          },
+          {
+            "pattern": "单级口径原为\\s*\\*{0,2}(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})",
+            "label": "单级口径三元组（历史值）"
+          },
+          {
+            "pattern": "单级回填值\\s*\\*{0,2}(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})",
+            "label": "单级回填值三元组（ADR 0007 §11 口径）"
+          },
+          {
+            "pattern": "同一口径为\\s*\\*{0,2}(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})",
+            "label": "同一口径为 a / b / c（打包产物口径）"
+          }
+        ]
+      },
+      {
+        "id": "c4-model",
+        "title": "c₄ 元素模型（每渲染行 perRenderedRow + 每帧固定 overlay）",
+        "compare": "declaration",
+        "declaration": {
+          "path": "packages/render-core/src/manifest.ts",
+          "pattern": "export const ELEMENT_MODEL_G5 = \\{ perRenderedRow: (\\d+), overlay: (\\d+) \\} as const;"
+        },
+        "detectors": [
+          {
+            "pattern": "c₄\\s*=\\s*(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "c₄ = a·rows + b"
+          },
+          {
+            "pattern": "=\\s*\\*{0,2}(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "换行写法：= a·rows + b"
+          },
+          {
+            "pattern": "扩成\\s*`?(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "把 c₄ 扩成 a·rows + b"
+          },
+          {
+            "pattern": "(?:重定为|改为|收窄为|改成)\\s*\\*{0,2}`?(\\d+)\\s*·\\s*rows\\s*\\+\\s*(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "改口径的说法：重定为/改为 a·rows + b"
+          },
+          {
+            "pattern": "每帧固定\\s*\\*{0,2}(\\d+)(?!\\s*个)",
+            "equals": [
+              1
+            ],
+            "label": "每帧固定 N"
+          },
+          {
+            "pattern": "overlay\\*{0,2}\\s*=\\s*\\*{0,2}(\\d+)(?!\\s*·)",
+            "equals": [
+              1
+            ],
+            "label": "overlay = N"
+          },
+          {
+            "pattern": "每渲染行\\s*\\*{0,2}(\\d+)\\*{0,2}\\s*\\+\\s*\\*{0,2}每帧固定\\s*\\*{0,2}(\\d+)",
+            "equals": [
+              0,
+              1
+            ],
+            "label": "每渲染行 a + 每帧固定 b"
+          },
+          {
+            "pattern": "perRenderedRow\\s*=\\s*\\*{0,2}(\\d+)",
+            "equals": [
+              0
+            ],
+            "label": "perRenderedRow = N"
+          }
+        ]
+      },
+      {
+        "id": "tick-length",
+        "title": "下级短刻度长度（屏幕 TICK_LENGTH_PX / 导出 EXPORT_TICK_LENGTH_PX，px）",
+        "compare": "declaration",
+        "declaration": {
+          "path": "packages/render-core/src/svgExport.ts",
+          "pattern": "export const EXPORT_TICK_LENGTH_PX = (\\d+);"
+        },
+        "detectors": [
+          {
+            "pattern": "TICK_LENGTH_PX`?\\s*=\\s*\\*{0,2}(\\d+)",
+            "label": "…TICK_LENGTH_PX = N"
+          },
+          {
+            "pattern": "（长度\\s*\\*{0,2}(\\d+)\\s*px",
+            "label": "（长度 N px）"
+          }
+        ],
+        "$comment": "声明处按 02 §4.3 取 svgExport.ts；03 §C5 另写「TICK_LENGTH_PX 收回 manifest.ts」——两处口径必须在 C5 开工前对齐，若改归属须同步改本表。"
+      },
+      {
+        "id": "header-height",
+        "title": "表头带高度 HEADER_HEIGHT_PX（px）",
+        "compare": "declaration",
+        "declaration": {
+          "path": "packages/render-core/src/manifest.ts",
+          "pattern": "export const HEADER_HEIGHT_PX = (\\d+);"
+        },
+        "detectors": [
+          {
+            "pattern": "HEADER_HEIGHT_PX`?\\s*=\\s*\\*{0,2}(\\d+)",
+            "label": "HEADER_HEIGHT_PX = N"
+          },
+          {
+            "pattern": "由\\s*\\*{0,2}(\\d+)\\s*上调",
+            "label": "由 N 上调（历史值）"
+          }
+        ]
+      },
+      {
+        "id": "edge-stub",
+        "title": "折点引出段长度 EDGE_STUB_PX（px；固定，不随 pxPerDay 缩放）",
+        "compare": "declaration",
+        "declaration": {
+          "path": "packages/render-core/src/manifest.ts",
+          "pattern": "export const EDGE_STUB_PX = (\\d+);"
+        },
+        "detectors": [
+          {
+            "pattern": "EDGE_STUB_PX`?\\s*=\\s*\\*{0,2}(\\d+)",
+            "label": "EDGE_STUB_PX = N"
+          },
+          {
+            "pattern": "STUB 用固定\\s*\\*{0,2}(\\d+)\\s*px",
+            "label": "STUB 用固定 N px"
+          }
+        ]
+      },
+      {
+        "id": "perf-p50",
+        "title": "性能判据：全量传播 medianP50 ≤ 1 ms（ADR 0004 §9 / 裁决 P-38）",
+        "compare": "site",
+        "declaration": {
+          "path": "packages/engine/src/schedule.performance.spec.ts",
+          "patterns": [
+            "const P50_BUDGET_NS = ([\\d_]+);"
+          ]
+        },
+        "detectors": [
+          {
+            "pattern": "medianP50\\s*≤\\s*\\*{0,2}(\\d+)\\s*ms",
+            "label": "medianP50 ≤ N ms"
+          },
+          {
+            "pattern": "`p50 ≤ (\\d+) ms`",
+            "label": "p50 ≤ N ms"
+          }
+        ]
+      },
+      {
+        "id": "perf-p99",
+        "title": "性能判据：全量传播 medianP99 ≤ 2 ms（ADR 0004 §9 / 裁决 P-38）",
+        "compare": "site",
+        "declaration": {
+          "path": "packages/engine/src/schedule.performance.spec.ts",
+          "patterns": [
+            "const P99_BUDGET_NS = ([\\d_]+);"
+          ]
+        },
+        "detectors": [
+          {
+            "pattern": "medianP99\\s*≤\\s*\\*{0,2}(\\d+)\\s*ms",
+            "label": "medianP99 ≤ N ms"
+          },
+          {
+            "pattern": "`p99 ≤ (\\d+) ms`",
+            "label": "p99 ≤ N ms"
+          }
+        ]
+      },
+      {
+        "id": "xlsx-diagnostic-codes",
+        "title": "xlsx 协议层诊断码表条目数（闭集；ADR 0006 §7）",
+        "compare": "count",
+        "declaration": {
+          "path": "packages/xlsx-protocol/src/diagnostics.ts",
+          "container": "export const XLSX_DIAGNOSTIC_SEVERITY[\\s\\S]*?\\n\\};",
+          "item": "^  [A-Z][A-Z0-9_]*:"
+        },
+        "detectors": [
+          {
+            "pattern": "ADR 0006 §7 的\\s*\\*{0,2}(\\d+)\\s*条",
+            "label": "ADR 0006 §7 的 N 条"
+          },
+          {
+            "pattern": "闭集\\*{0,4}（\\s*\\*{0,4}(\\d+)\\s*条",
+            "label": "闭集（N 条）"
+          },
+          {
+            "pattern": "诊断码[^\\n]{0,16}?\\*{0,2}(\\d+)\\s*条",
+            "label": "诊断码 … N 条"
+          }
+        ],
+        "allow": [
+          {
+            "path": "packages/xlsx-protocol/src/xlsxExpectations.spec.ts",
+            "reason": "回归钉子：闭集用例逐字对照 ADR 0006 §7 并断言条数，它读的是声明处而不是第二声明"
+          }
+        ]
+      },
+      {
+        "id": "axis-colors",
+        "title": "轴的层色与悬停行带色（屏幕 SVG / 导出 SVG / PPTX / 左表 CSS 共用同值）",
+        "compare": "site",
+        "declaration": {
+          "path": "packages/render-core/src/manifest.ts",
+          "patterns": [
+            "export const AXIS_BAND_FILL = '(#[0-9a-f]{6})';",
+            "export const AXIS_MAJOR_HEADER_FILL = '(#[0-9a-f]{6})';",
+            "export const AXIS_MAJOR_BODY_FILL = '(#[0-9a-f]{6})';",
+            "export const AXIS_MAJOR_EDGE = '(#[0-9a-f]{6})';",
+            "export const AXIS_GRIDLINE_STROKE = '(#[0-9a-f]{6})';",
+            "export const HOVER_ROW_FILL = '(#[0-9a-f]{6})';"
+          ]
+        },
+        "detectors": [
+          {
+            "pattern": "'(#(?:f4f6f8|e4e9f0|fafbfc|b9c0cb|e4e7ec|cfe3fa))'",
+            "label": "带引号的色值（被当常量写下的形态）"
+          },
+          {
+            "pattern": "(#(?:f4f6f8|e4e9f0|fafbfc|b9c0cb|e4e7ec|cfe3fa))",
+            "label": "裸色值（CSS / 散文里的形态）"
+          }
+        ],
+        "scanPaths": [
+          "packages/render-core/src",
+          "packages/render-core/SPEC.md",
+          "packages/pptx-renderer/src",
+          "packages/pptx-renderer/PPTX.md",
+          "apps/web/src/components/TaskTable.vue",
+          "README.md"
+        ],
+        "$scope": "只扫「可能成为第二声明」的面：render-core 源码与其包规范、pptx 侧、左表组件、README。App.vue / Toolbar.vue 的 CSS 边框复用同色值属样式细节，是否算同一语义留 P3/C7 决定，故不在本常量的扫描面内。"
+      },
+      {
+        "id": "bar-colors",
+        "title": "条形 / 汇总条填充色（屏幕 SVG / 导出 SVG / PPTX 同值）",
+        "compare": "site",
+        "declaration": {
+          "path": "packages/render-core/src/manifest.ts",
+          "patterns": [
+            "export const BAR_FILL = '(#[0-9a-f]{6})';",
+            "export const BAR_SUMMARY_FILL = '(#[0-9a-f]{6})';"
+          ]
+        },
+        "detectors": [
+          {
+            "pattern": "(#(?:2e75b6|7a8699))",
+            "label": "条 / 汇总条色值"
+          }
+        ],
+        "scanPaths": [
+          "packages/render-core/src",
+          "packages/render-core/SPEC.md",
+          "packages/pptx-renderer/src",
+          "apps/web/src/components/GanttChart.vue"
+        ],
+        "$scope": "只扫绘制侧（render-core / pptx / 图表组件）；Toolbar.vue 的按钮底色复用 #2e75b6 属主题色，是否同一语义留 P3/C7。",
+        "$comment": "声明处 = render-core/src/manifest.ts（P3/C5 从 svgExport.ts 的 COLOR 表迁来）；改声明处必须同步改本表的 declaration.path 与 patterns，否则检查会指向已删除的声明。"
+      }
+    ]
+  },
+  "externalPathCheck": {
+    "$comment": [
+      "D1 / 决策 8 的两项机械守卫（执行者是 check-docs.mjs 的「仓库外路径与 gitignore 引用」，规范见 DOC-SPEC §4.6）。",
+      "① 盘符 / 家目录绝对路径：在可复现层（errorScope 的 layers/roles 命中）⇒ error；判定面之外的记录 / 证据 / spike 文档 ⇒ 只聚合成一条存量警告。**P3/C8-c 已把当时的 4 份 / 6 处存量逐条登记进 allow**（每条 kind + reason，命中面按行收窄）⇒ 现状 0 条警告；新出现的实例请同样登记或改写，不要让它变成永久噪声。",
+      "② 指向被 .gitignore 覆盖的**临时/草稿**路径（temporaryPathPatterns，必须与根 .gitignore 逐字一致）：只在可复现层判，且**同一行**必须出现 markers 里的声明词（说明这份东西本就不入库、要自己生成），否则 warning。可再生的构建产物（dist/ / node_modules/ / out/）不在判定内——文档引用它们是正常口径。",
+      "allow 是例外表：每条必须带 kind（环境观测 | 来源元信息 | 产物说明 | 规范示例）与 reason——kind 回答「这条本机路径为什么可以留」。"
+    ],
+    "errorScope": {
+      "layers": [
+        "slim"
+      ],
+      "roles": [
+        "baseline"
+      ]
+    },
+    "markers": [
+      "gitignore",
+      "不入库",
+      "不进库",
+      "可再生",
+      "再生",
+      "临时"
+    ],
+    "temporaryPathPatterns": [
+      "tmp/",
+      "*.tmp"
+    ],
+    "allow": [
+      {
+        "path": "docs/DOC-SPEC.md",
+        "kind": "规范示例",
+        "reason": "规范本体必须写出被禁止的路径形态（§4.6 的纪律与 §五 检查表的第 10 行），否则「不得出现盘符/家目录」这条规定无法表达；命中面收窄到本文件。"
+      },
+      {
+        "pathRegex": "^docs/00-baseline/",
+        "lineRegex": "来源",
+        "kind": "来源元信息",
+        "reason": "决策 8 §三.1：入库的上游原文必须记「原始路径 + 文档版本 + 获取日期 + sha256」——那是「可校验来源」，不是「可复现引用」。D2 入仓时按本例外登记；命中面收窄到 docs/00-baseline/ 下含「来源」字样的行。"
+      },
+      {
+        "path": "packages/pptx-renderer/evidence/template-a-demo-wps.md",
+        "lineRegex": "COM 自报 Path",
+        "kind": "环境观测",
+        "reason": "P3/C8-c：WPS COM **自报**的安装路径是「当时那台机器的观测事实」——这份证据要证明的是「WPS 落盘/另存的 XML 长什么样」，不是「WPS 装在哪」。记录制证据按先例不改写（P-41 §9(a) / P-44 §9(a)）；命中面收窄到该文件的这一行（正文里的路径一律保留原样，改名与相对化不做）。"
+      },
+      {
+        "path": "packages/pptx-renderer/evidence/template-a-demo-wps.md",
+        "lineRegex": "临时副本",
+        "kind": "环境观测",
+        "reason": "P3/C8-c：同一份证据里「临时副本（未纳入证据，留在 %TEMP%）」那句记的是**没入库**这个事实，%TEMP% 下的绝对路径就是「当时的机器事实」。命中面收窄到该行（两处路径在同一行，一条规则覆盖）。"
+      },
+      {
+        "path": "spikes/g0-s2-xlsx-roundtrip/结论.md",
+        "lineRegex": "Microsoft Office",
+        "kind": "环境观测",
+        "reason": "P3/C8-c：spike 结论里那句「本机 Office 安装目录为空目录」是**当时那台机器的事实**，也正是「为什么以 WPS 为准、PowerPoint 备查」（裁决 P-4）的依据之一。spike 留档按 P2/D9 不改写；命中面收窄到该行。"
+      }
+    ]
+  },
+  "sourceLineCheck": {
+    "$comment": [
+      "D2 / 决策 8 的溯源守卫（执行者 check-docs.mjs 的「来源行与保真」，规范见 DOC-SPEC §4.6）。",
+      "**可机械判定的只有溯源，不是保真**：原始文件在仓库外，保真比对只能「导入时一次 + 争议时重取」。",
+      "archived：入仓原文必须带来源块——requiredLabels 齐备，且 hashLabel 那行的哈希必须等于 contentStartMarker 之后内容（LF 归一化）的复算值；不符即 error（回改历史会被抓住）。",
+      "extractors：提取件必须保留指向入仓原文的链接且带 markers 里的标记词——这是「提取件 ↔ 原文」对应关系不被静默摘掉的钉子。"
+    ],
+    "contentStartMarker": "<!-- 原文内容开始",
+    "markers": [
+      "原文口径",
+      "依据",
+      "来源"
+    ],
+    "archived": [
+      {
+        "path": "docs/00-baseline/上游原文-产品需求文档与路线图.md",
+        "contentStartMarker": "<!-- 原文内容开始",
+        "hashLabel": "入库件正文 sha256",
+        "requiredLabels": [
+          "来源",
+          "文档版本",
+          "获取日期",
+          "原始文件 sha256",
+          "入库件正文 sha256",
+          "与重建件的关系"
+        ]
+      }
+    ],
+    "extractors": [
+      {
+        "path": "docs/00-baseline/需求基线.md",
+        "mustLinkTo": "docs/00-baseline/上游原文-产品需求文档与路线图.md"
+      }
+    ]
+  },
+  "evidenceRawCheck": {
+    "$comment": [
+      "P3/C8-a：证据层「原始读数」（`-raw.json`）的**所有权**登记（执行者 check-docs.mjs 的「证据原始读数所有权」）。",
+      "为什么需要它：`-raw.json` 是记录制证据的机器可读孪生件——`measure-render.mjs` 与 `offline-artifact-probe.mjs` 每写一份 .md 就成对写一份 raw（实测 9/9 与某份 .md 的 `采集时刻` 逐位相等）。",
+      "但**引用方向不可解析**：.md 正文只写「逐行值见 raw JSON」「单列在原始 JSON 的 prepareMs」，不写文件名 ⇒ 6/9 份 raw 在链接图里是孤儿。判据因此不看「有没有人链接」，而看「**有没有可解析的所有者**」。",
+      "**为什么登记而不是删**（计划原文的「删 4 份零引用 raw / 95 KB」在实测下站不住，逐条证据见 08-批次记录-P3-C8 §C8-a）：① DOC-SPEC §4.5 把「真机落盘的 XML、渲染 PNG、**计时原始数据**」列为**不可再生的外部工具观测**（P2/D9 的两级处置：可再生的代码删、结论与证据留档）；② 生成器用**不带版本号**的文件名 ⇒ 同名 raw 被下一次运行覆盖，现存这份是**那一次运行的唯一全量记录**；③「零引用」只看链接图，漏掉了**孪生配对**（采集时刻相等）与**兄弟 .md 的明文 deferral**（不带文件名）这两种「所有者存在」的形态。",
+      "rawOf：`{ raw, of, note? }` —— raw 必须存在、of 必须是与它成对的 .md；两侧都有 `采集时刻` 时**逐位相等**（否则 error：这份 raw 不是那份 .md 的读数），有一侧没有（schema 不同）时**必须写 note** 说明配对依据。",
+      "删文件要同时删登记；新增 raw（如 P4 的 `chart-axis-hover-raw.json`）未登记 ⇒ **警告**（留档物不该变成孤儿）。"
+    ],
+    "rawOf": [
+      {
+        "raw": "apps/web/evidence/chart-align-diagnostic-before-fix-raw.json",
+        "of": "apps/web/evidence/chart-align-diagnostic-before-fix-chrome152.md"
+      },
+      {
+        "raw": "apps/web/evidence/chart-align-raw.json",
+        "of": "apps/web/evidence/chart-align-chrome154.md",
+        "note": "生成器用不带版本号的文件名 ⇒ 现存这份是 154 那一次的读数；`chart-align-chrome152.md` 里那 6 处「逐行值见 raw JSON」指的是已被覆盖掉的那一份（原文按归档层不改写，指向以本登记为准）"
+      },
+      {
+        "raw": "apps/web/evidence/drag-timing-dense-2000-raw.json",
+        "of": "apps/web/evidence/drag-timing-dense-2000-chrome154.md"
+      },
+      {
+        "raw": "apps/web/evidence/drag-timing-raw.json",
+        "of": "apps/web/evidence/drag-timing-chrome154.md"
+      },
+      {
+        "raw": "apps/web/evidence/chart-axis-hover-raw.json",
+        "of": "apps/web/evidence/chart-axis-hover-chrome154.md"
+      },
+      {
+        "raw": "apps/web/evidence/import-cyclic-sample-raw.json",
+        "of": "apps/web/evidence/import-cyclic-sample-chrome154.md",
+        "note": "生成器用不带版本号的文件名 ⇒ 现存这份是 P4-d（Chrome 154）那一次的读数；`-chrome152.md` 是旧口径快照，两侧成对关系以本登记为准"
+      },
+      {
+        "raw": "apps/web/evidence/offline-single-file-raw.json",
+        "of": "apps/web/evidence/offline-single-file-chrome154.md",
+        "note": "schema 不同（顶层是 chromeMajor/artifact/flows*，没有 env.采集时刻）⇒ 无法按时刻自动配对；配对依据是生成器成对写出 + 该 .md 第 43 行的「原始读数」链接"
+      },
+      {
+        "raw": "apps/web/evidence/persist-drag-timing-raw.json",
+        "of": "apps/web/evidence/persist-drag-timing-chrome154.md"
+      },
+      {
+        "raw": "apps/web/evidence/persist-storage-2000-raw.json",
+        "of": "apps/web/evidence/persist-storage-2000-chrome154.md"
+      },
+      {
+        "raw": "apps/web/evidence/render-timing-raw.json",
+        "of": "apps/web/evidence/render-timing-chrome154.md",
+        "note": "同上：不带版本号的名字 ⇒ 现存这份是 154 那一次的读数；`render-timing-chrome152.md` 的同句 deferral（「compute 单列在原始 JSON 的 prepareMs」）指的是被覆盖掉的那一份"
+      }
+    ]
+  },
+  "apiSurfaceCheck": {
+    "$comment": [
+      "P4-a：包规范的 API 段 ⇔ 实际导出面（执行者 scripts/check-api-surface.mjs，接在 pnpm docs:check 的第三步）。",
+      "判的是**一个方向**：规范里点名的符号必须真的从包入口（`packages/<pkg>/src/index.ts`）导出。反向（哪些导出是「发布承诺」、哪些是内部）由 P4-b 的公开面分类负责——render-core 有 296 个导出，逐条要求文档化只会制造噪声。",
+      "提取面刻意窄：只取 target 登记段落的**直属声明块**（从段标题到下一个任意级标题为止，子节不算）。P4-a 实测的教训：子节是「用法示例」，会引用别的包的函数（PROTOCOL.md §2.1 的 `applyCommand` 属 engine）⇒ 计入就是假阳。",
+      "段内只认两类形态：mode=fences（围栏代码块里的 `function NAME` / `type|interface|class|enum NAME` / 裸调用 `name(` / 整行裸名字）与 mode=apiTable（表格**首格由反引号符号起头**，取格内全部反引号符号并剥掉参数表）。行注释先剥掉再匹配（`SCHEDULE.md` 的 `// max(ef)` 曾把 `max` 变成假阳）。",
+      "minCandidates：**每个 target 必须登记候选数下限**。掉到下限以下 ⇒ 报错（「提取面塌了」）——「写法变了 ⇒ 正则一条也不匹配 ⇒ 检查恒真」是这类机械检查最危险的失效方式（同 check-docs 的「台账轮次列解析为空即报错」）。下限取实测值往下留余量（见每条的 note）。",
+      "allow：例外必须带 reason；改规范或补导出才是正解，登记例外是最后手段。登记为例外的点名**每次运行都会打印**（不静默吞掉），**未被命中的例外也会打印**（该删就删）。",
+      "P4-b 另在本脚本里落了**公开面分类**（发布承诺 / 内部·跨界 / 内部·仓内 / 结构性 / 零引用；规则见 DOC-SPEC §4.8）：分类不手工维护、每次重算并打印计数，只有「零引用导出」判 error。"
+    ],
+    "targets": [
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEMA.md",
+        "section": "## 三、公共 API",
+        "mode": "fences",
+        "minCandidates": 20,
+        "note": "序列化/解析/校验/迁移/WBS 层级 + 两个错误载体类"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/COMMAND.md",
+        "section": "## 三、公共 API",
+        "mode": "fences",
+        "minCandidates": 20,
+        "note": "命令层、日志、JSON 工具、会话与事务、id 建议"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/PERSISTENCE.md",
+        "section": "## 三、公共 API（`src/index.ts` 的导出面）",
+        "mode": "apiTable",
+        "minCandidates": 15,
+        "note": "「导出 | 作用」表；首格是符号列表（含 `a(x) / b(y)` 形态）"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEDULE.md",
+        "section": "## 二、输入",
+        "mode": "fences",
+        "minCandidates": 2,
+        "note": "compute 签名 + SessionAnchor"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEDULE.md",
+        "section": "## 三、输出",
+        "mode": "fences",
+        "minCandidates": 2,
+        "note": "ScheduleResult + Schedule"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEDULE.md",
+        "section": "## 六、诊断码表",
+        "mode": "fences",
+        "minCandidates": 2,
+        "note": "ScheduleDiagnosticCode + ScheduleDiagnostic"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEDULE.md",
+        "section": "## 七、容量与调用方配方",
+        "mode": "fences",
+        "minCandidates": 2,
+        "note": "createScheduleCalendar 声明 + 推荐用法里的 createScheduleCalendar/compute"
+      },
+      {
+        "package": "render-core",
+        "spec": "packages/render-core/SPEC.md",
+        "section": "## 二、包边界与公共 API",
+        "mode": "fences",
+        "minCandidates": 1,
+        "note": "只有主入口签名块（buildView）；同段的模块表列的是**文件名**，不是符号"
+      },
+      {
+        "package": "xlsx-protocol",
+        "spec": "packages/xlsx-protocol/PROTOCOL.md",
+        "section": "## 二、公共 API",
+        "mode": "fences",
+        "minCandidates": 8,
+        "note": "五个入口 + XlsxInput/ImportOptions/ImportResult/ExportResult"
+      },
+      {
+        "package": "pptx-renderer",
+        "spec": "packages/pptx-renderer/PPTX.md",
+        "section": "## 二、包边界与公共 API",
+        "mode": "fences",
+        "minCandidates": 1,
+        "note": "只有主入口签名块（renderTemplateA）；模块表列的是文件名，不是符号"
+      }
+    ],
+    "allow": []
+  },
+  "gateStepsCheck": {
+    "$comment": [
+      "P5-c 的第 23 项：门禁步骤契约（scripts/gate.mjs 的 STEPS）与 CI 实跑步（.github/workflows/ci.yml）的一致性（执行者 scripts/check-gate-steps.mjs，接在 pnpm docs:check 的最后一步）。",
+      "为什么要有：这两份文件是同一个事实的两处陈述，而它们的一致性此前只写在 ci.yml 的文件头注释里——注释腐烂过一次（曾把 bundle:offline / docs:check 写成「不在此文件内」），且没有任何检查会在两边分叉时翻红；而 STEPS 是门禁契约（gate.mjs 文件头：改动它等于改动门禁契约）。",
+      "判据四条：① ci.yml 的 pnpm 步 ⊆ STEPS；② 相对顺序是 STEPS 的子序列；③ 缺的步集合 == absent 登记的集合（集合相等——只判子序列的话「删掉一步」仍然是子序列 ⇒ 判据没牙）；④ prerequisites 与 absent 每条必须带 reason，未登记的前置动作也报。",
+      "零依赖、只认单行 `run: pnpm <step>`；出现多行 `run: |` 块即响亮失败（宁可停，也不要静默漏看）。",
+      "absent 的两条是「现在不跑、且原因已实测」的登记：两条 smoke 需要本机无头 Chrome，能不能在 ubuntu-latest 上补未经实测（见 docs/04-refactor/05-登记与本轮不做.md §二）。补上其中一条时，必须同批从本表删掉它——判据 ③ 会强制这件事。"
+    ],
+    "gateSource": "scripts/gate.mjs",
+    "pipelineSource": ".github/workflows/ci.yml",
+    "prerequisites": [
+      {
+        "command": "install",
+        "reason": "装依赖是前置动作、不是门禁步（STEPS 里没有它；gate.mjs 的文件头只把「安装」与九步并列叙述）"
+      }
+    ],
+    "absent": [
+      {
+        "step": "smoke:build",
+        "reason": "需要本机无头 Chrome；ubuntu-latest 自带 Chrome 且 scripts/smoke-build.mjs 支持 GANTTPILOT_CHROME，但「能不能补」未经实测（05 §二），故登记为不跑而不是悄悄漏掉"
+      },
+      {
+        "step": "smoke:build:file",
+        "reason": "同上（file:// 下的三条主链路，同样需要 Chrome）"
+      }
+    ]
+  },
   "pendingList": "docs/01-roadmap/首版-待定清单.md"
 }

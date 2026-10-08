@@ -1,6 +1,6 @@
 {
   "name": "@ganttpilot/engine",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "description": "排程内核：日期算术、依赖传播、命令层（零 DOM / 零框架依赖）",
   "license": "MIT",
   "type": "module",

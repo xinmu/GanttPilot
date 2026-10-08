@@ -26,8 +26,8 @@
  */
 
 import {
-  dayNumberToIsoDate,
-  isoDateToDayNumber,
+  dayNumberToIso,
+  isoToDayNumber,
   MAX_DURATION_DAYS,
   type Calendar,
   type ProjectDocument,
@@ -43,7 +43,7 @@ export { EDITABLE_COLUMNS };
 export function isoOfDaySafe(day: number): string | undefined {
   if (!Number.isFinite(day)) return undefined;
   try {
-    return dayNumberToIsoDate(day);
+    return dayNumberToIso(day);
   } catch {
     return undefined;
   }
@@ -53,7 +53,7 @@ export function isoOfDaySafe(day: number): string | undefined {
 export function dayOfIsoSafe(iso: string | null | undefined): number | undefined {
   if (iso === null || iso === undefined || iso.trim() === '') return undefined;
   try {
-    return isoDateToDayNumber(iso.trim());
+    return isoToDayNumber(iso.trim());
   } catch {
     return undefined;
   }
@@ -72,7 +72,7 @@ export function isoOfOrdinalSafe(calendar: Calendar, ordinal: number): string | 
 /**
  * 解析用户输入的 ISO 日期；只有 `YYYY-MM-DD` 且真实存在才返回字符串。
  *
- * 用引擎的 `isoDateToDayNumber` 往返一次做校验——**不自己写正则**，
+ * 用引擎的 `isoToDayNumber` 往返一次做校验——**不自己写正则**，
  * 这样"导入能识别的日期"与"行内编辑能接受的日期"不会分叉。
  */
 export function parseIsoInput(text: string): string | undefined {

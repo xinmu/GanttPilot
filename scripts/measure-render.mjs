@@ -18,7 +18,9 @@
  * - **首屏**：`文档与 Schedule 就绪 → 含依赖线的首帧完成`，对 1,000 任务 ≤ 1,000 ms；
  * - **10× 滚动**：总墙钟、主线程 p50/p95、连续 rAF 帧间隔、longtask、空白行
  *   ——与《评估报告》§5.4 的"2,200 边 / 约 2.0 s"**同尺**对照；
- * - **元素预算**：渲染行/边与元素总数、`c₃`、是否在 `c₁·rows + c₂·edges + c₃ + c₄` 之内（`c₄ = 6·rows + 13`，ADR 0008 §16.4 + P-46 的悬停行带）。
+ * - **元素预算**：渲染行/边与元素总数、`c₃`、是否在 `c₁·rows + c₂·edges + c₃ + c₄` 之内
+ *   （`c₄` 的系数与逐档位锚值**只在声明处**：`render-core` 的 `manifest.ts` 的 `ELEMENT_MODEL_G5`
+ *   与 `clipping.spec.ts` 的 `expectedC3`；ADR 0008 §16.4 + P-46 的悬停行带）。
  *
  * 用法：
  *   node scripts/measure-render.mjs                  # 主口径（dense·日档）+ 2,200 边对照
@@ -30,15 +32,12 @@
  *   GANTTPILOT_CHROME=<path> node scripts/measure-render.mjs
  */
 
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { createServer } from 'node:http';
-import { dirname, extname, join, normalize, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { closeOwnChrome, ensureProfileDir, profileDirFor, psCommandLine } from './chrome-harness.mjs';
+import { join, resolve } from 'node:path';
+import { closeChromeSession, connectCdp, findChrome, spawnChrome, startStaticServer, waitForDevToolsPort } from './cdp.mjs';
+import { rel, repoRoot } from './paths.mjs';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = join(repoRoot, 'apps', 'web', 'dist');
 const evidenceDir = join(repoRoot, 'apps', 'web', 'evidence');
 
@@ -88,6 +87,8 @@ function parseArgs(argv) {
     align: false,
     /** `--align=<label>`：证据文件名后缀（诊断与复测互不覆盖）。 */
     alignLabel: '',
+    /** **两级刻度与悬停行带**的记录制快照（写 `chart-axis-hover-chrome<大版本>.md`；见 `--axis-hover`）。 */
+    axisHover: false,
     /**
      * P-40 批次②：`--align` 覆盖的档位（默认全档）。
      * 档位盲区是 P-25 遗留的那一处——`pxPerDay` 变小 ⇒ 条宽进入 3 px 区、命中容差到边界。
@@ -147,185 +148,69 @@ function parseArgs(argv) {
       options.align = true;
       const label = arg.slice('--align'.length).replace(/^=/, '');
       if (label !== '') options.alignLabel = label;
+    } else if (arg === '--axis-hover') {
+      /**
+       * **两级刻度与悬停行带**的记录制快照（P-46 的事实；判据本体在 `smoke:build` 的门禁侧）。
+       *
+       * 页面的读数口是 `__GANTTPILOT_MEASURE_AXIS_HOVER__`
+       * （`apps/web/src/measure/axisHover.ts`）——它在 P3/C6-d 之前**零调用方**（见
+       * [登记与本轮不做](../docs/04-refactor/05-登记与本轮不做.md) §四.16 的 `N15`），本模式就是它的驱动器。
+       */
+      options.axisHover = true;
     }
   }
   return options;
 }
 
-const MIME = new Map([
-  ['.html', 'text/html; charset=utf-8'],
-  ['.js', 'text/javascript; charset=utf-8'],
-  ['.mjs', 'text/javascript; charset=utf-8'],
-  ['.css', 'text/css; charset=utf-8'],
-  ['.json', 'application/json; charset=utf-8'],
-  ['.map', 'application/json; charset=utf-8'],
-  ['.svg', 'image/svg+xml'],
-  ['.png', 'image/png'],
-  ['.ico', 'image/x-icon'],
-]);
+/**
+ * 本次运行里页面报告的**钩子版本**（由 {@link openMeasuredPage} 记录）。
+ *
+ * 为什么要它：记录制最容易出的错不是数字不准，而是**测了一个不是当前代码的产物**
+ * （页面装的钩子是旧的、或压根没装上）。脚本**不硬编码版本**（那会变成又一处常量分叉），
+ * 只要求"页面报出版本"并把它登记进证据的 `环境` 块（P3/C6-d 兑现 `MEASURE_HOOK_VERSION`
+ * 那条一直没人核对的承诺）。
+ */
+let measuredHookVersion = '';
+/** 证据的 `环境` 块统一带这一行（见 {@link measuredHookVersion}）。 */
+const hookVersionEnv = () => ({ 钩子版本: measuredHookVersion === '' ? '(未记录)' : measuredHookVersion });
 
-/** 静态服务器（只绑 127.0.0.1、临时端口、白名单范围内的路径）。 */
-function startStaticServer(root) {
-  const server = createServer((request, response) => {
-    const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-    const relative = url.pathname === '/' ? 'index.html' : url.pathname.replace(/^\/+/, '');
-    const filePath = normalize(join(root, relative));
-    if (!filePath.startsWith(normalize(root)) || !existsSync(filePath)) {
-      response.writeHead(404, { 'content-type': 'text/plain' });
-      response.end('not found');
-      return;
+/**
+ * **记录制入口（唯一）**：导航 → 等钩子就绪 → **核对页面报告的钩子版本**。
+ *
+ * 为什么收成一个函数（P3/C6-d）：这段循环此前在**四处**各写一遍（主口径 / `--align` / `--persist` /
+ * `--drag` 的预热），而"等的是什么"只有一处能写对；更要紧的是它顺带承担版本核对——
+ * 这正是记录制与门禁的差别所在：门禁测的是刚构建的产物，记录制可能测**任何**产物。
+ *
+ * @param {object} cdp
+ * @param {string} url
+ * @param {{ hook: string, timeoutMs?: number, label?: string }} options `hook` 是钩子在 `window` 上的名字（含 `__` 前后缀）
+ * @returns {Promise<{ version: string }>}
+ */
+async function openMeasuredPage(cdp, url, { hook, timeoutMs = 20_000, label = '测量钩子' }) {
+  await cdp.navigate(url);
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const state = await cdp.evaluate(`(() => ({
+      ready: Boolean(window.__GANTTPILOT_READY__),
+      hook: typeof window.${hook} === 'function',
+      version: window.__GANTTPILOT_MEASURE_VERSION__ ?? null,
+    }))()`);
+    if (state.ready === true && state.hook === true) {
+      if (typeof state.version !== 'string' || state.version === '') {
+        throw new Error(
+          `${label}没有报告版本（window.__GANTTPILOT_MEASURE_VERSION__ 为空）` +
+            '——测的可能是比本脚本更旧的产物（见 apps/web/src/measure/index.ts 的 MEASURE_HOOK_VERSION）',
+        );
+      }
+      measuredHookVersion = state.version;
+      return { version: state.version };
     }
-    response.writeHead(200, { 'content-type': MIME.get(extname(filePath)) ?? 'application/octet-stream' });
-    response.end(readFileSync(filePath));
-  });
-  return new Promise((resolvePromise) => {
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      const port = typeof address === 'object' && address !== null ? address.port : 0;
-      resolvePromise({ server, origin: `http://127.0.0.1:${String(port)}` });
-    });
-  });
-}
-
-/** 找 Chrome：显式环境变量优先，其次常见安装位置（找不到就抛错，**不跳过**）。 */
-function findChrome() {
-  const explicit = process.env.GANTTPILOT_CHROME;
-  if (explicit !== undefined && explicit !== '' && existsSync(explicit)) return explicit;
-  const candidates =
-    process.platform === 'win32'
-      ? [
-          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-          join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-          'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-        ]
-      : process.platform === 'darwin'
-        ? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
-        : ['/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'];
-  for (const candidate of candidates) {
-    if (candidate !== '' && existsSync(candidate)) return candidate;
-  }
-  throw new Error('找不到 Chrome：用 GANTTPILOT_CHROME 指定可执行文件（缺失即失败，不跳过）');
-}
-
-/** 启动 Chrome 与一个 CDP 会话（`--remote-debugging-port=0` + 读 `DevToolsActivePort`）。 */
-async function launchChrome(executable) {
-  const profileDir = ensureProfileDir(profileDirFor('measure-chrome-profile'));
-  const child = spawn(
-    executable,
-    [
-      '--headless=new',
-      '--remote-debugging-port=0',
-      `--user-data-dir=${profileDir}`,
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-extensions',
-      '--disable-background-networking',
-      '--force-device-scale-factor=1',
-      '--window-size=1280,640',
-      'about:blank',
-    ],
-    // 受限沙箱下用管道捕获子进程输出会 EPERM：这里显式忽略 stdio。
-    { stdio: 'ignore', detached: false },
-  );
-  const portFile = join(profileDir, 'DevToolsActivePort');
-  const deadline = Date.now() + 20_000;
-  let port = 0;
-  while (Date.now() < deadline) {
-    if (existsSync(portFile)) {
-      const text = readFileSync(portFile, 'utf8').split('\n');
-      port = Number(text[0]);
-      if (port > 0) break;
+    if (Date.now() > deadline) {
+      const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
+      throw new Error(`${label}未就绪（${hook}）：${String(captured)}`);
     }
-    await new Promise((settle) => setTimeout(settle, 120));
+    await new Promise((settle) => setTimeout(settle, 100));
   }
-  if (port === 0) {
-    // 起不来时的兜底也走同一道闸（协议级关闭此时通常不可用，故按 PID 树）。
-    await closeOwnChrome({ profileDir, pid: child.pid, lookup: psCommandLine, timeoutMs: 2_000 });
-    throw new Error('Chrome 未在 20 秒内写出 DevToolsActivePort');
-  }
-  return { child, port, profileDir };
-}
-
-/** 极简 CDP 客户端（内置 WebSocket；一次一个页目标）。 */
-async function connectCdp(port) {
-  let targetId = '';
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline && targetId === '') {
-    const response = await fetch(`http://127.0.0.1:${String(port)}/json/list`);
-    const targets = await response.json();
-    const page = targets.find((item) => item.type === 'page');
-    if (page !== undefined) targetId = page.webSocketDebuggerUrl;
-    else await new Promise((settle) => setTimeout(settle, 150));
-  }
-  if (targetId === '') throw new Error('未找到可用的 page 目标');
-
-  const socket = new WebSocket(targetId);
-  await new Promise((settle, reject) => {
-    socket.addEventListener('open', () => settle(), { once: true });
-    socket.addEventListener('error', () => reject(new Error('CDP WebSocket 连接失败')), { once: true });
-  });
-
-  let nextId = 1;
-  const pending = new Map();
-  const listeners = new Map();
-  socket.addEventListener('message', (event) => {
-    const message = JSON.parse(typeof event.data === 'string' ? event.data : String(event.data));
-    if (message.id !== undefined && pending.has(message.id)) {
-      const { resolve: resolvePromise, reject } = pending.get(message.id);
-      pending.delete(message.id);
-      if (message.error !== undefined) reject(new Error(`${message.error.message ?? 'CDP 错误'}`));
-      else resolvePromise(message.result);
-      return;
-    }
-    const handlers = listeners.get(message.method) ?? [];
-    for (const handler of handlers) handler(message.params);
-  });
-
-  const call = (method, params = {}) =>
-    new Promise((resolvePromise, reject) => {
-      const id = nextId++;
-      pending.set(id, { resolve: resolvePromise, reject });
-      socket.send(JSON.stringify({ id, method, params }));
-    });
-
-  /** `Runtime.evaluate`：`awaitPromise` 求值一个表达式并返回其值。 */
-  const evaluate = async (expression) => {
-    const result = await call('Runtime.evaluate', {
-      expression,
-      awaitPromise: true,
-      returnByValue: true,
-      userGesture: true,
-    });
-    if (result.exceptionDetails !== undefined) {
-      const details = result.exceptionDetails;
-      const description =
-        details.exception?.description ?? details.exception?.value ?? details.text ?? JSON.stringify(details);
-      throw new Error(`页面内异常：${String(description)}`);
-    }
-    return result.result?.value;
-  };
-
-  const on = (method, handler) => {
-    const handlers = listeners.get(method) ?? [];
-    handlers.push(handler);
-    listeners.set(method, handlers);
-  };
-
-  /** 导航并等 `Page.loadEventFired`。 */
-  const navigate = async (url) => {
-    const loaded = new Promise((settle) => on('Page.loadEventFired', () => settle()));
-    await call('Page.navigate', { url });
-    await Promise.race([loaded, new Promise((settle) => setTimeout(settle, 30_000))]);
-  };
-
-  return {
-    call,
-    evaluate,
-    navigate,
-    on,
-    close: () => socket.close(),
-  };
 }
 
 /**
@@ -334,25 +219,12 @@ async function connectCdp(port) {
  * 注意两点：
  * 1. `?table=0` 隐藏左表 —— 元素预算的 `c₃` 只取决于"图表窗格宽 ÷ `pxPerDay`"，
  *    只有**全宽图表**才与 ADR 0007 §11 的回填口径可比（分屏下 `c₃` 必然更小，是布局差异）；
- * 2. `?measure=` 的钩子是**动态 `import()`** 装上去的，`Page.loadEventFired` 之后还没就绪，
- *    因此这里轮询等它出现，而不是假定"加载完就有"。
+ * 2. `?measure=` 的钩子是**动态 `import()`** 装上去的 ⇒ 就绪由 {@link openMeasuredPage} 轮询等待
+ *    （并顺带核对钩子版本）。
  */
 async function measureOne(cdp, origin, args) {
   const url = `${origin}/?measure=1&table=0&dataset=${encodeURIComponent(args.dataset)}&zoom=${String(args.zoom)}`;
-  await cdp.navigate(url);
-  const deadline = Date.now() + 20_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    ready = await cdp.evaluate(
-      'Boolean(window.__GANTTPILOT_READY__) && typeof window.__GANTTPILOT_MEASURE__ === "function"',
-    );
-    if (ready === true) break;
-    await new Promise((settle) => setTimeout(settle, 100));
-  }
-  if (ready !== true) {
-    const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
-    throw new Error(`测量钩子未就绪：${String(captured)}`);
-  }
+  await openMeasuredPage(cdp, url, { hook: '__GANTTPILOT_MEASURE__' });
   return cdp.evaluate(
     `window.__GANTTPILOT_MEASURE__({ dataset: ${JSON.stringify(args.dataset)}, zoom: ${JSON.stringify(args.zoom)}, rounds: ${String(args.rounds)}, scrollSteps: ${String(args.scrollSteps)} })`,
   );
@@ -421,9 +293,10 @@ function renderEvidence({ env, runs, options }) {
   lines.push('> "渲染行/边"来自元素模型，"DOM 行/边"是页面上真实存在的 `<g>` 数：');
   lines.push('> 两者必须相等，否则"元素预算"就是恒真式（脚本把不一致直接记进 `errors`）。');
   lines.push('> **`c₃` 与 G4-S 的回填值可比，但不是同一个数**：本轮页面用 `?table=0` 把图表放成全宽');
-  lines.push('> （1265 px，比 G4-S 探针页的 1280 px 少一条滚动条宽），因此日/周/月的 `c₃` 是');
-  lines.push('> **120 / 88 / 93**（P-46 两级刻度后重锚；单级口径原为 114 / 69 / 88），与 ADR 0007 §11 的单级回填值 **116 / 70 / 89** 差 1–2（就是那点宽度差）；');
-  lines.push('> 分屏下（隐藏左表之前）同一页面的 `c₃` 只有 35 / 21 / 26——`c₃` 只取决于"窗格宽 ÷ `pxPerDay`"，');
+  lines.push('> （本页窗格宽见上面的实测列，比 G4-S 探针页的视口少一条滚动条宽），因此日/周/月的 `c₃`');
+  lines.push('> 比 ADR 0007 §11 的单级回填值小 1–2（就是那点宽度差）；**逐档位锚值只在声明处**');
+  lines.push('> （`render-core/src/clipping.spec.ts` 的 `expectedC3`），本文件的表格里给的是**本次实测值**；');
+  lines.push('> 分屏下（隐藏左表之前）同一页面的 `c₃` 只有全宽口径的约三分之一——`c₃` 只取决于"窗格宽 ÷ `pxPerDay`"，');
   lines.push('> 与文档总规模无关，这是 §11.1 ③ 那条口径的直接后果。');
   lines.push('');
   lines.push('## 10× 滚动');
@@ -449,7 +322,7 @@ function renderEvidence({ env, runs, options }) {
   const blankOk = runs.every((run) => (run.result?.scroll?.blankRowGaps ?? 1) === 0);
   const frameOk = runs.every((run) => (run.result?.scroll?.p95WorkMs ?? Number.POSITIVE_INFINITY) <= 16.7);
   lines.push(`- **1,000 任务首屏 ≤ 1 s**：最差 ${ms(firstScreenWorst)} ⇒ ${budgetOk ? '**通过**' : '**不通过（按 ADR 0007 §9 分层定位后再决定降级）**'}；`);
-  lines.push(`- **元素预算**：${budgetInAll ? '**全部在 `c₁·rows + c₂·edges + c₃ + c₄` 之内**（`c₄ = 6·rows + 13`，ADR 0008 §16.4 + P-46 的悬停行带）' : '**有超预算项**'}；`);
+  lines.push(`- **元素预算**：${budgetInAll ? '**全部在 `c₁·rows + c₂·edges + c₃ + c₄` 之内**（`c₄` 的系数与 `c₃` 的锚值只在声明处：`render-core` 的 `manifest.ts` 的 `ELEMENT_MODEL_G5` 与 `clipping.spec.ts` 的 `expectedC3`；ADR 0008 §16.4 + P-46 的悬停行带）' : '**有超预算项**'}；`);
   lines.push(`- **零空白行**：${blankOk ? '**成立**' : '**出现空白行**'}；`);
   lines.push(`- **主线程 p95 ≤ 16.7 ms**（记录制候选）：${frameOk ? '**成立**' : '**超出**'}。`);
   const collectErrors = runs.flatMap((run) =>
@@ -781,6 +654,16 @@ async function importSample(cdp, origin, filePath) {
   return { ...result, status: errors.length === 0 ? 'ok' : 'error', errors };
 }
 
+/**
+ * 证据末尾附一行**具名**的"原始读数"链接（P4-d）。
+ *
+ * 为什么需要它：raw 与 `.md` 是成对写出的，但正文此前只写"逐行值见 raw JSON"这类**不带文件名**的
+ * 说法 ⇒ 链接图里 raw 成了孤儿（C8-a 的"引用方向不可解析"）。生成器侧与已提交证据必须**同批**落盘，
+ * 否则盘上的证据就不再是生成器的输出（见 `docs/04-refactor/04-验收与门禁.md` §四）。
+ */
+function withRawLink(markdown, rawName) {
+  return `${markdown.replace(/\s*$/, '')}\n\n> **原始读数**：[\`${rawName}\`](${rawName})（机器可读，便于日后重比）。\n`;
+}
 /** 导入记录制的证据（Markdown）。 */
 function renderImportEvidence({ env, result }) {
   const lines = [];
@@ -801,7 +684,8 @@ function renderImportEvidence({ env, result }) {
   lines.push('');
   lines.push('| 项 | 值 |');
   lines.push('|---|---|');
-  lines.push(`| 路径 | \`${String(result.file)}\` |`);
+  // P4-d：输入路径写**仓库根相对 + 声明词**（本机绝对路径是采集时的机器事实，不进证据正文）。
+  lines.push(`| 路径 | \`${rel(result.file)}\`（临时输入：不入库，由 \`node scripts/make-sample.mjs\` 再生） |`);
   lines.push(`| 体积 | ${String(result.sizeBytes)} 字节 |`);
   lines.push(`| sha256 | \`${String(result.sha256)}\` |`);
   lines.push('| 形状 | 表 `任务`，表头 `WBS / 任务名称 / 前置任务`（**仅三列**），6 行 |');
@@ -884,20 +768,7 @@ function num(value, digits = 2) {
  * （`align.spec.ts` 进 `pnpm gate`），本函数只负责驱动页面、取回数字。
  */
 async function alignProbe(cdp, origin, args, { navigate = true } = {}) {
-  if (navigate) await cdp.navigate(`${origin}/?measure=1`);
-  const deadline = Date.now() + 20_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    ready = await cdp.evaluate(
-      'typeof window.__GANTTPILOT_MEASURE_ALIGN__ === "function" && Boolean(window.__GANTTPILOT_READY__)',
-    );
-    if (ready === true) break;
-    await new Promise((settle) => setTimeout(settle, 100));
-  }
-  if (ready !== true) {
-    const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
-    throw new Error(`对齐测量钩子未就绪：${String(captured)}`);
-  }
+  if (navigate) await openMeasuredPage(cdp, `${origin}/?measure=1`, { hook: '__GANTTPILOT_MEASURE_ALIGN__', label: '对齐测量钩子' });
   return cdp.evaluate(`window.__GANTTPILOT_MEASURE_ALIGN__(${JSON.stringify(args)})`);
 }
 
@@ -1152,20 +1023,7 @@ const STORAGE_DATASET = 'dense-2000';
 /** 导航到应用并等持久化钩子就绪（应用级错误抓手与其它模式同口径）。 */
 async function persistNavigate(cdp, url) {
   // 注意：URL 必须带 `dataset`——夹具是在**页面里**按 `?dataset=` 建的，钩子参数不能替代它。
-  await cdp.navigate(url);
-  const deadline = Date.now() + 30_000;
-  let ready = false;
-  while (Date.now() < deadline) {
-    ready = await cdp.evaluate(
-      'typeof window.__GANTTPILOT_MEASURE_PERSIST__ === "function" && Boolean(window.__GANTTPILOT_READY__)',
-    );
-    if (ready === true) break;
-    await new Promise((settle) => setTimeout(settle, 100));
-  }
-  if (ready !== true) {
-    const captured = await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? "(空)"');
-    throw new Error(`持久化测量钩子未就绪：${String(captured)}`);
-  }
+  await openMeasuredPage(cdp, url, { hook: '__GANTTPILOT_MEASURE_PERSIST__', timeoutMs: 30_000, label: '持久化测量钩子' });
 }
 
 /** 读回页面上的当前 `revision` 镜像（`null` = 还没暴露）。 */
@@ -1391,7 +1249,113 @@ function renderStorageMetricsEvidence({ env, run }) {
   return lines.join('\n');
 }
 
-async function main() {  const options = parseArgs(process.argv.slice(2));
+/**
+ * `--axis-hover` 的**前提自证**（不是判据本体）。
+ *
+ * 判据本体在**门禁**里：`smoke-build.mjs` 的 `probeAxisAndHover` 在打包产物上直接读 DOM
+ * （两级刻度的行序/上下、短刻度只落在表头带、悬停行带跟着指针走、左右表联动）。
+ * 本函数只回答一件事：**这一轮快照有没有可读性**——即"两行刻度真的分成两行且大刻度在上"、
+ * "未悬停时没有行带（对照存在）"、"指针换行时行带真的动了"、"两栏表头同高（坐标基准）"。
+ * 少了任一条，文件里的数字就没有解释力（而它们看起来仍然"很整齐"）。
+ *
+ * @returns {{ problems: string[], checks: { name: string, ok: boolean, detail: string }[] }}
+ */
+function judgeAxisHoverSnapshot(run) {
+  const result = run?.result ?? {};
+  const axis = result.axis ?? {};
+  const hover = result.hover ?? {};
+  const idle = hover.idle ?? {};
+  const onRow = hover.onRow ?? {};
+  const onThird = hover.onThirdRow ?? {};
+  const checks = [
+    {
+      name: '钩子自证（三次悬停 + 可能的切档位都在稳定读预算内）',
+      ok: (result.errors ?? []).length === 0,
+      detail: (result.errors ?? []).length === 0 ? 'errors 空' : (result.errors ?? []).join('；'),
+    },
+    {
+      name: '两级刻度真的分成两行、且**大刻度在上**',
+      ok:
+        typeof axis.majorY === 'number' &&
+        typeof axis.minorY === 'number' &&
+        Number(axis.minorY) > Number(axis.majorY),
+      detail: `majorY=${String(axis.majorY)} minorY=${String(axis.minorY)}（上级样本 ${(axis.majorSamples ?? []).slice(0, 2).join('/')}；下级 ${(axis.minorSamples ?? []).slice(0, 2).join('/')}）`,
+    },
+    {
+      name: '两栏表头同高（悬停读数的坐标基准）',
+      ok: Number(axis.headerTable) === Number(axis.headerChart) && Number(axis.headerTable) > 0,
+      detail: `左表 ${String(axis.headerTable)} / 图表 ${String(axis.headerChart)}`,
+    },
+    {
+      name: '未悬停时**没有**行带（否则"跟着指针走"没有对照）',
+      ok: Number(idle.svgHoverRows) === 0,
+      detail: `svgHoverRows=${String(idle.svgHoverRows)}`,
+    },
+    {
+      name: '指针换行时行带**真的动了**（第 1 行 vs 第 3 行）',
+      ok:
+        onRow.svgRect !== null &&
+        onThird.svgRect !== null &&
+        Math.abs(Number(onRow.svgRect?.top) - Number(onThird.svgRect?.top)) > 1,
+      detail: `top=${String(onRow.svgRect?.top)} vs ${String(onThird.svgRect?.top)}；左表底色 ${String(idle.tableBackground)} → ${String(onRow.tableBackground)}`,
+    },
+  ];
+  return { problems: checks.filter((check) => !check.ok).map((check) => check.name), checks };
+}
+
+/** 两级刻度与悬停行带的记录制证据（`--axis-hover`）。 */
+function renderAxisHoverEvidence({ env, runs }) {
+  const lines = [];
+  lines.push('# 两级刻度与悬停行带（记录制，不进 `pnpm gate`）');
+  lines.push('');
+  lines.push('> 由 `node scripts/measure-render.mjs --axis-hover` 采集；**这是测量快照，不是门禁**');
+  lines.push('> （[ADR 0007 §三](../../../docs/02-adr/0007-渲染几何与裁剪契约.md)、[裁决 P-46](../../../docs/00-baseline/裁决R45.md)）。');
+  lines.push('> **判据本体在门禁里**：`scripts/smoke-build.mjs` 的 `probeAxisAndHover` 在打包产物上直接读 DOM');
+  lines.push('> （两行刻度的行序与上下、短刻度只落在表头带内、悬停行带跟着指针走、左右表联动）。');
+  lines.push('> 本文件提供的是**同族读数的可复现快照** + **前提自证**（见下），用来在改动前后做对照。');
+  lines.push('');
+  lines.push('## 环境');
+  lines.push('');
+  lines.push('| 项 | 值 |');
+  lines.push('|---|---|');
+  for (const [key, value] of Object.entries(env)) lines.push(`| ${key} | ${String(value)} |`);
+  lines.push('');
+  lines.push('## 读数');
+  lines.push('');
+  lines.push('| 档位 | 上级行 y | 上级样本 | 下级行 y | 下级样本 | 上级分段带 | 表头（左表/图表） | 表头第二行文本 | 未悬停行带 | 第 1 行行带 | 第 3 行行带 | 左表底色（未悬停 → 第 1 行） | revision |');
+  lines.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+  for (const run of runs) {
+    const axis = run.result?.axis ?? {};
+    const hover = run.result?.hover ?? {};
+    const box = (reading) =>
+      reading?.svgRect === null || reading?.svgRect === undefined
+        ? `—（${String(reading?.svgHoverRows ?? '?')} 个）`
+        : `top ${String(reading.svgRect.top)}–${String(reading.svgRect.bottom)}`;
+    lines.push(
+      `| ${String(run.zoom)} | ${String(axis.majorY)} | ${(axis.majorSamples ?? []).slice(0, 3).join(' / ')} | ` +
+        `${String(axis.minorY)} | ${(axis.minorSamples ?? []).slice(0, 3).join(' / ')} | ${String(axis.majorBands)} | ` +
+        `${String(axis.headerTable)} / ${String(axis.headerChart)} | ${JSON.stringify(String(axis.tableHeaderSecondRowText ?? ''))} | ` +
+        `${box(hover.idle)} | ${box(hover.onRow)} | ${box(hover.onThirdRow)} | ` +
+        `${String(hover.idle?.tableBackground ?? '')} → ${String(hover.onRow?.tableBackground ?? '')} | ${String(run.result?.revision)} |`,
+    );
+  }
+  lines.push('');
+  lines.push('## 前提自证（不是判据；缺一条则上面的数字没有解释力）');
+  lines.push('');
+  for (const run of runs) {
+    const verdict = judgeAxisHoverSnapshot(run);
+    lines.push(`**${String(run.zoom)}**：${verdict.problems.length === 0 ? '✅ 全部通过' : `❌ ${verdict.problems.join('；')}`}`);
+    lines.push('');
+    lines.push('| 前提 | 结果 | 读数 |');
+    lines.push('|---|---|---|');
+    for (const check of verdict.checks) lines.push(`| ${check.name} | ${check.ok ? '✅' : '❌'} | ${check.detail} |`);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+async function main() {
+  const options = parseArgs(process.argv.slice(2));
   if (!existsSync(join(distRoot, 'index.html'))) {
     console.error('[measure] 缺少打包产物：先跑 `pnpm --filter @ganttpilot/web build`');
     process.exit(1);
@@ -1399,11 +1363,38 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
   mkdirSync(evidenceDir, { recursive: true });
 
   const { server, origin } = await startStaticServer(distRoot);
-  const executable = findChrome();
-  const { child, port, profileDir } = await launchChrome(executable);
-  const cdp = await connectCdp(port);
+  /** 起不来时的兜底也走同一道闸；`finally` 里只收尾**还活着**的那一份（见下面的置空）。 */
+  let chrome = null;
+  let cdp = null;
+  let serverClosed = false;
+  const closeServer = () => {
+    if (!serverClosed) {
+      serverClosed = true;
+      server.close();
+    }
+  };
 
   try {
+    chrome = spawnChrome(findChrome({ allowEdge: true }), {
+      profileRoot: 'measure-chrome-profile',
+      extraArgs: ['--disable-extensions', '--disable-background-networking', '--force-device-scale-factor=1'],
+      /**
+       * **不给 `--window-size`**：有效视口由下面的 `Emulation.setDeviceMetricsOverride` 固定；
+       * 原先那一行 `--window-size=1280,640` 是 G4 的残留，与证据头写的视口不一致（P3/C1 删）。
+       */
+      windowSize: null,
+    });
+    let port = 0;
+    try {
+      port = await waitForDevToolsPort(chrome.profileDir, { timeoutMs: 20_000 });
+    } catch (error) {
+      // 起不来时的兜底：2 秒预算 + 不删 profile（与抽取前的行为一致），然后把句柄置空避免二次收尾。
+      await closeChromeSession({ profileDir: chrome.profileDir, pid: chrome.child.pid, timeoutMs: 2_000 });
+      chrome = null;
+      throw error;
+    }
+    cdp = await connectCdp(port);
+
     await cdp.call('Page.enable');
     await cdp.call('Runtime.enable');
     /**
@@ -1412,7 +1403,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
      * 为什么必须显式覆盖：测量的是**打包产物**，而图表窗格的高度取决于真实窗口尺寸；
      * 不固定的话"可见行数"会随窗口变化，元素预算与首屏数字就无法复现、也无法跨机器比较。
      * 取 `BASE_VIEWPORT`（1280×800）：理由与迁移轮的起点口径见该常量的注释。
-     * 窗格真实的 `clientWidth/clientHeight` 会随结果一起登记（不假定它等于 1280×640）。
+     * 窗格真实的 `clientWidth/clientHeight` 会随结果一起登记（不假定它等于 `BASE_VIEWPORT`）。
      */
     await cdp.call('Emulation.setDeviceMetricsOverride', {
       ...BASE_VIEWPORT,
@@ -1454,10 +1445,11 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         DPR: 1,
         视口: '1280×800',
         样本: 'cyclic-dependency.xlsx（三列 / 6 行 / t5→t6 成环）',
+        ...hookVersionEnv(),
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       const evidencePath = join(evidenceDir, `import-cyclic-sample-chrome${major}.md`);
-      writeFileSync(evidencePath, renderImportEvidence({ env, result }), 'utf8');
+      writeFileSync(evidencePath, withRawLink(renderImportEvidence({ env, result }), 'import-cyclic-sample-raw.json'), 'utf8');
       writeFileSync(
         join(evidenceDir, 'import-cyclic-sample-raw.json'),
         `${JSON.stringify({ env, result }, null, 2)}\n`,
@@ -1578,11 +1570,12 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         迁移: options.alignResize === null
           ? '未做（--align-resize=off）'
           : `${String(BASE_VIEWPORT.width)}×${String(BASE_VIEWPORT.height)} → ${String(options.alignResize.width)}×${String(options.alignResize.height)}（不重设滚动）`,
+        ...hookVersionEnv(),
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       const suffix = options.alignLabel === '' ? '' : `-${options.alignLabel}`;
       const alignPath = join(evidenceDir, `chart-align${suffix}-chrome${major}.md`);
-      writeFileSync(alignPath, renderAlignEvidence({ env, runs, migration, options }), 'utf8');
+      writeFileSync(alignPath, withRawLink(renderAlignEvidence({ env, runs, migration, options }), `chart-align${suffix}-raw.json`), 'utf8');
       writeFileSync(
         join(evidenceDir, `chart-align${suffix}-raw.json`),
         `${JSON.stringify({ env, runs, migration }, null, 2)}\n`,
@@ -1595,22 +1588,54 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
       return;
     }
 
+    // ---------------------------------------------------------------- 两级刻度与悬停行带（记录制）
+    if (options.axisHover) {
+      const runs = [];
+      for (const zoom of options.zooms) {
+        // **左表必须在场**：悬停读数要读"左表那一行的底色"（`?table=0` 会让它恒为空串）。
+        const url = `${origin}/?measure=1&table=1&dataset=${PRIMARY_DATASET}&zoom=${String(zoom)}`;
+        await openMeasuredPage(cdp, url, { hook: '__GANTTPILOT_MEASURE_AXIS_HOVER__', label: '两级刻度与悬停读数钩子' });
+        const result = await cdp.evaluate(
+          `window.__GANTTPILOT_MEASURE_AXIS_HOVER__({ zoom: ${JSON.stringify(zoom)} })`,
+        );
+        runs.push({ dataset: PRIMARY_DATASET, zoom, result });
+        const verdict = judgeAxisHoverSnapshot({ result });
+        console.log(
+          `[axis-hover] ${String(zoom)}：上级 ${String(result?.axis?.majorY ?? '?')} / 下级 ${String(result?.axis?.minorY ?? '?')}、` +
+            `行带 ${String(result?.hover?.idle?.svgHoverRows ?? '?')} → ${String(result?.hover?.onRow?.svgHoverRows ?? '?')}、` +
+            `前提自证 ${verdict.problems.length === 0 ? '✅' : `❌ ${verdict.problems.join('；')}`}`,
+        );
+      }
+      const env = {
+        采集时刻: new Date().toISOString(),
+        机器: process.env.COMPUTERNAME ?? 'local',
+        系统: `${process.platform} ${process.arch}`,
+        Node: process.version,
+        Chrome: chromeVersion,
+        'Chrome 模式': '--headless=new',
+        DPR: 1,
+        基视口: `${String(BASE_VIEWPORT.width)}×${String(BASE_VIEWPORT.height)}（Emulation.setDeviceMetricsOverride）`,
+        数据集: PRIMARY_DATASET,
+        左表: '在场（不带 ?table=0）——悬停读数要读左表那一行的底色',
+        档位: options.zooms.join(' / '),
+        ...hookVersionEnv(),
+      };
+      const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
+      const evidencePath = join(evidenceDir, `chart-axis-hover-chrome${major}.md`);
+      writeFileSync(evidencePath, withRawLink(renderAxisHoverEvidence({ env, runs }), 'chart-axis-hover-raw.json'), 'utf8');
+      writeFileSync(
+        join(evidenceDir, 'chart-axis-hover-raw.json'),
+        `${JSON.stringify({ env, runs }, null, 2)}\n`,
+        'utf8',
+      );
+      if (runs.some((run) => judgeAxisHoverSnapshot(run).problems.length > 0)) process.exitCode = 1;
+      console.log(`[measure] 刻度与悬停证据已写入 ${evidencePath}`);
+      return;
+    }
+
     // 预热一次导航（模块加载与首次布局的冷启动不进数字）。
-    await cdp.navigate(`${origin}/?measure=1`);
+    await openMeasuredPage(cdp, `${origin}/?measure=1`, { hook: '__GANTTPILOT_MEASURE__' });
     await new Promise((settle) => setTimeout(settle, 600));
-    // 先读"应用级错误"抓手，再判断就绪——否则 `evaluate` 自身抛错会把抓手埋掉。
-    let captured = '';
-    try {
-      captured = String(await cdp.evaluate('window.__GANTTPILOT_ERROR__ ?? ""'));
-    } catch (error) {
-      captured = `(读取抓手失败：${error instanceof Error ? error.message : String(error)})`;
-    }
-    const ready = await cdp.evaluate(
-      'Boolean(window.__GANTTPILOT_READY__) && typeof window.__GANTTPILOT_MEASURE__ === "function"',
-    );
-    if (ready !== true) {
-      throw new Error(`测量钩子未就绪。应用级错误抓手：${captured === '' ? '(空)' : captured}`);
-    }
 
     const plans = [];
     for (const zoom of options.zooms) plans.push({ dataset: PRIMARY_DATASET, zoom });
@@ -1630,6 +1655,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         数据集: options.storageMetrics ? STORAGE_DATASET : PERSIST_DATASET,
         拖动天数: options.dayDelta,
         测试帧数: options.dragFrames,
+        ...hookVersionEnv(),
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
 
@@ -1656,7 +1682,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         // （实测：0.15 KB 的单条记录却配着 490 KB 的「用量」）。
         await persistClear(cdp);
         const evidencePath = join(evidenceDir, `persist-storage-2000-chrome${major}.md`);
-        writeFileSync(evidencePath, renderStorageMetricsEvidence({ env: envBase, run }), 'utf8');
+        writeFileSync(evidencePath, withRawLink(renderStorageMetricsEvidence({ env: envBase, run }), 'persist-storage-2000-raw.json'), 'utf8');
         writeFileSync(
           join(evidenceDir, 'persist-storage-2000-raw.json'),
           `${JSON.stringify({ env: envBase, run }, null, 2)}\n`,
@@ -1688,7 +1714,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         );
       }
       const evidencePath = join(evidenceDir, `persist-drag-timing-chrome${major}.md`);
-      writeFileSync(evidencePath, renderPersistDragEvidence({ env: envBase, runs }), 'utf8');
+      writeFileSync(evidencePath, withRawLink(renderPersistDragEvidence({ env: envBase, runs }), 'persist-drag-timing-raw.json'), 'utf8');
       writeFileSync(
         join(evidenceDir, 'persist-drag-timing-raw.json'),
         `${JSON.stringify({ env: envBase, runs }, null, 2)}\n`,
@@ -1803,6 +1829,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
         数据集: options.dragDataset,
         拖动天数: options.dayDelta,
         测试帧数: options.dragFrames,
+        ...hookVersionEnv(),
       };
       const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
       // 非主口径的数据集**不覆盖**主口径快照（同一次采集可以留多份规模对照；与 `--align=<label>` 同精神）。
@@ -1810,7 +1837,7 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
       const dragEvidencePath = join(evidenceDir, `drag-timing${dragSuffix}-chrome${major}.md`);
       writeFileSync(
         dragEvidencePath,
-        renderDragEvidence({ env, result: dragResult, resize: resizeResult, options }),
+        withRawLink(renderDragEvidence({ env, result: dragResult, resize: resizeResult, options }), `drag-timing${dragSuffix}-raw.json`),
         'utf8',
       );
       writeFileSync(
@@ -1874,16 +1901,17 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
       Chrome: chromeVersion,
       'Chrome 模式': '--headless=new',
       DPR: 1,
-      视口: '1280×640',
+      视口: `${String(BASE_VIEWPORT.width)}×${String(BASE_VIEWPORT.height)}`,
       档位: options.zooms.join(' / '),
       数据集: plans.map((plan) => plan.dataset).join(' / '),
       轮数: options.rounds,
       滚动步数: options.scrollSteps,
+        ...hookVersionEnv(),
     };
 
     const major = /Chrome\/(\d+)/.exec(chromeVersion)?.[1] ?? 'unknown';
     const evidencePath = join(evidenceDir, `render-timing-chrome${major}.md`);
-    writeFileSync(evidencePath, renderEvidence({ env, runs, options }), 'utf8');
+    writeFileSync(evidencePath, withRawLink(renderEvidence({ env, runs, options }), 'render-timing-raw.json'), 'utf8');
     writeFileSync(join(evidenceDir, 'render-timing-raw.json'), `${JSON.stringify({ env, runs }, null, 2)}\n`, 'utf8');
     console.log(`[measure] 证据已写入 ${evidencePath}`);
 
@@ -1893,13 +1921,17 @@ async function main() {  const options = parseArgs(process.argv.slice(2));
       process.exitCode = 1;
     }
   } finally {
-    cdp.close();
+    cdp?.close();
     // 收尾：协议级 `Browser.close` 优先，超时才按 PID 树；两条路都先过 profile 闸
     // （不杀进程、不按名字匹配——见 `scripts/chrome-harness.mjs`）。
-    const outcome = await closeOwnChrome({ profileDir, pid: child.pid, lookup: psCommandLine });
+    // **不删 profile 目录**：`tmp/` 的清理策略属 C7，本批保持原行为。
+    const outcome = await closeChromeSession({
+      profileDir: chrome?.profileDir ?? null,
+      pid: chrome?.child.pid,
+    });
     if (outcome.closedBy === 'pid-tree') console.error('[measure] 协议级关闭未生效，已按 PID 树兜底');
     if (outcome.note !== '') console.error(`[measure] 收尾说明：${outcome.note}`);
-    server.close();
+    closeServer();
   }
 }
 

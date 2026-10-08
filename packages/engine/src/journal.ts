@@ -43,15 +43,7 @@ import type {
   ProjectDocument,
   ProjectMeta,
 } from './schema.js';
-
-/** 读一个"普通 JSON 对象"的判定（`Date`/`Map`/类实例一律不算——它们无法被 JSON 无损表达）。 */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return false;
-  }
-  const prototype: unknown = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
+import { isPlainObject } from './wbs.js';
 
 function describeType(value: unknown): string {
   if (value === null) {

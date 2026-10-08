@@ -4,9 +4,19 @@
 > 门禁侧的两条判据是 `scripts/bundle-offline.mjs`（形状）与 `pnpm smoke:build --file`（三链路）。
 > 口径与四个问题见 [P-49 §3](../../../docs/00-baseline/裁决R47.md)。
 
-- 产物：`apps/web/dist-offline/index.html`，**1591.7 KB**（1629941 字节）
-- 首屏（导航 → `__GANTTPILOT_READY__`）：**133 ms**（FCP n/a ms、DOMContentLoaded 109 ms）
-- 打开方式：`file:///D:/workspace/GanttPilot/apps/web/dist-offline/index.html?measure=1`
+- 产物：`apps/web/dist-offline/index.html`，**1594.5 KB**（1632805 字节）
+- 首屏（导航 → `__GANTTPILOT_READY__`）：**139 ms**（FCP n/a ms、DOMContentLoaded 98 ms）
+- 打开方式：`file:///<仓库根>/apps/web/dist-offline/index.html?measure=1`（`<仓库根>` = 本机克隆目录；产物由 `pnpm bundle:offline` 再生）
+
+## 环境（与数字一起登记）
+
+| 项 | 值 |
+|---|---|
+| 浏览器 | Chrome 154（`--headless=new`，见 `scripts/cdp.mjs`） |
+| 视口 | **1584×805 CSS px**（页面实测；启动窗口 1600×900） |
+| DPR | **1** |
+| 打开方式 | 见上（`file://` 单文件，带 `?measure=1`） |
+| 口径 | 首屏 = 导航 → `__GANTTPILOT_READY__`；体积 = 单文件字节数；三链路 = 导入 / 拖动 / 导出；**只登记、不设门禁**（P-49 §3 问题③） |
 
 ## ① `file://` 下的 IndexedDB
 
@@ -26,12 +36,12 @@
 
 ## ③ 体积与首屏
 
-**1591.7 KB / 首屏 133 ms** —— 只登记、不设门禁（P-49 §3 问题③：超标不阻塞发布，但必须如实登记）。
+**1594.5 KB / 首屏 139 ms** —— 只登记、不设门禁（P-49 §3 问题③：超标不阻塞发布，但必须如实登记）。
 代价如实接受：体积从在线产物的约 190 KB（gzip 67 KB）涨到约 1.4 MB，因为 `exceljs` 与 `pptxgenjs` 必须内联。
 
 ## ④ 断网（`Network.emulateNetworkConditions` offline）下的三链路
 
-- 断网后**重新导航**：✅ 页面完整（读数 6353 ms）
+- 断网后**重新导航**：✅ 页面完整（读数 6401 ms）
 - 导入 / 拖动 / 导出：`ok: 任务 15 / 依赖 14` / `ok: t2 开始 2026-10-05 → 2026-12-14` / `ok: gantt-day.svg`
 
 **三条主链路在断网下全部可用** —— 这一条的强度在于"**全部资源已在同一个文件里**"：

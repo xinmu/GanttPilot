@@ -19,8 +19,17 @@
 
 import type { DocumentTask } from '@ganttpilot/engine';
 
-/** 每级缩进（px）。 */
-export const EXPORT_LABEL_INDENT_PX = 12;
+import { EXPORT_LABEL_WIDTH_PX } from './exportView.js';
+import { INDENT_PX_PER_LEVEL, LABEL_CHAR_PX } from './manifest.js';
+
+/**
+ * 每级缩进（px）。
+ *
+ * **值只在 `manifest.ts` 声明一处**（`INDENT_PX_PER_LEVEL`，P3/C6-e）：左表的名称列与
+ * 两个导出投影用的是同一个"一级 12 px"；本名保留是因为它是**导出侧**的公开名
+ * （`docs/02-adr/附录/0010-增补.md` 按此名记述）。
+ */
+export const EXPORT_LABEL_INDENT_PX = INDENT_PX_PER_LEVEL;
 
 /** 最多缩进到第几级（更深的层级不再叠加缩进，避免窄列被吃光）。 */
 export const EXPORT_LABEL_MAX_DEPTH = 3;
@@ -68,4 +77,38 @@ export function exportLabelTextOf(args: ExportLabelTextArgs): string {
   const usable = Math.max(args.charPx * 3, args.availablePx - EXPORT_LABEL_PADDING_PX - style.indentPx);
   const maxChars = Math.max(3, Math.floor(usable / args.charPx));
   return full.length <= maxChars ? full : `${full.slice(0, Math.max(2, maxChars - 1))}…`;
+}
+
+/** {@link exportLabelOf} 的入参。 */
+export interface ExportLabelOfArgs {
+  readonly task: DocumentTask | undefined;
+  /** 回落到任务 id（任务不存在时用）。 */
+  readonly fallback: string;
+}
+
+/** 标签的**完整口径**（文本 + 缩进 + 加粗）——两个导出投影的共同入口。 */
+export interface ExportLabel {
+  readonly text: string;
+  readonly indentPx: number;
+  readonly bold: boolean;
+}
+
+/**
+ * 标签的**唯一构造点**（P3/C3 前 SVG 与 PPTX 各写了一份同义函数）。
+ *
+ * 宽度与单字宽取自本包的 `EXPORT_LABEL_WIDTH_PX` / `LABEL_CHAR_PX`——两个投影都不许自己再定一套，
+ * 否则"同一份演示计划在两个产物里标签不同"这类缺陷会重新出现。
+ */
+export function exportLabelOf(args: ExportLabelOfArgs): ExportLabel {
+  const style = exportLabelStyleOf(args.task);
+  return {
+    text: exportLabelTextOf({
+      task: args.task,
+      fallback: args.fallback,
+      availablePx: EXPORT_LABEL_WIDTH_PX,
+      charPx: LABEL_CHAR_PX,
+    }),
+    indentPx: style.indentPx,
+    bold: style.bold,
+  };
 }

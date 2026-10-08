@@ -61,17 +61,6 @@ export function rowWindow(args: {
   return { rowCount, firstVisible, visibleLast, renderFirst, renderLast };
 }
 
-/** 文档序索引 → 该行是否落在**渲染**窗口内。 */
-export function isRenderedRow(
-  rowOfDocIndex: Int32Array,
-  renderFirst: number,
-  renderLast: number,
-  docIndex: number,
-): boolean {
-  const row = rowOfDocIndex[docIndex];
-  return row !== undefined && row >= renderFirst && row <= renderLast;
-}
-
 /** {@link selectEdges} 的产出。 */
 export interface EdgeSelection {
   /** 要画的边（`document.links` 的下标）。 */
@@ -172,8 +161,10 @@ export function selectEdges(args: {
  *   各发一对 `gridline` + `label`；
  * - **上级**（`level: 1`）：按**分段带**表达——**段内只在左端**发一次文本（`label`）、
  *   一条自带左竖线的 `major-band`。日/周档上级标签取 `YYYY-MM`、月档取 `YYYY`。
- *   **段与下级刻度同 x 时不再重复发 `gridline`**（一次绘制画两条线没有意义，且会让
- *   `c₃` 与 DOM 两路计数对不上）。
+ *   **该 `x` 处至多一条 `gridline`**：下级刻度已经发过就**不再重复发**（一次绘制画两条线没有意义，
+ *   且会让 `c₃` 与 DOM 两路计数对不上）；没发过（周档的月初往往不是周一、下级只在周一发线）
+ *   则由**上级这一层补发**——所以"每一条 `major-band` 的左边界都有一条 `gridline`"与
+ *   "同 `x` 只有一条"是**同一条判据的两半**（`clipping.spec.ts` 两条都断言）。
  *
  * 两级元素**共用同一处水平窗口裁剪**（§11.1 ③）——这是"`c₃` 仍与文档总规模无关"的前提。
  *
@@ -245,7 +236,9 @@ function tickLabelOf(calendar: AxisCalendarLike, day: number, zoom: ZoomKey): st
  * - 只发射落在视口 x 范围内的元素（色带的判据 `x + width >= 0 && x <= width`，
  *   刻度与标签的判据 `x >= -1 && x <= width + 1`）。
  *
- * **顺序即绘制顺序**（消费方按序发射）：下级色带 → 下级网格线 → 下级标签 → 上级分段带 → 上级标签；
+ * **数组顺序只是构造顺序，不是绘制顺序**：本函数的发射次序是"下级色带 → 下级网格线 → 下级标签 →
+ * 上级分段带 → 上级标签"，而**绘制顺序由消费方按层决定**（屏幕/导出 SVG 与 PPTX 都是
+ * 「上级正文 → 周末色带 → 上级边界/表头底 → 下级短刻度 → 标签」，见 `SPEC.md` §三 的表与 `svgExport.ts` 的轴注释）；
  * `hoverRow` 给定时**最后**追加一个 `hover-band`（覆盖层，画在各层之下还是要由消费方定序，
  * 本函数只负责"它在轴元素里、计数为 1"）。
  */

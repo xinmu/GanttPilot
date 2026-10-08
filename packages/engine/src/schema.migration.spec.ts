@@ -133,6 +133,27 @@ describe('G1.2 迁移：v1 → v2 → v3', () => {
     ).toContain('TREE_OUTLINE_STALE');
   });
 
+  /**
+   * **脏数据的编号口径是刻意的**（P3/C4-b 的收敛边界）。
+   *
+   * `migration.ts` 的编号遍历与 `wbs.computeOutlineNumbersByScan` 骨架相同，但**不做父子规范化**：
+   * 父 id 不存在的任务在迁移里"不可达"，于是退回**位置编号**（`index + 1`），
+   * 随后由 `validateDocument` 报 `TREE_*`。活文档那条路（wbs）则把未知父规范化成根。
+   * 两条口径的差异**只对脏旧文档可见**；本用例把它钉住，免得后来者"顺手合并"两者。
+   */
+  it('脏数据（父 id 不存在）在迁移里退回位置编号，交给校验报错——不与 wbs 的活文档口径合并', () => {
+    const input = v2Document() as { tasks: Record<string, unknown>[] };
+    input.tasks[1] = { ...input.tasks[1], parentId: 'ghost' };
+    const migrated = migrateDocument(input) as { tasks: Record<string, unknown>[] };
+    // 位置编号：第二行 = '2'（不是按父 'ghost' 推出来的 '1.1'）
+    expect(migrated.tasks[1]?.['outlineNumber']).toBe('2');
+    expect(
+      validateDocument(migrated)
+        .filter((entry) => entry.severity === 'error')
+        .map((entry) => entry.code),
+    ).toContain('TREE_PARENT_MISSING');
+  });
+
   it('parseDocument 能直接吃 v1 的 JSON 文本（G3 导入的最小可用面）', () => {
     const parsed: ProjectDocument = parseDocument(JSON.stringify(v1Document()));
     expect(parsed.version).toBe(CURRENT_DOCUMENT_VERSION);

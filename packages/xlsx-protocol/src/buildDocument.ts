@@ -16,10 +16,10 @@ import {
   type ProjectDocument,
 } from '@ganttpilot/engine';
 
-import { COLUMN_SPECS, columnSpecOfHeader, type ColumnKey } from './columns.js';
+import { COLUMN_SPECS, type ColumnKey } from './columns.js';
 import { parseDependencyToken, resolveEdges, splitDependencyCell, type CandidateEdge } from './dependencies.js';
-import { columnLetter, DiagnosticBag } from './diagnostics.js';
-import { outlineDepthOf, resolveHierarchy, validateOutlineNumber, type HierarchyRowInput } from './hierarchy.js';
+import { columnLetter, DiagnosticBag, type ReadonlyDiagnosticBag } from './diagnostics.js';
+import { resolveHierarchy, validateOutlineNumber, type HierarchyRowInput } from './hierarchy.js';
 import { isEmptyCell, type SheetView } from './sheet.js';
 import {
   isBlank,
@@ -56,10 +56,10 @@ export interface ImportOptions {
 /** 键 → 1 基列号。 */
 export type ColumnMapping = Readonly<Partial<Record<ColumnKey, number>>>;
 
-/** 行解析结论。 */
+/** 行解析结论（诊断是**只读视图**：解析定稿后不得再被调用方追加，P3/C2）。 */
 export interface RowParseResult {
   readonly document: ProjectDocument | null;
-  readonly diagnostics: DiagnosticBag;
+  readonly diagnostics: ReadonlyDiagnosticBag;
 }
 
 function headerTextOf(key: ColumnKey): string {
@@ -456,21 +456,4 @@ export function applyColumnOverrides(
     }
   }
   return mapping;
-}
-
-/** 供 CSV 路径复用：表头文本数组 → 键/列号映射。 */
-export function mappingFromHeaderTexts(headers: readonly string[]): ColumnMapping {
-  const mapping: Partial<Record<ColumnKey, number>> = {};
-  headers.forEach((header, index) => {
-    const spec = columnSpecOfHeader(header);
-    if (spec !== undefined && mapping[spec.key] === undefined) {
-      mapping[spec.key] = index + 1;
-    }
-  });
-  return mapping;
-}
-
-/** 供测试断言：编号文本的深度（段数 - 1）。 */
-export function outlineDepthOfRow(wbsText: string): number {
-  return outlineDepthOf(wbsText);
 }

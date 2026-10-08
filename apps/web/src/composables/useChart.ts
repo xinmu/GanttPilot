@@ -34,7 +34,6 @@ import {
   HEADER_HEIGHT_PX,
   ROW_BUFFER,
   ROW_HEIGHT,
-  zoomPxPerDay,
   type ProjectDocument,
   type Schedule,
   type ViewModel,
@@ -197,9 +196,4 @@ export function useChart(args: {
     handleScroll,
     markEdited,
   };
-}
-
-/** 档位对应的 `pxPerDay`（界面显示与调试用）。 */
-export function pxPerDayOf(zoom: ZoomKey): number {
-  return zoomPxPerDay(zoom);
 }

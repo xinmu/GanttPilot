@@ -29,7 +29,7 @@ import {
   type RetentionPolicy,
   type StoredSession,
   type StoredSnapshot,
-} from './persistence.js';
+} from './persistence/index.js';
 import { applyToSession, createSession, type DocumentSession } from './session.js';
 import { redoSession, undoSession } from './session.js';
 import type { ProjectDocument } from './schema.js';
@@ -562,6 +562,10 @@ describe('G6 恢复优先级：L3 → 检查点 → 无（坏候选只跳过）'
     const checkpointAt = prefix(8);
     const store = createMemorySnapshotStore();
     const saved = await store.saveCheckpoint({
+      // `id` 由**存储实现**分配（内存适配器自增、IndexedDB 用 `autoIncrement`）⇒ 调用方给的
+      // 值没有意义。类型今天仍要求它（`saveCheckpoint(snapshot: StoredSnapshot)`），
+      // 这处张力已登记为 `N18`（P3/C7-b 实测：`apps/web` 那边给的是占位 `id: 0`）。
+      id: 1,
       docId: DOC_ID,
       rev: checkpointAt.revision,
       undoDepth: checkpointAt.undoStack.length,
@@ -782,20 +786,20 @@ describe('G6 触发状态机（假时钟）', () => {
 
 describe('G6 检查点保留：确定性裁剪', () => {
   const refs = [
-    { id: 1, docId: DOC_ID, rev: 1, createdAtMs: 100, document: commandBaseDocument() },
-    { id: 2, docId: DOC_ID, rev: 2, createdAtMs: 200, document: commandBaseDocument() },
-    { id: 3, docId: DOC_ID, rev: 3, createdAtMs: 300, document: commandBaseDocument() },
+    { id: 1, docId: DOC_ID, rev: 1, undoDepth: 1, createdAtMs: 100, document: commandBaseDocument() },
+    { id: 2, docId: DOC_ID, rev: 2, undoDepth: 2, createdAtMs: 200, document: commandBaseDocument() },
+    { id: 3, docId: DOC_ID, rev: 3, undoDepth: 3, createdAtMs: 300, document: commandBaseDocument() },
   ];
 
   it('`keep = 3` 下新增第 4 份 ⇒ 删掉最旧那份', () => {
-    const incoming = { id: 4, docId: DOC_ID, rev: 4, createdAtMs: 400, document: commandBaseDocument() };
+    const incoming = { id: 4, docId: DOC_ID, rev: 4, undoDepth: 4, createdAtMs: 400, document: commandBaseDocument() };
     const plan = planCheckpoint(refs, 3, incoming);
     expect(plan.keep.map((item) => item.id)).toStrictEqual([4, 3, 2]);
     expect(plan.remove.map((item) => item.id)).toStrictEqual([1]);
   });
 
   it('与插入顺序无关（同一集合、不同排列 ⇒ 同一个计划）', () => {
-    const incoming = { id: 4, docId: DOC_ID, rev: 4, createdAtMs: 400, document: commandBaseDocument() };
+    const incoming = { id: 4, docId: DOC_ID, rev: 4, undoDepth: 4, createdAtMs: 400, document: commandBaseDocument() };
     const forward = planCheckpoint(refs, 3, incoming);
     const reversed = planCheckpoint([...refs].reverse(), 3, incoming);
     expect(reversed.keep).toStrictEqual(forward.keep);
@@ -812,8 +816,8 @@ describe('G6 检查点保留：确定性裁剪', () => {
     expect(planCheckpoint(refs, 0).keep).toStrictEqual([]);
     expect(planCheckpoint(refs, 0).remove).toHaveLength(3);
     const sameMs = [
-      { id: 10, docId: DOC_ID, rev: 1, createdAtMs: 500, document: commandBaseDocument() },
-      { id: 11, docId: DOC_ID, rev: 2, createdAtMs: 500, document: commandBaseDocument() },
+      { id: 10, docId: DOC_ID, rev: 1, undoDepth: 1, createdAtMs: 500, document: commandBaseDocument() },
+      { id: 11, docId: DOC_ID, rev: 2, undoDepth: 2, createdAtMs: 500, document: commandBaseDocument() },
     ];
     const plan = planCheckpoint(sameMs, 1);
     expect(plan.keep.map((item) => item.id)).toStrictEqual([11]);
@@ -950,6 +954,7 @@ describe('G6 存储适配器（内存实现 = 浏览器降级路径）', () => {
       recordVersion: PERSIST_RECORD_VERSION,
       docId: DOC_ID,
       rev: 3,
+      undoDepth: session.undoStack.length,
       base: snapshotOf(session, 0, 3, 1),
       post: [],
       redo: [],

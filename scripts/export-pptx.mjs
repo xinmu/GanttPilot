@@ -33,9 +33,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import { pathToFileURL } from 'node:url';
+import { repoRoot } from './paths.mjs';
 
 /** 支持的缩放档（与 `ZoomKey` 同口径；写死成白名单是为了让 `--zoom` 打错时立刻失败）。 */
 const ZOOMS = ['day', 'week', 'month'];

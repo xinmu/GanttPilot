@@ -15,12 +15,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { countElements } from './count.js';
-import { DATASETS, SCALE_GRADIENT_LINK_RATIO, SCALE_GRADIENT_TASKS, scaleGradient } from './fixtures.js';
+import { SCALE_GRADIENT_LINK_RATIO, SCALE_GRADIENT_TASKS, scaleGradient } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 import { THRESHOLDS, VIEWPORT_DEFAULT, ZOOM_ORDER } from './manifest.js';
 import { buildView } from './viewModel.js';
 
 const viewport = { ...VIEWPORT_DEFAULT, scrollTop: 0, scrollLeft: 0 };
-const gradient = scaleGradient(DATASETS[2], SCALE_GRADIENT_TASKS, SCALE_GRADIENT_LINK_RATIO);
+const gradient = scaleGradient(datasetOf('dense'), SCALE_GRADIENT_TASKS, SCALE_GRADIENT_LINK_RATIO);
 
 describe('规模解耦（S4-a：元素预算与文档总规模无关）', () => {
   it('规模梯度是 200 / 500 / 1000 / 2000 任务，依赖数 = 1.5 × 任务数', () => {
@@ -62,7 +63,7 @@ describe('规模解耦（S4-a：元素预算与文档总规模无关）', () => 
     /**
      * 锚值：G4-S 的原始锚是 **350 / 317 / 329 / 335**（比值 1.1041×）。
      * 批次 B（ADR 0008 §16.4／裁决 P-32）给**每渲染行**加了端点手柄与连接点
-     * （`ELEMENT_MODEL_G5.perRenderedRow = 6`），而渲染行数在 10× 规模跨度下**恒为 32**
+     * （`ELEMENT_MODEL_G5.perRenderedRow`，声明处见 `manifest.ts`），而渲染行数在 10× 规模跨度下**恒为 32**
      * ——因此四个锚值各自**平移同一个常数**，比值与"与规模解耦"的结论都不变。
      * 新锚值 = 旧锚值 + `perRenderedRow × 32` 的**实际发射量**（不是 6×32：每行的实际图元数按发射规则略有差异）。
      *

@@ -7,7 +7,8 @@
  * - 归一化一次，`values.ts` / `hierarchy.ts` / `dependencies.ts` 与 CSV 路径才能共用同一套容差。
  */
 
-/** 归一化后的单元格值。 */export type SheetCellValue =
+/** 归一化后的单元格值。 */
+export type SheetCellValue =
   | { readonly kind: 'empty' }
   | { readonly kind: 'text'; readonly text: string }
   | { readonly kind: 'number'; readonly number: number }
@@ -43,8 +44,37 @@ export interface SheetView {
   row(row: number): readonly SheetCell[] | undefined;
 }
 
-/** 空单元格单例（省分配）。 */
-export const EMPTY_CELL: SheetCell = { value: { kind: 'empty' }, dateFormatted: false, indent: 0 };
+/** "行号 → 列号 → 单元格"的稀疏桶（`xlsx.ts` 与 `csv.ts` 填完它再交给 `sheetViewOf`）。 */
+export type SheetCellBuckets = ReadonlyMap<number, ReadonlyMap<number, SheetCell>>;
+
+/**
+ * 由桶构造 `SheetView`（**唯一构造点**；P3/C2 前 `xlsx.ts` 与 `csv.ts` 各写了一份）。
+ *
+ * `row()` 按列号升序返回该行**已存在**的单元格（缺列不补空位）——两条读取路径共用同一口径。
+ */
+export function sheetViewOf(options: {
+  readonly sheetName: string;
+  readonly sheetNames: readonly string[];
+  readonly maxRow: number;
+  readonly maxColumn: number;
+  readonly cells: SheetCellBuckets;
+}): SheetView {
+  const { cells } = options;
+  return {
+    sheetName: options.sheetName,
+    sheetNames: options.sheetNames,
+    maxRow: options.maxRow,
+    maxColumn: options.maxColumn,
+    cell: (row, column) => cells.get(row)?.get(column),
+    row: (row) => {
+      const bucket = cells.get(row);
+      if (bucket === undefined) {
+        return undefined;
+      }
+      return [...bucket.entries()].sort((a, b) => a[0] - b[0]).map(([, cell]) => cell);
+    },
+  };
+}
 
 /** 该格在文档语义上是否是"缺失"（空 / 公式无缓存值 / 空串 / 纯空白）。 */
 export function isEmptyCell(cell: SheetCell | undefined): boolean {
@@ -60,11 +90,6 @@ export function isEmptyCell(cell: SheetCell | undefined): boolean {
     default:
       return false;
   }
-}
-
-/** 公式无缓存值的标记（供诊断层识别，避免把"文件里本来就空着"与"公式没算出值"混为一谈）。 */
-export function isMissingFormula(cell: SheetCell | undefined): boolean {
-  return cell?.value.kind === 'missingFormula';
 }
 
 // ---------------------------------------------------------------- 日期格式判定

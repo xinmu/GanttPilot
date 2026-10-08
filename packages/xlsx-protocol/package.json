@@ -1,6 +1,6 @@
 {
   "name": "@ganttpilot/xlsx-protocol",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "description": "xlsx 导入/导出协议：缩进与 WBS 双解析、依赖列语法、规范化导出（零 DOM / 零框架依赖）",
   "license": "MIT",
   "type": "module",

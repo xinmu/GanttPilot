@@ -15,9 +15,10 @@ import { describe, expect, it } from 'vitest';
 import type { ProjectDocument } from '@ganttpilot/engine';
 
 import { affectedRenderSet } from './affected.js';
-import { buildFixture, DATASETS } from './fixtures.js';
+import { buildFixture } from './fixtures.js';
+import { datasetOf } from '../test/fixtures.testkit.js';
 
-const fixture = buildFixture(DATASETS[2]);
+const fixture = buildFixture(datasetOf('dense'));
 
 function taskOf(document: ProjectDocument, id: string): number {
   return document.tasks.findIndex((task) => task.id === id);

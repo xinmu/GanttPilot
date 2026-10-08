@@ -15,7 +15,7 @@ import { compute, createScheduleCalendar, hasDocumentErrors, validateDocument, t
 import { exportXlsx, NUM_FMT_DATE, NUM_FMT_PROGRESS } from './export.js';
 import { importXlsx } from './import.js';
 import { COLUMN_SPECS, HEADER_ROW, SHEET_NAME } from './columns.js';
-import { fixtureDocument, fixtureDocumentNoProjectFields, fileHash, partFingerprint, readZip } from './fixtures.spec.js';
+import { fixtureDocument, fixtureDocumentNoProjectFields, fileHash, partFingerprint, zipFileEntries } from './fixtures.spec.js';
 
 /** `Schedule` 的可比较投影（诊断顺序不在契约里 → 排序）。 */
 function scheduleProjection(document: Parameters<typeof compute>[0]): unknown {
@@ -156,7 +156,10 @@ describe('G3 导出物形态（白名单内的呈现属性，每类一条结构�
     expect(workbook.worksheets.map((sheet) => sheet.name)).toStrictEqual([SHEET_NAME]);
     const sheet = workbook.getWorksheet(SHEET_NAME);
     expect(sheet).toBeDefined();
-    const headerValues = COLUMN_SPECS.map((spec, index) => sheet?.getRow(HEADER_ROW).getCell(index + 1).value);
+    // 这条断言只用**下标**（第 index+1 列），元素本身在下面那条 `map(spec => spec.header)` 里才用到
+    // ⇒ 用 `map` 而不是 `forEach`：后者为了拿到下标必须写一个从不使用的 `spec` 形参
+    // （`noUnusedLocals` 会为此报 TS6133）。
+    const headerValues = COLUMN_SPECS.map((_, index) => sheet?.getRow(HEADER_ROW).getCell(index + 1).value);
     expect(headerValues).toStrictEqual(COLUMN_SPECS.map((spec) => spec.header));
   });
 
@@ -193,9 +196,20 @@ describe('G3 导出物形态（白名单内的呈现属性，每类一条结构�
 
   it('白名单属性④冻结首行：`ySplit = 1` 且状态为 frozen', async () => {
     const workbook = await exportFixture();
+    // `exceljs` 的 `views` 是 `Array<Partial<WorksheetView>>`，而 `WorksheetView` 是
+    // `WorksheetViewCommon & (Normal | Frozen | Split)` 的**联合**：`Partial<...>` 分发到联合上
+    // 之后，逐成员的键只剩三支的交集，于是 `ySplit`（只在 `Frozen` / `Split` 上声明）在
+    // `Partial<WorksheetView>` 上**看不见**。这不是"选项不存在"：`export.ts` 写出的
+    // `<pane ySplit="1" state="frozen"/>` 实测会被 `xlsx.load` 读回 `views[0].ySplit === 1`
+    // （探针跑过），所以这条断言有判别力、也可能失败。修法是用 `exceljs` 自己的**判别式**
+    // `state` 收窄到 `WorksheetViewFrozen`——`ySplit` 仍是 `number | undefined`，判据一点没放宽。
     const views = workbook.getWorksheet(SHEET_NAME)?.views ?? [];
-    expect(views[0]?.state).toBe('frozen');
-    expect(views[0]?.ySplit).toBe(HEADER_ROW);
+    const first = views[0];
+    expect(first?.state).toBe('frozen');
+    if (first?.state !== 'frozen') {
+      return;
+    }
+    expect(first.ySplit).toBe(HEADER_ROW);
   });
 
   it('依赖列的规范语法：`编号[类型][±lag]`、分号分隔、省略默认', async () => {
@@ -261,8 +275,7 @@ describe('G3 导出确定性：判据取部件指纹，不得用整文件哈希'
     if (!exported.ok) {
       return;
     }
-    const zip = await readZip(exported.bytes);
-    const names = Object.keys(zip.files).filter((name) => zip.files[name]?.dir === false);
+    const names = (await zipFileEntries(exported.bytes)).map((item) => item.name);
     expect(names).toContain('xl/workbook.xml');
     expect(names).toContain('xl/worksheets/sheet1.xml');
     expect(names).toContain('xl/sharedStrings.xml');

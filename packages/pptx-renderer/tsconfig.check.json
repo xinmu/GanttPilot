@@ -1,8 +1,26 @@
 {
-  "extends": "./tsconfig.json",
+  // 与 `packages/render-core/tsconfig.check.json` **同形**（只有包名不同；连 `allowJs` 也保留，
+  // 免得两份"看起来同形"的配置在某个选项上悄悄分叉）。
+  //
+  // **P3/C7-c（`N12`）**：`include` 覆盖 `src` 下的全部 TS——**含 `*.spec.ts`**。原配置
+  // `extends ./tsconfig.json`，而那份是**构建**项目（`rootDir: "src"`、
+  // `exclude: ["src/**/*.spec.ts"]`）⇒ spec 根本不在任何 tsc 程序里，"spec 里写错一个名字"
+  // 三道静态门（旧 typecheck / `tsc -b` / 无类型感知的 eslint）全放行，只在 vitest 运行时翻红。
+  // 刻意不 `extends ./tsconfig.json`：那样会连 `rootDir: "src"` 一起继承，而 spec 若 import
+  // 包外的文件就会落在 `rootDir` 之外（TS6059）；两条链共用 `tsconfig.base.json` 的 strict
+  // 开关（`strict` / `exactOptionalPropertyTypes` / `noUncheckedIndexedAccess` /
+  // `noUnusedLocals` / `verbatimModuleSyntax`），各自只管自己那半边。
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
     "noEmit": true,
-    "tsBuildInfoFile": null
-  }
+    // Node API 只服务**测试环境**（读 `.pptx` 字节 / 路径解析）；构建项目仍 `types: []`。
+    "types": ["node"],
+    // 本包 spec 目前不 import 任何 `.mjs`（不像 render-core 要读 `eslint.config.mjs`），
+    // 但保持与 render-core 同形：`allowJs` 只影响本程序（不 `extends` 构建项目 ⇒ 不进产物）。
+    "allowJs": true
+  },
+  "include": ["src/**/*.ts"],
+  // 护栏夹具是**故意违规**的源码（`window` / `import 'vue'`），既不进构建也不进类型检查。
+  "exclude": ["lint-boundary"]
 }

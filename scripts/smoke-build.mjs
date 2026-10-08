@@ -25,33 +25,13 @@
  *   GANTTPILOT_CHROME=<path> node scripts/smoke-build.mjs
  */
 
-import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { createServer } from 'node:http';
-import { dirname, extname, join, normalize, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
-import { assertOwnProfile, closeOwnChrome, profileDirFor, psCommandLine } from './chrome-harness.mjs';
+import { closeChromeSession, connectCdp, findChrome, spawnChrome, startStaticServer, waitForDevToolsPort } from './cdp.mjs';
+import { repoRoot } from './paths.mjs';
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const distRoot = join(repoRoot, 'apps', 'web', 'dist');
-/**
- * 本轮用的配置目录（跑完删掉：`tmp/` 虽已 gitignore，但"只增不减"是运行卫生问题）。
- * 形状由 `chrome-harness.mjs` 的白名单定死，收尾**只认这个目录**（见那里的三条闸）。
- */
-let currentProfileDir = null;
-
-const MIME = new Map([
-  ['.html', 'text/html; charset=utf-8'],
-  ['.js', 'text/javascript; charset=utf-8'],
-  ['.mjs', 'text/javascript; charset=utf-8'],
-  ['.css', 'text/css; charset=utf-8'],
-  ['.json', 'application/json; charset=utf-8'],
-  ['.map', 'application/json; charset=utf-8'],
-  ['.svg', 'image/svg+xml'],
-  ['.png', 'image/png'],
-  ['.ico', 'image/x-icon'],
-]);
 
 /**
  * 打包产物是否就绪（缺 `index.html` 即"还没构建"，那是用法错误，直接说清）。
@@ -70,6 +50,21 @@ if (fileMode) {
   console.error('[smoke] 找不到打包产物：apps/web/dist/index.html —— 先跑 `pnpm build`。');
   process.exit(1);
 }
+
+/**
+ * 本脚本给无头 Chrome 的固定口径（公共启动件在 `scripts/cdp.mjs`；P3/C1 抽出去的那一份）。
+ *
+ * - `--disable-gpu`：门禁不依赖 GPU；
+ * - **必须给窗口尺寸**（P-44 落地时发现）：不给时 Chrome 用默认 ~800×600，而左表列本身就占 ~785 px
+ *   ⇒ 图表列被挤到 **0 px 宽**，于是"布局稳态 / 窗格客户区"这类判据在**退化布局**上量数（量不到东西）、
+ *   导出检查也失去意义。固定 1600×900 让两栏都有真实宽度；
+ * - profile 根按模式分开（离线单文件与在线产物各自取证，互不干扰）。
+ */
+const chromeArgs = (extraArgs = []) => ({
+  profileRoot: fileMode ? 'offline-profile' : 'smoke-profile',
+  extraArgs: ['--disable-gpu', ...extraArgs],
+  windowSize: { width: 1600, height: 900 },
+});
 
 /**
  * **首屏主 chunk 不得含 pptxgenjs**（G7，ADR 0010 §1）。
@@ -167,140 +162,6 @@ function unzipEntries(buffer) {
     }
   }
   return out;
-}
-
-/** 静态服务器（只绑 127.0.0.1、临时端口、白名单范围内的路径）。 */
-function startStaticServer() {
-  const server = createServer((request, response) => {
-    const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-    const relative = url.pathname === '/' ? 'index.html' : url.pathname.replace(/^\/+/, '');
-    const filePath = normalize(join(distRoot, relative));
-    if (!filePath.startsWith(normalize(distRoot)) || !existsSync(filePath) || statSync(filePath).isDirectory()) {
-      response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
-      response.end('not found');
-      return;
-    }
-    response.writeHead(200, {
-      'content-type': MIME.get(extname(filePath)) ?? 'application/octet-stream',
-    });
-    response.end(readFileSync(filePath));
-  });
-  return new Promise((settle) => {
-    server.listen(0, '127.0.0.1', () => {
-      settle({ server, port: server.address().port });
-    });
-  });
-}
-
-/** 找一个可用的 Chrome（与 `measure-render.mjs` 同口径：优先环境变量，其次常见安装位置）。 */
-function findChrome() {
-  const candidates = [
-    process.env.GANTTPILOT_CHROME,
-    join(process.env.PROGRAMFILES ?? 'C:\\Program Files', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-    join(process.env['PROGRAMFILES(X86)'] ?? 'C:\\Program Files (x86)', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-    join(process.env.LOCALAPPDATA ?? '', 'Google', 'Chrome', 'Application', 'chrome.exe'),
-    '/usr/bin/google-chrome',
-    '/Program Files/Google/Chrome/Application/chrome.exe',
-  ].filter((item) => typeof item === 'string' && item !== '');
-  for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
-  }
-  throw new Error('找不到 Chrome；用 GANTTPILOT_CHROME=<path> 指定（缺 Chrome 即失败，不跳过）。');
-}
-
-/** 启动无头 Chrome 并等 DevTools 端口落盘。 */
-function launchChrome(executable, extraArgs = []) {
-  const profileDir = assertOwnProfile(profileDirFor(fileMode ? 'offline-profile' : 'smoke-profile'));
-  currentProfileDir = profileDir;
-  const child = spawn(
-    executable,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      /**
-       * **必须给窗口尺寸**（P-44 落地时发现）：不给时 Chrome 用默认 ~800×600，而左表列本身就占 ~785 px
-       * ⇒ 图表列被挤到 **0 px 宽**，于是"布局稳态 / 窗格客户区"这类判据在**退化布局**上量数（量不到东西）、
-       * 导出检查也失去意义。固定 1600×900 让两栏都有真实宽度。
-       */
-      '--window-size=1600,900',
-      '--no-first-run',
-      '--no-default-browser-check',
-      ...extraArgs,
-      `--user-data-dir=${profileDir}`,
-      '--remote-debugging-port=0',
-      'about:blank',
-    ],
-    { stdio: 'ignore' },
-  );
-  return { child, profileDir };
-}
-
-/** 等 DevToolsActivePort（与 `measure-render.mjs` 同一手法）。 */
-async function readDevToolsPort(profileDir) {
-  const portFile = join(profileDir, 'DevToolsActivePort');
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    if (existsSync(portFile)) {
-      const [port] = readFileSync(portFile, 'utf8').split('\n');
-      const value = Number(port);
-      if (Number.isInteger(value) && value > 0) return value;
-    }
-    await new Promise((settle) => setTimeout(settle, 100));
-  }
-  throw new Error('Chrome 未在 10 秒内写出 DevToolsActivePort');
-}
-
-/** 极简 CDP 客户端（零新增依赖：内置 `fetch` + 内置 `WebSocket`）。 */
-async function connect(port, { fileUrl = null } = {}) {
-  let target = '';
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline && target === '') {
-    const response = await fetch(`http://127.0.0.1:${String(port)}/json/list`);
-    const targets = await response.json();
-    // `file://` 下页面目标可能是 `file://` 而不是 `about:blank`：两种都收，避免"找不到目标"的空转。
-    const page =
-      targets.find((item) => item.type === 'page' && (fileUrl === null || item.url.startsWith('file:'))) ??
-      targets.find((item) => item.type === 'page');
-    if (page !== undefined) target = page.webSocketDebuggerUrl;
-    else await new Promise((settle) => setTimeout(settle, 150));
-  }
-  if (target === '') throw new Error('未找到可用的 page 目标');
-
-  const socket = new WebSocket(target);
-  await new Promise((settle, reject) => {
-    socket.addEventListener('open', () => settle(), { once: true });
-    socket.addEventListener('error', () => reject(new Error('CDP WebSocket 连接失败')), { once: true });
-  });
-
-  let nextId = 1;
-  const pending = new Map();
-  const listeners = new Map();
-  socket.addEventListener('message', (event) => {
-    const message = JSON.parse(typeof event.data === 'string' ? event.data : String(event.data));
-    if (message.id !== undefined && pending.has(message.id)) {
-      const { resolve: ok, reject } = pending.get(message.id);
-      pending.delete(message.id);
-      if (message.error !== undefined) reject(new Error(String(message.error.message ?? 'CDP 错误')));
-      else ok(message.result);
-      return;
-    }
-    for (const handler of listeners.get(message.method) ?? []) handler(message.params);
-  });
-  const call = (method, params = {}) =>
-    new Promise((ok, reject) => {
-      const id = nextId++;
-      pending.set(id, { resolve: ok, reject });
-      socket.send(JSON.stringify({ id, method, params }));
-    });
-  const on = (method, handler) => {
-    const handlers = listeners.get(method) ?? [];
-    handlers.push(handler);
-    listeners.set(method, handlers);
-  };
-  return {
-    call,
-    on,
-    close: () => socket.close(),
-  };
 }
 
 /** 跑冒烟：导航 → 等界面 → 读断言。 */
@@ -636,7 +497,13 @@ async function exerciseExports(cdp, downloadDir = null, formats = ['svg', 'png',
  *
  * "刻度画成了两行""指针所在行有浅色底"是 **DOM 事实**（SVG 文本盒的竖向中心、
  * `getComputedStyle` 的底色），按 [P-40](../../docs/00-baseline/裁决R39.md) 的两条通道口径，
- * 这类事实的**门禁侧**就在 `smoke:build`（记录制侧是 `measure-render.mjs --g8`）。
+ * 这类事实的**门禁侧**就在本函数（`smoke:build`，打包产物上真的读 DOM）。
+ *
+ * **记录制那一侧目前没有驱动器**（P3/C6-c 实测）：页面里确实有读数口
+ * （`__GANTTPILOT_MEASURE_AXIS_HOVER__`，`apps/web/src/measure/axisHover.ts`），
+ * 但 `scripts/measure-render.mjs` **没有** `--g8` 模式（本注释此前写作"记录制侧是
+ * `measure-render.mjs --g8`"，那句话从来没有兑现过）⇒ 该入口零调用方，已登记（见
+ * `docs/04-refactor/05-登记与本轮不做.md` §四.16）。
  *
  * ## 三条对照缺一不可
  *
@@ -647,7 +514,7 @@ async function exerciseExports(cdp, downloadDir = null, formats = ['svg', 'png',
  *    ① 指针落在**左表**上（纯 CSS `:hover`，CDP 的 `Input.dispatchMouseEvent` 会真的产生命中）；
  *    ② 指针落在**图表**上（`.row.hovered`，跟着 `hoverTaskId` 走，G8 复验第 ⑦ 条）。
  */
-async function probeG8AxisAndHover(cdp) {
+async function probeAxisAndHover(cdp) {
   const problems = [];
   const read = async (expression) => {
     const result = await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
@@ -699,6 +566,31 @@ async function probeG8AxisAndHover(cdp) {
         headerTable: header('.table-header'),
         headerChart: header('.chart-header'),
         blankText: (blank === null ? '(没有第二行)' : (blank.textContent || '').trim()),
+        /**
+         * 左表的列宽与缩进（P3/C6-e：两者都改成从 render-core 派生）。
+         *
+         * 这里读的是**算出来的**东西，不是源码：表头网格的 grid-template-columns、
+         * 以及逐个可见行"名称格的内边距 ↔ 该行 WBS 编号"的对应关系。后者正是本批次的判据
+         * （缩进 = WBS 层级），因此在真实产物上再验一次接线——纯函数侧的判据在
+         * render-core/columns.spec.ts（列宽）与 engine/wbs.spec.ts（深度）。
+         * （本段注入页面执行，**不能出现反引号**：它整体在一个模板字符串里。）
+         */
+        table: (() => {
+          const headerRow = document.querySelector('.table-header .header-row');
+          const bodyRows = [...document.querySelectorAll('.table-body .row')].slice(0, 24);
+          return {
+            headerTemplate: headerRow === null ? null : getComputedStyle(headerRow).gridTemplateColumns,
+            bodyTemplate: bodyRows.length === 0 ? null : getComputedStyle(bodyRows[0]).gridTemplateColumns,
+            rows: bodyRows.map((row) => {
+              const cells = [...row.children];
+              const name = cells[1] === undefined ? null : cells[1].querySelector('span');
+              return {
+                wbs: (cells[0] === undefined ? '' : (cells[0].querySelector('span')?.textContent ?? '')).trim(),
+                indentPx: name === null ? null : Math.round(Number.parseFloat(getComputedStyle(name).paddingLeft) || 0),
+              };
+            }),
+          };
+        })(),
       });
     })()`),
   );
@@ -737,6 +629,41 @@ async function probeG8AxisAndHover(cdp) {
   }
   if (axis.blankText !== '') {
     problems.push(`[G8 刻度] 左表表头第二行不是留白："${String(axis.blankText)}"`);
+  }
+
+  /**
+   * 左表列宽与缩进（P3/C6-e）。
+   *
+   * `909` 是九列宽度之和的**golden**（与 `render-core/columns.spec.ts` 的断言同一个值）：
+   * 两处都写是**有意的**——spec 管纯函数，这里管"组件真的把那一串注进去了"，
+   * 而"组件忘了注入 / 注入的是另一串"正是纯函数测不到的那一半。
+   */
+  const table = axis.table;
+  const headerWidths = table.headerTemplate === null ? [] : table.headerTemplate.trim().split(/\s+/);
+  if (headerWidths.length !== 9) {
+    problems.push(`[左表列宽/缩进] 表头网格不是 9 列（${String(headerWidths.length)} 列）：${String(table.headerTemplate)}`);
+  } else {
+    const total = headerWidths.reduce((sum, width) => sum + Number.parseFloat(width), 0);
+    if (Math.round(total) !== 909) {
+      problems.push(`[左表列宽/缩进] 九列合计 ${String(Math.round(total))} px ≠ 909（列宽不再是那一条单点派生的结果）`);
+    }
+  }
+  if (table.headerTemplate !== table.bodyTemplate) {
+    problems.push(
+      `[左表列宽/缩进] 表头与表体不是同一串列宽：表头 ${String(table.headerTemplate)} / 表体 ${String(table.bodyTemplate)}`,
+    );
+  }
+  for (const row of table.rows) {
+    // 缩进的**期望值由页面上的 WBS 编号算出**（段数 − 1）——不引用文档、不引用实现。
+    const expected = row.wbs === '' ? 0 : row.wbs.split('.').length - 1;
+    if (row.indentPx !== expected * 12) {
+      problems.push(
+        `[左表列宽/缩进] 缩进与 WBS 编号不一致：WBS=${JSON.stringify(row.wbs)} 缩进 ${String(row.indentPx)} px（期望 ${String(expected * 12)} px）`,
+      );
+    }
+  }
+  if (!table.rows.some((row) => (row.indentPx ?? 0) > 0)) {
+    problems.push('[左表列宽/缩进] 没有任何一行有缩进 ⇒ 这条判据在本页没有判别力');
   }
 
   /**
@@ -1229,13 +1156,12 @@ function prepareDownloadDir(label) {
 async function runFileMode() {
   const problems = [];
   const downloadDir = prepareDownloadDir('offline');
-  const executable = findChrome();
   // `--allow-file-access-from-files`：让 `file://` 页面能读同一目录下的文件（`DOM.setFileInputFiles`
   // 用它把模板文件喂回导入入口）；**不改变任何几何或渲染行为**。
-  chromeHandle = launchChrome(executable, ['--allow-file-access-from-files']);
-  const port = await readDevToolsPort(chromeHandle.profileDir);
+  chromeHandle = spawnChrome(findChrome(), chromeArgs(['--allow-file-access-from-files']));
+  const port = await waitForDevToolsPort(chromeHandle.profileDir);
   const url = `file:///${join(offlineRoot, 'index.html').replace(/\\/g, '/')}`;
-  const cdp = await connect(port, { fileUrl: url });
+  const cdp = await connectCdp(port, { preferFileUrl: url.startsWith('file:') });
   // 下载目录：`Page.navigate` **之前**设（导航会换 target）。
   await cdp.call('Browser.setDownloadBehavior', { behavior: 'allow', downloadPath: downloadDir });
 
@@ -1412,12 +1338,11 @@ try {
       console.log(`[smoke] 通过（file://）：${url}`);
     }
   } else {
-  serverHandle = await startStaticServer();
+  serverHandle = await startStaticServer(distRoot);
   const url = `http://127.0.0.1:${String(serverHandle.port)}/`;
-  const executable = findChrome();
-  chromeHandle = launchChrome(executable);
-  const port = await readDevToolsPort(chromeHandle.profileDir);
-  const cdp = await connect(port);
+  chromeHandle = spawnChrome(findChrome(), chromeArgs());
+  const port = await waitForDevToolsPort(chromeHandle.profileDir);
+  const cdp = await connectCdp(port);
   const { probe, errors } = await smoke(cdp, url);
   /**
    * P-43 的**布局稳态**：首屏一次、**点一次"重置演示数据"之后再一次**
@@ -1444,21 +1369,20 @@ try {
    * 顺序刻意放在导出之后：模板与拖动的判据都会**改变文档/下载目录外的状态**，
    * 而导出那三条依赖"页面上还是演示计划"这个前提（导出物会落进同一个下载目录）。
    */
-  const g8Problems = [];
-  g8Problems.push(...(await probeG8AxisAndHover(cdp)));
-  g8Problems.push(...(await probeRightDragHorizon(cdp)));
-  g8Problems.push(...(await probeTemplateDownload(cdp, repoRoot)));
+  const releaseSurfaceProblems = [];
+  releaseSurfaceProblems.push(...(await probeAxisAndHover(cdp)));
+  releaseSurfaceProblems.push(...(await probeRightDragHorizon(cdp)));
+  releaseSurfaceProblems.push(...(await probeTemplateDownload(cdp, repoRoot)));
   cdp.close();
 
   const problems = [];
   problems.push(...layoutProblems);
-  problems.push(...g8Problems);
+  problems.push(...releaseSurfaceProblems);
   // G7：导出库的分包纪律（首屏主 chunk 不得含 pptxgenjs；且某个 chunk 里必须真有它）
   problems.push(...checkExportChunking());
   // G7：三条导出路径端到端（真的点、真的落盘）
   problems.push(...exports.problems);
   if (probe.error !== null) problems.push(`应用级错误：${String(probe.error)}`);
-  if (errors.length > 0) problems.push(`控制台/异常：${errors.slice(0, 3).join(' | ')}`);
   if (errors.length > 0) problems.push(`控制台/异常：${errors.slice(0, 3).join(' | ')}`);
   if (probe.title !== 'GanttPilot') problems.push(`标题不符：${String(probe.title)}`);
   if (probe.brand === null) problems.push('工具栏未渲染（找不到 .brand）');
@@ -1503,21 +1427,13 @@ try {
 } finally {
   // 收尾走 `chrome-harness.mjs` 的三条闸：正常路径是协议级 `Browser.close`（不杀进程），
   // 只有它超时才按**我们自己的 PID 树**兜底——绝不按名字匹配 chrome.exe。
-  const outcome = await closeOwnChrome({
-    profileDir: currentProfileDir,
+  // profile 目录跑完删掉：`tmp/` 虽已 gitignore，但"只增不减"是运行卫生问题；形状由白名单定死。
+  const outcome = await closeChromeSession({
+    profileDir: chromeHandle?.profileDir ?? null,
     pid: chromeHandle?.child.pid,
-    lookup: psCommandLine,
+    removeProfile: true,
   });
   if (outcome.closedBy === 'pid-tree') console.log('[smoke] 协议级关闭未生效，已按 PID 树兜底');
   if (outcome.note !== '') console.log(`[smoke] 收尾说明：${outcome.note}`);
   serverHandle?.server.close();
-  // 等 Chrome 放开配置目录再删（Windows 上占用中的目录删不掉，删不掉就算了——它已 gitignore）。
-  if (currentProfileDir !== null) {
-    await new Promise((settle) => setTimeout(settle, 500));
-    try {
-      rmSync(currentProfileDir, { recursive: true, force: true });
-    } catch {
-      // 忽略：留给下次运行覆盖
-    }
-  }
 }

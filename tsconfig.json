@@ -1,19 +1,46 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "files": ["vitest.config.ts"],
+  // 仓库根的**工具链类型检查程序**（P3/C7-e）。
+  //
+  // ## 它为什么存在
+  //
+  // 各包的 `typecheck` 只覆盖包内（`pnpm -r --if-present typecheck`）；而仓库根还有一层
+  // **声明与配置**——护栏的定义（`eslint-rules.mjs`）、ESLint 配置（`eslint.config.mjs`）、
+  // vitest 配置、两个 vite 配置——它们此前只过"语法级 lint"（ESLint 无类型感知规则）。
+  // 于是"护栏自己写错了"这件事没有任何门禁能发现（P3/C7-a 就留下过一处：声明里的返回类型
+  // 与 ESLint 的 `RulesConfig` 不兼容，直到 C7-b 把 spec 纳入 tsc 才被抓住）。
+  //
+  // ## 为什么 `references` 被删掉了
+  //
+  // 原先那份是**装饰性的**：`files: ["vitest.config.ts"]` + 四条 `references`（还漏了 `apps/web`），
+  // 而没有任何脚本用它——同一份包图已经由 pnpm workspace + 各包自己的 `tsconfig.json` 表达，
+  // 留第二份只会漂移（P3/C7-e 的裁决：**要么真被使用，要么删掉**；这里选"真被使用"，
+  // 但让 `include` 说真话，而不是抄一份包依赖表）。
+  //
+  // ## 覆盖面（分批：`scripts/**` 的**大部分**还没进来）
+  //
+  // 现在进程序的：护栏定义与声明、ESLint 配置、vitest 配置、两个 vite 配置、`scripts/paths.mjs`
+  // （一切脚本共用的单点声明）与 `scripts/doc-artifacts.mjs`（两份文档生成物的渲染器——**生成物新鲜度
+  // 守卫正是靠它重算比对**，所以它自己必须被检查）。**`scripts/**/*.mjs` 的其余部分仍在门外**：
+  // 实测 489 处错误（其中 280 处是 JS 里"参数没有类型"的 `TS7006`/`TS7031`），要逐文件 JSDoc 才算诚实——
+  // 那是独立的一批活，登记为 `N19`，不在这里用 `noImplicitAny: false` 之类的放宽糊过去。
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "composite": false,
     "noEmit": true,
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "lib": ["ES2023"],
     "types": ["node"],
-    "allowImportingTsExtensions": true
+    // 这一层全是 `.mjs`（护栏与配置）：让 TS 读源码取类型，并且**真的检查它**（`checkJs`）。
+    "allowJs": true,
+    "checkJs": true
   },
-  "references": [
-    { "path": "packages/engine" },
-    { "path": "packages/xlsx-protocol" },
-    { "path": "packages/render-core" },
-    { "path": "packages/pptx-renderer" }
+  "include": [
+    "eslint-rules.mjs",
+    "eslint-rules.d.mts",
+    "eslint.config.mjs",
+    "vitest.config.ts",
+    "apps/web/vite.config.ts",
+    "apps/web/bundle.config.ts",
+    "scripts/paths.mjs",
+    "scripts/doc-artifacts.mjs"
   ]
 }
