@@ -344,6 +344,13 @@
       "note": "待定清单的「已闭」结转行（D7.5 逐字迁出；未决行永远只登记在清单里）"
     },
     {
+      "path": "docs/01-roadmap/首版-记录-v0.2.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "archive",
+      "note": "v0.2 的记录层：review 结论（谁/何时/过了哪些点/遗留）+ 明确未做 + 接手要点（N1/N2/N16/N18/N19/N20 的落点）+ 本轮判据读数。合流前建立——v0.2 的施工计划目录随合流删除，这些内容此前只住在那儿"
+    },
+    {
       "path": "docs/01-roadmap/首版-文档索引.md",
       "role": "plan",
       "cap": "plan",

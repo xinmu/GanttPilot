@@ -299,8 +299,7 @@ node scripts/offline-artifact-probe.mjs # 探针：IndexedDB / 下载 / 体积�
 - 架构决策写成 ADR 放 `docs/02-adr/`，按 `NNNN-主题.md` 编号；实现记录与逐轮增补进 `docs/02-adr/附录/`；
 - **文档结构进 `pnpm gate`**（`pnpm docs:check`：链接 / 锚点 / 台账格式 / 存档覆盖 / 体量上限 / 策略不变量）；
 - `packages/*`（engine / xlsx-protocol / render-core / pptx-renderer）各自独立 semver、MIT 协议；`apps/web` 为私有应用包。
-  **版本号与 tag 对齐**（依据 [R55 §P-63](docs/00-baseline/裁决R55.md)）：`package.json` 里写的就是这次发布承诺的版本
-  ——`v0.2` ⇒ 根与五份包全部 `0.2.0`（`v0.1.0` 之前它们是 `0.0.0`，三处口径互不相同）。
+  **版本号与 tag 对齐**（[R55 细则 §P-63](docs/00-baseline/裁决R55.md)）：`package.json` 里写的就是这次发布承诺的版本——`v0.2` ⇒ 六份全部 `0.2.0`。
 
 ## License
 
