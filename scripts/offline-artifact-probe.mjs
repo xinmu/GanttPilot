@@ -461,11 +461,16 @@ try {
     });
   }
 
+  // P4-e：登记**环境三件套**里的"环境"（此前只在 raw 里有 chromeMajor，正文没有环境块）。
+  // 视口 / DPR 取**页面实测值**（启动窗口是 1600×900，页面实测才是口径里的那个数）。
   const version = await chromeMajorVersion(cdp);
+  const pageEnv = JSON.parse(await read(cdp, 'JSON.stringify({ w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio })'));
   cdp.close();
 
   const raw = {
     chromeMajor: version,
+    viewport: { width: pageEnv.w, height: pageEnv.h },
+    dpr: pageEnv.dpr,
     artifact: { path: singleFile, bytes: sizeBytes, kb: Math.round((sizeBytes / 1024) * 10) / 10 },
     firstScreen: { ready, readyMs: firstScreenMs, ...paint },
     indexedDb: idb,
@@ -488,6 +493,16 @@ try {
     `- 首屏（导航 → \`__GANTTPILOT_READY__\`）：**${String(firstScreenMs)} ms**（FCP ${String(paint.fcpMs ?? 'n/a')} ms、DOMContentLoaded ${String(paint.domContentLoadedMs)} ms）`,
     // P4-d：打开方式写**仓库根相对 + 声明词**（本机绝对 `file:///` 是采集时的机器事实，不进证据正文）。
     '- 打开方式：`file:///<仓库根>/apps/web/dist-offline/index.html?measure=1`（`<仓库根>` = 本机克隆目录；产物由 `pnpm bundle:offline` 再生）',
+    '',
+    '## 环境（与数字一起登记）',
+    '',
+    '| 项 | 值 |',
+    '|---|---|',
+    `| 浏览器 | Chrome ${String(version)}（\`--headless=new\`，见 \`scripts/cdp.mjs\`） |`,
+    `| 视口 | **${String(pageEnv.w)}×${String(pageEnv.h)} CSS px**（页面实测；启动窗口 1600×900） |`,
+    `| DPR | **${String(pageEnv.dpr)}** |`,
+    '| 打开方式 | 见上（`file://` 单文件，带 `?measure=1`） |',
+    '| 口径 | 首屏 = 导航 → `__GANTTPILOT_READY__`；体积 = 单文件字节数；三链路 = 导入 / 拖动 / 导出；**只登记、不设门禁**（P-49 §3 问题③） |',
     '',
     '## ① `file://` 下的 IndexedDB',
     '',
