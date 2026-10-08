@@ -29,8 +29,8 @@
  * ## 为什么不并进 `fixtures.ts`
  *
  * `fixtures.ts` 是 render-core 的**生产导出**（`index.ts` 转出，演示数据与记录制测量都在用），
- * 它的公开面按 [05-登记与本轮不做](../../../docs/04-refactor/05-登记与本轮不做.md) §四.4 是
- * "冻结-ish"的；一个只为 spec 服务的取用口不该进发布面。
+ * 它的公开面是"冻结-ish"的（v0.2 的处置见台账 `P-59`：`align` 一族走内部子路径、其余导出不动）；
+ * 一个只为 spec 服务的取用口不该进发布面。
  */
 
 import { DATASETS, type FixtureSpec } from '../src/fixtures.js';

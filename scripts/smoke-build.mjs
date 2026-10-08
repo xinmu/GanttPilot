@@ -502,8 +502,7 @@ async function exerciseExports(cdp, downloadDir = null, formats = ['svg', 'png',
  * **记录制那一侧目前没有驱动器**（P3/C6-c 实测）：页面里确实有读数口
  * （`__GANTTPILOT_MEASURE_AXIS_HOVER__`，`apps/web/src/measure/axisHover.ts`），
  * 但 `scripts/measure-render.mjs` **没有** `--g8` 模式（本注释此前写作"记录制侧是
- * `measure-render.mjs --g8`"，那句话从来没有兑现过）⇒ 该入口零调用方，已登记（见
- * `docs/04-refactor/05-登记与本轮不做.md` §四.16）。
+ * `measure-render.mjs --g8`"，那句话从来没有兑现过）⇒ 该入口零调用方，v0.2 期间登记为 `N15` 并已补上驱动器。
  *
  * ## 三条对照缺一不可
  *

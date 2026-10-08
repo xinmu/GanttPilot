@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * `pnpm docs:check` 的第三步：**包规范的 API 段 ⇔ 实际导出面**（P4-a；判据见
- * `docs/04-refactor/04-验收与门禁.md` §二 的 P4 ①）。
+ * `pnpm docs:check` 的第三步：**包规范的 API 段 ⇔ 实际导出面**（判据见
+ * [DOC-SPEC](../../docs/DOC-SPEC.md) §4.7；v0.2 的施工计划目录已随合流删除，其结论在台账 `P-57`–`P-63`）。
  *
  * 为什么需要它：`templateSheetNames()` 那类失真（`PROTOCOL.md` 文档化了一个从来不存在的函数）
  * 是靠人读出来的——它既不违反任何链接/锚点/常量检查，也不会让 809 例测试变红。本脚本把

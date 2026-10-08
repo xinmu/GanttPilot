@@ -153,8 +153,8 @@ function parseArgs(argv) {
        * **两级刻度与悬停行带**的记录制快照（P-46 的事实；判据本体在 `smoke:build` 的门禁侧）。
        *
        * 页面的读数口是 `__GANTTPILOT_MEASURE_AXIS_HOVER__`
-       * （`apps/web/src/measure/axisHover.ts`）——它在 P3/C6-d 之前**零调用方**（见
-       * [登记与本轮不做](../docs/04-refactor/05-登记与本轮不做.md) §四.16 的 `N15`），本模式就是它的驱动器。
+       * （`apps/web/src/measure/axisHover.ts`）——它在修好之前**零调用方**（v0.2 期间登记的 `N15`），
+       * 本模式就是它的驱动器。
        */
       options.axisHover = true;
     }
@@ -659,7 +659,7 @@ async function importSample(cdp, origin, filePath) {
  *
  * 为什么需要它：raw 与 `.md` 是成对写出的，但正文此前只写"逐行值见 raw JSON"这类**不带文件名**的
  * 说法 ⇒ 链接图里 raw 成了孤儿（C8-a 的"引用方向不可解析"）。生成器侧与已提交证据必须**同批**落盘，
- * 否则盘上的证据就不再是生成器的输出（见 `docs/04-refactor/04-验收与门禁.md` §四）。
+ * 否则盘上的证据就不再是生成器的输出（**记录制证据纪律**见 `docs/DOC-SPEC.md` §4.10）。
  */
 function withRawLink(markdown, rawName) {
   return `${markdown.replace(/\s*$/, '')}\n\n> **原始读数**：[\`${rawName}\`](${rawName})（机器可读，便于日后重比）。\n`;

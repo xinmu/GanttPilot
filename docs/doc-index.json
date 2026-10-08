@@ -525,105 +525,6 @@
       "note": "P-37 的增补节：图面要素清单、箭头强制口径、标签样式与文案单一来源"
     },
     {
-      "path": "docs/04-refactor/README.md",
-      "role": "plan",
-      "cap": "plan",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "v0.2 重构计划入口：阶段总览、按需注入指引、不变量与分支口径（P4 的批次切分在 04-验收与门禁 §六；临时物，合流后按 05 收口）"
-    },
-    {
-      "path": "docs/04-refactor/01-基线与决策.md",
-      "role": "plan",
-      "cap": "plan",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "实测基线 + 七项决策 + 两条行为变更的降级目标措辞 + P0 证据索引"
-    },
-    {
-      "path": "docs/04-refactor/02-文档重构.md",
-      "role": "plan",
-      "cap": "plan",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "P2：目标分层、逐文件处置、D1–D10 批次、关键手术细则（契约归位 / 常量收口 / R48–R50 / spike 生命周期）"
-    },
-    {
-      "path": "docs/04-refactor/03-代码重构.md",
-      "role": "plan",
-      "cap": "plan",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "P3：C1–C8 批次（scripts / xlsx / pptx / engine / render-core / web / 工程配套 / 证据卫生）与每批验收"
-    },
-    {
-      "path": "docs/04-refactor/04-验收与门禁.md",
-      "role": "plan",
-      "cap": "plan",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "P1 三条新检查的设计与负向对照、各阶段验收（§二）、「稳定」的五条可判定定义、记录制证据纪律、P4 的批次切分（§六，a–e 五批）"
-    },
-    {
-      "path": "docs/04-refactor/05-登记与本轮不做.md",
-      "role": "plan",
-      "cap": "plan",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "本轮不做项（N1–N8）、CI 补两步、两项只读验证的落点、待裁决开放项、风险与回滚、本计划自身的收口"
-    },
-    {
-      "path": "docs/04-refactor/06-批次记录-P3.md",
-      "role": "record",
-      "cap": "record",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "P3 各批次的实测、判据、踩坑与计划订正（C1–C8）。从 03-代码重构.md 迁出（2026-10-08：03 触到 plan 的 60 KB 上限 63.7 KB，规范要求拆分/迁移而不是提高上限）；03 只留批次表与验收标准，两边的节标题一一对应"
-    },
-    {
-      "path": "docs/04-refactor/08-批次记录-P3-C8.md",
-      "role": "record",
-      "cap": "record",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "P3/C8（证据卫生）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 07：C8 与 C7 主题无关（07 已 46.7 KB 记了 C7 十批）；record 层 80 KB 上限的口径不变"
-    },
-    {
-      "path": "docs/04-refactor/07-批次记录-P3-C7.md",
-      "role": "record",
-      "cap": "record",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "P3/C7（工程配套）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 06：06 写 §C6-g 时已 78.6 KB，触到 record 层的 80 KB 上限，按 P2 的同一条规矩拆分/迁移而不是抬高上限"
-    },
-    {
-      "path": "docs/04-refactor/09-批次记录-P4.md",
-      "role": "record",
-      "cap": "record",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "P4（交叉印证与验证）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 06：06 写下 §C6-g 时已 76.8 KB，触到 record 层的 80 KB 上限（同 P2/C7/C8 的规矩：拆分或另开，不抬上限）"
-    },
-    {
-      "path": "docs/04-refactor/10-批次记录-P5.md",
-      "role": "record",
-      "cap": "record",
-      "layer": "slim",
-      "budgetExempt": true,
-      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
-      "note": "P5（稳定与合并）各批次的实测、判据、踩坑与计划订正。一个阶段一份（同 P2/C7/C8/P4 的规矩，不抬 record 层的 80 KB 上限）；在 P5-b 落地时创建（P5-a 是纯文档批、不留读数）"
-    },
-    {
       "path": "packages/engine/SCHEMA.md",
       "role": "spec",
       "cap": "spec",
@@ -1050,6 +951,11 @@
       "pathRegex": "^docs/00-baseline/裁决R.*\\.md$",
       "targetRegex": "^(\\.\\./\\.\\./)?packages/render-core/src/gesture\\.ts$",
       "reason": "render-core 的 gesture.ts 由 **P3/C5-b 拆成 gesture/ 目录**（1,358 行 / 11 项职责；公共面逐符号不变）：两处归档裁决（R19-21 的 R2/R4 表、R42 的依据行）里的历史链接按「归档层逐字不改写」保留原样，只登记这处**目标已改名**的存量；活的指向（`CONTRIBUTING.md`、`SPEC.md` §二、代码注释）都已改为 `src/gesture/index.ts`。与上一条不同：这条不是「目标已删除」，而是「目标已搬迁」，故不新增任何未被引用的破链，白名单条目只覆盖这两处"
+    },
+    {
+      "pathRegex": "^docs/00-baseline/(裁决R.*|上游原文-.*)\\.md$",
+      "targetRegex": "^\\.\\./04-refactor/",
+      "reason": "v0.2 施工计划目录已随 v0.2 合流整体删除（价值迁入台账 P-57–P-63 / R55 细则与 docs/01-roadmap/首版-记录-v0.2.md）：归档层正文里的历史引用**保留原路径**——归档层逐字不改写（DOC-SPEC §4.5 允许「原路径 + 括注」或继承式白名单，此处取后者，避免回改两条已裁决的存档正文）"
     }
   ],
   "contextBudget": {
@@ -1114,12 +1020,7 @@
         ".mjs"
       ]
     },
-    "allow": [
-      {
-        "pathRegex": "^docs/04-refactor/",
-        "reason": "v0.2 施工计划必须引用常量原文（含负向对照表）；本目录按计划 §七 在合流后删除"
-      }
-    ],
+    "allow": [],
     "constants": [
       {
         "id": "c3-anchors",
@@ -1667,7 +1568,7 @@
       "为什么要有：这两份文件是同一个事实的两处陈述，而它们的一致性此前只写在 ci.yml 的文件头注释里——注释腐烂过一次（曾把 bundle:offline / docs:check 写成「不在此文件内」），且没有任何检查会在两边分叉时翻红；而 STEPS 是门禁契约（gate.mjs 文件头：改动它等于改动门禁契约）。",
       "判据四条：① ci.yml 的 pnpm 步 ⊆ STEPS；② 相对顺序是 STEPS 的子序列；③ 缺的步集合 == absent 登记的集合（集合相等——只判子序列的话「删掉一步」仍然是子序列 ⇒ 判据没牙）；④ prerequisites 与 absent 每条必须带 reason，未登记的前置动作也报。",
       "零依赖、只认单行 `run: pnpm <step>`；出现多行 `run: |` 块即响亮失败（宁可停，也不要静默漏看）。",
-      "absent 的两条是「现在不跑、且原因已实测」的登记：两条 smoke 需要本机无头 Chrome，能不能在 ubuntu-latest 上补未经实测（见 docs/04-refactor/05-登记与本轮不做.md §二）。补上其中一条时，必须同批从本表删掉它——判据 ③ 会强制这件事。"
+      "absent 的两条是「现在不跑、且原因已实测」的登记：两条 smoke 需要本机无头 Chrome，能不能在 ubuntu-latest 上补未经实测（见 docs/01-roadmap/首版-记录-v0.2.md §二.1：本轮仍未取得远端 CI 真绿）。补上其中一条时，必须同批从本表删掉它——判据 ③ 会强制这件事。"
     ],
     "gateSource": "scripts/gate.mjs",
     "pipelineSource": ".github/workflows/ci.yml",

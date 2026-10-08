@@ -116,7 +116,8 @@ export function buildRowShapes(args: {
      * 进度的内缩：**在 EMU 上做 `y+1` / `cy-2`**（≈ 0 内缩），而 SVG 孪生实现用 **px** 内缩。
      *
      * 这不是笔误，是**已登记的跨投影差异**（决策 4「只登记不修」）：统一它必然改变 PPTX 的
-     * golden 字节，属 v0.5 的"未来实现"。如实描述见 `PPTX.md` §三 与 [登记与本轮不做](../../../../docs/04-refactor/05-登记与本轮不做.md)。
+     * golden 字节，属 v0.5 的"未来实现"。如实描述见 `PPTX.md` §三；接手要点（含 golden 重锚的纪律）见
+     * `docs/01-roadmap/首版-记录-v0.2.md` §三.2。
      */
     const progressEmu: EmuRect = {
       x: emu.x,
