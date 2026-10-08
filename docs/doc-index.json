@@ -592,6 +592,15 @@
       "note": "P3/C7（工程配套）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 06：06 写 §C6-g 时已 78.6 KB，触到 record 层的 80 KB 上限，按 P2 的同一条规矩拆分/迁移而不是抬高上限"
     },
     {
+      "path": "docs/04-refactor/09-批次记录-P4.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P4（交叉印证与验证）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 06：06 写下 §C6-g 时已 76.8 KB，触到 record 层的 80 KB 上限（同 P2/C7/C8 的规矩：拆分或另开，不抬上限）"
+    },
+    {
       "path": "packages/engine/SCHEMA.md",
       "role": "spec",
       "cap": "spec",
@@ -1525,6 +1534,105 @@
         "raw": "apps/web/evidence/render-timing-raw.json",
         "of": "apps/web/evidence/render-timing-chrome154.md",
         "note": "同上：不带版本号的名字 ⇒ 现存这份是 154 那一次的读数；`render-timing-chrome152.md` 的同句 deferral（「compute 单列在原始 JSON 的 prepareMs」）指的是被覆盖掉的那一份"
+      }
+    ]
+  },
+  "apiSurfaceCheck": {
+    "$comment": [
+      "P4-a：包规范的 API 段 ⇔ 实际导出面（执行者 scripts/check-api-surface.mjs，接在 pnpm docs:check 的第三步）。",
+      "判的是**一个方向**：规范里点名的符号必须真的从包入口（`packages/<pkg>/src/index.ts`）导出。反向（哪些导出是「发布承诺」、哪些是内部）由 P4-b 的公开面分类负责——render-core 有 296 个导出，逐条要求文档化只会制造噪声。",
+      "提取面刻意窄：只取 target 登记段落的**直属声明块**（从段标题到下一个任意级标题为止，子节不算）。P4-a 实测的教训：子节是「用法示例」，会引用别的包的函数（PROTOCOL.md §2.1 的 `applyCommand` 属 engine）⇒ 计入就是假阳。",
+      "段内只认两类形态：mode=fences（围栏代码块里的 `function NAME` / `type|interface|class|enum NAME` / 裸调用 `name(` / 整行裸名字）与 mode=apiTable（表格**首格由反引号符号起头**，取格内全部反引号符号并剥掉参数表）。行注释先剥掉再匹配（`SCHEDULE.md` 的 `// max(ef)` 曾把 `max` 变成假阳）。",
+      "minCandidates：**每个 target 必须登记候选数下限**。掉到下限以下 ⇒ 报错（「提取面塌了」）——「写法变了 ⇒ 正则一条也不匹配 ⇒ 检查恒真」是这类机械检查最危险的失效方式（同 check-docs 的「台账轮次列解析为空即报错」）。下限取实测值往下留余量（见每条的 note）。",
+      "allow：例外必须带 reason；改规范或补导出才是正解，登记例外是最后手段。登记为例外的点名**每次运行都会打印**（不静默吞掉）。"
+    ],
+    "targets": [
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEMA.md",
+        "section": "## 三、公共 API",
+        "mode": "fences",
+        "minCandidates": 20,
+        "note": "序列化/解析/校验/迁移/WBS 层级 + 两个错误载体类"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/COMMAND.md",
+        "section": "## 三、公共 API",
+        "mode": "fences",
+        "minCandidates": 20,
+        "note": "命令层、日志、JSON 工具、会话与事务、id 建议"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/PERSISTENCE.md",
+        "section": "## 三、公共 API（`src/index.ts` 的导出面）",
+        "mode": "apiTable",
+        "minCandidates": 15,
+        "note": "「导出 | 作用」表；首格是符号列表（含 `a(x) / b(y)` 形态）"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEDULE.md",
+        "section": "## 二、输入",
+        "mode": "fences",
+        "minCandidates": 2,
+        "note": "compute 签名 + SessionAnchor"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEDULE.md",
+        "section": "## 三、输出",
+        "mode": "fences",
+        "minCandidates": 2,
+        "note": "ScheduleResult + Schedule"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEDULE.md",
+        "section": "## 六、诊断码表",
+        "mode": "fences",
+        "minCandidates": 2,
+        "note": "ScheduleDiagnosticCode + ScheduleDiagnostic"
+      },
+      {
+        "package": "engine",
+        "spec": "packages/engine/SCHEDULE.md",
+        "section": "## 七、容量与调用方配方",
+        "mode": "fences",
+        "minCandidates": 2,
+        "note": "createScheduleCalendar 声明 + 推荐用法里的 createScheduleCalendar/compute"
+      },
+      {
+        "package": "render-core",
+        "spec": "packages/render-core/SPEC.md",
+        "section": "## 二、包边界与公共 API",
+        "mode": "fences",
+        "minCandidates": 1,
+        "note": "只有主入口签名块（buildView）；同段的模块表列的是**文件名**，不是符号"
+      },
+      {
+        "package": "xlsx-protocol",
+        "spec": "packages/xlsx-protocol/PROTOCOL.md",
+        "section": "## 二、公共 API",
+        "mode": "fences",
+        "minCandidates": 8,
+        "note": "五个入口 + XlsxInput/ImportOptions/ImportResult/ExportResult"
+      },
+      {
+        "package": "pptx-renderer",
+        "spec": "packages/pptx-renderer/PPTX.md",
+        "section": "## 二、包边界与公共 API",
+        "mode": "fences",
+        "minCandidates": 1,
+        "note": "只有主入口签名块（renderTemplateA）；模块表列的是文件名，不是符号"
+      }
+    ],
+    "allow": [
+      {
+        "package": "xlsx-protocol",
+        "symbol": "XlsxInput",
+        "reason": "P4-a 实测：PROTOCOL.md §二 把 `type XlsxInput = Uint8Array | ArrayBuffer` 写在公共 API 块里（五个入口的签名都用它），而 src/index.ts 没有 re-export 它——`sheet.ts` 里导出着，消费者「能传值、叫不出类型名」。这一处**正是计划留给 P4-b 的公开面分类项**（见 06-批次记录-P3 §C2 的登记）⇒ 本批不改对外面：要么 P4-b 补 `export type { XlsxInput }`（加一个类型名、零运行时影响），要么 P4-b 在规范里写明它只是内部别名。清单每次运行都会打印，不静默吞掉。"
       }
     ]
   },

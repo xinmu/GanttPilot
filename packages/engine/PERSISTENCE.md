@@ -8,17 +8,17 @@
 
 ## 一、本模块是什么
 
-`src/persistence.ts` 只交**纯函数与纯状态机**：
+`src/persistence/`（P3/C4-c 起是目录：`types` / `record` / `guards` / `policy` / `memory` / `index`）只交**纯函数与纯状态机**：
 
 ```
         session（不可变值）                  时钟 / 手势状态 / writerId（**显式入参**）
               │                                            │
-              ├── sessionRecordOf ──────────────────────────┴──► StoredSession（要写的那条记录）
+              ├── sessionRecordOf(session, base, meta) ─────┴──► StoredSession（要写的那条记录）
               │
-              ├── restoreSessionOf(record) ──► { session, resolvedFrom, stepsApplied }
-              ├── planRestoreOf({latest, snapshots}, calendar) ──► 恢复计划（L3 → 检查点 → null）
-              ├── policyReduce(state, event) ──► { action: none|flush|checkpoint|degrade }
-              └── planCheckpoint(set, keep, meta) ──► { keep, delete }
+              ├── restoreSessionOf(record) ──► PersistResult<DocumentSession>（坏记录 ⇒ { ok: false, code }）
+              ├── planRestoreOf({latest, snapshots}, docId) ──► RestorePlan（{ session, resolvedFrom, rev, stepsApplied, rejected }；L3 → 检查点 → null）
+              ├── policyReduce(policy, state, event) ──► PolicyStep（{ action: none|flush|checkpoint|degrade }）
+              └── planCheckpoint(existing, keep, incoming?) ──► CheckpointKeepPlan（{ keep, remove }）
 ```
 
 **存储访问只在 `SnapshotStore` 接口后面**：引擎内提供 `createMemorySnapshotStore()`，
@@ -58,7 +58,7 @@
 | `planCheckpoint(existing, keep, incoming?)` | 保留/删除集合（确定性；`incoming` 是要一并参与裁决的新快照） |
 | `createMemorySnapshotStore()` | 内存适配器（Node 侧测试 + 浏览器降级） |
 | `checkJournalShape(journal)` / `sameRecord(left, right)` / `effectiveKeep(policy, state)` | 形状守卫与策略读数（供调用方与 spec 复用） |
-| `restoreSession(document, undoSteps, redoSteps, revision)`（`session.ts`） | 会话构造的**导出入口**（避免手搓 `DocumentSession` 字面量）；与 `createSession` 同族 |
+| `restoreSession(document, revision, stacks?)`（`session.ts`） | 会话构造的**导出入口**（避免手搓 `DocumentSession` 字面量）；与 `createSession` 同族 |
 
 > **检查点 id 的领取方式**：写入时给 `id: 0` 占位，**存储实现分配真实自增 id**；
 > 写完之后按 `createdAtMs` 读回来认领它（`usePersistence.writeCheckpoint`）——

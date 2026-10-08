@@ -182,6 +182,25 @@
    且至少写 `path` 或 `pathRegex`（否则等于把整条守卫关掉）。例外**不等于修好了**，而是「这一处按裁决保留」；
    本规范自己必须写出被禁止的形态（上面第 3 条与 §五 第 10 行），故以 `规范示例` 登记一条**只对本文件生效**的例外。
 
+### 4.7 包规范的「API 段」（纪律四，P4-a）
+
+包规范（`packages/*/` 下的 `SPEC.md` / `SCHEMA.md` / `SCHEDULE.md` / `COMMAND.md` / `PERSISTENCE.md` /
+`PROTOCOL.md` / `PPTX.md`）里的 API 段**点名了哪些符号**，就是这门包对外的**承诺面**——
+因此它必须是**可判定的**：`apiSurfaceCheck` 逐个登记「规格文件 + 段标题 + 提取模式 + 候选数下限」，
+由 `scripts/check-api-surface.mjs` 判定「规范点名的符号 ⊆ 包入口（`src/index.ts`）的导出面」。
+
+三条写法约定（改写法等于改检查口径，**必须同批改 `doc-index.json` 的登记与下限**）：
+
+1. **声明块要放在段标题的直属正文里**，到下一个标题为止——子节（`### x.y`）是"用法示例/语义讨论"，
+   里面会引用**别的包**的函数（`PROTOCOL.md` §2.1 的 `applyCommand` 属 `engine`），不计入本包的承诺面；
+2. 段内只认**围栏代码块**（`function NAME` / `type|interface|class|enum NAME` / 裸调用 `name(` / 整行裸名字）
+   与**首格由反引号符号起头的表格**两种形态——散文里提到的符号名**不算**（否则规范一写解释就假阳）；
+3. 行尾注释先剥掉再匹配（`SCHEDULE.md` 的 `// max(ef)` 曾把 `max` 变成假阳）。
+
+**例外**（`apiSurfaceCheck.allow`，每条带 `reason`）只用于"事实已确认、但方向留给后续裁决"的项；
+登记为例外的点名**每次运行都会打印**——不允许静默吞掉。**反向**（哪些导出算「发布承诺」、哪些是内部）
+不在本检查内，由公开面分类负责。
+
 ## 五、检查
 
 `pnpm docs:check`（`scripts/check-docs.mjs`，已接入 `scripts/gate.mjs`）：
@@ -202,12 +221,14 @@
 | 12 | 入仓原文的**来源块**（必填项 + 内容起始标记）齐备、**入库件正文 `sha256` 复算一致**；提取件保留指向原文的链接且带标记词 ⇒ 不符即 **错误** | 「提取件 ↔ 原文」的对应关系被静默摘掉，或入库正文被回改（改写历史） |
 | 13 | **生成物与来源一致**：`generated: true` 的文档**就地从来源重算**并**逐字节比对**；标了 `generated` 却没有渲染器 ⇒ **错误** | 生成物静默变旧（先跑生成器、后改来源），而检查读的是索引（C7-i 的 `N10`） |
 | 14 | **证据层的「原始读数」所有权**：每条 `-raw.json` 必须在 `evidenceRawCheck.rawOf` 里登记（raw → 与它成对的那份 `.md`）⇒ 未登记**警告**；登记的 raw / of 不存在 ⇒ **错误**；两侧都有 `采集时刻` 时**逐位相等**（否则这份 raw 不是那份 `.md` 的读数）⇒ **错误**；有一侧没有（schema 不同）时**必须写 note** 说明配对依据 ⇒ 否则**警告** | 记录制证据的原始读数变成「文件在、没人指」的孤儿；或 raw 被下一次运行覆盖后，指向悄悄错位（C8-a） |
+| 15 | **包规范的 API 段 ⇔ 实际导出面**（`scripts/check-api-surface.mjs`）：登记的每个 API 段里**点名**的符号必须在包入口（`packages/<pkg>/src/index.ts`）的导出面里 ⇒ 否则**错误**；段标题找不到、候选数掉到登记的 `minCandidates` 以下、入口解析不出导出 ⇒ **错误**；`allow` 缺 `reason` ⇒ **错误**（登记为例外的点名每次运行都打印） | 规范文档化了**不存在**的符号（`templateSheetNames()` 那类）；或"写法变了 ⇒ 检查恒真"的静默失效（纪律见 §4.7，P4-a） |
 
 > **配置键**（唯一真相源都在 `docs/doc-index.json`）：`caps`、`layer`、`contextBudget`、`pendingList`、
 > `linkCheckAllowlist`（每条带 `reason`）、`crossLayerCheck`（`markers` + `allow`）、`constantCheck`
 > （唯一声明处 + 例外）、`externalPathCheck`（`errorScope` + `markers` + `temporaryPathPatterns` + `allow`）、
 > `sourceLineCheck`（`contentStartMarker` + `markers` + `archived` + `extractors`）、
-> `evidenceRawCheck`（`rawOf`：`{ raw, of, note? }`）。
+> `evidenceRawCheck`（`rawOf`：`{ raw, of, note? }`）、
+> `apiSurfaceCheck`（`targets`：`{ package, spec, section, mode, minCandidates, note }` + `allow`：`{ package, symbol, reason }`）。
 >
 > **P1 建的三条检查、D1 的两项守卫、D2 的溯源守卫与 P3 补的两条**（都在同一步 `pnpm docs:check` 里）：
 > ① 契约常量单点声明（`check-constants.mjs`；纪律见 §4.2）；
@@ -216,7 +237,9 @@
 > ④ 仓库外路径与被 gitignore 覆盖的临时路径（`check-docs.mjs` §8d；纪律见 §4.6）；
 > ⑤ 入仓原文的来源行与保真（`check-docs.mjs` §8e；纪律见 §4.6）；
 > ⑥ 生成物与来源一致（`check-docs.mjs` §8f；`GENERATED_ARTIFACTS` 在 `scripts/doc-artifacts.mjs`）；
-> ⑦ 证据层的原始读数所有权（`check-docs.mjs` §8g；C8-a）。
+> ⑦ 证据层的原始读数所有权（`check-docs.mjs` §8g；C8-a）；
+> ⑧ 包规范的 API 段 ⇔ 实际导出面（`check-api-surface.mjs`；纪律见 §4.7；P4-a）。
 >
-> 脚本的 `--selftest`（`node scripts/check-docs.mjs --selftest`，当前 **30 例**；`node scripts/check-constants.mjs --selftest`）
+> 脚本的 `--selftest`（`node scripts/check-docs.mjs --selftest`，当前 **30 例**；`node scripts/check-constants.mjs --selftest`；
+> `node scripts/check-api-surface.mjs --selftest`，当前 **10 例**）
 > 是这几条的**反向保护**：每类判定都配一个「该绿就绿、该红就红」的合成用例。
