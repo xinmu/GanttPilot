@@ -601,6 +601,15 @@
       "note": "P4（交叉印证与验证）各批次的实测、判据、踩坑与计划订正。另开一份而不是追加 06：06 写下 §C6-g 时已 76.8 KB，触到 record 层的 80 KB 上限（同 P2/C7/C8 的规矩：拆分或另开，不抬上限）"
     },
     {
+      "path": "docs/04-refactor/10-批次记录-P5.md",
+      "role": "record",
+      "cap": "record",
+      "layer": "slim",
+      "budgetExempt": true,
+      "layerNote": "v0.2 临时施工计划：不进目标精简层预算，合流后整体删除",
+      "note": "P5（稳定与合并）各批次的实测、判据、踩坑与计划订正。一个阶段一份（同 P2/C7/C8/P4 的规矩，不抬 record 层的 80 KB 上限）；在 P5-b 落地时创建（P5-a 是纯文档批、不留读数）"
+    },
+    {
       "path": "packages/engine/SCHEMA.md",
       "role": "spec",
       "cap": "spec",
