@@ -322,6 +322,13 @@
       "note": "P-56：spike 目录的分级处置（探针代码删、结论与证据留档为归档层；DOC-SPEC §4.5 同步改为两条件/两级）"
     },
     {
+      "path": "docs/00-baseline/裁决R55.md",
+      "role": "register-archive",
+      "cap": "registerArchive",
+      "layer": "archive",
+      "note": "P-57–P-63：重构收口的七条口径登记（6 条迁移登记 + 包版本号一条新裁）——计划目录合流后整体删除，这 6 条决定此前只住在那儿，本文件是它们的永久住所"
+    },
+    {
       "path": "docs/00-baseline/轮次导读.md",
       "role": "plan",
       "cap": "plan",
